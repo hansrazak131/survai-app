@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Traverse Polygon Tertutup FX-5800P — Web Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04070c;--bg2:#070c14;--bg3:#0b1320;--card:#0e1824;--card2:#111e2c;
+  --border:#182840;--border2:#1f3450;--teal:#00e5c8;--teal2:#00b8a0;--teal3:#007a6b;
+  --gold:#f0b429;--blue:#4da6ff;--green:#22c55e;--red:#ef4444;--orange:#f97316;
+  --purple:#a78bfa;--cyan:#22d3ee;--text:#ddeef8;--text2:#7aa8be;--text3:#3d6478;
+  --mono:'JetBrains Mono',monospace;--sans:'Inter',sans-serif;--head:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden}
+body:before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,229,200,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,200,.035) 1px,transparent 1px);background-size:36px 36px}
+body:after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 75% 42% at 50% -5%,rgba(0,180,160,.14),transparent 60%),radial-gradient(ellipse 55% 35% at 100% 0%,rgba(167,139,250,.10),transparent 60%)}
+header{position:sticky;top:0;z-index:50;height:60px;background:rgba(4,7,12,.96);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 24px}
+.logo{display:flex;align-items:center;gap:10px}.logo-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--teal),var(--purple));display:grid;place-items:center;color:#020617;font-family:var(--mono);font-weight:800;font-size:11px;box-shadow:0 0 24px rgba(0,229,200,.2)}
+.logo-name{font-family:var(--head);font-size:16px;font-weight:800;line-height:1}.logo-tag{font-family:var(--mono);font-size:9px;color:var(--teal2);letter-spacing:2px;text-transform:uppercase;margin-top:3px}.hdr-div{width:1px;height:30px;background:var(--border2)}.hdr-title{font-family:var(--head);font-size:13px;color:var(--text2)}.space{flex:1}.ver{font-family:var(--mono);font-size:9px;color:var(--teal);border:1px solid var(--teal3);border-radius:999px;padding:4px 9px}.copy{font-family:var(--mono);font-size:10px;color:var(--text3)}.copy b{color:var(--teal)}
+.wrap{max-width:1500px;margin:0 auto;padding:24px 20px 80px;position:relative;z-index:1}.hero{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-bottom:18px}.hero-card,.card{background:linear-gradient(180deg,rgba(17,30,44,.98),rgba(14,24,36,.98));border:1px solid var(--border);border-radius:16px;position:relative;overflow:hidden}.hero-card{padding:24px}.card{padding:18px;margin-bottom:14px}.hero-card:before,.card:before{content:'';position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,var(--teal),transparent 55%)}
+h1{font-family:var(--head);font-size:34px;line-height:1.05;letter-spacing:-.7px;margin-bottom:10px}.grad{background:linear-gradient(90deg,var(--teal),var(--cyan),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}.hero p{color:var(--text2);line-height:1.8;font-size:14px;max-width:850px}.pill-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.pill{font-family:var(--mono);font-size:10px;color:var(--text2);border:1px solid var(--border2);background:rgba(0,229,200,.04);border-radius:999px;padding:6px 10px}.pill strong{color:var(--teal)}
+.sec-head{display:flex;align-items:center;gap:10px;font-family:var(--head);font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--teal);margin:22px 0 12px}.sec-head:after{content:'';height:1px;flex:1;background:linear-gradient(90deg,var(--border2),transparent)}.sec-num{width:24px;height:24px;border-radius:6px;background:rgba(0,229,200,.10);border:1px solid var(--teal3);display:grid;place-items:center;font-family:var(--mono);font-size:10px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.field{display:flex;flex-direction:column;gap:6px}.flabel{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3)}.finput{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:9px;color:var(--text);font-family:var(--mono);font-size:13px;padding:10px 12px;outline:none;transition:.2s}.finput:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(0,229,200,.10)}select.finput{cursor:pointer}.info-box{font-family:var(--mono);font-size:11px;line-height:1.9;color:var(--text2);background:rgba(0,229,200,.04);border:1px solid rgba(0,229,200,.13);border-radius:12px;padding:12px 14px}.info-box strong{color:var(--teal)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;border:1px solid transparent;padding:10px 16px;font-family:var(--mono);font-size:12px;font-weight:800;cursor:pointer;transition:.18s}.btn-calc{background:var(--teal);border-color:var(--teal);color:#00120f}.btn-calc:hover{background:var(--teal2);transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,229,200,.24)}.btn-add{background:rgba(0,229,200,.08);border-color:var(--teal3);color:var(--teal)}.btn-exp{background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.25);color:var(--gold)}.btn-red{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25);color:var(--red)}.btn-purple{background:rgba(167,139,250,.09);border-color:rgba(167,139,250,.25);color:var(--purple)}
+.leg-card{background:rgba(11,19,32,.9);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px}.leg-head{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(0,229,200,.035);border-bottom:1px solid var(--border);flex-wrap:wrap}.leg-no{width:30px;height:30px;border-radius:7px;background:rgba(0,229,200,.08);border:1px solid var(--teal3);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--teal);font-weight:800}.leg-input{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:12px;padding:8px 9px;outline:none}.leg-name{min-width:85px}.leg-az{width:118px}.leg-dist{width:118px}.mini{font-family:var(--mono);font-size:10px;color:var(--text3)}.del{margin-left:auto;background:transparent;border:1px solid rgba(239,68,68,.24);color:var(--text3);border-radius:7px;padding:7px 10px;font-family:var(--mono);cursor:pointer}.del:hover{color:var(--red);background:rgba(239,68,68,.08)}
+.leg-live{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-top:1px solid var(--border)}.live-item{padding:9px 12px;border-right:1px solid var(--border);font-family:var(--mono);font-size:11px}.live-item:last-child{border-right:0}.live-lbl{display:block;color:var(--text3);font-size:9px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}.live-val{color:var(--text2);font-weight:700}.good{color:var(--green)!important}.bad{color:var(--red)!important}.warn{color:var(--orange)!important}.teal{color:var(--teal)!important}.gold{color:var(--gold)!important}.purple{color:var(--purple)!important}.blue{color:var(--blue)!important}
+.results{display:none}.results.on{display:block}.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:16px}.scard{background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:14px 15px;position:relative;overflow:hidden}.scard:before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--teal);opacity:.7}.scard.gold:before{background:var(--gold)}.scard.red:before{background:var(--red)}.scard.green:before{background:var(--green)}.scard.purple:before{background:var(--purple)}.scard.blue:before{background:var(--blue)}.scard-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}.scard-val{font-family:var(--mono);font-size:21px;font-weight:800;line-height:1}.scard-note{font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.6;margin-top:6px}.badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-family:var(--mono);font-size:10px;font-weight:800}.badge-ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:var(--green)}.badge-fail{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:var(--red)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:14px}.tab{background:transparent;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--text3);font-family:var(--mono);font-size:11px;padding:9px 15px;cursor:pointer}.tab.on{color:var(--teal);border-bottom-color:var(--teal)}.pane{display:none}.pane.on{display:block}.tbl-wrap{overflow:auto}.rtbl{width:100%;border-collapse:collapse;min-width:1050px}.rtbl th{background:var(--bg2);color:var(--text3);border:1px solid var(--border);font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:8px 7px;text-align:center}.rtbl td{border:1px solid var(--border);font-family:var(--mono);font-size:11px;padding:7px;text-align:center}.rtbl td.left{text-align:left;color:var(--teal);font-weight:800}.rtbl tr.total td{background:rgba(0,229,200,.05);color:var(--teal);font-weight:800}.rtbl td.pos{color:#7dd3fc}.rtbl td.neg{color:#fda4af}.canvas-wrap{display:grid;grid-template-columns:1fr 330px;gap:14px}.map-panel{background:#08111d;border:1px solid var(--border);border-radius:12px;padding:12px;min-height:560px}canvas{width:100%;height:520px;background:radial-gradient(circle at 50% 50%,rgba(0,229,200,.035),rgba(4,7,12,.96) 70%);border:1px solid var(--border2);border-radius:10px}.legend{font-family:var(--mono);font-size:10px;color:var(--text2);line-height:2}.codebox{white-space:pre-wrap;background:#050914;border:1px solid var(--border2);border-radius:12px;padding:14px;color:#a7f3d0;font-family:var(--mono);font-size:11px;line-height:1.7;max-height:500px;overflow:auto}.print-head{display:none}
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:18px 24px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2}footer b{color:var(--teal)}
+@media(max-width:1050px){.hero,.canvas-wrap{grid-template-columns:1fr}.grid-4,.grid-3{grid-template-columns:1fr 1fr}.leg-live{grid-template-columns:1fr 1fr}.hdr-title{display:none}}@media(max-width:620px){header{padding:0 12px}.copy{display:none}.wrap{padding:16px 12px 60px}.grid-4,.grid-3{grid-template-columns:1fr}.leg-head{align-items:flex-start}.del{margin-left:0}.leg-az,.leg-dist,.leg-name{width:100%}h1{font-size:26px}}
+@media print{body{background:white;color:#111}body:before,body:after,header,.btn-row,.tabs,.hero,.sec-head:after{display:none}.wrap{max-width:none;padding:0}.card,.hero-card,.leg-card,.map-panel{border:1px solid #888;background:white;color:#111;box-shadow:none}.results{display:block}.pane{display:block}.pane:not(.printable){display:block}.print-head{display:block;margin-bottom:14px}.rtbl th,.rtbl td{color:#111;border-color:#999}.scard{background:white}.codebox{color:#111;background:white}.finput,.leg-input{border:1px solid #999;color:#111;background:white}}
+</style>
+<link rel="stylesheet" href="../shared-home-theme.css" />
+
+<style id="light-clean-theme-no-header-footer">
+:root{
+  --bg:#f6f8fb;
+  --bg2:#ffffff;
+  --bg3:#f1f5f9;
+  --card:#ffffff;
+  --card2:#f8fafc;
+  --border:#dbe5ef;
+  --border2:#cbd5e1;
+  --teal:#0f766e;
+  --teal2:#0d9488;
+  --teal3:#99f6e4;
+  --gold:#b7791f;
+  --blue:#1d4ed8;
+  --green:#15803d;
+  --red:#b91c1c;
+  --orange:#c2410c;
+  --purple:#6d28d9;
+  --cyan:#0891b2;
+  --text:#0f172a;
+  --text2:#334155;
+  --text3:#64748b;
+}
+html,body{background:var(--bg)!important;color:var(--text)!important;}
+body:before{background-image:linear-gradient(rgba(15,23,42,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.045) 1px,transparent 1px)!important;}
+body:after{background:radial-gradient(ellipse 75% 42% at 50% -5%,rgba(20,184,166,.10),transparent 62%),radial-gradient(ellipse 55% 35% at 100% 0%,rgba(37,99,235,.08),transparent 60%)!important;}
+header,footer{display:none!important;}
+.wrap{padding-top:22px!important;}
+.hero-card,.card{background:linear-gradient(180deg,#ffffff,#f8fafc)!important;border:1px solid var(--border)!important;box-shadow:0 14px 34px rgba(15,23,42,.06)!important;}
+.hero p,.info-box,.legend,.mini,.scard-note,.live-val{color:var(--text2)!important;}
+.flabel,.scard-lbl,.live-lbl,.rtbl th,.copy,.hdr-title{color:var(--text3)!important;}
+h1,.logo-name,.scard-val,.rtbl td,.tab,.codebox{color:var(--text)!important;}
+.grad{background:linear-gradient(90deg,#0f766e,#0891b2,#1d4ed8)!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important;}
+.pill,.info-box{background:#f0fdfa!important;border-color:#ccfbf1!important;color:var(--text2)!important;}
+.pill strong,.info-box strong,.sec-head,.teal,.tab.on,.rtbl td.left{color:var(--teal)!important;}
+.sec-num,.leg-no{background:#ccfbf1!important;border-color:#99f6e4!important;color:var(--teal)!important;}
+.finput,.leg-input,select.finput{background:#ffffff!important;border:1px solid var(--border2)!important;color:var(--text)!important;box-shadow:none!important;}
+.finput::placeholder,.leg-input::placeholder{color:#94a3b8!important;}
+.finput:focus,.leg-input:focus{border-color:var(--teal)!important;box-shadow:0 0 0 3px rgba(15,118,110,.12)!important;}
+.leg-card{background:#ffffff!important;border:1px solid var(--border)!important;box-shadow:0 10px 26px rgba(15,23,42,.05)!important;}
+.leg-head{background:#f8fafc!important;border-bottom:1px solid var(--border)!important;}
+.leg-live{border-top:1px solid var(--border)!important;}
+.live-item{border-right:1px solid var(--border)!important;background:#ffffff!important;}
+.scard{background:#ffffff!important;border:1px solid var(--border)!important;box-shadow:0 10px 26px rgba(15,23,42,.05)!important;}
+.tabs{border-bottom:1px solid var(--border)!important;}
+.tab{color:var(--text3)!important;}
+.tab.on{color:var(--teal)!important;border-bottom-color:var(--teal)!important;}
+.tbl-wrap{background:#ffffff!important;}
+.rtbl th{background:#f1f5f9!important;color:#334155!important;border:1px solid var(--border)!important;}
+.rtbl td{background:#ffffff!important;color:#0f172a!important;border:1px solid var(--border)!important;}
+.rtbl tr.total td{background:#ecfeff!important;color:#0f766e!important;}
+.rtbl td.pos{color:#0369a1!important;}
+.rtbl td.neg{color:#b91c1c!important;}
+.map-panel{background:#ffffff!important;border:1px solid var(--border)!important;}
+canvas{background:#ffffff!important;border:1px solid var(--border2)!important;}
+.codebox{background:#ffffff!important;border:1px solid var(--border2)!important;color:#0f172a!important;}
+.good{color:#15803d!important}.bad{color:#b91c1c!important}.warn{color:#c2410c!important}.gold{color:#b7791f!important}.purple{color:#6d28d9!important}.blue{color:#1d4ed8!important}
+.btn-calc{background:#0f766e!important;border-color:#0f766e!important;color:#ffffff!important;}
+.btn-add{background:#ecfdf5!important;border-color:#99f6e4!important;color:#0f766e!important;}
+.btn-exp{background:#fffbeb!important;border-color:#fde68a!important;color:#92400e!important;}
+.btn-red{background:#fef2f2!important;border-color:#fecaca!important;color:#b91c1c!important;}
+.btn-purple{background:#f5f3ff!important;border-color:#ddd6fe!important;color:#6d28d9!important;}
+.del{background:#ffffff!important;color:#64748b!important;border-color:#fecaca!important;}
+.del:hover{background:#fef2f2!important;color:#b91c1c!important;}
+@media print{header,footer{display:none!important;}body{background:#ffffff!important;color:#111827!important;}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-card">
+      
+      <p></p>
+      <div class="pill-row"><span class="pill"><strong>DDMMSS</strong> converter built-in</span><span class="pill"><strong>Bowditch</strong> adjustment</span><span class="pill"><strong>Canvas</strong> sketsa peta</span><span class="pill"><strong>CSV</strong> export</span><span class="pill"><strong>Print</strong> laporan</span></div>
+    </div>
+    <div class="hero-card">
+      <div class="info-box"><strong>Format Azimuth:</strong><br>45°30′15″ boleh ditulis <strong>45.3015</strong> atau <strong>45 30 15</strong> atau <strong>45.504167</strong> jika pilih decimal degree.<br><br><strong>Rumus:</strong> ΔN = D × cos(Az), ΔE = D × sin(Az). Koreksi Bowditch dibagi proporsional berdasarkan panjang sisi.</div>
+    </div>
+  </div>
+
+  <div class="sec-head"><span class="sec-num">01</span>Konfigurasi Proyek</div>
+  <div class="card">
+    <div class="grid-4">
+      <div class="field"><label class="flabel">Nama Proyek</label><input id="project" class="finput" value="Traverse Polygon Tertutup — Contoh Lapangan"></div>
+      <div class="field"><label class="flabel">Titik Awal</label><input id="startPoint" class="finput" value="BM-01"></div>
+      <div class="field"><label class="flabel">Northing Awal / N1</label><input id="n0" class="finput" type="number" step="any" value="1000.000"></div>
+      <div class="field"><label class="flabel">Easting Awal / E1</label><input id="e0" class="finput" type="number" step="any" value="1000.000"></div>
+      <div class="field"><label class="flabel">Northing Tutup / N2</label><input id="nClose" class="finput" type="number" step="any" value="1000.000"></div>
+      <div class="field"><label class="flabel">Easting Tutup / E2</label><input id="eClose" class="finput" type="number" step="any" value="1000.000"></div>
+      <div class="field"><label class="flabel">Format Azimuth</label><select id="angleMode" class="finput"><option value="dms" selected>DD.MMSS / DD MM SS</option><option value="dec">Decimal Degree</option></select></div>
+      <div class="field"><label class="flabel">Toleransi Linear</label><select id="tolMode" class="finput"><option value="3000">1 : 3.000 — Konstruksi biasa</option><option value="5000" selected>1 : 5.000 — Detail/topografi</option><option value="10000">1 : 10.000 — Lebih teliti</option><option value="custom">Custom</option></select></div>
+      <div class="field"><label class="flabel">Custom Toleransi 1 : X</label><input id="tolCustom" class="finput" type="number" step="1" value="5000"></div>
+      <div class="field"><label class="flabel">Metode Koreksi</label><select id="adjMode" class="finput"><option value="bowditch" selected>Bowditch / Compass Rule</option><option value="none">Tanpa koreksi</option></select></div>
+      <div class="field"><label class="flabel">Desimal Koordinat</label><input id="decimals" class="finput" type="number" step="1" min="2" max="5" value="3"></div>
+      <div class="field"><label class="flabel">Skala Grid Peta</label><select id="gridMode" class="finput"><option value="auto" selected>Auto</option><option value="25">25 m</option><option value="50">50 m</option><option value="100">100 m</option></select></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-purple" onclick="loadSample()">↯ Isi Contoh Data</button><button class="btn btn-add" onclick="addLeg()">＋ Tambah Sisi</button><button class="btn btn-calc" onclick="calculate()">⟳ Hitung Traverse</button><button class="btn btn-exp" onclick="exportCSV()">↓ Export CSV</button><button class="btn btn-exp" onclick="window.print()">⎙ Print Laporan</button><button class="btn btn-red" onclick="resetAll()">↺ Reset</button></div>
+  </div>
+
+  <div class="sec-head"><span class="sec-num">02</span>Input Sisi Polygon</div>
+  <div class="info-box"><strong>Petunjuk:</strong> Isi titik <strong>Dari</strong> dan <strong>Ke</strong>, masukkan azimuth sisi dan jarak horizontal. Untuk polygon tertutup, titik terakhir harus kembali ke titik awal atau koordinat penutup N2/E2.</div>
+  <div id="legs"></div>
+
+  <div id="results" class="results">
+    <div class="sec-head"><span class="sec-num">03</span>Output Laporan</div>
+    <div class="card">
+      <div class="print-head"><h2>Traverse Polygon Tertutup</h2><p id="printMeta"></p></div>
+      <div id="summary" class="summary-grid"></div>
+      <div class="tabs"><button class="tab on" onclick="showPane('rekap',this)">Rekap Hitungan</button><button class="tab" onclick="showPane('koordinat',this)">Koordinat Final</button><button class="tab" onclick="showPane('peta',this)">Sketsa Peta</button><button class="tab" onclick="showPane('casio',this)">Program Casio</button></div>
+      <div id="pane-rekap" class="pane on tbl-wrap"></div>
+      <div id="pane-koordinat" class="pane tbl-wrap"></div>
+      <div id="pane-peta" class="pane">
+        <div class="canvas-wrap"><div class="map-panel"><canvas id="mapCanvas" width="1200" height="760"></canvas></div><div class="map-panel"><div class="legend" id="mapLegend"></div></div></div>
+      </div>
+      <div id="pane-casio" class="pane"><div class="codebox" id="casioBox"></div></div>
+    </div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (v,d=3)=> Number.isFinite(v)?v.toFixed(d):'—';
+const sgn = (v,d=3)=> Number.isFinite(v)?(v>=0?'+':'')+v.toFixed(d):'—';
+let legCounter = 0, lastResult = null;
+const sampleLegs = [
+  {from:'BM-01',to:'P-02',az:'45.0000',dist:120.000},
+  {from:'P-02',to:'P-03',az:'135.0000',dist:80.000},
+  {from:'P-03',to:'P-04',az:'225.0000',dist:120.000},
+  {from:'P-04',to:'BM-01',az:'315.0000',dist:80.000}
+];
+function parseAngle(str){
+  const mode=$('angleMode').value; if(str==null)return 0; str=String(str).trim(); if(!str)return 0;
+  if(mode==='dec') return normDeg(parseFloat(str.replace(',','.'))||0);
+  if(str.includes(' ')){
+    const p=str.split(/\s+/).map(x=>parseFloat(x.replace(',','.'))||0); return normDeg((p[0]||0)+(p[1]||0)/60+(p[2]||0)/3600);
+  }
+  const x=parseFloat(str.replace(',','.'))||0; const deg=Math.trunc(x); const q=(x-deg)*100; const min=Math.trunc(q+1e-8); const sec=(q-min)*100; return normDeg(deg+min/60+sec/3600);
+}
+function normDeg(d){d=d%360;if(d<0)d+=360;return d}
+function degToDMS(deg){deg=normDeg(deg);const d=Math.floor(deg);const mFloat=(deg-d)*60;const m=Math.floor(mFloat);const s=(mFloat-m)*60;return `${d}°${String(m).padStart(2,'0')}'${s.toFixed(2).padStart(5,'0')}"`}
+function rad(d){return d*Math.PI/180}
+function val(id){return parseFloat($(id).value)||0}
+function addLeg(data={}){
+  const idx=legCounter++; const id='leg_'+idx; const div=document.createElement('div'); div.className='leg-card'; div.id=id;
+  div.innerHTML=`<div class="leg-head"><span class="leg-no">${String(idx+1).padStart(2,'0')}</span><span class="mini">DARI</span><input class="leg-input leg-name" id="${id}_from" value="${data.from||''}" placeholder="BM-01"><span class="mini">KE</span><input class="leg-input leg-name" id="${id}_to" value="${data.to||''}" placeholder="P-02"><span class="mini">AZ</span><input class="leg-input leg-az" id="${id}_az" value="${data.az||''}" placeholder="45.3015" oninput="updateLive('${id}')"><span class="mini">DIST</span><input class="leg-input leg-dist" id="${id}_dist" type="number" step="any" value="${data.dist||''}" placeholder="120.000" oninput="updateLive('${id}')"><button class="del" onclick="removeLeg('${id}')">✕ Hapus</button></div><div class="leg-live"><div class="live-item"><span class="live-lbl">Azimuth Decimal</span><span id="${id}_azdec" class="live-val">—</span></div><div class="live-item"><span class="live-lbl">Azimuth DMS</span><span id="${id}_azdms" class="live-val">—</span></div><div class="live-item"><span class="live-lbl">ΔN Raw</span><span id="${id}_dn" class="live-val">—</span></div><div class="live-item"><span class="live-lbl">ΔE Raw</span><span id="${id}_de" class="live-val">—</span></div><div class="live-item"><span class="live-lbl">Status</span><span id="${id}_status" class="live-val">Input</span></div></div>`;
+  $('legs').appendChild(div); updateLive(id);
+}
+function removeLeg(id){$(id)?.remove();renumberLegs()}
+function renumberLegs(){[...document.querySelectorAll('.leg-card .leg-no')].forEach((e,i)=>e.textContent=String(i+1).padStart(2,'0'))}
+function updateLive(id){
+  const az=parseAngle($(`${id}_az`).value); const D=val(`${id}_dist`); const dn=D*Math.cos(rad(az)); const de=D*Math.sin(rad(az));
+  $(`${id}_azdec`).textContent=fmt(az,6)+'°'; $(`${id}_azdms`).textContent=degToDMS(az); $(`${id}_dn`).textContent=sgn(dn,4)+' m'; $(`${id}_de`).textContent=sgn(de,4)+' m';
+  const ok=D>0; $(`${id}_status`).textContent=ok?'✓ Siap':'Belum lengkap'; $(`${id}_status`).className='live-val '+(ok?'good':'warn');
+}
+function readLegs(){return [...document.querySelectorAll('.leg-card')].map((el,i)=>{const id=el.id; const az=parseAngle($(`${id}_az`).value); const dist=val(`${id}_dist`); return {no:i+1,id,from:$(`${id}_from`).value.trim()||`P-${i+1}`,to:$(`${id}_to`).value.trim()||`P-${i+2}`,azInput:$(`${id}_az`).value.trim(),az,dist,dn:dist*Math.cos(rad(az)),de:dist*Math.sin(rad(az))};}).filter(x=>x.dist>0)}
+function calculate(){
+  const legs=readLegs(); if(legs.length<3){alert('Minimal 3 sisi untuk polygon tertutup.');return}
+  const n0=val('n0'), e0=val('e0'), nClose=val('nClose'), eClose=val('eClose'), dec=Math.min(5,Math.max(2,parseInt($('decimals').value)||3));
+  const sumD=legs.reduce((a,l)=>a+l.dist,0), sumDN=legs.reduce((a,l)=>a+l.dn,0), sumDE=legs.reduce((a,l)=>a+l.de,0);
+  const fN=nClose-(n0+sumDN), fE=eClose-(e0+sumDE); const linErr=Math.hypot(fN,fE); const precision=linErr>0?sumD/linErr:Infinity; const tolRatio=$('tolMode').value==='custom'?(val('tolCustom')||5000):parseFloat($('tolMode').value); const passed=precision>=tolRatio;
+  let n=n0,e=e0; const coordsRaw=[{pt:$('startPoint').value||legs[0].from,N:n,E:e,type:'start'}];
+  legs.forEach(l=>{n+=l.dn;e+=l.de;coordsRaw.push({pt:l.to,N:n,E:e,type:'raw',leg:l});});
+  let nAdj=n0,eAdj=e0; const coordsAdj=[{pt:$('startPoint').value||legs[0].from,N:nAdj,E:eAdj,type:'start'}];
+  legs.forEach(l=>{l.cN=$('adjMode').value==='bowditch'?fN*(l.dist/sumD):0; l.cE=$('adjMode').value==='bowditch'?fE*(l.dist/sumD):0; l.dnAdj=l.dn+l.cN; l.deAdj=l.de+l.cE; nAdj+=l.dnAdj; eAdj+=l.deAdj; coordsAdj.push({pt:l.to,N:nAdj,E:eAdj,type:'adj',leg:l});});
+  const areaRaw=Math.abs(shoelace(coordsRaw)); const areaAdj=Math.abs(shoelace(coordsAdj));
+  lastResult={legs,coordsRaw,coordsAdj,n0,e0,nClose,eClose,sumD,sumDN,sumDE,fN,fE,linErr,precision,tolRatio,passed,areaRaw,areaAdj,dec,project:$('project').value,startPoint:$('startPoint').value};
+  renderAll(lastResult); $('results').classList.add('on'); setTimeout(()=>drawMap(lastResult),50); $('results').scrollIntoView({behavior:'auto'});
+}
+function shoelace(coords){let area=0;for(let i=0;i<coords.length-1;i++){area+=coords[i].E*coords[i+1].N-coords[i+1].E*coords[i].N;}return area/2}
+function renderAll(r){renderSummary(r);renderRekap(r);renderCoords(r);renderCasio();$('printMeta').textContent=`${r.project} | Total jarak ${fmt(r.sumD,r.dec)} m | Ketelitian 1:${Number.isFinite(r.precision)?Math.round(r.precision):'∞'}`}
+function renderSummary(r){$('summary').innerHTML=`<div class="scard"><div class="scard-lbl">Total Jarak</div><div class="scard-val teal">${fmt(r.sumD,r.dec)} m</div><div class="scard-note">Jumlah seluruh sisi polygon</div></div><div class="scard gold"><div class="scard-lbl">Salah Penutup Linear</div><div class="scard-val gold">${fmt(r.linErr,r.dec)} m</div><div class="scard-note">fN=${sgn(r.fN,r.dec)} · fE=${sgn(r.fE,r.dec)}</div></div><div class="scard ${r.passed?'green':'red'}"><div class="scard-lbl">Ketelitian</div><div class="scard-val ${r.passed?'good':'bad'}">1 : ${Number.isFinite(r.precision)?Math.round(r.precision).toLocaleString('id-ID'):'∞'}</div><div class="scard-note">Syarat minimal 1:${r.tolRatio.toLocaleString('id-ID')} <span class="badge ${r.passed?'badge-ok':'badge-fail'}">${r.passed?'✓ LULUS':'✗ GAGAL'}</span></div></div><div class="scard purple"><div class="scard-lbl">Luas Terkoreksi</div><div class="scard-val purple">${fmt(r.areaAdj,2)} m²</div><div class="scard-note">${fmt(r.areaAdj/10000,4)} ha</div></div><div class="scard blue"><div class="scard-lbl">Titik Akhir Koreksi</div><div class="scard-val blue">N ${fmt(r.coordsAdj.at(-1).N,r.dec)}</div><div class="scard-note">E ${fmt(r.coordsAdj.at(-1).E,r.dec)} · target N/E tutup</div></div>`}
+function renderRekap(r){let html=`<table class="rtbl"><thead><tr><th>No</th><th>Dari</th><th>Ke</th><th>Azimuth</th><th>Jarak</th><th>ΔN Raw</th><th>ΔE Raw</th><th>Corr N</th><th>Corr E</th><th>ΔN Adj</th><th>ΔE Adj</th></tr></thead><tbody>`;r.legs.forEach(l=>{html+=`<tr><td>${l.no}</td><td class="left">${l.from}</td><td class="left">${l.to}</td><td>${degToDMS(l.az)}<br><span class="mini">${fmt(l.az,6)}°</span></td><td>${fmt(l.dist,r.dec)}</td><td class="${l.dn>=0?'pos':'neg'}">${sgn(l.dn,r.dec)}</td><td class="${l.de>=0?'pos':'neg'}">${sgn(l.de,r.dec)}</td><td class="${l.cN>=0?'pos':'neg'}">${sgn(l.cN,r.dec+1)}</td><td class="${l.cE>=0?'pos':'neg'}">${sgn(l.cE,r.dec+1)}</td><td class="${l.dnAdj>=0?'pos':'neg'}">${sgn(l.dnAdj,r.dec)}</td><td class="${l.deAdj>=0?'pos':'neg'}">${sgn(l.deAdj,r.dec)}</td></tr>`});html+=`<tr class="total"><td colspan="4">JUMLAH</td><td>${fmt(r.sumD,r.dec)}</td><td>${sgn(r.sumDN,r.dec)}</td><td>${sgn(r.sumDE,r.dec)}</td><td>${sgn(r.fN,r.dec)}</td><td>${sgn(r.fE,r.dec)}</td><td colspan="2">f Linear = ${fmt(r.linErr,r.dec)} m</td></tr></tbody></table>`;$('pane-rekap').innerHTML=html}
+function renderCoords(r){let html=`<table class="rtbl"><thead><tr><th>No</th><th>Titik</th><th>N Raw</th><th>E Raw</th><th>N Terkoreksi</th><th>E Terkoreksi</th><th>Keterangan</th></tr></thead><tbody>`;r.coordsAdj.forEach((c,i)=>{const raw=r.coordsRaw[i]||{};html+=`<tr><td>${i+1}</td><td class="left">${c.pt}</td><td>${fmt(raw.N,r.dec)}</td><td>${fmt(raw.E,r.dec)}</td><td class="teal">${fmt(c.N,r.dec)}</td><td class="teal">${fmt(c.E,r.dec)}</td><td>${i===0?'Titik awal':i===r.coordsAdj.length-1?'Titik penutup':'Titik polygon'}</td></tr>`});html+=`</tbody></table>`;$('pane-koordinat').innerHTML=html}
+function drawMap(r){const cvs=$('mapCanvas'),ctx=cvs.getContext('2d'),W=cvs.width,H=cvs.height;ctx.clearRect(0,0,W,H);ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);const pts=r.coordsAdj;let minE=Math.min(...pts.map(p=>p.E)),maxE=Math.max(...pts.map(p=>p.E)),minN=Math.min(...pts.map(p=>p.N)),maxN=Math.max(...pts.map(p=>p.N));let pad=80;let dx=maxE-minE||1,dy=maxN-minN||1;let scale=Math.min((W-2*pad)/dx,(H-2*pad)/dy);function X(E){return pad+(E-minE)*scale}function Y(N){return H-pad-(N-minN)*scale}ctx.strokeStyle='rgba(15,23,42,.10)';ctx.lineWidth=1;const grid=gridStep(dx,dy);for(let e=Math.floor(minE/grid)*grid;e<=maxE+grid;e+=grid){ctx.beginPath();ctx.moveTo(X(e),pad/2);ctx.lineTo(X(e),H-pad/2);ctx.stroke()}for(let n=Math.floor(minN/grid)*grid;n<=maxN+grid;n+=grid){ctx.beginPath();ctx.moveTo(pad/2,Y(n));ctx.lineTo(W-pad/2,Y(n));ctx.stroke()}ctx.beginPath();pts.forEach((p,i)=>{if(i===0)ctx.moveTo(X(p.E),Y(p.N));else ctx.lineTo(X(p.E),Y(p.N));});ctx.strokeStyle='#0f766e';ctx.lineWidth=4;ctx.shadowColor='rgba(0,229,200,.35)';ctx.shadowBlur=12;ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='rgba(15,118,110,.08)';ctx.beginPath();pts.forEach((p,i)=>{if(i===0)ctx.moveTo(X(p.E),Y(p.N));else ctx.lineTo(X(p.E),Y(p.N));});ctx.closePath();ctx.fill();pts.forEach((p,i)=>{const x=X(p.E),y=Y(p.N);ctx.beginPath();ctx.arc(x,y,i===0?8:6,0,Math.PI*2);ctx.fillStyle=i===0?'#b7791f':'#0f766e';ctx.fill();ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#0f172a';ctx.font='700 20px JetBrains Mono';ctx.fillText(p.pt,x+10,y-10);ctx.font='13px JetBrains Mono';ctx.fillStyle='#334155';ctx.fillText(`N ${fmt(p.N,r.dec)}  E ${fmt(p.E,r.dec)}`,x+10,y+10);});ctx.fillStyle='#0f172a';ctx.font='800 24px Syne';ctx.fillText(r.project,34,42);ctx.font='13px JetBrains Mono';ctx.fillStyle='#334155';ctx.fillText(`Area: ${fmt(r.areaAdj,2)} m² | Total distance: ${fmt(r.sumD,r.dec)} m | Precision 1:${Number.isFinite(r.precision)?Math.round(r.precision):'∞'}`,34,66);$('mapLegend').innerHTML=`<b class="teal">LEGENDA SKETSA PETA</b><br>Garis cyan = polygon terkoreksi Bowditch<br>Titik emas = titik awal / BM<br>Titik cyan = titik polygon<br>Grid peta = ${grid} m<br><br><b class="gold">RINGKASAN LAPORAN</b><br>Nama proyek: ${r.project}<br>Total jarak: ${fmt(r.sumD,r.dec)} m<br>Salah penutup: ${fmt(r.linErr,r.dec)} m<br>Ketelitian: 1:${Number.isFinite(r.precision)?Math.round(r.precision).toLocaleString('id-ID'):'∞'}<br>Status: <span class="${r.passed?'good':'bad'}">${r.passed?'LULUS':'GAGAL'}</span><br>Luas: ${fmt(r.areaAdj,2)} m² / ${fmt(r.areaAdj/10000,4)} ha<br><br><b class="purple">Catatan:</b><br>Sketsa ini otomatis mengikuti koordinat hasil koreksi. Untuk output final CAD/GIS, gunakan tabel koordinat terkoreksi atau export CSV.`}
+function gridStep(dx,dy){if($('gridMode').value!=='auto')return parseFloat($('gridMode').value);const m=Math.max(dx,dy);if(m<=100)return 10;if(m<=250)return 25;if(m<=600)return 50;return 100}
+function showPane(name,btn){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));$(`pane-${name}`).classList.add('on');btn.classList.add('on');if(name==='peta'&&lastResult)setTimeout(()=>drawMap(lastResult),50)}
+function exportCSV(){if(!lastResult){alert('Hitung dulu sebelum export CSV.');return}const r=lastResult;let csv='No,Dari,Ke,Azimuth_Decimal,Azimuth_DMS,Jarak,DeltaN_Raw,DeltaE_Raw,Corr_N,Corr_E,DeltaN_Adjusted,DeltaE_Adjusted\n';r.legs.forEach(l=>csv += [l.no,l.from,l.to,l.az.toFixed(8),degToDMS(l.az),l.dist,l.dn,l.de,l.cN,l.cE,l.dnAdj,l.deAdj].join(',')+'\n');csv+='\nTitik,N_Raw,E_Raw,N_Adjusted,E_Adjusted\n';r.coordsAdj.forEach((c,i)=>{const raw=r.coordsRaw[i]||{};csv += [c.pt,raw.N,raw.E,c.N,c.E].join(',')+'\n'});download(csv,'traverse_polygon_tertutup.csv','text/csv')}
+function download(content,name,type){const blob=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function renderCasio(){$('casioBox').textContent=`Filename: DDMMSS\nFrac (P)x100 →Q\nInt (P)+Int (Q):60+(Q-Int (Q)):36→P\nReturn\n\nFilename: TRAVERSE / POLYGON TERTUTUP\nProgram Casio fx-5800P pada narasi asli dipakai untuk memasukkan N1, E1, N2, E2, BRG, DIST, lalu menghitung komponen koordinat, salah penutup, jarak total, luas, dan pilihan display/adjust.\n\nVersi web ini sudah menggabungkan fungsi tersebut:\n1. DDMMSS converter otomatis.\n2. ΔN = DIST × cos(Azimuth).\n3. ΔE = DIST × sin(Azimuth).\n4. Salah penutup fN dan fE.\n5. Koreksi Bowditch per sisi.\n6. Koordinat final dan sketsa peta laporan.\n\nCatatan: browser memakai satuan derajat untuk input, meter untuk jarak/koordinat, dan luas m².`}
+function loadSample(){$('project').value='Contoh Polygon Tertutup 4 Sisi — Area Konstruksi';$('startPoint').value='BM-01';$('n0').value='1000.000';$('e0').value='1000.000';$('nClose').value='1000.000';$('eClose').value='1000.000';$('legs').innerHTML='';legCounter=0;sampleLegs.forEach(addLeg);calculate()}
+function resetAll(){if(!confirm('Reset semua input?'))return;$('legs').innerHTML='';legCounter=0;lastResult=null;$('results').classList.remove('on');addLeg({from:'BM-01',to:'P-02'});addLeg({from:'P-02',to:'P-03'});addLeg({from:'P-03',to:'BM-01'})}
+window.addEventListener('load',()=>loadSample());
+</script>
+<!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
+<style id="survai-embed-style">
+@media all{
+  html.survai-embed body{background:#f8fafc !important;}
+  /* Sembunyikan chrome bawaan file lama saat di-embed dalam shell baru */
+  html.survai-embed .status,
+  html.survai-embed .statusbar,
+  html.survai-embed .status-bar,
+  html.survai-embed .phone .status,
+  html.survai-embed .notch,
+  html.survai-embed .home-indicator{display:none !important;}
+  /* Header/hero/topbar internal: disembunyikan karena shell sudah punya header */
+  html.survai-embed > body header.header,
+  html.survai-embed > body .topbar,
+  html.survai-embed > body header.topbar,
+  html.survai-embed > body .app-header,
+  html.survai-embed .hero-row .back,
+  html.survai-embed .top-mini .back,
+  html.survai-embed .mf-head .back,
+  html.survai-embed .wl-head .back,
+  html.survai-embed .ct-top .ct-back{ }
+  /* Lepas frame "HP" agar konten full-width di Android */
+  html.survai-embed .phone,
+  html.survai-embed .mobile-frame{max-width:100% !important;width:100% !important;margin:0 !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;min-height:auto !important;}
+  html.survai-embed .app{max-width:100% !important;padding-bottom:24px !important;}
+  /* Anti horizontal-overflow di Android */
+  html.survai-embed,html.survai-embed body{overflow-x:hidden !important;}
+  html.survai-embed table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Target sentuh & tinggi input minimal */
+  html.survai-embed input,html.survai-embed select,html.survai-embed button{min-height:44px;}
+  /* Error box global untuk safeRun */
+  .survai-error-box{margin-top:12px;padding:12px 14px;border-radius:14px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:14px;line-height:1.5;}
+}
+</style>
+<script id="survai-embed-script">
+(function(){
+  try{
+    var p = new URLSearchParams(location.search);
+    if(p.get('embed')==='1'){ document.documentElement.classList.add('survai-embed'); }
+  }catch(e){}
+  // Wrapper aman untuk tombol hitung (opsional dipakai shell); TIDAK mengganti function asli
+  window.safeRun = window.safeRun || function(fn, targetId){
+    try{
+      if(typeof fn==='function'){ return fn(); }
+      if(typeof fn==='string' && typeof window[fn]==='function'){ return window[fn](); }
+      throw new Error('Function tidak ditemukan.');
+    }catch(error){
+      console.error(error);
+      var t = (targetId&&document.getElementById(targetId)) || document.querySelector('.result') || document.querySelector('.panel') || document.body;
+      var box=document.createElement('div'); box.className='survai-error-box';
+      box.innerHTML='<b>Perhitungan gagal diproses.</b><br>'+(error&&error.message?error.message:error);
+      t.appendChild(box);
+    }
+  };
+  // Beritahu shell bahwa submenu sudah siap (untuk hideLoading yang lebih akurat)
+  window.addEventListener('load',function(){
+    try{ if(parent && parent!==window){ parent.postMessage({survai:'ready'}, '*'); } }catch(e){}
+  });
+})();
+</script>
+<!-- ==== END SURVAI EMBED MODE ==== -->
+
+</body>
+</html>

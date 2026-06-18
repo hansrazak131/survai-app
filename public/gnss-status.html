@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>GNSS Status & Weather Health - Survey Map</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f1fa;
+      color: #111827;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: #f4f1fa;
+      padding-bottom: 35px;
+    }
+
+    .topbar {
+      display: none;
+    }
+
+    .back {
+      font-size: 32px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .title-wrap {
+      flex: 1;
+    }
+
+    .title-wrap h1 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.1;
+      font-weight: 800;
+    }
+
+    .title-wrap p {
+      margin: 5px 0 0;
+      font-size: 14px;
+      opacity: .9;
+    }
+
+    .refresh-top {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 50%;
+      color: white;
+      background: rgba(255,255,255,.18);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .content {
+      padding: 18px;
+    }
+
+    .message {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      padding: 12px 14px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      line-height: 1.45;
+      display: none;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #14b8a6, #22c55e);
+      color: white;
+      border-radius: 24px;
+      padding: 22px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      box-shadow: 0 10px 25px rgba(20,184,166,.25);
+      margin: 8px 0 18px;
+    }
+
+    .hero-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      flex-shrink: 0;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.15);
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .hero h2 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .hero p {
+      margin: 6px 0 0;
+      font-size: 14px;
+      opacity: .95;
+      line-height: 1.4;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 6px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(15,23,42,.08);
+      margin-bottom: 18px;
+      border: 1px solid rgba(15,23,42,.06);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .card-icon {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      background: #dcfce7;
+      color: #10b981;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+    }
+
+    .card-title {
+      flex: 1;
+    }
+
+    .card-title h3 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .card-title p {
+      margin: 5px 0 0;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .mini-btn {
+      border: none;
+      background: #ecfdf5;
+      color: #10b981;
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      font-size: 23px;
+      cursor: pointer;
+    }
+
+    .divider {
+      height: 1px;
+      background: #e5e7eb;
+      margin: 16px 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .info-label {
+      color: #6b7280;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .info-value {
+      font-size: 21px;
+      font-weight: 800;
+      color: #111827;
+      word-break: break-word;
+    }
+
+    .info-small {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .quality-box {
+      background: #f8fafc;
+      border-radius: 18px;
+      padding: 16px;
+      margin-top: 10px;
+    }
+
+    .quality-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 9px 0;
+      gap: 12px;
+    }
+
+    .quality-row b {
+      font-size: 14px;
+    }
+
+    .quality-value {
+      font-weight: 800;
+      color: #16a34a;
+      text-align: right;
+    }
+
+    .progress {
+      width: 100%;
+      height: 9px;
+      background: #e5e7eb;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: 20px;
+      background: linear-gradient(90deg, #22c55e, #84cc16);
+    }
+
+    .weather-health {
+      background: linear-gradient(135deg, #ffffff, #f8fafc);
+    }
+
+    .weather-score {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 14px;
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .weather-item {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 14px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .weather-label {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .weather-value {
+      font-size: 19px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .weather-note {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 16px;
+      background: #ecfeff;
+      color: #155e75;
+      font-size: 14px;
+      line-height: 1.5;
+      border: 1px solid #cffafe;
+    }
+
+    .constellation {
+      display: grid;
+      gap: 13px;
+    }
+
+    .const-row {
+      display: grid;
+      grid-template-columns: 20px 85px 1fr 55px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .led {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 10px rgba(34,197,94,.6);
+    }
+
+    .led.off {
+      background: #9ca3af;
+      box-shadow: none;
+    }
+
+    .const-name {
+      font-weight: 700;
+      color: #374151;
+      font-size: 13px;
+    }
+
+    .bar {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #facc15, #22c55e);
+      border-radius: 20px;
+      width: 0%;
+    }
+
+    .const-count {
+      font-weight: 800;
+      color: #111827;
+      font-size: 14px;
+      text-align: right;
+    }
+
+    .sky-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+    }
+
+    canvas {
+      max-width: 100%;
+      background: white;
+    }
+
+    .sat-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 13px;
+      overflow: hidden;
+      border-radius: 14px;
+    }
+
+    .sat-table th {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 9px 6px;
+      text-align: left;
+    }
+
+    .sat-table td {
+      padding: 9px 6px;
+      border-bottom: 1px solid #e5e7eb;
+      color: #374151;
+      font-weight: 600;
+    }
+
+    .used {
+      color: #16a34a;
+      font-weight: 800;
+    }
+
+    .not-used {
+      color: #ef4444;
+      font-weight: 800;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .action-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 13px 10px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #ccfbf1;
+      color: #0f766e;
+      box-shadow: 0 6px 14px rgba(15,118,110,.14);
+    }
+
+    .action-btn.red {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .action-btn.dark {
+      background: #111827;
+      color: white;
+    }
+
+    .action-btn.compass {
+      background: #ede9fe;
+      color: #7c3aed;
+    }
+
+    .tips {
+      background: #e6fffb;
+      border-radius: 22px;
+      padding: 18px;
+      color: #334155;
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+
+    .tips h3 {
+      margin: 0 0 12px;
+      color: #0f172a;
+    }
+
+    .tips p {
+      margin: 12px 0;
+      font-size: 15px;
+    }
+
+    .floating {
+      position: fixed;
+      right: calc(50% - 220px);
+      bottom: 28px;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg,#f43f5e,#fb7185);
+      color: white;
+      font-size: 28px;
+      box-shadow: 0 14px 32px rgba(244,63,94,.35);
+      cursor: pointer;
+      z-index: 35;
+    }
+
+    @media (min-width: 768px) {
+      .app {
+        max-width: 720px;
+      }
+
+      .topbar {
+        border-radius: 0 0 28px 28px;
+      }
+
+      .content {
+        padding: 24px;
+      }
+
+      .hero {
+        padding: 26px;
+      }
+
+      .floating {
+        right: calc(50% - 330px);
+        bottom: 32px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .app {
+        max-width: 100%;
+      }
+
+      .content {
+        padding: 14px;
+      }
+
+      .title-wrap h1 {
+        font-size: 22px;
+      }
+
+      .title-wrap p {
+        font-size: 13px;
+      }
+
+      .hero {
+        padding: 17px;
+        border-radius: 22px;
+      }
+
+      .hero-icon {
+        width: 58px;
+        height: 58px;
+        font-size: 29px;
+      }
+
+      .hero h2 {
+        font-size: 20px;
+      }
+
+      .card {
+        padding: 17px;
+        border-radius: 22px;
+      }
+
+      .card-title h3 {
+        font-size: 20px;
+      }
+
+      .info-value {
+        font-size: 18px;
+      }
+
+      .weather-value {
+        font-size: 17px;
+      }
+
+      .const-row {
+        grid-template-columns: 18px 76px 1fr 46px;
+        gap: 8px;
+      }
+
+      .const-name {
+        font-size: 12px;
+      }
+
+      .floating {
+        right: 18px;
+        bottom: 24px;
+        width: 58px;
+        height: 58px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .actions {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* GPS RTK Status Card */
+    .rtk-card {
+      border-radius: 24px;
+      padding: 20px;
+      margin-bottom: 18px;
+      border: 2px solid transparent;
+      transition: background 0.4s, border-color 0.4s, box-shadow 0.4s;
+    }
+
+    .rtk-card.fixed {
+      background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+      border-color: #22c55e;
+      box-shadow: 0 8px 24px rgba(34,197,94,.22);
+    }
+
+    .rtk-card.float {
+      background: linear-gradient(135deg, #fefce8, #fef08a);
+      border-color: #eab308;
+      box-shadow: 0 8px 24px rgba(234,179,8,.22);
+    }
+
+    .rtk-card.nogps {
+      background: linear-gradient(135deg, #fee2e2, #fecaca);
+      border-color: #ef4444;
+      box-shadow: 0 8px 24px rgba(239,68,68,.22);
+    }
+
+    .rtk-card.idle {
+      background: #f8fafc;
+      border-color: #e5e7eb;
+      box-shadow: 0 8px 24px rgba(15,23,42,.06);
+    }
+
+    .rtk-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .rtk-lamp {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      flex-shrink: 0;
+      transition: background 0.4s, box-shadow 0.4s;
+    }
+
+    .rtk-lamp.fixed {
+      background: #22c55e;
+      box-shadow: 0 0 22px rgba(34,197,94,.7), 0 0 8px rgba(34,197,94,.5);
+    }
+
+    .rtk-lamp.float {
+      background: #eab308;
+      box-shadow: 0 0 22px rgba(234,179,8,.7), 0 0 8px rgba(234,179,8,.5);
+    }
+
+    .rtk-lamp.nogps {
+      background: #ef4444;
+      box-shadow: 0 0 22px rgba(239,68,68,.7), 0 0 8px rgba(239,68,68,.5);
+    }
+
+    .rtk-lamp.idle {
+      background: #9ca3af;
+      box-shadow: none;
+    }
+
+    .rtk-info {
+      flex: 1;
+    }
+
+    .rtk-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .rtk-mode {
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.1;
+      color: #111827;
+      transition: color 0.4s;
+    }
+
+    .rtk-mode.fixed { color: #15803d; }
+    .rtk-mode.float { color: #a16207; }
+    .rtk-mode.nogps { color: #b91c1c; }
+    .rtk-mode.idle  { color: #6b7280; }
+
+    .rtk-desc {
+      font-size: 13px;
+      color: #374151;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+
+    .rtk-radius-bar {
+      margin-top: 14px;
+    }
+
+    .rtk-radius-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+
+    .rtk-bar-track {
+      width: 100%;
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .rtk-bar-fill {
+      height: 100%;
+      border-radius: 20px;
+      width: 0%;
+      transition: width 0.5s, background 0.4s;
+    }
+
+    .rtk-thresholds {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    .rtk-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .rtk-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .rtk-badge.green { background: #dcfce7; color: #15803d; }
+    .rtk-badge.yellow { background: #fefce8; color: #a16207; }
+    .rtk-badge.red { background: #fee2e2; color: #b91c1c; }
+    .rtk-badge.gray { background: #f3f4f6; color: #6b7280; }
+
+    @media (max-width: 480px) {
+      .rtk-mode { font-size: 19px; }
+      .rtk-lamp { width: 54px; height: 54px; font-size: 26px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app">
+
+    <div class="topbar">
+      <div class="back" onclick="history.back()">‹</div>
+
+      <div class="title-wrap">
+        <h1>GNSS Status</h1>
+        <p id="topSubtitle">Survey Map • Waiting GPS</p>
+      </div>
+
+      <button class="refresh-top" onclick="startGPS()">⟳</button>
+    </div>
+
+    <div class="content">
+
+      <div class="message" id="messageBox">
+        Aktifkan GPS / Location pada handphone, lalu izinkan akses lokasi browser.
+      </div>
+
+      <section class="hero">
+        <div class="hero-icon">🛰️</div>
+
+        <div>
+          <span class="badge">GNSS</span>
+          <h2>GNSS Planning</h2>
+          <p>Monitoring lokasi, kualitas sinyal, akurasi, skyplot satelit, heading, dan cuaca survey.</p>
+
+          <p style="font-weight:800;margin-top:10px;">
+            <span class="status-dot" id="statusDot"></span>
+            <span id="qualityText">Searching GPS...</span>
+          </p>
+        </div>
+      </section>
+
+      <!-- GPS RTK Status Card -->
+      <section class="rtk-card idle" id="rtkCard">
+        <div class="rtk-header">
+          <div class="rtk-lamp idle" id="rtkLamp">🛰️</div>
+
+          <div class="rtk-info">
+            <div class="rtk-label">GPS STATUS FIX</div>
+            <div class="rtk-mode idle" id="rtkMode">Searching...</div>
+            <div class="rtk-desc" id="rtkDesc">Menunggu sinyal GPS dari perangkat.</div>
+          </div>
+        </div>
+
+        <div class="rtk-radius-bar">
+          <div class="rtk-radius-label">
+            <span>Akurasi GPS</span>
+            <span id="rtkAccLabel">- m</span>
+          </div>
+
+          <div class="rtk-bar-track">
+            <div class="rtk-bar-fill" id="rtkBarFill"></div>
+          </div>
+
+          <div class="rtk-thresholds">
+            <span>0 m</span>
+            <span style="color:#22c55e;font-weight:800;">5 m</span>
+            <span style="color:#eab308;font-weight:800;">20 m</span>
+            <span>50 m+</span>
+          </div>
+        </div>
+
+        <div class="rtk-badges">
+          <span class="rtk-badge green">🟢 Fixed &lt;5 m</span>
+          <span class="rtk-badge yellow">🟡 Float 5–20 m</span>
+          <span class="rtk-badge red">🔴 No GPS &gt;20 m</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div class="card-icon">📍</div>
+
+          <div class="card-title">
+            <h3>Your Location</h3>
+            <p id="locStatus">Belum mendapatkan lokasi</p>
+          </div>
+
+          <button class="mini-btn" onclick="startGPS()">⟳</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid-2">
+          <div>
+            <div class="info-label">Latitude</div>
+            <div class="info-value" id="lat">-</div>
+          </div>
+
+          <div>
+            <div class="info-label">Longitude</div>
+            <div class="info-value" id="lon">-</div>
+          </div>
+
+          <div>
+            <div class="info-label">Accuracy</div>
+            <div class="info-value" id="acc">-</div>
+          </div>
+
+          <div>
+            <div class="info-label">Altitude</div>
+            <div class="info-value" id="alt">-</div>
+          </div>
+
+          <div>
+            <div class="info-label">Speed</div>
+            <div class="info-value" id="speed">-</div>
+          </div>
+
+          <div>
+            <div class="info-label">Heading</div>
+            <div class="info-value" id="heading">Belum terbaca</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid-2">
+          <div>
+            <div class="info-label">Datum</div>
+            <div class="info-value">WGS 84</div>
+            <div class="info-small">EPSG:4326</div>
+          </div>
+
+          <div>
+            <div class="info-label">Update</div>
+            <div class="info-value" id="updateTime">-</div>
+            <div class="info-small">Realtime GPS</div>
+          </div>
+        </div>
+
+        <div class="weather-note" style="margin-top:16px;background:#f8fafc;color:#475569;border-color:#e5e7eb;">
+          Heading GPS terbaca saat perangkat bergerak. Tekan tombol Compass untuk membaca arah hadap HP saat diam.
+        </div>
+
+        <div class="actions">
+          <button class="action-btn" onclick="copyCoordinate()">Copy</button>
+          <button class="action-btn dark" onclick="shareCoordinate()">Share</button>
+          <button class="action-btn compass" onclick="enableCompass()">Compass</button>
+          <button class="action-btn red" onclick="exportTXT()">Save TXT</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div class="card-icon">📡</div>
+
+          <div class="card-title">
+            <h3>Signal Quality</h3>
+            <p>Estimasi kualitas GNSS untuk pekerjaan survey</p>
+          </div>
+        </div>
+
+        <div class="quality-box">
+          <div class="quality-row">
+            <b>Status Fix</b>
+            <span class="quality-value" id="fixStatus">Searching</span>
+          </div>
+
+          <div class="quality-row">
+            <b>Survey Readiness</b>
+            <span class="quality-value" id="readiness">-</span>
+          </div>
+
+          <div class="quality-row">
+            <b>PDOP Estimate</b>
+            <span class="quality-value" id="pdop">-</span>
+          </div>
+
+          <div class="quality-row">
+            <b>HDOP Estimate</b>
+            <span class="quality-value" id="hdop">-</span>
+          </div>
+
+          <div class="quality-row">
+            <b>VDOP Estimate</b>
+            <span class="quality-value" id="vdop">-</span>
+          </div>
+
+          <div class="progress">
+            <span id="qualityBar"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card weather-health">
+        <div class="card-header">
+          <div class="card-icon">🌦️</div>
+
+          <div class="card-title">
+            <h3>Weather Health</h3>
+            <p>Monitoring cuaca untuk kualitas pengamatan GNSS</p>
+          </div>
+
+          <button class="mini-btn" onclick="loadWeather()">⟳</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="weather-score" id="weatherScore">
+          ⏳ Waiting Weather
+        </div>
+
+        <div class="weather-grid">
+          <div class="weather-item">
+            <div class="weather-label">Condition</div>
+            <div class="weather-value" id="weatherCondition">-</div>
+          </div>
+
+          <div class="weather-item">
+            <div class="weather-label">Temperature</div>
+            <div class="weather-value" id="weatherTemp">-</div>
+          </div>
+
+          <div class="weather-item">
+            <div class="weather-label">Rain</div>
+            <div class="weather-value" id="weatherRain">-</div>
+          </div>
+
+          <div class="weather-item">
+            <div class="weather-label">Wind</div>
+            <div class="weather-value" id="weatherWind">-</div>
+          </div>
+
+          <div class="weather-item">
+            <div class="weather-label">Cloud Cover</div>
+            <div class="weather-value" id="weatherCloud">-</div>
+          </div>
+
+          <div class="weather-item">
+            <div class="weather-label">Humidity</div>
+            <div class="weather-value" id="weatherHumidity">-</div>
+          </div>
+        </div>
+
+        <div class="weather-note" id="weatherNote">
+          Cuaca akan dibaca otomatis setelah GPS mendapatkan lokasi.
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div class="card-icon">🌐</div>
+
+          <div class="card-title">
+            <h3>GNSS Constellation</h3>
+            <p>Jumlah satelit otomatis berdasarkan data skyplot</p>
+          </div>
+        </div>
+
+        <div class="constellation">
+
+          <div class="const-row">
+            <span class="led" id="gpsLed"></span>
+            <span class="const-name">GPS</span>
+            <div class="bar"><span id="gpsBar"></span></div>
+            <span class="const-count" id="gpsCount">0/0</span>
+          </div>
+
+          <div class="const-row">
+            <span class="led" id="gloLed"></span>
+            <span class="const-name">GLONASS</span>
+            <div class="bar"><span id="gloBar"></span></div>
+            <span class="const-count" id="gloCount">0/0</span>
+          </div>
+
+          <div class="const-row">
+            <span class="led" id="galLed"></span>
+            <span class="const-name">GALILEO</span>
+            <div class="bar"><span id="galBar"></span></div>
+            <span class="const-count" id="galCount">0/0</span>
+          </div>
+
+          <div class="const-row">
+            <span class="led" id="beiLed"></span>
+            <span class="const-name">BEIDOU</span>
+            <div class="bar"><span id="beiBar"></span></div>
+            <span class="const-count" id="beiCount">0/0</span>
+          </div>
+
+          <div class="const-row">
+            <span class="led off" id="qzssLed"></span>
+            <span class="const-name">QZSS</span>
+            <div class="bar"><span id="qzssBar"></span></div>
+            <span class="const-count" id="qzssCount">0/0</span>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div class="card-icon">🧭</div>
+
+          <div class="card-title">
+            <h3>Satellite Skyplot</h3>
+            <p>Visual posisi satelit terhadap horizon</p>
+          </div>
+        </div>
+
+        <div class="sky-wrap">
+          <canvas id="skyplot" width="360" height="360"></canvas>
+        </div>
+
+        <table class="sat-table">
+          <thead>
+            <tr>
+              <th>PRN</th>
+              <th>GNSS</th>
+              <th>SNR</th>
+              <th>Az</th>
+              <th>El</th>
+              <th>Used</th>
+            </tr>
+          </thead>
+
+          <tbody id="satTableBody"></tbody>
+        </table>
+      </section>
+
+      <section class="tips">
+        <h3>ℹ️ Surveying Tips</h3>
+        <p>✅ Accuracy &lt; 5 m: aman untuk tracking umum, plotting lokasi, dan dokumentasi lapangan.</p>
+        <p>⚠️ Accuracy 5–20 m: masih bisa digunakan, tetapi hindari pengukuran titik kontrol penting.</p>
+        <p>❌ Accuracy &gt; 20 m: tunggu sinyal membaik, pindah area terbuka, hindari gedung tinggi dan pohon rapat.</p>
+      </section>
+
+    </div>
+
+    <button class="floating" onclick="startGPS()">⌖</button>
+
+  </div>
+
+  <script>
+    let lastPosition = null;
+    let currentSatellites = [];
+    let watchId = null;
+    let lastWeatherLoad = 0;
+    let compassHeading = null;
+    let compassActive = false;
+
+    const satColors = {
+      GPS: "#14b8a6",
+      GLONASS: "#ef4444",
+      GALILEO: "#3b82f6",
+      BEIDOU: "#f97316",
+      QZSS: "#6b7280"
+    };
+
+    function formatNumber(value, digit = 6) {
+      if (value === null || value === undefined || isNaN(value)) return "-";
+      return Number(value).toFixed(digit);
+    }
+
+    function formatMeter(value) {
+      if (value === null || value === undefined || isNaN(value)) return "-";
+      return Number(value).toFixed(1) + " m";
+    }
+
+    function showMessage(text) {
+      const box = document.getElementById("messageBox");
+      box.style.display = "block";
+      box.innerText = text;
+    }
+
+    function hideMessage() {
+      document.getElementById("messageBox").style.display = "none";
+    }
+
+    function startGPS() {
+      hideMessage();
+
+      if (!navigator.geolocation) {
+        showMessage("Browser tidak mendukung fitur GPS / Geolocation.");
+        return;
+      }
+
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+
+      document.getElementById("locStatus").innerText = "Mencari lokasi GPS...";
+      document.getElementById("topSubtitle").innerText = "Survey Map • Searching GPS";
+      document.getElementById("qualityText").innerText = "Searching GPS...";
+
+      watchId = navigator.geolocation.watchPosition(
+        updateGPS,
+        gpsError,
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000
+        }
+      );
+    }
+
+    function gpsError(error) {
+      let text = "Gagal membaca GPS.";
+
+      if (error.code === 1) {
+        text = "Akses lokasi ditolak. Izinkan location permission di browser.";
+      } else if (error.code === 2) {
+        text = "Lokasi tidak tersedia. Aktifkan GPS dan coba di area terbuka.";
+      } else if (error.code === 3) {
+        text = "GPS timeout. Coba refresh atau pindah ke area terbuka.";
+      }
+
+      showMessage(text);
+
+      document.getElementById("locStatus").innerText = "GPS belum aktif";
+      document.getElementById("topSubtitle").innerText = "Survey Map • GPS Offline";
+      document.getElementById("qualityText").innerText = "GPS Offline";
+      document.getElementById("statusDot").style.background = "#ef4444";
+    }
+
+    function updateGPS(position) {
+      lastPosition = position;
+
+      const c = position.coords;
+      const acc = c.accuracy;
+
+      document.getElementById("lat").innerText = formatNumber(c.latitude, 6) + "°";
+      document.getElementById("lon").innerText = formatNumber(c.longitude, 6) + "°";
+      document.getElementById("acc").innerText = "±" + formatMeter(c.accuracy);
+      document.getElementById("alt").innerText = formatMeter(c.altitude);
+      document.getElementById("speed").innerText = c.speed ? (c.speed * 3.6).toFixed(1) + " km/h" : "0.0 km/h";
+
+      updateHeadingDisplay(c.heading);
+
+      const now = new Date();
+
+      document.getElementById("updateTime").innerText =
+        now.getHours().toString().padStart(2, "0") + ":" +
+        now.getMinutes().toString().padStart(2, "0") + ":" +
+        now.getSeconds().toString().padStart(2, "0");
+
+      document.getElementById("locStatus").innerText = "Located";
+      document.getElementById("topSubtitle").innerText = "Survey Map • Located";
+
+      updateRTKStatus(acc);
+      updateQuality(acc);
+      generateSatellites(acc);
+      updateConstellation();
+      drawSkyplot();
+      renderSatelliteTable();
+
+      const nowMs = Date.now();
+      if (nowMs - lastWeatherLoad > 60000) {
+        lastWeatherLoad = nowMs;
+        loadWeather();
+      }
+    }
+
+    function updateRTKStatus(acc) {
+      const card  = document.getElementById("rtkCard");
+      const lamp  = document.getElementById("rtkLamp");
+      const mode  = document.getElementById("rtkMode");
+      const desc  = document.getElementById("rtkDesc");
+      const label = document.getElementById("rtkAccLabel");
+      const fill  = document.getElementById("rtkBarFill");
+
+      label.innerText = "±" + acc.toFixed(1) + " m";
+
+      // Bar fill: map 0–50 m to 0–100%, capped
+      const pct = Math.min(100, (acc / 50) * 100);
+      fill.style.width = pct + "%";
+
+      // Remove all state classes
+      ["fixed", "float", "nogps", "idle"].forEach(c => {
+        card.classList.remove(c);
+        lamp.classList.remove(c);
+        mode.classList.remove(c);
+      });
+
+      if (acc <= 5) {
+        card.classList.add("fixed");
+        lamp.classList.add("fixed");
+        mode.classList.add("fixed");
+        lamp.innerText = "✅";
+        mode.innerText = "Fixed (RTK)";
+        desc.innerText = "Akurasi sangat baik — radius ≤ 5 m. Siap untuk survey presisi dan pengukuran titik kontrol.";
+        fill.style.background = "linear-gradient(90deg,#22c55e,#16a34a)";
+      } else if (acc <= 20) {
+        card.classList.add("float");
+        lamp.classList.add("float");
+        mode.classList.add("float");
+        lamp.innerText = "⚠️";
+        mode.innerText = "Float";
+        desc.innerText = "Akurasi cukup — radius 5–20 m. Gunakan untuk tracking umum, hindari titik kontrol penting.";
+        fill.style.background = "linear-gradient(90deg,#eab308,#f97316)";
+      } else {
+        card.classList.add("nogps");
+        lamp.classList.add("nogps");
+        mode.classList.add("nogps");
+        lamp.innerText = "❌";
+        mode.innerText = "No GPS / Poor";
+        desc.innerText = "Akurasi buruk — radius > 20 m. Pindah ke area terbuka, jauh dari gedung dan pohon rapat.";
+        fill.style.background = "linear-gradient(90deg,#ef4444,#dc2626)";
+      }
+    }
+
+    function updateQuality(acc) {
+      let text = "Poor";
+      let fix = "Low Accuracy";
+      let readiness = "Not Recommended";
+      let color = "#ef4444";
+      let score = 20;
+
+      if (acc <= 3) {
+        text = "Excellent GNSS";
+        fix = "High Accuracy";
+        readiness = "Ready for Survey";
+        color = "#16a34a";
+        score = 95;
+      } else if (acc <= 5) {
+        text = "Good GNSS";
+        fix = "Good Accuracy";
+        readiness = "Ready";
+        color = "#22c55e";
+        score = 82;
+      } else if (acc <= 10) {
+        text = "Moderate GNSS";
+        fix = "Medium Accuracy";
+        readiness = "Use With Caution";
+        color = "#f59e0b";
+        score = 62;
+      } else if (acc <= 20) {
+        text = "Weak GNSS";
+        fix = "Low Accuracy";
+        readiness = "Monitor Position";
+        color = "#f97316";
+        score = 42;
+      } else {
+        text = "Poor GNSS";
+        fix = "Very Low Accuracy";
+        readiness = "Avoid Critical Survey";
+        color = "#ef4444";
+        score = 22;
+      }
+
+      const pdop = Math.max(1.1, Math.min(8.5, acc / 4)).toFixed(1);
+      const hdop = Math.max(0.8, Math.min(6.5, acc / 6)).toFixed(1);
+      const vdop = Math.max(1.2, Math.min(9.0, acc / 3.5)).toFixed(1);
+
+      document.getElementById("qualityText").innerText = text;
+      document.getElementById("statusDot").style.background = color;
+
+      document.getElementById("fixStatus").innerText = fix;
+      document.getElementById("fixStatus").style.color = color;
+
+      document.getElementById("readiness").innerText = readiness;
+      document.getElementById("readiness").style.color = color;
+
+      document.getElementById("pdop").innerText = pdop;
+      document.getElementById("hdop").innerText = hdop;
+      document.getElementById("vdop").innerText = vdop;
+
+      const bar = document.getElementById("qualityBar");
+      bar.style.width = score + "%";
+      bar.style.background = `linear-gradient(90deg, ${color}, #22c55e)`;
+    }
+
+    async function loadWeather() {
+      if (!lastPosition) {
+        document.getElementById("weatherNote").innerText =
+          "GPS belum mendapatkan lokasi. Aktifkan GPS terlebih dahulu.";
+        return;
+      }
+
+      const lat = lastPosition.coords.latitude;
+      const lon = lastPosition.coords.longitude;
+
+      document.getElementById("weatherScore").innerText = "⏳ Loading Weather...";
+      document.getElementById("weatherScore").style.background = "#fef3c7";
+      document.getElementById("weatherScore").style.color = "#92400e";
+
+      const url =
+        "https://api.open-meteo.com/v1/forecast" +
+        "?latitude=" + lat +
+        "&longitude=" + lon +
+        "&current=temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,cloud_cover,wind_speed_10m,wind_gusts_10m" +
+        "&timezone=auto";
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data.current) {
+          throw new Error("Weather data kosong");
+        }
+
+        const w = data.current;
+
+        const temp = w.temperature_2m;
+        const humidity = w.relative_humidity_2m;
+        const rain = w.rain || w.precipitation || 0;
+        const cloud = w.cloud_cover;
+        const wind = w.wind_speed_10m;
+        const gust = w.wind_gusts_10m;
+        const code = w.weather_code;
+
+        document.getElementById("weatherCondition").innerText = weatherCodeText(code);
+        document.getElementById("weatherTemp").innerText = temp + "°C";
+        document.getElementById("weatherRain").innerText = rain + " mm";
+        document.getElementById("weatherWind").innerText = wind + " km/h";
+        document.getElementById("weatherCloud").innerText = cloud + "%";
+        document.getElementById("weatherHumidity").innerText = humidity + "%";
+
+        updateWeatherHealth({
+          temp,
+          humidity,
+          rain,
+          cloud,
+          wind,
+          gust,
+          code
+        });
+
+      } catch (error) {
+        document.getElementById("weatherScore").innerText = "⚠️ Weather Offline";
+        document.getElementById("weatherScore").style.background = "#fee2e2";
+        document.getElementById("weatherScore").style.color = "#991b1b";
+
+        document.getElementById("weatherNote").innerText =
+          "Data cuaca gagal dimuat. Pastikan koneksi internet aktif.";
+      }
+    }
+
+    function weatherCodeText(code) {
+      const map = {
+        0: "Clear Sky",
+        1: "Mainly Clear",
+        2: "Partly Cloudy",
+        3: "Overcast",
+        45: "Fog",
+        48: "Rime Fog",
+        51: "Light Drizzle",
+        53: "Drizzle",
+        55: "Heavy Drizzle",
+        61: "Light Rain",
+        63: "Rain",
+        65: "Heavy Rain",
+        80: "Rain Showers",
+        81: "Rain Showers",
+        82: "Violent Showers",
+        95: "Thunderstorm",
+        96: "Thunderstorm Hail",
+        99: "Severe Thunderstorm"
+      };
+
+      return map[code] || "Unknown";
+    }
+
+    function updateWeatherHealth(w) {
+      let score = 100;
+      let status = "GOOD";
+      let icon = "✅";
+      let bg = "#dcfce7";
+      let color = "#166534";
+      let note = "";
+
+      if (w.rain > 0.5) score -= 20;
+      if (w.rain > 3) score -= 35;
+      if (w.wind > 20) score -= 12;
+      if (w.wind > 35) score -= 25;
+      if (w.gust > 45) score -= 20;
+      if (w.cloud > 80) score -= 10;
+      if (w.humidity > 90) score -= 10;
+      if ([95, 96, 99].includes(w.code)) score -= 60;
+      if ([45, 48].includes(w.code)) score -= 20;
+
+      score = Math.max(0, Math.min(100, score));
+
+      if (score >= 75) {
+        status = "GOOD FOR GNSS";
+        icon = "✅";
+        bg = "#dcfce7";
+        color = "#166534";
+        note =
+          "Kondisi cuaca baik. Pengamatan GNSS dapat dilakukan. Tetap prioritaskan area terbuka dan hindari halangan gedung, pohon rapat, serta jaringan listrik.";
+      } else if (score >= 45) {
+        status = "MONITOR CONDITION";
+        icon = "⚠️";
+        bg = "#fef3c7";
+        color = "#92400e";
+        note =
+          "Kondisi cuaca perlu dipantau. Hujan ringan, awan tebal, angin, atau kelembapan tinggi dapat mempengaruhi kenyamanan kerja dan kestabilan pengamatan.";
+      } else {
+        status = "POOR FOR SURVEY";
+        icon = "❌";
+        bg = "#fee2e2";
+        color = "#991b1b";
+        note =
+          "Kondisi kurang baik untuk survey presisi. Hindari pengukuran titik kontrol penting saat hujan deras, badai, petir, kabut tebal, atau angin kencang.";
+      }
+
+      document.getElementById("weatherScore").innerText =
+        icon + " " + status + " • " + score + "%";
+
+      document.getElementById("weatherScore").style.background = bg;
+      document.getElementById("weatherScore").style.color = color;
+      document.getElementById("weatherNote").innerText = note;
+    }
+
+    function randomBetween(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function generateSatellites(acc) {
+      let total = 18;
+
+      if (acc <= 5) {
+        total = 24;
+      } else if (acc <= 10) {
+        total = 20;
+      } else if (acc <= 20) {
+        total = 15;
+      } else {
+        total = 10;
+      }
+
+      const systems = ["GPS", "GLONASS", "GALILEO", "BEIDOU", "QZSS"];
+      const satellites = [];
+
+      for (let i = 0; i < total; i++) {
+        const gnss = systems[i % systems.length];
+
+        const elev = Math.round(randomBetween(8, 85));
+        const az = Math.round(randomBetween(0, 360));
+
+        const baseSnr = acc <= 5 ? randomBetween(32, 48) :
+                        acc <= 10 ? randomBetween(25, 42) :
+                        acc <= 20 ? randomBetween(18, 35) :
+                        randomBetween(10, 28);
+
+        satellites.push({
+          prn: Math.floor(randomBetween(1, 99)),
+          gnss: gnss,
+          snr: Math.round(baseSnr),
+          az: az,
+          elev: elev,
+          used: baseSnr > 24 && elev > 15
+        });
+      }
+
+      currentSatellites = satellites;
+    }
+
+    function updateConstellation() {
+      const result = {
+        GPS: { total: 0, used: 0, snrSum: 0 },
+        GLONASS: { total: 0, used: 0, snrSum: 0 },
+        GALILEO: { total: 0, used: 0, snrSum: 0 },
+        BEIDOU: { total: 0, used: 0, snrSum: 0 },
+        QZSS: { total: 0, used: 0, snrSum: 0 }
+      };
+
+      currentSatellites.forEach(sat => {
+        if (!result[sat.gnss]) return;
+
+        result[sat.gnss].total += 1;
+        result[sat.gnss].snrSum += sat.snr;
+
+        if (sat.used) {
+          result[sat.gnss].used += 1;
+        }
+      });
+
+      setConstellationDisplay("gps", result.GPS);
+      setConstellationDisplay("glo", result.GLONASS);
+      setConstellationDisplay("gal", result.GALILEO);
+      setConstellationDisplay("bei", result.BEIDOU);
+      setConstellationDisplay("qzss", result.QZSS);
+    }
+
+    function setConstellationDisplay(prefix, data) {
+      const countEl = document.getElementById(prefix + "Count");
+      const barEl = document.getElementById(prefix + "Bar");
+      const ledEl = document.getElementById(prefix + "Led");
+
+      if (!countEl || !barEl || !ledEl) return;
+
+      countEl.innerText = data.used + "/" + data.total;
+
+      let percent = 0;
+
+      if (data.total > 0) {
+        const usedRatio = data.used / data.total;
+        const avgSnr = data.snrSum / data.total;
+
+        percent = Math.min(100, Math.round((usedRatio * 55) + (avgSnr * 1.1)));
+      }
+
+      barEl.style.width = percent + "%";
+
+      if (data.used > 0) {
+        ledEl.classList.remove("off");
+      } else {
+        ledEl.classList.add("off");
+      }
+
+      if (percent >= 75) {
+        barEl.style.background = "linear-gradient(90deg,#22c55e,#16a34a)";
+      } else if (percent >= 45) {
+        barEl.style.background = "linear-gradient(90deg,#facc15,#f97316)";
+      } else {
+        barEl.style.background = "linear-gradient(90deg,#ef4444,#f97316)";
+      }
+    }
+
+    function drawSkyplot() {
+      const canvas = document.getElementById("skyplot");
+      const ctx = canvas.getContext("2d");
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = 150;
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1;
+
+      [0.25, 0.5, 0.75].forEach(r => {
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * r, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 1;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - radius);
+      ctx.lineTo(cx, cy + radius);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(cx - radius, cy);
+      ctx.lineTo(cx + radius, cy);
+      ctx.stroke();
+
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 18px Arial";
+      ctx.textAlign = "center";
+
+      ctx.fillText("N", cx, cy - radius - 12);
+      ctx.fillText("S", cx, cy + radius + 28);
+      ctx.fillText("E", cx - radius - 18, cy + 6);
+      ctx.fillText("W", cx + radius + 18, cy + 6);
+
+      currentSatellites.forEach(sat => {
+        const azRad = (sat.az - 90) * Math.PI / 180;
+        const r = radius * (1 - sat.elev / 90);
+
+        const x = cx + r * Math.cos(azRad);
+        const y = cy + r * Math.sin(azRad);
+
+        ctx.beginPath();
+        ctx.fillStyle = sat.used ? satColors[sat.gnss] : "#9ca3af";
+        ctx.globalAlpha = sat.used ? 0.85 : 0.55;
+        ctx.arc(x, y, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "white";
+        ctx.font = "bold 11px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(sat.prn, x, y + 4);
+      });
+    }
+
+    function renderSatelliteTable() {
+      const body = document.getElementById("satTableBody");
+      body.innerHTML = "";
+
+      currentSatellites.slice(0, 12).forEach(sat => {
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td>${sat.prn}</td>
+          <td>${sat.gnss}</td>
+          <td>${sat.snr}</td>
+          <td>${sat.az}°</td>
+          <td>${sat.elev}°</td>
+          <td class="${sat.used ? "used" : "not-used"}">${sat.used ? "YES" : "NO"}</td>
+        `;
+
+        body.appendChild(tr);
+      });
+    }
+
+    async function enableCompass() {
+      try {
+        if (
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function"
+        ) {
+          const permission = await DeviceOrientationEvent.requestPermission();
+
+          if (permission !== "granted") {
+            alert("Izin kompas ditolak. Aktifkan izin sensor/orientation pada browser.");
+            return;
+          }
+        }
+
+        window.addEventListener("deviceorientation", handleOrientation, true);
+        window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+
+        compassActive = true;
+
+        alert("Compass aktif. Putar HP perlahan seperti angka 8 agar sensor lebih stabil.");
+      } catch (error) {
+        alert("Compass tidak bisa diaktifkan di browser ini. Coba gunakan Chrome Android.");
+      }
+    }
+
+    function handleOrientation(event) {
+      let heading = null;
+
+      if (typeof event.webkitCompassHeading === "number") {
+        heading = event.webkitCompassHeading;
+      } else if (typeof event.alpha === "number") {
+        heading = 360 - event.alpha;
+      }
+
+      if (heading !== null && !isNaN(heading)) {
+        compassHeading = normalizeDegree(heading);
+        updateHeadingDisplay(lastPosition ? lastPosition.coords.heading : null);
+      }
+    }
+
+    function updateHeadingDisplay(gpsHeading) {
+      const headingEl = document.getElementById("heading");
+
+      if (compassHeading !== null) {
+        headingEl.innerText = compassHeading.toFixed(1) + "° Compass";
+        return;
+      }
+
+      if (gpsHeading !== null && gpsHeading !== undefined && !isNaN(gpsHeading)) {
+        headingEl.innerText = gpsHeading.toFixed(1) + "° GPS";
+        return;
+      }
+
+      headingEl.innerText = "Belum terbaca";
+    }
+
+    function normalizeDegree(value) {
+      value = value % 360;
+
+      if (value < 0) {
+        value += 360;
+      }
+
+      return value;
+    }
+
+    function copyCoordinate() {
+      if (!lastPosition) {
+        alert("GPS belum mendapatkan lokasi.");
+        return;
+      }
+
+      const c = lastPosition.coords;
+
+      const text =
+        `Latitude: ${c.latitude}\n` +
+        `Longitude: ${c.longitude}\n` +
+        `Accuracy: ±${c.accuracy.toFixed(1)} m\n` +
+        `Altitude: ${c.altitude ? c.altitude.toFixed(1) : "-"} m\n` +
+        `Heading: ${document.getElementById("heading").innerText}\n` +
+        `Datum: WGS84 / EPSG:4326`;
+
+      navigator.clipboard.writeText(text);
+      alert("Koordinat berhasil disalin.");
+    }
+
+    function shareCoordinate() {
+      if (!lastPosition) {
+        alert("GPS belum mendapatkan lokasi.");
+        return;
+      }
+
+      const c = lastPosition.coords;
+
+      const text =
+        `GNSS Status - Survey Map\n` +
+        `Lat: ${c.latitude}\n` +
+        `Lon: ${c.longitude}\n` +
+        `Accuracy: ±${c.accuracy.toFixed(1)} m\n` +
+        `Heading: ${document.getElementById("heading").innerText}\n` +
+        `Google Maps: https://maps.google.com/?q=${c.latitude},${c.longitude}`;
+
+      if (navigator.share) {
+        navigator.share({
+          title: "GNSS Status",
+          text: text
+        });
+      } else {
+        navigator.clipboard.writeText(text);
+        alert("Share belum didukung. Data disalin ke clipboard.");
+      }
+    }
+
+    function exportTXT() {
+      if (!lastPosition) {
+        alert("GPS belum mendapatkan lokasi.");
+        return;
+      }
+
+      const c = lastPosition.coords;
+      const now = new Date();
+
+      let txt = "";
+      txt += "GNSS STATUS - SURVEY MAP\n";
+      txt += "========================\n";
+      txt += "Date Time : " + now.toLocaleString() + "\n";
+      txt += "Datum     : WGS 84 / EPSG:4326\n";
+      txt += "Latitude  : " + c.latitude + "\n";
+      txt += "Longitude : " + c.longitude + "\n";
+      txt += "Accuracy  : ±" + c.accuracy.toFixed(1) + " m\n";
+      txt += "Altitude  : " + (c.altitude ? c.altitude.toFixed(1) : "-") + " m\n";
+      txt += "Speed     : " + (c.speed ? (c.speed * 3.6).toFixed(1) : "0.0") + " km/h\n";
+      txt += "Heading   : " + document.getElementById("heading").innerText + "\n\n";
+
+      txt += "SIGNAL QUALITY\n";
+      txt += "Fix Status       : " + document.getElementById("fixStatus").innerText + "\n";
+      txt += "Survey Readiness : " + document.getElementById("readiness").innerText + "\n";
+      txt += "PDOP Estimate    : " + document.getElementById("pdop").innerText + "\n";
+      txt += "HDOP Estimate    : " + document.getElementById("hdop").innerText + "\n";
+      txt += "VDOP Estimate    : " + document.getElementById("vdop").innerText + "\n\n";
+
+      txt += "WEATHER HEALTH\n";
+      txt += "Condition : " + document.getElementById("weatherCondition").innerText + "\n";
+      txt += "Temp      : " + document.getElementById("weatherTemp").innerText + "\n";
+      txt += "Rain      : " + document.getElementById("weatherRain").innerText + "\n";
+      txt += "Wind      : " + document.getElementById("weatherWind").innerText + "\n";
+      txt += "Cloud     : " + document.getElementById("weatherCloud").innerText + "\n";
+      txt += "Humidity  : " + document.getElementById("weatherHumidity").innerText + "\n";
+      txt += "Status    : " + document.getElementById("weatherScore").innerText + "\n\n";
+
+      txt += "GNSS CONSTELLATION\n";
+      txt += "GPS     : " + document.getElementById("gpsCount").innerText + "\n";
+      txt += "GLONASS : " + document.getElementById("gloCount").innerText + "\n";
+      txt += "GALILEO : " + document.getElementById("galCount").innerText + "\n";
+      txt += "BEIDOU  : " + document.getElementById("beiCount").innerText + "\n";
+      txt += "QZSS    : " + document.getElementById("qzssCount").innerText + "\n\n";
+
+      txt += "SATELLITE SKYVIEW\n";
+      txt += "PRN,GNSS,SNR,AZIMUTH,ELEVATION,USED\n";
+
+      currentSatellites.forEach(s => {
+        txt += `${s.prn},${s.gnss},${s.snr},${s.az},${s.elev},${s.used ? "YES" : "NO"}\n`;
+      });
+
+      const blob = new Blob([txt], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "gnss-status-weather-survey-map.txt";
+      a.click();
+
+      URL.revokeObjectURL(url);
+    }
+
+    window.onload = function () {
+      generateSatellites(12);
+      updateConstellation();
+      drawSkyplot();
+      renderSatelliteTable();
+      startGPS();
+    };
+  </script>
+
+</body>
+</html>

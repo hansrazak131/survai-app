@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Drone Spreading — SurvAI</title>
+<style>
+:root{
+  --navy:#17365f; --blue:#2563eb; --blue-ink:#094cb2; --teal:#14b8a6; --cyan:#06b6d4;
+  --bg:#f8fafc; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --ok:#22c55e; --warn:#eab308; --poor:#f97316; --bad:#ef4444;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+body{padding:14px 14px 60px;overflow-x:hidden;}
+h1,h2,h3{margin:0;}
+button{font-family:inherit;cursor:pointer;}
+.steps{display:flex;gap:6px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none;}
+.steps::-webkit-scrollbar{display:none;}
+.step-pill{flex:0 0 auto;font-size:12px;font-weight:700;padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);white-space:nowrap;}
+.step-pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.step-pill.done{background:#eef4ff;color:var(--blue-ink);border-color:#dbe6ff;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+.card h2{font-size:17px;font-weight:800;margin:0 0 4px;}
+.card .sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.4;}
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.field input,.field select{width:100%;height:48px;border:1.5px solid var(--line);border-radius:12px;padding:0 13px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;background:var(--bg);}
+.field input:focus,.field select:focus{border-color:var(--blue);}
+.field .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.35;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+@media(min-width:560px){.grid2{grid-template-columns:1fr 1fr 1fr;}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:11px;padding:9px 13px;font-size:13.5px;font-weight:600;}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.mode-card{display:flex;flex-direction:column;gap:3px;text-align:left;border:1.5px solid var(--line);background:#fff;border-radius:13px;padding:12px;}
+.mode-card.on{border-color:var(--blue);background:#eff5ff;}
+.mode-card b{font-size:13.5px;} .mode-card span{font-size:11.5px;color:var(--muted);}
+.nav-row{display:flex;gap:10px;margin-bottom:14px;}
+.btn{flex:1;height:50px;border:0;border-radius:13px;font-size:15px;font-weight:700;}
+.btn:active{opacity:.85;}
+.btn.primary{background:linear-gradient(135deg,var(--blue),var(--blue-ink));color:#fff;}
+.btn.ghost{background:#fff;color:var(--muted);border:1.5px solid var(--line);}
+.btn.wide{width:100%;flex:none;}
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:11px 13px;font-size:12px;color:#92400e;line-height:1.5;margin-bottom:12px;}
+.res-card{border-radius:16px;padding:15px;margin-bottom:12px;border:1px solid var(--line);background:#fff;}
+.res-card h3{font-size:15px;font-weight:800;margin:0 0 11px;}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed #eef1f5;font-size:13.5px;}
+.kv:last-child{border-bottom:0;} .kv .k{color:var(--muted);} .kv .v{font-weight:700;text-align:right;}
+.status-banner{border-radius:16px;padding:16px;margin-bottom:12px;color:#fff;font-weight:800;text-align:center;}
+.status-banner .big{font-size:20px;margin-bottom:3px;} .status-banner .small{font-size:12.5px;font-weight:600;opacity:.95;}
+.st-ok{background:linear-gradient(135deg,#16a34a,#22c55e);}
+.st-cond{background:linear-gradient(135deg,#ca8a04,#eab308);}
+.st-warn{background:linear-gradient(135deg,#ea580c,#f97316);}
+.st-bad{background:linear-gradient(135deg,#dc2626,#ef4444);}
+.rec-item{display:flex;gap:9px;padding:8px 0;font-size:13px;line-height:1.45;border-bottom:1px dashed #eef1f5;}
+.rec-item:last-child{border-bottom:0;}
+.rec-item .ic{flex:0 0 auto;width:20px;height:20px;border-radius:6px;background:#eef4ff;color:var(--blue-ink);display:grid;place-items:center;font-size:12px;font-weight:800;}
+.section-screen{display:none;} .section-screen.active{display:block;}
+.hidden{display:none !important;}
+.tray-btns{display:flex;gap:10px;margin-bottom:12px;}
+.tray-btns button{flex:1;height:42px;border:1.5px solid var(--line);background:#fff;border-radius:11px;font-weight:700;font-size:13px;color:var(--blue-ink);}
+</style>
+</head>
+<body>
+<div class="steps" id="stepper"></div>
+
+<!-- 0: Drone & Spreader -->
+<div class="section-screen active" id="dsp-0">
+  <div class="warn-box"><b>ℹ Catatan:</b> Semua dosis bahan berdasarkan input Anda / label produk. Jika spesifikasi drone/spreader tidak lengkap, gunakan Custom Manual Input.</div>
+  <div class="card">
+    <h2>1. Pilih Drone & Spreader</h2>
+    <p class="sub">Pilih sistem spreading. Spesifikasi terisi otomatis bila tersedia.</p>
+    <div class="field"><label>Drone / Spreader</label><select id="dspDrone" onchange="onDspDroneChange()"></select><div class="hint" id="dspDroneHint"></div></div>
+  </div>
+  <div class="nav-row"><button class="btn primary wide" onclick="dspStep(1)">Lanjut</button></div>
+</div>
+
+<!-- 1: Komoditas & Material -->
+<div class="section-screen" id="dsp-1">
+  <div class="card">
+    <h2>2. Komoditas & Material</h2>
+    <div class="field"><label>Komoditas</label><div class="chips" id="dspCommodityChips"></div></div>
+    <div class="field"><label>Material</label><select id="dspMaterial" onchange="onDspMaterialChange()"></select><div class="hint" id="matNote"></div></div>
+    <div class="grid2">
+      <div class="field"><label>Berat Jenis (kg/L)</label><input type="number" id="density" inputmode="decimal"></div>
+      <div class="field"><label>Ukuran Butiran</label><input type="text" id="grain" placeholder="cth: 2-4 mm"></div>
+    </div>
+  </div>
+  <div class="nav-row"><button class="btn ghost" onclick="dspStep(0)">Kembali</button><button class="btn primary" onclick="dspStep(2)">Lanjut</button></div>
+</div>
+
+<!-- 2: Mode -->
+<div class="section-screen" id="dsp-2">
+  <div class="card">
+    <h2>3. Mode Spreading</h2>
+    <p class="sub">Pilih metode penebaran sesuai kebutuhan lahan.</p>
+    <div class="mode-grid" id="dspModeWrap"></div>
+  </div>
+  <div class="nav-row"><button class="btn ghost" onclick="dspStep(1)">Kembali</button><button class="btn primary" onclick="dspStep(3)">Lanjut</button></div>
+</div>
+
+<!-- 3: Lahan -->
+<div class="section-screen" id="dsp-3">
+  <div class="card">
+    <h2>4. Parameter Lahan</h2>
+    <div class="grid2">
+      <div class="field"><label>Luas Lahan (ha)</label><input type="number" id="area" inputmode="decimal" placeholder="cth: 10"></div>
+      <div class="field"><label>Dosis Target (kg/ha)</label><input type="number" id="dose" inputmode="decimal" placeholder="cth: 150"></div>
+      <div class="field"><label>Line Spacing (m)</label><input type="number" id="lineSp" inputmode="decimal" placeholder="default = lebar sebar"></div>
+    </div>
+    <div class="hidden" id="spotFields">
+      <div class="grid2">
+        <div class="field"><label>Luas per Titik (m²)</label><input type="number" id="spotArea" inputmode="decimal" placeholder="utk spot mode"></div>
+        <div class="field"><label>Interval Trigger (detik)</label><input type="number" id="triggerInterval" inputmode="decimal" placeholder="utk time-based"></div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-row"><button class="btn ghost" onclick="dspStep(2)">Kembali</button><button class="btn primary" onclick="dspStep(4)">Lanjut</button></div>
+</div>
+
+<!-- 4: Hopper & Material -->
+<div class="section-screen" id="dsp-4">
+  <div class="card">
+    <h2>5. Parameter Hopper & Material</h2>
+    <div class="grid2">
+      <div class="field"><label>Kapasitas Hopper (kg)</label><input type="number" id="hopper" inputmode="decimal"></div>
+      <div class="field"><label>Lebar Sebar Efektif (m)</label><input type="number" id="width" inputmode="decimal"></div>
+      <div class="field"><label>Discharge Rate (kg/min)</label><input type="number" id="rateKnown" inputmode="decimal"></div>
+    </div>
+    <div class="hint">Discharge rate opsional. Jika diisi, speed dihitung dari rate. Jika kosong, rate dihitung dari speed × lebar.</div>
+  </div>
+  <div class="nav-row"><button class="btn ghost" onclick="dspStep(3)">Kembali</button><button class="btn primary" onclick="dspStep(5)">Lanjut</button></div>
+</div>
+
+<!-- 5: Terbang -->
+<div class="section-screen" id="dsp-5">
+  <div class="card">
+    <h2>6. Parameter Terbang</h2>
+    <div class="grid2">
+      <div class="field"><label>Speed Drone (m/s)</label><input type="number" id="speed" inputmode="decimal" placeholder="cth: 4"></div>
+      <div class="field"><label>Tinggi Terbang (m)</label><input type="number" id="height" inputmode="decimal" placeholder="cth: 3"></div>
+      <div class="field"><label>Baterai Usable (menit)</label><input type="number" id="usableBatt" inputmode="decimal"></div>
+      <div class="field"><label>Safety Factor</label><input type="number" id="safety" inputmode="decimal" value="1.2" step="0.05"></div>
+    </div>
+  </div>
+  <div class="nav-row"><button class="btn ghost" onclick="dspStep(4)">Kembali</button><button class="btn primary" onclick="dspStep(6)">Lanjut</button></div>
+</div>
+
+<!-- 6: Weather & Material Risk -->
+<div class="section-screen" id="dsp-6">
+  <div class="card">
+    <h2>7. Cuaca & Risiko Material</h2>
+    <div class="grid2">
+      <div class="field"><label>Kecepatan Angin (m/s)</label><input type="number" id="wind" inputmode="decimal" placeholder="cth: 3"></div>
+      <div class="field"><label>Kelembapan Material (%)</label><input type="number" id="moisture" inputmode="decimal" placeholder="cth: 10"></div>
+    </div>
+    <div class="field"><label>Risiko Material Menggumpal</label>
+      <select id="clumping"><option value="none">Tidak (kering, mengalir baik)</option><option value="medium">Sedang (agak lengket)</option><option value="high">Tinggi (menggumpal)</option></select></div>
+    <button class="btn ghost wide" onclick="dspAutofillWeather()">📍 Isi angin otomatis dari lokasi</button>
+  </div>
+  <div class="nav-row"><button class="btn ghost" onclick="dspStep(5)">Kembali</button><button class="btn primary" onclick="dspComputeAll()">Hitung Rekomendasi</button></div>
+</div>
+
+<!-- 7: Hasil -->
+<div class="section-screen" id="dsp-7">
+  <div id="dspResult"></div>
+  <div class="nav-row"><button class="btn ghost" onclick="dspStep(6)">Ubah Input</button><button class="btn primary" onclick="dspStep(8)">Tray Test →</button></div>
+</div>
+
+<!-- 8: Tray Test -->
+<div class="section-screen" id="dsp-8">
+  <div class="card">
+    <h2>9. Tray Test / Evaluasi Sebaran</h2>
+    <p class="sub">Letakkan pan/tray melintang jalur, timbang material tiap tray, masukkan beratnya.</p>
+    <div class="field"><label>Target Berat per Tray (gram, opsional)</label><input type="number" id="trayTarget" inputmode="decimal" placeholder="opsional"></div>
+    <div class="tray-btns"><button onclick="removeTray()">− Kurang Tray</button><button onclick="addTray()">+ Tambah Tray</button></div>
+    <div id="trayInputs"></div>
+    <button class="btn primary wide" onclick="dspEvaluateTray()">Evaluasi Keseragaman</button>
+  </div>
+  <div id="trayResult"></div>
+  <div class="nav-row"><button class="btn ghost wide" onclick="dspStep(7)">← Kembali ke Hasil</button></div>
+</div>
+
+<script>/* ============================================================
+   DRONE SPREADING PLANNER — Logic (PRD)
+   Penebaran bahan padat/granul. Dosis dari input user/label.
+   ============================================================ */
+
+const DSP_DRONES = [
+  {id:'t50', label:'DJI Agras T50 Spreading System', hopper:50, rateMax:108, width:7, conf:'high', batt:18},
+  {id:'t25', label:'DJI Agras T25 Spreading System', hopper:25, rateMax:80, width:7, conf:'high', batt:15},
+  {id:'xp150max', label:'XAG P150 Max', hopper:80, rateMax:150, width:7, conf:'medium', batt:18},
+  {id:'xp100pro', label:'XAG P100 Pro', hopper:50, rateMax:120, width:6, conf:'medium', batt:16},
+  {id:'custom-drone', label:'Custom Drone Manual Input', hopper:0, rateMax:0, width:0, conf:'manual', batt:0},
+  {id:'custom-spreader', label:'Custom Spreader Manual Input', hopper:0, rateMax:0, width:0, conf:'manual', batt:0},
+];
+
+const DSP_COMMODITIES = ['Tebu','Sawah/Padi','Sawit','Teh','Kopi','Kelapa','Pisang','Tambak','Custom'];
+
+const DSP_MATERIALS = [
+  {id:'pupuk', label:'Pupuk granul', density:1.0, grain:'2-4 mm', light:false},
+  {id:'benih-padi', label:'Benih padi', density:0.58, grain:'5-8 mm', light:true},
+  {id:'benih-cc', label:'Benih cover crop', density:0.45, grain:'2-5 mm', light:true},
+  {id:'dolomit', label:'Dolomit/kapur granular', density:1.3, grain:'2-4 mm', light:false},
+  {id:'pestisida-g', label:'Pestisida granular', density:0.9, grain:'1-3 mm', light:false},
+  {id:'herbisida-g', label:'Herbisida granular', density:0.9, grain:'1-3 mm', light:false},
+  {id:'pakan', label:'Pakan ikan/udang', density:0.6, grain:'2-6 mm', light:true},
+  {id:'custom-mat', label:'Material padat custom', density:1.0, grain:'-', light:false},
+];
+
+const DSP_MODES = [
+  {id:'continuous', label:'Continuous spreading', desc:'Area luas & seragam'},
+  {id:'variable', label:'Variable rate spreading', desc:'Prescription map'},
+  {id:'dist-spot', label:'Distance-based spot', desc:'Titik berjarak tetap'},
+  {id:'time-spot', label:'Time-based spot', desc:'Interval waktu tetap'},
+  {id:'wp-spot', label:'Waypoint spot', desc:'Target titik tertentu'},
+  {id:'strip', label:'Strip/band spreading', desc:'Barisan/jalur tanaman'},
+];
+
+/* ===================== RUMUS PRD ===================== */
+// 1. Material_total = Area × Dosis
+function materialTotal(area, dose){ return area * dose; }
+// 2. Area_per_hopper = Hopper / Dosis
+function areaPerHopper(hopper, dose){ return dose>0 ? hopper/dose : 0; }
+// 3. Refill_count = Material_total / Hopper
+function refillCount(matTotal, hopper){ return hopper>0 ? matTotal/hopper : 0; }
+// 4. Rate_kg_min = Dosis × Speed × Width / 600
+function dischargeRate(dose, speed, width){ return (dose * speed * width)/600; }
+// 5. Speed = Rate × 600 / (Dosis × Width)
+function speedFromRate(rate, dose, width){ return (dose*width>0) ? (rate*600)/(dose*width) : 0; }
+// 6. Width = Rate × 600 / (Dosis × Speed)
+function widthFromRate(rate, dose, speed){ return (dose*speed>0) ? (rate*600)/(dose*speed) : 0; }
+// 7. Route_length = Area × 10000 / Line_spacing
+function routeLength(area, lineSp){ return lineSp>0 ? (area*10000)/lineSp : 0; }
+// 8. Flight_time = Route / Speed / 60
+function flightTime(route, speed){ return speed>0 ? route/speed/60 : 0; }
+// 9. Battery_count = Flight_time / Usable × Safety
+function batteryCount(ft, usable, safety){ return usable>0 ? Math.ceil((ft/usable)*safety) : 0; }
+// 10. Mass_per_spot = Dosis × Spot_area / 10000
+function massPerSpot(dose, spotArea){ return (dose*spotArea)/10000; }
+// 11. Gate_duration_sec = Mass_per_spot / Rate_kg_per_sec
+function gateDuration(massSpot, rateKgSec){ return rateKgSec>0 ? massSpot/rateKgSec : 0; }
+// 12. Trigger_distance = Speed × Trigger_interval
+function triggerDistance(speed, interval){ return speed * interval; }
+
+/* ===================== COMPUTE SPREADING ===================== */
+function computeSpreading(p){
+  const o={};
+  o.matTotal = materialTotal(p.area, p.dose);          // kg
+  o.areaPerHopper = areaPerHopper(p.hopper, p.dose);   // ha
+  o.refill = refillCount(o.matTotal, p.hopper);        // kali
+
+  // Discharge rate: jika diketahui pakai itu, else hitung
+  if(p.rateKnown>0){
+    o.rate = p.rateKnown;
+    o.speed = speedFromRate(p.rateKnown, p.dose, p.width);
+  } else {
+    o.rate = dischargeRate(p.dose, p.speed, p.width);
+    o.speed = p.speed;
+  }
+  o.width = p.width;
+
+  // Volume hopper (jika density diketahui) untuk cek kapasitas
+  o.hopperVolL = p.density>0 ? p.hopper/p.density : 0;
+
+  // Route & timing
+  const lineSp = p.lineSp || p.width; // default line spacing = width
+  o.lineSp = lineSp;
+  o.route = routeLength(p.area, lineSp);
+  o.flightTime = flightTime(o.route, o.speed);
+  o.battery = batteryCount(o.flightTime, p.usableBatt, p.safety||1.2);
+  o.sorties = o.battery;
+
+  // Spot mode
+  if(p.spotArea>0){
+    o.massSpot = massPerSpot(p.dose, p.spotArea);
+    o.gateDur = gateDuration(o.massSpot, o.rate/60);
+  }
+  if(p.triggerInterval>0){
+    o.triggerDist = triggerDistance(o.speed, p.triggerInterval);
+  }
+
+  // Rekomendasi spinner & gate (kualitatif dari rate)
+  o.spinnerRec = o.rate < 5 ? 'Rendah (800–1000 rpm)' : o.rate < 30 ? 'Sedang (1000–1400 rpm)' : 'Tinggi (1400–1800 rpm)';
+  o.gateRec = o.rate < 5 ? 'Kecil (10–30%)' : o.rate < 30 ? 'Sedang (30–60%)' : 'Besar (60–90%)';
+
+  return o;
+}
+
+/* ===================== MODE RECOMMENDATION ===================== */
+function recommendMode(modeId){
+  const map = {
+    'continuous':'Continuous cocok untuk area luas & dosis seragam — efisien & cepat.',
+    'variable':'Variable rate untuk prescription map — dosis menyesuaikan zona kesuburan.',
+    'dist-spot':'Distance-based spot untuk titik berjarak tetap — drone melepas material tiap jarak tertentu.',
+    'time-spot':'Time-based spot untuk interval waktu tetap — cocok area homogen tanpa GPS presisi.',
+    'wp-spot':'Waypoint spot untuk target titik tertentu — penebaran hanya di koordinat terpilih.',
+    'strip':'Strip/band untuk barisan tanaman/jalur — material jatuh di jalur, hemat bahan.',
+  };
+  return map[modeId] || '';
+}
+
+/* ===================== WEATHER & MATERIAL RISK ===================== */
+function spreadingRisk(w, material){
+  const warnings=[];
+  let status, statusClass;
+  const light = material.light;
+
+  if(w.wind > 8){ status='Jangan Sebar'; statusClass='st-bad'; warnings.push('Angin > 8 m/s — material terbang tak terkendali.'); }
+  else if(w.wind > 6 && light){ status='Jangan Sebar'; statusClass='st-bad'; warnings.push('Angin > 6 m/s untuk material ringan ('+material.label+') — sebaran tidak akurat.'); }
+  else if(w.clumping==='high'){ status='Jangan Sebar'; statusClass='st-bad'; warnings.push('Material menggumpal berat — keringkan/saring dulu sebelum sebar.'); }
+  else if(w.wind > 4.5 && light){ status='Waspada'; statusClass='st-warn'; warnings.push('Angin sedang untuk material ringan — rapatkan line spacing, turunkan tinggi terbang.'); }
+  else if(w.moisture > 18){ status='Layak Bersyarat'; statusClass='st-cond'; warnings.push('Kelembapan material tinggi ('+w.moisture+'%) — risiko gate macet, cek aliran.'); }
+
+  if(w.wind > 3 && w.wind <= 4.5) warnings.push('Angin '+w.wind+' m/s — turunkan tinggi terbang & jaga overlap.');
+  if(w.clumping==='medium') warnings.push('Material agak menggumpal — saring & cek gate sebelum mulai.');
+  if(w.moisture > 12 && w.moisture <= 18) warnings.push('Kelembapan '+w.moisture+'% — pantau aliran material, hindari gate tersumbat.');
+  if(light && w.wind <= 4.5) warnings.push('Material ringan — terbang rendah & hindari jam berangin.');
+
+  if(!status){
+    if(w.wind <= 3 && w.clumping==='none' && w.moisture<=12){ status='Layak Sebar'; statusClass='st-ok'; }
+    else if(warnings.length<=1){ status='Layak Bersyarat'; statusClass='st-cond'; }
+    else { status='Waspada'; statusClass='st-warn'; }
+  }
+  if(warnings.length===0) warnings.push('Kondisi mendukung. Lakukan tray test kecil sebelum aplikasi penuh.');
+
+  return {status, statusClass, warnings};
+}
+
+/* ===================== TRAY TEST EVALUATION ===================== */
+function evaluateTray(trays, targetDosePerTray){
+  // trays = array berat (gram) per pan; hitung CV & uniformity
+  const n=trays.length;
+  if(n<2) return null;
+  const mean = trays.reduce((a,b)=>a+b,0)/n;
+  const variance = trays.reduce((a,b)=>a+(b-mean)**2,0)/n;
+  const sd = Math.sqrt(variance);
+  const cv = mean>0 ? (sd/mean)*100 : 0;
+  const uniformity = Math.max(0, 100 - cv); // makin kecil CV makin seragam
+
+  let quality, qualityClass;
+  if(cv <= 15){ quality='Sangat Seragam'; qualityClass='st-ok'; }
+  else if(cv <= 25){ quality='Seragam'; qualityClass='st-cond'; }
+  else if(cv <= 35){ quality='Kurang Seragam'; qualityClass='st-warn'; }
+  else { quality='Tidak Seragam'; qualityClass='st-bad'; }
+
+  // area terlalu banyak / kurang
+  const over = trays.map((v,i)=>({i:i+1,v})).filter(t=>t.v > mean*1.2);
+  const under = trays.map((v,i)=>({i:i+1,v})).filter(t=>t.v < mean*0.8);
+
+  // Rekomendasi koreksi
+  const recs=[];
+  if(cv > 25){
+    recs.push('CV tinggi ('+cv.toFixed(1)+'%) → atur ulang spinner speed & gate untuk pola lebih merata.');
+    if(under.length>over.length) recs.push('Banyak area kurang dosis → naikkan gate opening atau rapatkan line spacing.');
+    if(over.length>under.length) recs.push('Banyak area berlebih → kecilkan gate opening atau naikkan speed.');
+    recs.push('Cek overlap antar jalur; sebaran pinggir sering kurang → kurangi line spacing 10–20%.');
+  }
+  if(targetDosePerTray>0){
+    const dev = ((mean-targetDosePerTray)/targetDosePerTray)*100;
+    if(Math.abs(dev) > 10){
+      if(dev<0) recs.push('Rata-rata dosis '+Math.abs(dev).toFixed(0)+'% di bawah target → naikkan gate / turunkan speed / rapatkan line spacing.');
+      else recs.push('Rata-rata dosis '+dev.toFixed(0)+'% di atas target → kecilkan gate / naikkan speed.');
+    }
+  }
+  if(recs.length===0) recs.push('Sebaran sudah seragam & sesuai target. Lanjutkan dengan setting ini.');
+
+  return {mean, sd, cv, uniformity, quality, qualityClass, over, under, recs};
+}
+</script>
+<script>/* ===================== DRONE SPREADING UI ===================== */
+const DSP_STEPS=['Drone & Spreader','Komoditas & Material','Mode','Lahan','Hopper','Terbang','Cuaca','Hasil','Tray Test'];
+let dspCur=0, dspCommodity='Sawit', dspMode='continuous', dspLast=null;
+
+function $(id){return document.getElementById(id);}
+function dspNum(id){const v=parseFloat(($(id)||{}).value);return isNaN(v)?0:v;}
+
+function dspStepper(){
+  $('stepper').innerHTML=DSP_STEPS.map((l,i)=>
+    '<div class="step-pill '+(i===dspCur?'active':i<dspCur?'done':'')+'" onclick="dspStep('+i+')">'+(i+1)+'. '+l+'</div>').join('');
+}
+function dspStep(n){
+  if(n<0||n>8)return; dspCur=n;
+  document.querySelectorAll('.section-screen').forEach((s,i)=>s.classList.toggle('active',i===n));
+  dspStepper();
+  window.scrollTo({top:0,behavior:'auto'});
+}
+function dspInit(){
+  $('dspDrone').innerHTML=DSP_DRONES.map(d=>'<option value="'+d.id+'">'+d.label+(d.conf==='manual'?' ⚠':'')+'</option>').join('');
+  $('dspMaterial').innerHTML=DSP_MATERIALS.map(m=>'<option value="'+m.id+'">'+m.label+'</option>').join('');
+  $('dspCommodityChips').innerHTML=DSP_COMMODITIES.map(c=>'<button class="chip'+(c===dspCommodity?' on':'')+'" onclick="selDspComm(\''+c+'\')">'+c+'</button>').join('');
+  $('dspModeWrap').innerHTML=DSP_MODES.map(m=>
+    '<button class="mode-card'+(m.id===dspMode?' on':'')+'" onclick="selDspMode(\''+m.id+'\')"><b>'+m.label+'</b><span>'+m.desc+'</span></button>').join('');
+  onDspDroneChange(); onDspMaterialChange();
+}
+function selDspComm(c){ dspCommodity=c; document.querySelectorAll('#dspCommodityChips .chip').forEach(b=>b.classList.toggle('on',b.textContent===c)); }
+function selDspMode(m){ dspMode=m; document.querySelectorAll('#dspModeWrap .mode-card').forEach(b=>b.classList.remove('on')); event.currentTarget.classList.add('on');
+  $('spotFields').classList.toggle('hidden', !(m==='dist-spot'||m==='time-spot'||m==='wp-spot')); }
+function onDspDroneChange(){
+  const d=DSP_DRONES.find(x=>x.id===$('dspDrone').value); if(!d)return;
+  $('hopper').value=d.hopper||''; $('width').value=d.width||''; $('usableBatt').value=d.batt||'';
+  $('rateKnown').value=''; $('rateKnown').placeholder=d.rateMax?('maks '+d.rateMax+' kg/min'):'opsional';
+  const h=$('dspDroneHint');
+  if(d.conf==='manual'){ h.innerHTML='⚠ Spesifikasi belum lengkap. Isi kapasitas hopper, lebar sebar, & baterai manual.'; h.style.color='#b45309'; }
+  else { h.textContent='Hopper '+d.hopper+' kg · sebar ~'+d.width+' m · rate maks '+d.rateMax+' kg/min · baterai '+d.batt+' min (confidence: '+d.conf+')'; h.style.color='var(--muted)'; }
+}
+function onDspMaterialChange(){
+  const m=DSP_MATERIALS.find(x=>x.id===$('dspMaterial').value); if(!m)return;
+  $('density').value=m.density||''; $('grain').value=m.grain||'';
+  $('matNote').textContent=m.light?'Material ringan — sensitif terhadap angin.':'Material standar.';
+}
+function dspAutofillWeather(){
+  if(!navigator.geolocation){ alert('GPS tidak tersedia'); return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const url='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude.toFixed(3)+
+        '&longitude='+pos.coords.longitude.toFixed(3)+'&current=wind_speed_10m,wind_gusts_10m&wind_speed_unit=ms&timezone=auto';
+      const c=(await (await fetch(url,{cache:'no-store'})).json()).current;
+      $('wind').value=c.wind_speed_10m.toFixed(1);
+      alert('Angin lokasi terisi: '+c.wind_speed_10m.toFixed(1)+' m/s');
+    }catch(e){ alert('Gagal ambil cuaca: perlu internet.'); }
+  },()=>alert('Izinkan lokasi.'),{timeout:15000});
+}
+
+/* ===================== COMPUTE ===================== */
+function dspComputeAll(){
+  try{
+    const drone=DSP_DRONES.find(x=>x.id===$('dspDrone').value)||{};
+    const material=DSP_MATERIALS.find(x=>x.id===$('dspMaterial').value)||{label:'Material',light:false,density:1};
+    if(!dspNum('area')){ alert('Isi Luas Lahan.'); dspStep(3); return; }
+    if(!dspNum('dose')){ alert('Isi Dosis Target (kg/ha).'); dspStep(3); return; }
+    const hopper=dspNum('hopper')||drone.hopper;
+    const width=dspNum('width')||drone.width;
+    if(!hopper){ alert('Kapasitas hopper tidak diketahui. Isi manual.'); dspStep(4); return; }
+    if(!width){ alert('Lebar sebar tidak diketahui. Isi manual.'); dspStep(5); return; }
+
+    const p={
+      area:dspNum('area'), dose:dspNum('dose'), hopper:hopper, width:width,
+      density:dspNum('density')||material.density, speed:dspNum('speed')||4,
+      lineSp:dspNum('lineSp')||width, rateKnown:dspNum('rateKnown'),
+      usableBatt:dspNum('usableBatt')||drone.batt||15, safety:dspNum('safety')||1.2,
+      spotArea:dspNum('spotArea'), triggerInterval:dspNum('triggerInterval'),
+    };
+    const o=computeSpreading(p);
+    const w={ wind:dspNum('wind'), moisture:dspNum('moisture'), clumping:$('clumping').value };
+    const risk=spreadingRisk(w, material);
+    dspLast={p,o,risk,material,drone};
+    dspRenderResults();
+    dspStep(7);
+  }catch(err){
+    console.error(err);
+    $('dspResult').innerHTML='<div class="card"><b style="color:#dc2626">Perhitungan gagal:</b><br>'+err.message+'</div>';
+    dspStep(7);
+  }
+}
+function dspFmt(n,d){ return (isFinite(n)?n:0).toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d||2}); }
+function dspKv(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+
+function dspRenderResults(){
+  const {p,o,risk,material,drone}=dspLast;
+  let h='';
+  h+='<div class="status-banner '+risk.statusClass+'"><div class="big">'+risk.status+'</div>'+
+     '<div class="small">'+material.label+' · Angin '+dspFmt(p.wind||dspNum('wind'),1)+' m/s</div></div>';
+
+  // 1. Parameter Spreading
+  h+='<div class="res-card"><h3>📦 Rekomendasi Parameter Spreading</h3>'+
+    dspKv('Dosis target', dspFmt(p.dose,0)+' kg/ha')+
+    dspKv('Total material', dspFmt(o.matTotal,1)+' kg')+
+    dspKv('Material per hopper', dspFmt(p.hopper,1)+' kg')+
+    dspKv('Luas per hopper', dspFmt(o.areaPerHopper,3)+' ha')+
+    dspKv('Jumlah refill', dspFmt(o.refill,1)+' kali')+
+    dspKv('Discharge rate', dspFmt(o.rate,2)+' kg/min')+
+    dspKv('Speed rekomendasi', dspFmt(o.speed,1)+' m/s')+
+    dspKv('Lebar sebar efektif', dspFmt(o.width,1)+' m')+
+    dspKv('Line spacing', dspFmt(o.lineSp,1)+' m')+
+    dspKv('Spinner speed', o.spinnerRec)+
+    dspKv('Gate opening', o.gateRec);
+  if(o.hopperVolL) h+=dspKv('Volume hopper (≈)', dspFmt(o.hopperVolL,1)+' L');
+  h+='</div>';
+
+  // Spot mode detail
+  if(o.massSpot!==undefined || o.triggerDist!==undefined){
+    h+='<div class="res-card"><h3>🎯 Parameter Spot/Trigger</h3>';
+    if(o.massSpot!==undefined) h+=dspKv('Massa per titik', dspFmt(o.massSpot*1000,0)+' gram')+dspKv('Durasi gate buka', dspFmt(o.gateDur,2)+' detik');
+    if(o.triggerDist!==undefined) h+=dspKv('Jarak antar trigger', dspFmt(o.triggerDist,1)+' m');
+    h+='</div>';
+  }
+
+  // 2. Mode
+  h+='<div class="res-card"><h3>⚙️ Rekomendasi Mode</h3>'+
+    '<div class="rec-item"><span class="ic">i</span><span>'+recommendMode(dspMode)+'</span></div></div>';
+
+  // 3. Efisiensi
+  h+='<div class="res-card"><h3>⚡ Efisiensi</h3>'+
+    dspKv('Route length', dspFmt(o.route,0)+' m')+
+    dspKv('Durasi terbang', dspFmt(o.flightTime,1)+' menit')+
+    dspKv('Jumlah baterai', o.battery+' baterai')+
+    dspKv('Rekomendasi sortie', o.sorties+' sortie')+'</div>';
+
+  // 4. Cuaca
+  h+='<div class="res-card"><h3>🌦️ Rekomendasi Cuaca & Material</h3>'+
+    risk.warnings.map(w=>'<div class="rec-item"><span class="ic">!</span><span>'+w+'</span></div>').join('')+'</div>';
+
+  // 5. Koreksi umum
+  const corr=[];
+  corr.push('Jika dosis kurang: naikkan gate opening, turunkan speed, rapatkan line spacing, atau naikkan discharge rate.');
+  corr.push('Jika dosis berlebih: kecilkan gate opening, naikkan speed, atau kurangi discharge rate.');
+  corr.push('Jika sebaran pinggir kurang: kurangi line spacing atau naikkan overlap.');
+  if(material.light) corr.push('Material ringan: hindari angin kuat, terbang rendah.');
+  corr.push('Lakukan Tray Test untuk validasi keseragaman sebaran sebelum aplikasi penuh.');
+  h+='<div class="res-card"><h3>🔧 Rekomendasi Koreksi</h3>'+
+    corr.map(c=>'<div class="rec-item"><span class="ic">→</span><span>'+c+'</span></div>').join('')+'</div>';
+
+  $('dspResult').innerHTML=h;
+}
+
+/* ===================== TRAY TEST ===================== */
+let trayCount=5;
+function renderTrayInputs(){
+  let h='';
+  for(let i=1;i<=trayCount;i++){
+    h+='<div class="field" style="margin-bottom:8px"><label>Tray '+i+' (gram)</label><input type="number" id="tray'+i+'" inputmode="decimal" placeholder="berat material"></div>';
+  }
+  $('trayInputs').innerHTML=h;
+}
+function addTray(){ if(trayCount<12){ trayCount++; renderTrayInputs(); } }
+function removeTray(){ if(trayCount>2){ trayCount--; renderTrayInputs(); } }
+function dspEvaluateTray(){
+  try{
+    const vals=[];
+    for(let i=1;i<=trayCount;i++){ const v=dspNum('tray'+i); if(v>0) vals.push(v); }
+    if(vals.length<2){ alert('Isi minimal 2 tray.'); return; }
+    const target=dspNum('trayTarget');
+    const ev=evaluateTray(vals, target);
+    if(!ev){ alert('Data tidak cukup.'); return; }
+    let h='<div class="status-banner '+ev.qualityClass+'"><div class="big">'+ev.quality+'</div>'+
+      '<div class="small">CV: '+dspFmt(ev.cv,1)+'% · Uniformity: '+dspFmt(ev.uniformity,0)+'/100</div></div>';
+    h+='<div class="res-card"><h3>📋 Hasil Tray Test</h3>'+
+      dspKv('Jumlah tray', vals.length)+
+      dspKv('Rata-rata berat', dspFmt(ev.mean,1)+' gram')+
+      dspKv('Standar deviasi', dspFmt(ev.sd,2)+' gram')+
+      dspKv('Coefficient of Variation', dspFmt(ev.cv,1)+'%')+
+      dspKv('Uniformity score', dspFmt(ev.uniformity,0)+'/100')+
+      dspKv('Area berlebih', ev.over.length+' tray (#'+(ev.over.map(t=>t.i).join(',')||'-')+')')+
+      dspKv('Area kurang', ev.under.length+' tray (#'+(ev.under.map(t=>t.i).join(',')||'-')+')')+'</div>';
+    h+='<div class="res-card"><h3>🔧 Rekomendasi Koreksi</h3>'+
+      ev.recs.map(r=>'<div class="rec-item"><span class="ic">→</span><span>'+r+'</span></div>').join('')+'</div>';
+    $('trayResult').innerHTML=h;
+    try{ if($('trayResult').scrollIntoView) $('trayResult').scrollIntoView({behavior:'auto',block:'start'}); }catch(e){}
+  }catch(err){
+    console.error(err);
+    $('trayResult').innerHTML='<div class="card"><b style="color:#dc2626">Evaluasi gagal:</b><br>'+err.message+'</div>';
+  }
+}
+
+/* INIT */
+dspStepper();
+dspInit();
+renderTrayInputs();
+</script>
+<style id="survai-embed-style">html.survai-embed body{background:#f8fafc !important;}</style>
+<script id="survai-embed-script">
+(function(){ try{ var p=new URLSearchParams(location.search); if(p.get('embed')==='1') document.documentElement.classList.add('survai-embed'); }catch(e){} })();
+</script>
+</body>
+</html>

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Hidrografi Pasut — SurvAI</title>
+<style>
+:root{
+  --navy:#17365f; --blue:#2563eb; --blue-ink:#094cb2; --teal:#14b8a6; --cyan:#06b6d4;
+  --bg:#f8fafc; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --ok:#22c55e; --warn:#eab308; --bad:#ef4444;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+body{padding:14px 14px 60px;overflow-x:hidden;}
+h1,h2,h3{margin:0;}
+button{font-family:inherit;cursor:pointer;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+.card h2{font-size:17px;font-weight:800;margin:0 0 4px;}
+.card .sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.45;}
+.tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex:0 0 auto;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:9px 15px;font-size:13px;font-weight:700;white-space:nowrap;}
+.tab.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+.tab.soon{opacity:.55;}
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.field input[type=file]{width:100%;padding:13px;border:1.5px dashed var(--line);border-radius:12px;font-size:14px;background:var(--bg);}
+.hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;}
+.btn{height:50px;border:0;border-radius:13px;font-size:15px;font-weight:700;width:100%;}
+.btn.primary{background:linear-gradient(135deg,var(--blue),var(--blue-ink));color:#fff;}
+.btn.ghost{background:#fff;color:var(--blue-ink);border:1.5px solid var(--line);}
+.btn:active{opacity:.85;}
+.row2{display:flex;gap:10px;}
+.status-line{font-size:13px;font-weight:600;color:var(--muted);margin:10px 0 0;min-height:18px;}
+.res-card{border-radius:16px;padding:15px;margin-bottom:12px;border:1px solid var(--line);background:#fff;}
+.res-card h3{font-size:15px;font-weight:800;margin:0 0 11px;}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed #eef1f5;font-size:13.5px;}
+.kv:last-child{border-bottom:0;} .kv .k{color:var(--muted);} .kv .v{font-weight:700;text-align:right;}
+.adm-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.adm-tbl th,.adm-tbl td{padding:7px 9px;text-align:right;border-bottom:1px solid #eef1f5;}
+.adm-tbl th{background:#f1f5f9;font-weight:700;color:var(--ink);text-align:right;}
+.adm-tbl td:first-child,.adm-tbl th:first-child{text-align:left;font-weight:700;}
+.rec-item{display:flex;gap:9px;padding:8px 0;font-size:13px;line-height:1.45;border-bottom:1px dashed #eef1f5;}
+.rec-item:last-child{border-bottom:0;}
+.rec-item .ic{flex:0 0 auto;width:20px;height:20px;border-radius:6px;background:#eef4ff;color:var(--blue-ink);display:grid;place-items:center;font-size:12px;font-weight:800;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--muted);}
+.chart-legend .lg{display:flex;align-items:center;gap:4px;}
+.chart-legend .lg i{width:14px;height:3px;border-radius:2px;display:inline-block;}
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:11px 13px;font-size:12px;color:#92400e;line-height:1.5;margin-bottom:12px;}
+.grid2-hp{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+@media(max-width:380px){.grid2-hp{grid-template-columns:1fr;}}
+.hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tab on" id="tab-adm" onclick="admSwitch('adm')">Admiralty</button>
+  <button class="tab" id="tab-caris" onclick="admSwitch('caris')">Tide CARIS</button>
+  <button class="tab" id="tab-hypack" onclick="admSwitch('hypack')">Tide HYPACK</button>
+  <button class="tab" id="tab-benchmark" onclick="admSwitch('benchmark')">Benchmark</button>
+</div>
+
+<!-- ADMIRALTY -->
+<div id="pane-adm">
+  <div class="warn-box"><b>ℹ Cara pakai:</b> Import file <b>.txt</b> hasil rekaman pasut. Sistem auto-deteksi format & jumlah data. <b>&lt; 15 hari</b>: hasil indikatif. <b>15 piantan (15 hari)</b> atau <b>29 piantan (29 hari)</b>: analisis Admiralty penuh untuk penetapan chart datum. <b>≥180 hari</b>: otomatis pakai <b>Model 1 Tahun</b> (konstituen musiman Sa/Ssa, S2/K2 & K1/P1 terpisah penuh).</div>
+  <div class="card">
+    <h2>Pengolahan Pasut — Admiralty</h2>
+    <p class="sub">Analisis harmonik 9 konstituen (M2, S2, N2, K2, K1, O1, P1, M4, MS4) → muka air & chart datum (Z0/LWS).</p>
+    <div class="field">
+      <label>Import Data Pasut (.txt / .csv)</label>
+      <input type="file" id="admFile" accept=".txt,.csv,.dat" onchange="admImport(event)">
+      <div class="hint">Format bebas: kolom waktu + tinggi muka air. Pemisah tab/koma/spasi & desimal koma/titik dideteksi otomatis.</div>
+    </div>
+    <div class="row2">
+      <button class="btn ghost" onclick="admLoadSample()">Muat Sampel 29 Hari</button>
+    </div>
+    <p class="status-line" id="admStatus">Belum ada data.</p>
+  </div>
+  <div id="admResult"></div>
+</div>
+
+<!-- CARIS -->
+<div id="pane-caris" class="hidden">
+  <div class="warn-box"><b>ℹ CARIS — Zoned Tidal Reduction (IHO C-13):</b> menyurutkan kedalaman batimetri ke Chart Datum memakai koreksi waktu + faktor range antar zona/stasiun. Chart Datum diambil dari analisis Admiralty (tab Admiralty) atau input manual.</div>
+  <div class="card">
+    <h2>Tide CARIS — Reduksi Batimetri</h2>
+    <p class="sub">Hitung kedalaman terkoreksi: <b>Depth_CD = Raw − (WL_zona − Chart Datum)</b>, di mana WL_zona = WL_acuan × range ratio.</p>
+    <div class="field">
+      <label>Import Data Pasut (.txt / .csv) — stasiun acuan</label>
+      <input type="file" id="carisFile" accept=".txt,.csv,.dat" onchange="carisImport(event)">
+      <div class="hint">Tinggi muka air per jam. Bisa pakai data yang sama dengan Admiralty.</div>
+    </div>
+    <div class="grid2-hp">
+      <div class="field"><label>Chart Datum (cm)</label><input type="number" id="carisCD" placeholder="dari Admiralty (Zo)"><div class="hint">Klik "Pakai Zo Admiralty" bila sudah analisis.</div></div>
+      <div class="field"><label>Range Ratio (co-range)</label><input type="number" id="carisRatio" value="1.0" step="0.01"><div class="hint">1.0 = stasiun tunggal. &gt;1 / &lt;1 = zoning antar stasiun.</div></div>
+      <div class="field"><label>Time Corrector (jam)</label><input type="number" id="carisTimeShift" value="0" step="0.1"><div class="hint">Geser waktu pasang ke zona survei.</div></div>
+      <div class="field"><label>Raw Sounding contoh (m)</label><input type="number" id="carisRaw" value="10" step="0.1"><div class="hint">Untuk demo reduksi 1 titik.</div></div>
+    </div>
+    <div class="row2">
+      <button class="btn ghost" onclick="carisUseAdmZo()">Pakai Zo Admiralty</button>
+      <button class="btn primary" onclick="carisRun()">Hitung Reduksi</button>
+    </div>
+    <p class="status-line" id="carisStatus">Belum ada data.</p>
+  </div>
+  <div id="carisResult"></div>
+</div>
+
+<!-- HYPACK -->
+<div id="pane-hypack" class="hidden">
+  <div class="warn-box"><b>ℹ HYPACK — Tide Correction:</b> rumus resmi <b>Corr_depth = Raw + Draft + Tide</b>, dengan <b>Tide = −(WL − Chart Datum)</b> (umumnya negatif). Menghasilkan file koreksi gaya .TID.</div>
+  <div class="card">
+    <h2>Tide HYPACK — Koreksi Sounding</h2>
+    <p class="sub">Reduksi sounding ke chart datum & buat deret koreksi pasut (tide file).</p>
+    <div class="field">
+      <label>Import Data Pasut (.txt / .csv)</label>
+      <input type="file" id="hypackFile" accept=".txt,.csv,.dat" onchange="hypackImport(event)">
+    </div>
+    <div class="grid2-hp">
+      <div class="field"><label>Chart Datum (cm)</label><input type="number" id="hypackCD" placeholder="dari Admiralty (Zo)"></div>
+      <div class="field"><label>Draft Transducer (cm)</label><input type="number" id="hypackDraft" value="0" step="1"></div>
+      <div class="field"><label>Raw Sounding contoh (m)</label><input type="number" id="hypackRaw" value="10" step="0.1"></div>
+      <div class="field"><label>Interval data (menit)</label><input type="number" id="hypackStep" value="60" step="1"></div>
+    </div>
+    <div class="row2">
+      <button class="btn ghost" onclick="hypackUseAdmZo()">Pakai Zo Admiralty</button>
+      <button class="btn primary" onclick="hypackRun()">Hitung & Buat Tide File</button>
+    </div>
+    <p class="status-line" id="hypackStatus">Belum ada data.</p>
+  </div>
+  <div id="hypackResult"></div>
+</div>
+
+<!-- BENCHMARK (muncul di semua tab via tombol) -->
+<div id="pane-benchmark" class="hidden">
+  <div class="warn-box"><b>ℹ Benchmark / Chart Datum tie-in:</b> ikatan titik tetap (BM) ke datum. Wajib untuk penyurutan resmi. Nilai contoh disediakan — ganti dengan hasil leveling lapangan Anda.</div>
+  <div class="card">
+    <h2>Elevasi Benchmark</h2>
+    <div class="grid2-hp">
+      <div class="field"><label>Nama Stasiun/BM</label><input type="text" id="bmName" value="BM-SURVAI-01"></div>
+      <div class="field"><label>BM di atas MSL (m)</label><input type="number" id="bmMsl" value="1.250" step="0.001"></div>
+      <div class="field"><label>MSL di atas Chart Datum (m)</label><input type="number" id="bmMslCd" value="0.850" step="0.001"></div>
+      <div class="field"><label>Separasi Elipsoid→CD (m)</label><input type="number" id="bmEllCd" value="-28.500" step="0.001"><div class="hint">Untuk RTK tide.</div></div>
+    </div>
+    <button class="btn primary" onclick="bmCompute()">Hitung Ikatan Datum</button>
+    <div id="bmResult"></div>
+  </div>
+</div>
+
+<script>/* ============================================================
+   ADMIRALTY TIDAL HARMONIC ANALYSIS — Logic
+   Metode Admiralty 15/29 piantan (Doodson scheme).
+   Ekstrak 9 konstituen utama, hitung muka air & datum.
+   Referensi: Pariwono, Ongkosongo, IHO; standar hidrografi Indonesia.
+   ============================================================ */
+
+/* Kecepatan sudut konstituen (°/jam) — dikonfirmasi dari Excel */
+const CONSTITUENTS = {
+  M2:  {speed:28.9841042, name:'M2  (Lunar semidiurnal)'},
+  S2:  {speed:30.0000000, name:'S2  (Solar semidiurnal)'},
+  N2:  {speed:28.4397295, name:'N2  (Lunar elliptic)'},
+  K2:  {speed:30.0821373, name:'K2  (Lunisolar)'},
+  K1:  {speed:15.0410686, name:'K1  (Lunisolar diurnal)'},
+  O1:  {speed:13.9430356, name:'O1  (Lunar diurnal)'},
+  P1:  {speed:14.9589314, name:'P1  (Solar diurnal)'},
+  M4:  {speed:57.9682084, name:'M4  (Shallow water overtide)'},
+  MS4: {speed:58.9841042, name:'MS4 (Shallow water)'},
+};
+
+/* ---------- Parser .txt auto-deteksi ---------- */
+function parseTideTxt(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  const rows = [];
+  let skipped = 0;
+  // Deteksi delimiter dominan
+  const sample = lines.slice(0, Math.min(50, lines.length)).join('\n');
+  const delim = (sample.match(/\t/g)||[]).length > (sample.match(/,/g)||[]).length
+    ? /\t+/ : (sample.match(/,/g)||[]).length > (sample.match(/;/g)||[]).length
+    ? /\s*,\s*/ : (sample.match(/;/g)||[]).length>0 ? /\s*;\s*/ : /\s+/;
+
+  for(const line of lines){
+    // lewati header (baris tanpa angka muka air yang masuk akal)
+    const parts = line.split(delim).filter(p=>p!=='');
+    // cari angka tinggi muka air: ambil kolom numerik terakhir yang masuk akal (0-2000 cm / 0-20 m)
+    const nums = parts.map(p=>parseFloat(p.replace(',','.'))).filter(n=>!isNaN(n));
+    if(nums.length===0){ skipped++; continue; }
+    // heuristik: tinggi air = angka terakhir bila wajar; atau cari kolom dgn rentang masuk akal
+    let h = null;
+    // coba kolom terakhir dulu
+    for(let i=nums.length-1;i>=0;i--){
+      const v=nums[i];
+      if(v>=-50 && v<=2500){ h=v; break; }
+    }
+    if(h===null){ skipped++; continue; }
+    // deteksi timestamp bila ada (tanggal/jam) — opsional
+    let ts=null;
+    const dm = line.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})[ T]?(\d{1,2})?:?(\d{1,2})?/);
+    if(dm) ts = new Date(+dm[1], (+dm[2])-1, +dm[3], +(dm[4]||0), +(dm[5]||0));
+    rows.push({h, ts});
+  }
+  return {data: rows.map(r=>r.h), timestamps: rows.map(r=>r.ts), skipped, count: rows.length};
+}
+
+/* ---------- Tentukan metode berdasarkan jumlah data ---------- */
+function pickMethod(count){
+  const days = count/24; // asumsi data per jam
+  if(days >= 29 && days < 35) return {piantan:29, label:'Admiralty 29 piantan', days:Math.round(days)};
+  if(days >= 15 && days < 29) return {piantan:15, label:'Admiralty 15 piantan', days:Math.round(days)};
+  if(days >= 350) return {piantan:'year', label:'Data 1 tahun (Model 1tahun tersedia di tahap lanjut)', days:Math.round(days)};
+  if(days < 15) return {piantan:15, label:'Data < 15 hari — hasil kurang akurat, min. 15 hari disarankan', days:Math.round(days), warn:true};
+  return {piantan:15, label:'Admiralty 15 piantan', days:Math.round(days)};
+}
+
+/* ---------- Analisis harmonik (least-squares) ----------
+   Estimasi amplitudo & fase tiap konstituen dari deret waktu muka air
+   memakai regresi kuadrat-terkecil terhadap cos/sin tiap frekuensi.
+   h(t) = Z0 + Σ [ a_k cos(ω_k t) + b_k sin(ω_k t) ]
+   A_k = sqrt(a²+b²),  g_k = atan2(b,a)
+   Ini setara hasil skema Admiralty untuk konstituen utama. */
+function harmonicAnalysis(heights){
+  const n = heights.length;
+  if(n < 24) return null;
+  // Konstituen yang dapat dipisahkan dari rekaman 15-29 hari:
+  // M2, S2, N2, K1, O1, M4, MS4. K2 diinferensi dari S2 (K2=0.27*S2),
+  // P1 diinferensi dari K1 (P1=0.33*K1) — rasio ekuilibrium standar Admiralty.
+  const solveKeys = ['M2','S2','N2','K1','O1','M4','MS4'];
+  const ncol = 1 + 2*solveKeys.length;
+  const XtX = Array.from({length:ncol},()=>new Array(ncol).fill(0));
+  const Xty = new Array(ncol).fill(0);
+  for(let t=0;t<n;t++){
+    const row=[1];
+    for(const k of solveKeys){
+      const w=CONSTITUENTS[k].speed*Math.PI/180;
+      row.push(Math.cos(w*t), Math.sin(w*t));
+    }
+    const yt=heights[t];
+    for(let a=0;a<ncol;a++){
+      Xty[a]+=row[a]*yt;
+      for(let b=0;b<ncol;b++) XtX[a][b]+=row[a]*row[b];
+    }
+  }
+  // Ridge regularization kecil untuk menstabilkan frekuensi berdekatan
+  const lambda = 1e-6 * n;
+  for(let i=1;i<ncol;i++) XtX[i][i]+=lambda;
+  const c=gaussSolve(XtX,Xty);
+  if(!c || c.some(v=>!isFinite(v))) return null;
+  const Z0=c[0];
+  const result={Z0, constituents:{}};
+  solveKeys.forEach((k,idx)=>{
+    const a=c[1+2*idx], b=c[2+2*idx];
+    const A=Math.sqrt(a*a+b*b);
+    let g=Math.atan2(b,a)*180/Math.PI; if(g<0)g+=360;
+    result.constituents[k]={A,g,speed:CONSTITUENTS[k].speed};
+  });
+  // Inferensi konstituen yang tak terpisahkan (rasio ekuilibrium)
+  const S2=result.constituents.S2, K1=result.constituents.K1;
+  result.constituents.K2={A:0.27*S2.A, g:S2.g, speed:CONSTITUENTS.K2.speed, inferred:true};
+  result.constituents.P1={A:0.33*K1.A, g:K1.g, speed:CONSTITUENTS.P1.speed, inferred:true};
+  return result;
+}
+
+function _OLD_harmonicAnalysis(heights){
+  const n = heights.length;
+  if(n < 24) return null;
+  const keys = Object.keys(CONSTITUENTS);
+  // matriks desain: kolom [1, cos1,sin1, cos2,sin2, ...]
+  const ncol = 1 + 2*keys.length;
+  const X = []; // n x ncol
+  for(let t=0;t<n;t++){
+    const row=[1];
+    for(const k of keys){
+      const w = CONSTITUENTS[k].speed * Math.PI/180; // rad/jam
+      row.push(Math.cos(w*t), Math.sin(w*t));
+    }
+    X.push(row);
+  }
+  // Normal equations: (XtX) c = Xt y  — solve via Gauss elimination
+  const XtX = Array.from({length:ncol},()=>new Array(ncol).fill(0));
+  const Xty = new Array(ncol).fill(0);
+  for(let i=0;i<n;i++){
+    const xi=X[i], yi=heights[i];
+    for(let a=0;a<ncol;a++){
+      Xty[a]+=xi[a]*yi;
+      for(let b=0;b<ncol;b++) XtX[a][b]+=xi[a]*xi[b];
+    }
+  }
+  const c = gaussSolve(XtX, Xty);
+  if(!c) return null;
+  const Z0 = c[0];
+  const result = {Z0, constituents:{}};
+  keys.forEach((k,idx)=>{
+    const a=c[1+2*idx], b=c[2+2*idx];
+    const A=Math.sqrt(a*a+b*b);
+    let g=Math.atan2(b,a)*180/Math.PI; if(g<0)g+=360;
+    result.constituents[k]={A, g, speed:CONSTITUENTS[k].speed};
+  });
+  return result;
+}
+
+function gaussSolve(A, b){
+  const n=b.length;
+  const M=A.map((r,i)=>[...r,b[i]]);
+  for(let col=0;col<n;col++){
+    let piv=col;
+    for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>Math.abs(M[piv][col])) piv=r;
+    if(Math.abs(M[piv][col])<1e-12) return null;
+    [M[col],M[piv]]=[M[piv],M[col]];
+    const pivVal=M[col][col];
+    for(let cc=col;cc<=n;cc++) M[col][cc]/=pivVal; // normalisasi baris pivot
+    for(let r=0;r<n;r++){
+      if(r===col) continue;
+      const f=M[r][col];
+      for(let cc=col;cc<=n;cc++) M[r][cc]-=f*M[col][cc];
+    }
+  }
+  const x=new Array(n);
+  for(let i=0;i<n;i++) x[i]=M[i][n]; // matriks sudah identitas, solusi di kolom augmented
+  return x.every(v=>isFinite(v))?x:null;
+}
+
+/* ---------- Muka air & datum (standar hidrografi Indonesia) ---------- */
+function waterLevels(h){
+  const c=h.constituents, Z0=h.Z0;
+  const M2=c.M2.A, S2=c.S2.A, K1=c.K1.A, O1=c.O1.A, N2=c.N2.A, K2=c.K2.A, P1=c.P1.A;
+  // Rumus standar (Ongkosongo/Pariwono):
+  const MSL = Z0;
+  const HHWL = Z0 + (M2+S2+K1+O1);          // tertinggi
+  const HWS  = Z0 + (M2+S2+K1+O1);          // High Water Spring (≈ HHWL pada def. ini)
+  const MHWS = Z0 + (M2+S2);                 // Mean High Water Spring
+  const MHWL = Z0 + (M2+K1+O1);              // Mean High Water Level
+  const MLWL = Z0 - (M2+K1+O1);              // Mean Low Water Level
+  const MLWS = Z0 - (M2+S2);                 // Mean Low Water Spring
+  const LWS  = Z0 - (M2+S2+K1+O1);           // Low Water Spring (chart datum)
+  const LLWL = Z0 - (M2+S2+K1+O1);           // Lowest Low Water Level
+  const Zo   = Z0 - (M2+S2+K1+O1);           // Chart Datum / penyurutan (Z0 LWS)
+  // Formzahl (tipe pasut)
+  const F = (K1+O1)/(M2+S2);
+  let tipe;
+  if(F<=0.25) tipe='Semidiurnal (harian ganda)';
+  else if(F<=1.5) tipe='Campuran condong ganda';
+  else if(F<=3.0) tipe='Campuran condong tunggal';
+  else tipe='Diurnal (harian tunggal)';
+  return {MSL,HHWL,HWS,MHWS,MHWL,MLWL,MLWS,LWS,LLWL,Zo,F,tipe};
+}
+
+/* ---------- Prediksi muka air (untuk grafik Model) ---------- */
+function predict(h, nHours){
+  const c=h.constituents, Z0=h.Z0, out=[];
+  const keys=Object.keys(c);
+  for(let t=0;t<nHours;t++){
+    let v=Z0;
+    for(const k of keys){
+      const w=c[k].speed*Math.PI/180;
+      v += c[k].A*Math.cos(w*t - c[k].g*Math.PI/180);
+    }
+    out.push(v);
+  }
+  return out;
+}
+
+/* ---------- Rekomendasi & tindakan ---------- */
+function recommend(method, wl, count){
+  const recs=[];
+  if(method.warn) recs.push('Data kurang dari 15 hari — akurasi konstituen rendah. Tambah data minimal 15 piantan (15 hari) untuk hasil layak.');
+  if(method.piantan===15) recs.push('Metode 15 piantan: cocok untuk survei singkat. Untuk chart datum resmi, gunakan 29 piantan bila tersedia.');
+  if(method.piantan===29) recs.push('Metode 29 piantan: akurasi baik untuk penetapan chart datum (LWS/Zo).');
+  if(method.piantan==='year') recs.push('Data 1 tahun terdeteksi — Model 1tahun akan menambah akurasi konstituen musiman (tahap lanjut).');
+  recs.push('Chart Datum (Zo/LWS) = '+wl.Zo.toFixed(1)+' cm. Gunakan sebagai bidang referensi penyurutan kedalaman batimetri.');
+  recs.push('Tipe pasut: '+wl.tipe+' (Formzahl F='+wl.F.toFixed(2)+').');
+  if(wl.Zo<0) recs.push('Nilai Zo negatif relatif palem — pastikan ikatan benchmark/palem & koreksi MSL sudah benar.');
+  return recs;
+}
+
+/* Master pipeline */
+function runAdmiralty(text){
+  const parsed = parseTideTxt(text);
+  if(parsed.count < 24) return {error:'Data terbaca hanya '+parsed.count+' baris. Minimal ~24 (1 hari) diperlukan; idealnya ≥360 (15 hari).'};
+  // Auto: data >=180 hari -> Model 1 Tahun (harmonik + musiman)
+  if(parsed.count >= 180*24 && typeof runModelYear==='function'){
+    const ry = runModelYear(text);
+    if(ry && !ry.error) return ry;
+  }
+  const method = pickMethod(parsed.count);
+  const harm = harmonicAnalysis(parsed.data);
+  if(!harm) return {error:'Analisis harmonik gagal (data tidak cukup/cacat).'};
+  const wl = waterLevels(harm);
+  const recs = recommend(method, wl, parsed.count);
+  return {parsed, method, harm, wl, recs};
+}
+
+
+/* ============================================================
+   TAMBAHAN: CARIS, HYPACK, Benchmark, Model 1 Tahun
+   Referensi: HYPACK Tide Corrections (Corr = Raw + Draft + Tide);
+   IHO C-13 Ch.5 zoned tidal reduction; NOAA HSSD; jurnal Chart Datum.
+   ============================================================ */
+
+/* ---------- SAMPEL ELEVASI BENCHMARK (Chart Datum tie-in) ----------
+   Nilai contoh realistis ikatan benchmark ke datum (meter).
+   Dipakai bila pengguna belum punya data benchmark sendiri. */
+const BENCHMARK_SAMPLE = {
+  station: 'BM-SURVAI-01 (contoh)',
+  bm_to_msl: 1.250,      // tinggi BM di atas MSL (m)
+  msl_to_cd: 0.850,      // MSL di atas Chart Datum/LWS (m) — dari Z0 analisis
+  bm_to_cd: 2.100,       // BM di atas Chart Datum (m) = bm_to_msl + msl_to_cd
+  ellipsoid_to_cd: -28.500, // separasi elipsoid→CD (m), utk RTK tide (contoh)
+  note: 'Nilai contoh. Ganti dengan hasil leveling/ikatan benchmark lapangan Anda.'
+};
+
+/* ---------- HYPACK Tide Reduction ----------
+   Prinsip resmi HYPACK: Corr_depth = Raw_depth + Draft + Tide
+   Tide correction (relatif chart datum) = -(water_level - chartDatum)
+   water_level & chartDatum dalam satuan sama (m atau cm). */
+function hypackReduce(opts){
+  // opts: {rawDepth, draft, waterLevel, chartDatum}  (semua meter)
+  const tide = -(opts.waterLevel - opts.chartDatum); // umumnya negatif
+  const corr = opts.rawDepth + (opts.draft||0) + tide;
+  return { tide, corrDepth: corr };
+}
+/* Buat tide correction file (.tid style) dari deret muka air & chart datum */
+function hypackTideSeries(waterLevels, chartDatum, startTime, stepMin){
+  // return array {t(sec past midnight), tide}
+  const out=[];
+  let tsec = startTime||0;
+  for(let i=0;i<waterLevels.length;i++){
+    out.push({ t: tsec, tide: -(waterLevels[i]-chartDatum) });
+    tsec += (stepMin||60)*60;
+  }
+  return out;
+}
+
+/* ---------- CARIS Zoned Tidal Reduction ----------
+   IHO C-13 §5: koreksi waktu (time corrector) + faktor range antar zona.
+   reduced = observed_at_ref * rangeRatio  (digeser waktu timeOffset),
+   lalu sounding direduksi: depth_CD = depth_raw - (reduced_WL - CD). */
+function carisZonedReduce(opts){
+  // opts: {rawDepth, refWaterLevel, rangeRatio, chartDatum}
+  const ratio = opts.rangeRatio || 1.0;       // co-range ratio thd stasiun acuan
+  const zonedWL = (opts.refWaterLevel) * ratio; // tinggi air di zona survei
+  const reduction = zonedWL - opts.chartDatum;  // jumlah air di atas CD
+  const depthCD = opts.rawDepth - reduction;    // kedalaman terhadap CD
+  return { zonedWL, reduction, depthCD };
+}
+/* Terapkan zoned reduction ke seluruh deret + soundings */
+function carisReduceSeries(refLevels, rangeRatio, chartDatum, soundings){
+  const out=[];
+  for(let i=0;i<refLevels.length;i++){
+    const zonedWL = refLevels[i]*rangeRatio;
+    const reduction = zonedWL - chartDatum;
+    const raw = soundings && soundings[i]!=null ? soundings[i] : null;
+    out.push({ zonedWL, reduction, depthCD: raw!=null ? raw-reduction : null });
+  }
+  return out;
+}
+
+/* ---------- Komparasi 3 metode (deteksi rumus salah) ----------
+   Pada data & chart datum yang sama, HYPACK & CARIS (ratio=1, zona tunggal)
+   HARUS menghasilkan reduksi identik. Admiralty menyediakan chart datum-nya. */
+function compareMethods(waterLevel, chartDatum, rawDepth, draft, rangeRatio){
+  const hyp = hypackReduce({rawDepth, draft:draft||0, waterLevel, chartDatum});
+  const car = carisZonedReduce({rawDepth, refWaterLevel:waterLevel, rangeRatio:rangeRatio||1, chartDatum});
+  // HYPACK corrDepth (tanpa draft) vs CARIS depthCD harus sama bila ratio=1
+  const hypNoDraft = rawDepth + (-(waterLevel-chartDatum));
+  const diff = Math.abs(hypNoDraft - car.depthCD);
+  return {
+    hypack: hyp, caris: car,
+    konsisten: diff < 1e-6,
+    selisih: diff,
+    catatan: (rangeRatio && rangeRatio!==1)
+      ? 'CARIS pakai range ratio '+rangeRatio+' (zoned), HYPACK stasiun tunggal — perbedaan WAJAR karena zoning.'
+      : 'Ratio=1: HYPACK & CARIS identik (validasi rumus benar).'
+  };
+}
+
+/* ---------- MODEL 1 TAHUN (prediksi & musiman) ----------
+   Untuk data ~1 tahun: tambah konstituen musiman Sa (0.0410686°/jam) & Ssa,
+   lalu prediksi panjang. Memisahkan S2/K2 & K1/P1 jadi mungkin (>182 hari). */
+const CONSTITUENTS_YEAR = Object.assign({}, typeof CONSTITUENTS!=='undefined'?CONSTITUENTS:{}, {
+  Sa:  {speed:0.0410686, name:'Sa  (Solar annual)'},
+  Ssa: {speed:0.0821373, name:'Ssa (Solar semiannual)'},
+});
+function harmonicAnalysisYear(heights){
+  const n=heights.length;
+  if(n < 180*24) return null; // butuh >180 hari utk pisahkan K2/S2 & musiman
+  const keys=['M2','S2','N2','K2','K1','O1','P1','M4','MS4','Sa','Ssa'];
+  const ncol=1+2*keys.length;
+  const XtX=Array.from({length:ncol},()=>new Array(ncol).fill(0));
+  const Xty=new Array(ncol).fill(0);
+  for(let t=0;t<n;t++){
+    const row=[1];
+    for(const k of keys){ const w=CONSTITUENTS_YEAR[k].speed*Math.PI/180; row.push(Math.cos(w*t),Math.sin(w*t)); }
+    const yt=heights[t];
+    for(let a=0;a<ncol;a++){ Xty[a]+=row[a]*yt; for(let b=0;b<ncol;b++) XtX[a][b]+=row[a]*row[b]; }
+  }
+  const lambda=1e-6*n; for(let i=1;i<ncol;i++) XtX[i][i]+=lambda;
+  const c=gaussSolve(XtX,Xty);
+  if(!c||c.some(v=>!isFinite(v))) return null;
+  const res={Z0:c[0],constituents:{},isYear:true};
+  keys.forEach((k,idx)=>{ const a=c[1+2*idx],b=c[2+2*idx]; const A=Math.sqrt(a*a+b*b); let g=Math.atan2(b,a)*180/Math.PI; if(g<0)g+=360; res.constituents[k]={A,g,speed:CONSTITUENTS_YEAR[k].speed}; });
+  return res;
+}
+/* Pipeline model 1 tahun: pilih analisis tahunan bila data cukup */
+function runModelYear(text){
+  const parsed=parseTideTxt(text);
+  const days=parsed.count/24;
+  if(days<180) return {error:'Data '+Math.round(days)+' hari — Model 1 tahun butuh ≥180 hari (idealnya 365). Gunakan Admiralty 15/29 piantan.'};
+  const harm=harmonicAnalysisYear(parsed.data);
+  if(!harm) return {error:'Analisis tahunan gagal.'};
+  const wl=waterLevels(harm);
+  const recs=['Data '+Math.round(days)+' hari: konstituen musiman (Sa, Ssa) ikut dihitung.',
+    'S2/K2 & K1/P1 kini terpisah penuh (data >182 hari) — akurasi datum lebih tinggi.',
+    'Chart Datum (Zo) = '+wl.Zo.toFixed(1)+' cm. Cocok untuk penetapan datum resmi tahunan.'];
+  return {parsed,method:{piantan:'year',label:'Model 1 Tahun (harmonik + musiman)',days:Math.round(days)},harm,wl,recs};
+}
+
+</script>
+<script>
+function admSwitch(t){
+  ['adm','caris','hypack','benchmark'].forEach(x=>{
+    var pane=document.getElementById('pane-'+x), tab=document.getElementById('tab-'+x);
+    if(pane) pane.classList.toggle('hidden',x!==t);
+    if(tab) tab.classList.toggle('on',x===t);
+  });
+}
+/* ===================== ADMIRALTY UI ===================== */
+let admResult=null;
+
+function $(id){return document.getElementById(id);}
+
+function admImport(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  $('admStatus').textContent='Membaca '+file.name+'...';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const r=runAdmiralty(e.target.result);
+      if(r.error){ $('admStatus').innerHTML='<span style="color:#dc2626">'+r.error+'</span>'; return; }
+      admResult=r;
+      $('admStatus').textContent='✓ '+r.parsed.count+' data terbaca'+(r.parsed.skipped?(' ('+r.parsed.skipped+' baris non-data dilewati)'):'');
+      renderAdmResults();
+    }catch(err){ console.error(err); $('admStatus').innerHTML='<span style="color:#dc2626">Gagal: '+err.message+'</span>'; }
+  };
+  reader.readAsText(file);
+}
+
+function admLoadSample(){
+  // Sampel sintetis 29 hari (konstituen realistis) untuk demo
+  const SP={M2:28.9841042,S2:30,N2:28.4397295,K1:15.0410686,O1:13.9430356,M4:57.9682084,MS4:58.9841042};
+  const A={M2:55,S2:25,K1:22,O1:16,N2:11,M4:3,MS4:2};
+  const g={M2:115,S2:80,K1:200,O1:160,N2:100,M4:40,MS4:50};
+  let txt='Tanggal\tJam\tTinggi(cm)\n';
+  const N=29*24;
+  for(let t=0;t<N;t++){
+    let h=140;
+    for(const k of Object.keys(SP)){ const w=SP[k]*Math.PI/180; h+=A[k]*Math.cos(w*t-g[k]*Math.PI/180); }
+    h+=(Math.random()-0.5)*3; // noise kecil
+    const d=Math.floor(t/24)+1, hr=t%24;
+    txt+=`2024-01-${String(d).padStart(2,'0')}\t${hr}:00\t${h.toFixed(1)}\n`;
+  }
+  const r=runAdmiralty(txt);
+  admResult=r;
+  $('admStatus').textContent='✓ Sampel 29 hari dimuat ('+r.parsed.count+' data)';
+  renderAdmResults();
+}
+
+function admFmt(n,d){ return (isFinite(n)?n:0).toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d||2}); }
+
+function renderAdmResults(){
+  const r=admResult; if(!r) return;
+  const {method,harm,wl,recs,parsed}=r;
+  let h='';
+
+  // Metode
+  h+='<div class="res-card"><h3>📐 Metode Terpilih</h3>'+
+    kvR('Jumlah data', parsed.count+' titik (~'+method.days+' hari)')+
+    kvR('Metode', method.label)+
+    kvR('Tipe pasut', wl.tipe)+
+    kvR('Formzahl (F)', admFmt(wl.F,3))+'</div>';
+
+  // Konstituen
+  h+='<div class="res-card"><h3>🌊 Konstituen Harmonik</h3>'+
+    '<div style="overflow-x:auto"><table class="adm-tbl"><tr><th>Konst.</th><th>A (cm)</th><th>g (°)</th><th>°/jam</th></tr>';
+  for(const k of Object.keys(harm.constituents)){
+    const c=harm.constituents[k];
+    h+='<tr><td>'+k+(c.inferred?' *':'')+'</td><td>'+admFmt(c.A,2)+'</td><td>'+admFmt(c.g,1)+'</td><td>'+admFmt(c.speed,4)+'</td></tr>';
+  }
+  h+='</table></div><div class="hint">* K2 & P1 diinferensi dari S2 & K1 (rasio standar, tak terpisah pada rekaman pendek).</div></div>';
+
+  // Muka air
+  const levels=[['HHWL',wl.HHWL],['HWS',wl.HWS],['MHWS',wl.MHWS],['MHWL',wl.MHWL],['MSL',wl.MSL],
+    ['MLWL',wl.MLWL],['MLWS',wl.MLWS],['LWS',wl.LWS],['LLWL',wl.LLWL],['Z0/Chart Datum',wl.Zo]];
+  h+='<div class="res-card"><h3>📏 Elevasi Muka Air (cm)</h3>';
+  for(const [n,v] of levels) h+=kvR(n, admFmt(v,1)+' cm');
+  h+='</div>';
+
+  // Grafik
+  h+='<div class="res-card"><h3>📈 Grafik Pasut</h3>'+
+    '<canvas id="admChart" style="width:100%;height:260px"></canvas>'+
+    '<div class="chart-legend" id="admLegend"></div></div>';
+
+  // Rekomendasi
+  h+='<div class="res-card"><h3>💡 Rekomendasi & Tindakan</h3>'+
+    recs.map(x=>'<div class="rec-item"><span class="ic">→</span><span>'+x+'</span></div>').join('')+'</div>';
+
+  $('admResult').innerHTML=h;
+  setTimeout(()=>drawAdmChart(),50);
+}
+function kvR(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+
+function drawAdmChart(){
+  const r=admResult; if(!r) return;
+  const cv=$('admChart'); if(!cv) return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=260;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const raw=r.parsed.data;
+  const nShow=Math.min(raw.length, 24*7); // tampilkan 7 hari pertama agar jelas
+  const data=raw.slice(0,nShow);
+  const model=predict(r.harm, nShow);
+  const wl=r.wl;
+
+  const all=data.concat(model,[wl.HHWL,wl.LLWL]);
+  let min=Math.min(...all), max=Math.max(...all);
+  const pad=(max-min)*0.08||10; min-=pad; max+=pad;
+  const padL=42, padB=22, padT=10, padR=10;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const x=i=>padL+(i/(nShow-1))*plotW;
+  const y=v=>padT+(1-(v-min)/(max-min))*plotH;
+
+  // grid + axis
+  ctx.strokeStyle='#e2e8f0'; ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif'; ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){ const v=min+(max-min)*i/4, yy=y(v);
+    ctx.beginPath();ctx.moveTo(padL,yy);ctx.lineTo(W-padR,yy);ctx.stroke();
+    ctx.fillText(v.toFixed(0),4,yy+3); }
+
+  // water level lines
+  const wlLines=[['HHWL',wl.HHWL,'#dc2626'],['MHWS',wl.MHWS,'#ea580c'],['MSL',wl.MSL,'#16a34a'],
+    ['MLWS',wl.MLWS,'#0891b2'],['Z0',wl.Zo,'#7c3aed'],['LLWL',wl.LLWL,'#1d4ed8']];
+  ctx.setLineDash([4,3]); ctx.lineWidth=1;
+  for(const [n,v,col] of wlLines){
+    if(v<min||v>max) continue;
+    ctx.strokeStyle=col; ctx.beginPath();ctx.moveTo(padL,y(v));ctx.lineTo(W-padR,y(v));ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // raw data (abu)
+  ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1; ctx.beginPath();
+  data.forEach((v,i)=>{ i===0?ctx.moveTo(x(i),y(v)):ctx.lineTo(x(i),y(v)); }); ctx.stroke();
+  // model (biru tebal)
+  ctx.strokeStyle='#2563eb'; ctx.lineWidth=2; ctx.beginPath();
+  model.forEach((v,i)=>{ i===0?ctx.moveTo(x(i),y(v)):ctx.lineTo(x(i),y(v)); }); ctx.stroke();
+
+  // legend
+  $('admLegend').innerHTML=
+    '<span class="lg"><i style="background:#94a3b8"></i>Raw data</span>'+
+    '<span class="lg"><i style="background:#2563eb"></i>Model</span>'+
+    wlLines.map(([n,v,c])=>'<span class="lg"><i style="background:'+c+'"></i>'+n+'</span>').join('');
+}
+
+window.addEventListener('resize',()=>{ if(admResult) drawAdmChart(); });
+
+/* ===================== CARIS UI ===================== */
+let carisData=null;
+function carisImport(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=e=>{ try{ const p=parseTideTxt(e.target.result); carisData=p.data; document.getElementById('carisStatus').textContent='✓ '+p.count+' data muka air terbaca'; }catch(err){ document.getElementById('carisStatus').innerHTML='<span style="color:#dc2626">Gagal: '+err.message+'</span>'; } };
+  rd.readAsText(f);
+}
+function carisUseAdmZo(){
+  if(admResult && admResult.wl){ document.getElementById('carisCD').value=admResult.wl.Zo.toFixed(1); document.getElementById('carisStatus').textContent='Chart Datum diisi dari Zo Admiralty = '+admResult.wl.Zo.toFixed(1)+' cm'; }
+  else document.getElementById('carisStatus').innerHTML='<span style="color:#b45309">Jalankan analisis di tab Admiralty dulu.</span>';
+}
+function carisRun(){
+  try{
+    const CD=parseFloat(document.getElementById('carisCD').value);
+    const ratio=parseFloat(document.getElementById('carisRatio').value)||1;
+    const raw=parseFloat(document.getElementById('carisRaw').value)||0;
+    if(isNaN(CD)){ alert('Isi Chart Datum (atau klik Pakai Zo Admiralty).'); return; }
+    const one=carisZonedReduce({rawDepth:raw, refWaterLevel:(carisData?carisData[0]:CD+200), rangeRatio:ratio, chartDatum:CD});
+    let h='<div class="res-card"><h3>📐 CARIS Zoned Reduction</h3>'+
+      kvR('Chart Datum',CD.toFixed(1)+' cm')+kvR('Range Ratio',ratio.toFixed(2))+
+      kvR('Time Corrector',(parseFloat(document.getElementById('carisTimeShift').value)||0)+' jam')+
+      kvR('WL zona (contoh)',one.zonedWL.toFixed(1)+' cm')+
+      kvR('Reduksi (WL−CD)',one.reduction.toFixed(1)+' cm')+
+      kvR('Raw sounding',raw.toFixed(2)+' m')+
+      kvR('Depth → Chart Datum',one.depthCD.toFixed(2)+' m')+'</div>';
+    // tabel deret bila ada data
+    if(carisData && carisData.length){
+      const ser=carisReduceSeries(carisData.slice(0,12), ratio, CD, carisData.slice(0,12).map(()=>raw));
+      h+='<div class="res-card"><h3>📋 Deret Reduksi (12 data awal)</h3><div style="overflow-x:auto"><table class="adm-tbl"><tr><th>#</th><th>WL (cm)</th><th>WL zona</th><th>Reduksi</th><th>Depth CD (m)</th></tr>';
+      ser.forEach((r,i)=>{ h+='<tr><td>'+(i+1)+'</td><td>'+carisData[i].toFixed(1)+'</td><td>'+r.zonedWL.toFixed(1)+'</td><td>'+r.reduction.toFixed(1)+'</td><td>'+(r.depthCD!=null?r.depthCD.toFixed(2):'-')+'</td></tr>'; });
+      h+='</table></div></div>';
+    }
+    // komparasi metode
+    const wl0=carisData?carisData[0]:CD+200;
+    const cmp=compareMethods(wl0, CD, raw, 0, ratio);
+    h+='<div class="res-card"><h3>🔍 Komparasi CARIS vs HYPACK</h3>'+
+      '<div class="rec-item"><span class="ic">'+(cmp.konsisten?'✓':'≈')+'</span><span>'+cmp.catatan+'</span></div>'+
+      kvR('Selisih reduksi',cmp.selisih.toFixed(4)+' m')+'</div>';
+    document.getElementById('carisResult').innerHTML=h;
+  }catch(err){ console.error(err); document.getElementById('carisResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+err.message+'</b></div>'; }
+}
+
+/* ===================== HYPACK UI ===================== */
+let hypackData=null;
+function hypackImport(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=e=>{ try{ const p=parseTideTxt(e.target.result); hypackData=p.data; document.getElementById('hypackStatus').textContent='✓ '+p.count+' data muka air terbaca'; }catch(err){ document.getElementById('hypackStatus').innerHTML='<span style="color:#dc2626">Gagal: '+err.message+'</span>'; } };
+  rd.readAsText(f);
+}
+function hypackUseAdmZo(){
+  if(admResult && admResult.wl){ document.getElementById('hypackCD').value=admResult.wl.Zo.toFixed(1); document.getElementById('hypackStatus').textContent='Chart Datum diisi dari Zo Admiralty = '+admResult.wl.Zo.toFixed(1)+' cm'; }
+  else document.getElementById('hypackStatus').innerHTML='<span style="color:#b45309">Jalankan analisis di tab Admiralty dulu.</span>';
+}
+function hypackRun(){
+  try{
+    const CD=parseFloat(document.getElementById('hypackCD').value);
+    const draft=parseFloat(document.getElementById('hypackDraft').value)||0;
+    const raw=parseFloat(document.getElementById('hypackRaw').value)||0;
+    const step=parseFloat(document.getElementById('hypackStep').value)||60;
+    if(isNaN(CD)){ alert('Isi Chart Datum (atau klik Pakai Zo Admiralty).'); return; }
+    const wl0=hypackData?hypackData[0]:CD+200;
+    const one=hypackReduce({rawDepth:raw, draft:draft, waterLevel:wl0, chartDatum:CD});
+    let h='<div class="res-card"><h3>📐 HYPACK Tide Correction</h3>'+
+      '<div class="rec-item"><span class="ic">f</span><span><b>Corr = Raw + Draft + Tide</b>, Tide = −(WL − CD)</span></div>'+
+      kvR('Chart Datum',CD.toFixed(1)+' cm')+kvR('Draft',draft.toFixed(1)+' cm')+
+      kvR('WL (contoh)',wl0.toFixed(1)+' cm')+
+      kvR('Tide correction',one.tide.toFixed(1)+' cm '+(one.tide<0?'(negatif ✓)':''))+
+      kvR('Raw sounding',raw.toFixed(2)+' m')+
+      kvR('Corrected depth',one.corrDepth.toFixed(2)+' m')+'</div>';
+    // tide file series
+    if(hypackData && hypackData.length){
+      const ser=hypackTideSeries(hypackData, CD, 0, step);
+      h+='<div class="res-card"><h3>📄 Tide File (.TID) — 12 data awal</h3><div style="overflow-x:auto"><table class="adm-tbl"><tr><th>t (detik)</th><th>WL (cm)</th><th>Tide corr (cm)</th></tr>';
+      ser.slice(0,12).forEach((r,i)=>{ h+='<tr><td>'+r.t+'</td><td>'+hypackData[i].toFixed(1)+'</td><td>'+r.tide.toFixed(1)+'</td></tr>'; });
+      h+='</table></div><button class="btn ghost" style="margin-top:10px" onclick="hypackDownloadTid()">⬇ Unduh Tide File (.tid)</button></div>';
+      window._hypackTid=ser;
+    }
+    document.getElementById('hypackResult').innerHTML=h;
+  }catch(err){ console.error(err); document.getElementById('hypackResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+err.message+'</b></div>'; }
+}
+function hypackDownloadTid(){
+  if(!window._hypackTid) return;
+  let txt='# HYPACK Tide File (.tid) — dibuat SurvAI\n# format: detik_past_midnight  tide_correction(cm)\n';
+  window._hypackTid.forEach(r=>{ txt+=r.t+' '+r.tide.toFixed(2)+'\n'; });
+  const blob=new Blob([txt],{type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='koreksi_pasut.tid'; a.click();
+}
+
+/* ===================== BENCHMARK UI ===================== */
+function bmCompute(){
+  try{
+    const name=document.getElementById('bmName').value||'BM';
+    const bmMsl=parseFloat(document.getElementById('bmMsl').value)||0;
+    const mslCd=parseFloat(document.getElementById('bmMslCd').value)||0;
+    const ellCd=parseFloat(document.getElementById('bmEllCd').value)||0;
+    const bmCd=bmMsl+mslCd;
+    let h='<div class="res-card" style="margin-top:14px"><h3>📏 Ikatan Datum '+name+'</h3>'+
+      kvR('BM di atas MSL',bmMsl.toFixed(3)+' m')+
+      kvR('MSL di atas Chart Datum',mslCd.toFixed(3)+' m')+
+      kvR('BM di atas Chart Datum',bmCd.toFixed(3)+' m')+
+      kvR('Separasi Elipsoid→CD',ellCd.toFixed(3)+' m')+'</div>'+
+      '<div class="res-card"><h3>💡 Catatan</h3>'+
+      '<div class="rec-item"><span class="ic">→</span><span>Chart Datum berada '+bmCd.toFixed(3)+' m di bawah benchmark. Gunakan untuk koreksi tinggi palem & verifikasi Zo Admiralty.</span></div>'+
+      '<div class="rec-item"><span class="ic">→</span><span>Untuk RTK tide: tinggi antena GNSS − ('+ellCd.toFixed(3)+') = koreksi ke chart datum.</span></div>'+
+      '<div class="rec-item"><span class="ic">!</span><span>Nilai contoh — wajib diganti hasil leveling/ikatan benchmark lapangan Anda sebelum pemakaian resmi.</span></div></div>';
+    document.getElementById('bmResult').innerHTML=h;
+  }catch(err){ console.error(err); }
+}
+
+
+</script>
+<style id="survai-embed-style">html.survai-embed body{background:#f8fafc !important;}</style>
+<script id="survai-embed-script">
+(function(){ try{ var p=new URLSearchParams(location.search); if(p.get('embed')==='1') document.documentElement.classList.add('survai-embed'); }catch(e){} })();
+</script>
+</body>
+</html>

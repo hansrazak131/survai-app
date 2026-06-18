@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Survey Engineer PRO Combined Workflow</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<style>
+:root{--bg:#e7e7e7;--panel:#ffffff;--panel2:#fefefe;--line:#284763;--text:#eaf4ff;--muted:#9db3cc;--green:#22c55e;--red:#ef4444;--cyan:#22d3ee;--yellow:#f59e0b;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316;--white:#f8fafc}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,#173d66,#06101d 42%,#020617);font-family:Inter,Arial,sans-serif;color:var(--text)}
+header{position:sticky;top:0;z-index:50;background:rgba(2,6,23,.96);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{font-size:18px;font-weight:950}.sub{font-size:12px;color:var(--muted);margin-top:3px}.badge{border:1px solid #35729b;border-radius:999px;background:#071a2d;color:#bdf4ff;padding:8px 12px;font-size:12px;font-weight:800}.wrap{max-width:1600px;margin:0 auto;padding:14px}.nav{position:sticky;top:67px;z-index:40;display:flex;gap:8px;overflow:auto;background:rgba(7,18,32,.95);border-bottom:1px solid var(--line);padding:10px 14px}.nav button{white-space:nowrap;border:1px solid var(--line);background:#0a1728;color:#dbebff;border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:900}.nav button.active{background:linear-gradient(135deg,#0ea5e9,#10b981);border-color:#67e8f9;color:#fff}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{background:rgba(12,27,45,.97);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 12px 28px rgba(0,0,0,.25)}.span12{grid-column:span 12}.span8{grid-column:span 8}.span6{grid-column:span 6}.span5{grid-column:span 5}.span4{grid-column:span 4}.span3{grid-column:span 3}.span2{grid-column:span 2}.hide{display:none!important}h1,h2,h3{margin:0 0 10px}h1{font-size:22px}h2{font-size:18px}h3{font-size:14px;color:#dbeafe}.muted{color:var(--muted);font-size:12px;line-height:1.5}.form{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.form4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.form3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.form2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.field{display:flex;flex-direction:column;gap:4px}.field label{font-size:12px;color:#b8cae0}.field input,.field select,.field textarea{width:100%;background:#061525;color:#edf6ff;border:1px solid #2a4662;border-radius:10px;padding:9px;outline:none}.field textarea{min-height:150px;font-family:ui-monospace,Consolas,monospace}.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.btn{border:none;border-radius:10px;padding:10px 12px;color:white;background:#2563eb;cursor:pointer;font-weight:950}.green{background:#16a34a}.red{background:#dc2626}.yellow{background:#d97706}.gray{background:#334155}.cyan{background:#0891b2}.purple{background:#7c3aed}.orange{background:#ea580c}.kpi{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.box{background:#061525;border:1px solid #24425e;border-radius:14px;padding:12px}.box .l{font-size:12px;color:#9db3cc}.box .v{font-size:22px;font-weight:950;margin-top:2px}.cut{color:#ff6b6b;font-weight:950}.fill{color:#49e78b;font-weight:950}.ok{color:#22c55e;font-weight:900}.warn{color:#f59e0b;font-weight:900}.bad{color:#ef4444;font-weight:900}.tag{display:inline-block;padding:4px 9px;border-radius:999px;background:#102742;border:1px solid #315372;color:#cde7ff;font-size:11px;font-weight:800;margin:2px}.tablewrap{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #2a405d;padding:7px;text-align:center}th{background:#102742;color:#dbeafe;position:sticky;top:0;z-index:1}tbody tr:nth-child(even){background:#09182a}canvas{background:#061525;border:1px solid #24425e;border-radius:14px;width:100%;max-height:420px}.svgBox{background:#061525;border:1px solid #24425e;border-radius:14px;min-height:340px;overflow:hidden}.formula{font-family:ui-monospace,Consolas,monospace;background:#050f1d;border-left:3px solid var(--cyan);border-radius:10px;padding:10px;color:#dcf7ff;font-size:12px;line-height:1.65;white-space:pre-wrap}.stepper{display:grid;grid-template-columns:repeat(10,1fr);gap:7px}.step{background:#061525;border:1px solid #294763;border-radius:12px;padding:9px;min-height:74px}.step b{display:block;color:#dbeafe;font-size:12px}.step small{color:#99aec9}.step.done{border-color:#22c55e;background:rgba(34,197,94,.09)}.step.warn{border-color:#f59e0b;background:rgba(245,158,11,.08)}.reportSheet{background:#f8fafc;color:#0f172a;border-radius:12px;padding:18px;min-height:650px}.reportSheet table th{background:#e2e8f0;color:#0f172a}.reportSheet table td,.reportSheet table th{border:1px solid #94a3b8}.reportSheet h1,.reportSheet h2,.reportSheet h3{color:#0f172a}.split{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mini{font-size:11px}.presentMode{font-size:1.1rem}.presentMode .box .v{font-size:30px}.photo{border:1px dashed #55728f;border-radius:12px;padding:12px;text-align:center;color:#abc}.stickyActions{position:sticky;bottom:0;background:rgba(2,6,23,.92);border-top:1px solid var(--line);padding:10px;border-radius:12px;margin-top:12px}@media(max-width:1050px){.span8,.span6,.span5,.span4,.span3,.span2{grid-column:span 12}.form,.form4,.form3{grid-template-columns:repeat(2,1fr)}.kpi{grid-template-columns:repeat(2,1fr)}.stepper{grid-template-columns:repeat(2,1fr)}.nav{top:72px}}@media print{header,.nav,.noPrint,.btns,.stickyActions{display:none!important}body{background:white;color:#111}.wrap{max-width:none}.card{box-shadow:none;border:0;background:white;color:#111}.tab{display:none!important}#report{display:grid!important}.reportSheet{background:white;color:#111}.muted{color:#333}.reportSheet .cut{color:#b91c1c}.reportSheet .fill{color:#047857}}
+</style>
+<link rel="stylesheet" href="../shared-home-theme.css" />
+
+<style id="light-theme-override-style-only">
+/* STYLE-ONLY LIGHT THEME OVERRIDE
+   Aman: tidak mengubah rumus, ID, function, atau script perhitungan.
+   Header disembunyikan via CSS saja, bukan dihapus dari HTML. */
+:root{
+  --bg:#f8fafc !important;
+  --panel:#ffffff !important;
+  --panel2:#f9fafb !important;
+  --line:#cbd5e1 !important;
+  --text:#0f172a !important;
+  --muted:#475569 !important;
+  --green:#15803d !important;
+  --red:#b91c1c !important;
+  --cyan:#0891b2 !important;
+  --yellow:#b45309 !important;
+  --blue:#2563eb !important;
+  --purple:#7c3aed !important;
+  --orange:#c2410c !important;
+  --white:#ffffff !important;
+}
+html,body{
+  background:#f8fafc !important;
+  color:#0f172a !important;
+}
+body > header{
+  display:none !important;
+}
+.wrap{
+  background:#f8fafc !important;
+}
+.nav{
+  top:0 !important;
+  background:rgba(255,255,255,.96) !important;
+  border-bottom:1px solid #cbd5e1 !important;
+  box-shadow:0 8px 22px rgba(15,23,42,.06) !important;
+}
+.nav button{
+  background:#ffffff !important;
+  color:#0f172a !important;
+  border:1px solid #cbd5e1 !important;
+  box-shadow:0 1px 2px rgba(15,23,42,.04) !important;
+}
+.nav button.active{
+  background:linear-gradient(135deg,#e0f2fe,#dcfce7) !important;
+  color:#0f172a !important;
+  border-color:#38bdf8 !important;
+}
+.card,
+.box,
+.step,
+.comp-card,
+.stickyActions{
+  background:#ffffff !important;
+  color:#0f172a !important;
+  border:1px solid #cbd5e1 !important;
+  box-shadow:0 10px 24px rgba(15,23,42,.06) !important;
+}
+h1,h2,h3,
+.card h1,.card h2,.card h3,
+.step b,
+.box .v,
+.kpi .v,
+.presentMode .box .v{
+  color:#0f172a !important;
+}
+.sub,
+.muted,
+.box .l,
+.step small,
+.field label,
+.mini{
+  color:#475569 !important;
+}
+.field input,
+.field select,
+.field textarea{
+  background:#ffffff !important;
+  color:#0f172a !important;
+  border:1px solid #cbd5e1 !important;
+  box-shadow:inset 0 1px 2px rgba(15,23,42,.04) !important;
+}
+.field input::placeholder,
+.field textarea::placeholder{
+  color:#64748b !important;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus{
+  border-color:#0284c7 !important;
+  box-shadow:0 0 0 3px rgba(14,165,233,.16) !important;
+}
+.formula{
+  background:#f8fafc !important;
+  color:#0f172a !important;
+  border:1px solid #cbd5e1 !important;
+  border-left:4px solid #0891b2 !important;
+}
+.tablewrap{
+  background:#ffffff !important;
+  border:1px solid #cbd5e1 !important;
+}
+table{
+  color:#0f172a !important;
+  background:#ffffff !important;
+}
+th{
+  background:#e2e8f0 !important;
+  color:#0f172a !important;
+  border:1px solid #cbd5e1 !important;
+}
+td{
+  color:#0f172a !important;
+  border:1px solid #cbd5e1 !important;
+}
+tbody tr:nth-child(even){
+  background:#f8fafc !important;
+}
+tbody tr:nth-child(odd){
+  background:#ffffff !important;
+}
+.reportSheet,
+.reportSheet h1,
+.reportSheet h2,
+.reportSheet h3,
+.reportSheet table,
+.reportSheet table td,
+.reportSheet table th{
+  color:#0f172a !important;
+}
+.reportSheet{
+  background:#ffffff !important;
+  border:1px solid #cbd5e1 !important;
+}
+.reportSheet table th{
+  background:#e2e8f0 !important;
+}
+.tag{
+  background:#eef6ff !important;
+  color:#0f172a !important;
+  border:1px solid #bfdbfe !important;
+}
+.step.done{
+  background:#f0fdf4 !important;
+  border-color:#86efac !important;
+}
+.step.warn{
+  background:#fffbeb !important;
+  border-color:#facc15 !important;
+}
+.ok{
+  color:#15803d !important;
+}
+.warn{
+  color:#b45309 !important;
+}
+.bad{
+  color:#b91c1c !important;
+}
+.cut{
+  color:#b91c1c !important;
+  font-weight:950 !important;
+}
+.fill{
+  color:#15803d !important;
+  font-weight:950 !important;
+}
+.btn{
+  box-shadow:0 8px 16px rgba(15,23,42,.12) !important;
+}
+.gray{
+  background:#475569 !important;
+}
+.green{
+  background:#15803d !important;
+}
+.red{
+  background:#b91c1c !important;
+}
+.yellow{
+  background:#b45309 !important;
+}
+.cyan{
+  background:#0891b2 !important;
+}
+.purple{
+  background:#7c3aed !important;
+}
+.orange{
+  background:#c2410c !important;
+}
+/* Area visual/chart tetap gelap agar warna chart/SVG bawaan tetap terbaca tanpa menyentuh script */
+canvas,
+.svgBox{
+  background:#0f172a !important;
+  border:1px solid #cbd5e1 !important;
+}
+.photo{
+  background:#ffffff !important;
+  color:#475569 !important;
+  border:1px dashed #94a3b8 !important;
+}
+@media(max-width:1050px){
+  .nav{top:0 !important;}
+}
+@media print{
+  body{background:#ffffff !important;color:#111827 !important;}
+  .card{background:#ffffff !important;color:#111827 !important;box-shadow:none !important;}
+}
+</style>
+
+</head>
+<body>
+<header><div><div class="brand">📐 SURVEY ENGINEER PRO COMBINED</div><div class="sub">Advanced + Full Suite • Ordered Workflow: Data Awal → Import → Validasi → Template → QC → Quantity → Visual → Laporan</div></div><div class="badge">Professional Surveying Report Engine</div></header>
+<nav class="nav">
+<button class="active" onclick="showTab(event,'workflow')">0 Workflow</button><button onclick="showTab(event,'awal')">1 Data Awal</button><button onclick="showTab(event,'import')">2 Import & Sort</button><button onclick="showTab(event,'template')">3 Template</button><button onclick="showTab(event,'xsec')">4 Cross Section</button><button onclick="showTab(event,'level')">5 QC Leveling</button><button onclick="showTab(event,'marking')">6 Marking</button><button onclick="showTab(event,'quantity')">7 Quantity & Mass Haul</button><button onclick="showTab(event,'visual')">8 Visual 2D/3D</button><button onclick="showTab(event,'present')">9 Presentation</button><button onclick="showTab(event,'report')">10 Report PDF</button>
+</nav>
+<main class="wrap">
+<section id="workflow" class="tab grid">
+<div class="card span12"><h1>Workflow Otomatis dari Data Awal sampai Laporan</h1><div class="stepper" id="stepper"></div><div class="btns"><button class="btn green" onclick="runFullWorkflow(true)">RUN FULL WORKFLOW + DUMMY</button><button class="btn cyan" onclick="runFullWorkflow(false)">RUN DARI DATA SAAT INI</button><button class="btn gray" onclick="saveLocal()">Save Browser</button><button class="btn gray" onclick="loadLocal()">Load Browser</button><button class="btn red" onclick="resetAll()">Reset Semua</button></div><div class="stickyActions"><b>Urutan proses:</b> 1) isi metadata & datum, 2) import/sort cross-section, 3) pilih template, 4) validasi offset, 5) QC leveling, 6) marking, 7) hitung volume, 8) mass haul & heatmap, 9) model TIN/Grid, 10) generate laporan PDF.</div></div>
+<div class="card span12"><h2>Executive KPI</h2><div class="kpi"><div class="box"><div class="l">Total Cut</div><div class="v cut" id="kpiCut">0.00 m³</div></div><div class="box"><div class="l">Total Fill</div><div class="v fill" id="kpiFill">0.00 m³</div></div><div class="box"><div class="l">Balance Cut-Fill</div><div class="v" id="kpiBalance">0.00 m³</div></div><div class="box"><div class="l">Max Depth</div><div class="v" id="kpiDepth">0.00 m</div></div><div class="box"><div class="l">QC Leveling</div><div class="v" id="kpiQC">-</div></div><div class="box"><div class="l">Data Status</div><div class="v" id="kpiData">-</div></div></div></div>
+<div class="card span6"><h2>Audit 10x Sistem</h2><div id="auditBox" class="formula">Belum dijalankan.</div></div><div class="card span6"><h2>Quantity Quick Chart</h2><canvas id="dashChart"></canvas></div>
+</section>
+<section id="awal" class="tab grid hide">
+<div class="card span8"><h2>1. Data Awal Proyek</h2><div class="form"><div class="field"><label>Project</label><input id="metaProject" value="Road / Canal Earthwork Quantity Project"></div><div class="field"><label>Location</label><input id="metaLocation" value="Serang, Banten"></div><div class="field"><label>Drawing No</label><input id="metaDrawing" value="SVY-CF-COM-001"></div><div class="field"><label>Surveyor</label><input id="metaSurveyor" value="Survey Team"></div><div class="field"><label>Datum / BM RL</label><input id="metaDatum" type="number" step="0.001" value="100.000"></div><div class="field"><label>Calculation Method</label><select id="metaMethod"><option>Average End Area + Offset Strip</option><option>Grid IDW Volume</option><option>TIN Approximation</option></select></div><div class="field"><label>Default Interval m</label><input id="defaultInterval" type="number" step="0.001" value="50"></div><div class="field"><label>Allowable Leveling C√K mm</label><input id="tolConst" type="number" step="1" value="12"></div><div class="field"><label>Unit</label><select id="unitSystem"><option>Meter</option><option>Millimeter</option></select></div><div class="field"><label>Report Title</label><input id="reportTitle" value="CUT & FILL QUANTITY REPORT"></div><div class="field"><label>Client</label><input id="metaClient" value="Client / Owner"></div><div class="field"><label>Checker</label><input id="metaChecker" value="Checker"></div></div><div class="btns"><button class="btn green" onclick="sampleMeta()">Isi Data Awal Dummy</button><button class="btn cyan" onclick="runFullWorkflow(false)">Lanjut Hitung</button></div></div>
+<div class="card span4"><h2>Rumus Engine</h2><div class="formula">h = Design RL − Existing RL
+h > 0 = FILL, h < 0 = CUT
+Area strip = Σ ((h1+h2)/2) × Δoffset
+Jika tanda berubah: strip dipotong di titik zero crossing.
+Volume interval = (A1+A2)/2 × jarak STA
+Mass haul = Σ(Cut − Fill)
+HI = RL BM + BS
+RL point = HI − Staff Reading</div></div>
+</section>
+<section id="import" class="tab grid hide">
+<div class="card span5"><h2>2. Import CSV/TXT Cross Section</h2><p class="muted">Format wajib: <b>sta,offset,existing,design</b>. Bisa separator koma, tab, titik koma, atau spasi.</p><div class="field"><label>Paste CSV/TXT</label><textarea id="importText"></textarea></div><div class="btns"><button class="btn green" onclick="fillImportSample()">Isi Sample Import</button><button class="btn cyan" onclick="importData()">Import + Auto Sort</button><button class="btn gray" onclick="downloadTemplateCSV()">Download Template CSV</button><button class="btn red" onclick="clearCS()">Clear Cross Section</button></div><div id="importLog" class="formula">Import log akan tampil di sini.</div></div>
+<div class="card span7"><h2>Data Setelah Import & Pengurutan</h2><div class="tablewrap"><table id="sortedTable"></table></div><div class="formula">Sorting otomatis: STA naik → Offset kiri ke kanan. Duplikat offset pada STA sama akan ditandai oleh audit.</div></div>
+</section>
+<section id="template" class="tab grid hide">
+<div class="card span4"><h2>3. Template Road / Canal / Pipeline</h2><div class="field"><label>Mode Template</label><select id="tplType" onchange="renderTplHelp()"><option value="road">Road</option><option value="canal">Canal</option><option value="pipeline">Pipeline / Trench</option></select></div><div class="form2"><div class="field"><label>STA</label><input id="tplSta" type="number" value="0"></div><div class="field"><label>Center / Invert RL</label><input id="tplCenter" type="number" step="0.001" value="100"></div><div class="field"><label>Half Width / Bottom Width</label><input id="tplWidth" type="number" step="0.001" value="7"></div><div class="field"><label>Crossfall / Slope %</label><input id="tplCrossfall" type="number" step="0.001" value="2.5"></div><div class="field"><label>Side Slope H:V</label><input id="tplSide" type="number" step="0.001" value="1.5"></div><div class="field"><label>Depth / Cover</label><input id="tplDepth" type="number" step="0.001" value="1.5"></div></div><div class="btns"><button class="btn green" onclick="applyTemplateToSta()">Apply ke STA</button><button class="btn cyan" onclick="applyTemplateAll()">Apply ke Semua STA</button><button class="btn yellow" onclick="sampleTemplates()">Sample Template</button></div><div id="tplHelp" class="formula"></div></div>
+<div class="card span8"><h2>Preview Template Design</h2><div id="tplSVG" class="svgBox"></div></div>
+</section>
+<section id="xsec" class="tab grid hide">
+<div class="card span4"><h2>4. Cross Section Detail Berbasis Offset</h2><div class="form2"><div class="field"><label>STA m</label><input id="csSta" type="number" step="0.001" value="0"></div><div class="field"><label>Offset m</label><input id="csOffset" type="number" step="0.001" value="0"></div><div class="field"><label>Existing RL</label><input id="csEx" type="number" step="0.001" value="99"></div><div class="field"><label>Design RL</label><input id="csDes" type="number" step="0.001" value="100"></div></div><div class="btns"><button class="btn green" onclick="addCSPoint()">Tambah/Update Titik</button><button class="btn cyan" onclick="sampleCrossSections()">Sample CS</button><button class="btn gray" onclick="exportCSV('cross')">Export CSV</button></div><div class="field"><label>Pilih STA Visual</label><select id="csViewSta" onchange="renderCSVisual()"></select></div><div class="formula">Area dihitung dari offset strip, sehingga bentuk ground yang tidak simetris tetap terbaca.</div></div>
+<div class="card span8"><h2>Cross Section Data, Area Cut/Fill per STA</h2><div class="tablewrap"><table id="csTable"></table></div></div><div class="card span6"><h2>Visual Cross Section 2D</h2><div id="csSVG" class="svgBox"></div></div><div class="card span6"><h2>Section Area Chart</h2><canvas id="areaChart"></canvas></div>
+</section>
+<section id="level" class="tab grid hide">
+<div class="card span4"><h2>5. QC Leveling + Misclose Adjustment</h2><div class="form2"><div class="field"><label>Point</label><input id="lvPoint" value="P1"></div><div class="field"><label>BS</label><input id="lvBS" type="number" step="0.001"></div><div class="field"><label>IS</label><input id="lvIS" type="number" step="0.001"></div><div class="field"><label>FS</label><input id="lvFS" type="number" step="0.001"></div><div class="field"><label>Known Closing RL</label><input id="lvCloseRL" type="number" step="0.001" value="100.000"></div><div class="field"><label>Distance km</label><input id="lvKm" type="number" step="0.001" value="0.5"></div></div><div class="btns"><button class="btn green" onclick="addLevelRow()">Tambah Level Row</button><button class="btn cyan" onclick="sampleLevel()">Sample Level</button><button class="btn gray" onclick="exportCSV('level')">Export Level CSV</button><button class="btn red" onclick="clearLevel()">Clear</button></div><div id="levelSummary" class="formula"></div></div>
+<div class="card span8"><h2>Level Book Adjusted</h2><div class="tablewrap"><table id="levelTable"></table></div></div>
+</section>
+<section id="marking" class="tab grid hide">
+<div class="card span5"><h2>6. Target Bacaan Rambu / Marking Assistant</h2><div class="form2"><div class="field"><label>RL BM / Station</label><input id="mkRL" type="number" step="0.001" value="100"></div><div class="field"><label>BS</label><input id="mkBS" type="number" step="0.001" value="1.420"></div><div class="field"><label>Design RL</label><input id="mkDesign" type="number" step="0.001" value="100.150"></div><div class="field"><label>Actual Staff Reading</label><input id="mkActual" type="number" step="0.001" value="1.100"></div><div class="field"><label>Tolerance m</label><input id="mkTol" type="number" step="0.001" value="0.005"></div><div class="field"><label>Layer Thickness m</label><input id="mkLayer" type="number" step="0.001" value="0.000"></div></div><div class="btns"><button class="btn green" onclick="calcMarking()">Hitung Marking</button><button class="btn cyan" onclick="sampleMarking()">Sample Marking</button></div><div id="mkOut" class="formula"></div></div>
+<div class="card span7"><h2>Sketsa Bacaan Rambu</h2><div id="mkSVG" class="svgBox"></div></div>
+</section>
+<section id="quantity" class="tab grid hide">
+<div class="card span12"><h2>7. Quantity Summary + Mass Haul</h2><div class="btns"><button class="btn green" onclick="computeAll()">Hitung Quantity</button><button class="btn gray" onclick="exportCSV('volume')">Export Volume CSV</button></div><div class="tablewrap"><table id="volTable"></table></div></div><div class="card span6"><h2>Cut Fill per Interval</h2><canvas id="volChart"></canvas></div><div class="card span6"><h2>Mass Haul Diagram</h2><canvas id="massChart"></canvas></div>
+</section>
+<section id="visual" class="tab grid hide">
+<div class="card span6"><h2>8A. Heatmap Cut-Fill STA vs Offset</h2><canvas id="heatCanvas" width="1000" height="520"></canvas></div><div class="card span6"><h2>8B. 3D Surface TIN/Grid</h2><div class="form3"><div class="field"><label>Grid Cell m</label><input id="gridCell" type="number" step="1" value="5"></div><div class="field"><label>Z Scale</label><input id="zScale" type="number" step="0.1" value="2"></div><div class="field"><label>Surface Source</label><select id="surfaceSource"><option>Cross Section Data</option><option>Dummy Surface</option></select></div></div><div class="btns"><button class="btn green" onclick="buildSurface(true)">Build 3D</button><button class="btn cyan" onclick="sampleSurface()">Sample Surface</button></div><div id="threeBox" class="svgBox"></div><div id="gridSummary" class="formula"></div></div>
+</section>
+<section id="present" class="tab grid hide presentMode">
+<div class="card span12"><h2>9. Presentation Mode</h2><div class="kpi"><div class="box"><div class="l">Total Cut</div><div class="v cut" id="pCut">0</div></div><div class="box"><div class="l">Total Fill</div><div class="v fill" id="pFill">0</div></div><div class="box"><div class="l">Balance</div><div class="v" id="pBalance">0</div></div><div class="box"><div class="l">Action</div><div class="v" id="pAction">-</div></div><div class="box"><div class="l">QC</div><div class="v" id="pQC">-</div></div><div class="box"><div class="l">STA Range</div><div class="v" id="pRange">-</div></div></div></div><div class="card span6"><h2>Kesimpulan Otomatis</h2><div id="presentText" class="formula"></div></div><div class="card span6"><h2>Cross Section Representatif</h2><div id="presentSVG" class="svgBox"></div></div>
+</section>
+<section id="report" class="tab grid hide">
+<div class="card span12 noPrint"><h2>10. Report PDF Profesional</h2><div class="btns"><button class="btn green" onclick="generateReport()">Generate Report</button><button class="btn cyan" onclick="window.print()">Print / Save PDF</button><button class="btn gray" onclick="downloadReportHTML()">Download HTML Report</button><button class="btn purple" onclick="exportJSON()">Export Backup JSON</button></div></div><div class="card span12"><div id="reportSheet" class="reportSheet">Klik Generate Report.</div></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id); const nf=(n,d=2)=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); const num=v=>{let n=parseFloat(v);return Number.isFinite(n)?n:0}; const fmtSta=v=>{v=Number(v||0);let km=Math.floor(v/1000),m=v-km*1000;return km+'+'+String(m.toFixed(0)).padStart(3,'0')};
+let state={sections:[],level:[],volumes:[],surface:[],workflow:{}}; let charts={};
+function showTab(evt,id){document.querySelectorAll('.tab').forEach(x=>x.classList.add('hide'));$(id).classList.remove('hide');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active')); if(evt)evt.target.classList.add('active'); refreshAll(false)}
+function stepStatus(){let qc=levelQC(),t=computeVolumes(false);return[{n:1,t:'Data awal',ok:!!$('metaProject')?.value},{n:2,t:'Import/sort',ok:state.sections.length>1},{n:3,t:'Template',ok:state.sections.some(s=>s.points.some(p=>Number.isFinite(p.design)))},{n:4,t:'Cross section',ok:state.sections.every(s=>s.points.length>=2)&&state.sections.length>1},{n:5,t:'QC leveling',ok:qc.ok,warn:state.level.length<2},{n:6,t:'Marking',ok:!!$('mkOut')?.innerText},{n:7,t:'Quantity',ok:state.volumes.length>0&&Number.isFinite(t.cut)},{n:8,t:'Heatmap',ok:state.sections.length>1},{n:9,t:'3D/Grid',ok:state.sections.length>1||state.surface.length>1},{n:10,t:'Report',ok:!!$('reportSheet')?.innerText?.includes('CUT')}]}
+function renderStepper(){let html=stepStatus().map(s=>`<div class="step ${s.ok?'done':s.warn?'warn':''}"><b>${s.n}. ${s.t}</b><small>${s.ok?'✅ OK':s.warn?'⚠ Optional / belum lengkap':'Belum'}</small></div>`).join('');$('stepper').innerHTML=html}
+function sampleMeta(){ $('metaProject').value='Proposed Road / Water Channel Project';$('metaLocation').value='Serang, Banten';$('metaDrawing').value='SVY-CF-COM-001';$('metaSurveyor').value='Survey Team';$('metaDatum').value='100.000';$('defaultInterval').value='50';$('metaClient').value='Owner / Client';$('metaChecker').value='Chief Surveyor'}
+function ensureSection(sta){sta=+sta;let s=state.sections.find(x=>Math.abs(x.sta-sta)<1e-7);if(!s){s={sta,points:[],cutArea:0,fillArea:0};state.sections.push(s)}return s}
+function addCSPoint(sta,offset,existing,design){sta=sta??num($('csSta').value);offset=offset??num($('csOffset').value);existing=existing??num($('csEx').value);design=design??num($('csDes').value);let s=ensureSection(sta);let p=s.points.find(x=>Math.abs(x.offset-offset)<1e-7);if(p){p.existing=existing;p.design=design}else s.points.push({offset,existing,design});sortSections();computeAll()}
+function sortSections(){state.sections.sort((a,b)=>a.sta-b.sta);state.sections.forEach(s=>s.points.sort((a,b)=>a.offset-b.offset))}
+function clearCS(){state.sections=[];computeAll()}
+function sampleCrossSections(){state.sections=[];let stas=[0,50,100,150,200,250,300,350,400,450,500],offs=[-15,-10,-5,0,5,10,15];stas.forEach((sta,i)=>offs.forEach(off=>{let existing=96+0.014*sta+0.04*Math.sin((sta+off)/45)+0.015*Math.abs(off)+0.002*off;let design=96+0.018*sta-0.025*Math.abs(off)+(i>5?-0.55:0.35); addCSPoint(sta,off,existing,design)}));computeAll()}
+function computeAreas(){state.sections.forEach(s=>{let cut=0,fill=0;s.points.sort((a,b)=>a.offset-b.offset);for(let i=1;i<s.points.length;i++){let p1=s.points[i-1],p2=s.points[i],w=Math.abs(p2.offset-p1.offset),h1=p1.design-p1.existing,h2=p2.design-p2.existing;if(h1>=0&&h2>=0){fill+=(h1+h2)/2*w}else if(h1<=0&&h2<=0){cut+=(Math.abs(h1)+Math.abs(h2))/2*w}else{let r=Math.abs(h1)/(Math.abs(h1)+Math.abs(h2));let w1=w*r,w2=w-w1;if(h1>0){fill+=Math.abs(h1)*w1/2;cut+=Math.abs(h2)*w2/2}else{cut+=Math.abs(h1)*w1/2;fill+=Math.abs(h2)*w2/2}}}s.cutArea=cut;s.fillArea=fill;s.maxDepth=Math.max(0,...s.points.map(p=>Math.abs(p.design-p.existing)))})}
+function computeVolumes(draw=true){sortSections();computeAreas();state.volumes=[];let cut=0,fill=0,cum=0,maxDepth=0;for(let i=1;i<state.sections.length;i++){let a=state.sections[i-1],b=state.sections[i],L=b.sta-a.sta;let vc=(a.cutArea+b.cutArea)/2*L,vf=(a.fillArea+b.fillArea)/2*L;cut+=vc;fill+=vf;cum+=vc-vf;state.volumes.push({from:a.sta,to:b.sta,L,cut:vc,fill:vf,net:vc-vf,cum});maxDepth=Math.max(maxDepth,a.maxDepth||0,b.maxDepth||0)}return{cut,fill,balance:cut-fill,maxDepth}}
+function computeAll(){let t=computeVolumes();renderCSTable();renderSorted();renderCSSelect();renderVolumes();renderCharts();renderHeatmap();renderPresentation();renderLevel();renderAudit();updateKPI(t);renderStepper();return t}
+function updateKPI(t){$('kpiCut').textContent=nf(t.cut,2)+' m³';$('kpiFill').textContent=nf(t.fill,2)+' m³';$('kpiBalance').textContent=nf(t.balance,2)+' m³';$('kpiBalance').className='v '+(t.balance>=0?'cut':'fill');$('kpiDepth').textContent=nf(t.maxDepth,3)+' m';let qc=levelQC();$('kpiQC').innerHTML=state.level.length? (qc.ok?'<span class="ok">OK</span>':'<span class="bad">CHECK</span>'):'-';$('kpiData').textContent=state.sections.length+' STA'}
+function renderCSTable(){let rows=state.sections.map(s=>s.points.map((p,i)=>`<tr><td>${i?'':fmtSta(s.sta)}</td><td>${nf(p.offset,2)}</td><td>${nf(p.existing,3)}</td><td>${nf(p.design,3)}</td><td class="${p.design-p.existing>=0?'fill':'cut'}">${nf(p.design-p.existing,3)}</td><td>${i?'':nf(s.cutArea,3)}</td><td>${i?'':nf(s.fillArea,3)}</td></tr>`).join('')).join('');$('csTable').innerHTML='<thead><tr><th>STA</th><th>Offset</th><th>Existing RL</th><th>Design RL</th><th>h Des-Ex</th><th>Cut Area</th><th>Fill Area</th></tr></thead><tbody>'+rows+'</tbody>'}
+function renderSorted(){let rows=state.sections.flatMap(s=>s.points.map(p=>`<tr><td>${fmtSta(s.sta)}</td><td>${nf(p.offset,2)}</td><td>${nf(p.existing,3)}</td><td>${nf(p.design,3)}</td><td>${p.design-p.existing>=0?'<span class="fill">FILL</span>':'<span class="cut">CUT</span>'}</td></tr>`)).join('');$('sortedTable').innerHTML='<thead><tr><th>STA</th><th>Offset</th><th>Existing</th><th>Design</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody>'}
+function renderCSSelect(){let opts=state.sections.map(s=>`<option value="${s.sta}">${fmtSta(s.sta)}</option>`).join(''); if($('csViewSta')){$('csViewSta').innerHTML=opts;renderCSVisual()}}
+function renderCSVisual(target='csSVG',staVal){let el=$(target);if(!el)return;let s=staVal!==undefined?state.sections.find(x=>x.sta==staVal):state.sections.find(x=>x.sta==num($('csViewSta')?.value))||state.sections[0]; if(!s){el.innerHTML='<div class="muted" style="padding:20px">Belum ada data.</div>';return}let pts=s.points,w=900,h=330,pad=45;let xs=pts.map(p=>p.offset),zs=pts.flatMap(p=>[p.existing,p.design]);let minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);let sx=x=>pad+(x-minX)/(maxX-minX||1)*(w-pad*2);let sy=z=>h-pad-(z-minZ)/(maxZ-minZ||1)*(h-pad*2);let exLine=pts.map(p=>`${sx(p.offset)},${sy(p.existing)}`).join(' '),deLine=pts.map(p=>`${sx(p.offset)},${sy(p.design)}`).join(' ');let fills='';for(let i=1;i<pts.length;i++){let a=pts[i-1],b=pts[i],dh=((a.design-a.existing)+(b.design-b.existing))/2;let color=dh>=0?'rgba(34,197,94,.35)':'rgba(239,68,68,.35)';fills+=`<polygon points="${sx(a.offset)},${sy(a.existing)} ${sx(b.offset)},${sy(b.existing)} ${sx(b.offset)},${sy(b.design)} ${sx(a.offset)},${sy(a.design)}" fill="${color}"/>`}el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%">${fills}<polyline points="${exLine}" fill="none" stroke="#f8fafc" stroke-width="3"/><polyline points="${deLine}" fill="none" stroke="#22d3ee" stroke-width="3"/><text x="40" y="25" fill="#eaf4ff" font-size="18">Cross Section ${fmtSta(s.sta)} | Cut A=${nf(s.cutArea,2)} m² | Fill A=${nf(s.fillArea,2)} m²</text>${pts.map(p=>`<circle cx="${sx(p.offset)}" cy="${sy(p.existing)}" r="3" fill="#fff"/><text x="${sx(p.offset)-12}" y="${h-12}" fill="#9db3cc" font-size="12">${p.offset}</text>`).join('')}<text x="${w-185}" y="48" fill="#fff">Existing Ground</text><line x1="${w-220}" y1="43" x2="${w-190}" y2="43" stroke="#fff" stroke-width="3"/><text x="${w-185}" y="70" fill="#22d3ee">Design</text><line x1="${w-220}" y1="65" x2="${w-190}" y2="65" stroke="#22d3ee" stroke-width="3"/></svg>`}
+function renderVolumes(){let rows=state.volumes.map(v=>`<tr><td>${fmtSta(v.from)}</td><td>${fmtSta(v.to)}</td><td>${nf(v.L,2)}</td><td class="cut">${nf(v.cut,2)}</td><td class="fill">${nf(v.fill,2)}</td><td>${nf(v.net,2)}</td><td>${nf(v.cum,2)}</td></tr>`).join('');$('volTable').innerHTML='<thead><tr><th>From</th><th>To</th><th>L m</th><th>Cut m³</th><th>Fill m³</th><th>Net</th><th>Cumulative</th></tr></thead><tbody>'+rows+'</tbody>'}
+function chart(id,type,labels,datasets){if(!$(id)||typeof Chart==='undefined')return;if(charts[id])charts[id].destroy();charts[id]=new Chart($(id),{type,data:{labels,datasets},options:{responsive:true,plugins:{legend:{labels:{color:'#dbeafe'}}},scales:{x:{ticks:{color:'#dbeafe'},grid:{color:'#1e3a56'}},y:{ticks:{color:'#dbeafe'},grid:{color:'#1e3a56'}}}}})}
+function renderCharts(){let labels=state.volumes.map(v=>fmtSta(v.to));chart('dashChart','bar',labels,[{label:'Cut',data:state.volumes.map(v=>v.cut)},{label:'Fill',data:state.volumes.map(v=>v.fill)}]);chart('areaChart','bar',state.sections.map(s=>fmtSta(s.sta)),[{label:'Cut Area',data:state.sections.map(s=>s.cutArea)},{label:'Fill Area',data:state.sections.map(s=>s.fillArea)}]);chart('volChart','bar',labels,[{label:'Cut m3',data:state.volumes.map(v=>v.cut)},{label:'Fill m3',data:state.volumes.map(v=>v.fill)}]);chart('massChart','line',labels,[{label:'Mass Haul Cum',data:state.volumes.map(v=>v.cum),tension:.25}])}
+function renderHeatmap(){let c=$('heatCanvas');if(!c||!state.sections.length)return;let ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);let stas=state.sections.map(s=>s.sta),offs=[...new Set(state.sections.flatMap(s=>s.points.map(p=>p.offset)))].sort((a,b)=>a-b);let pad=70,cw=(c.width-pad-20)/Math.max(1,stas.length),ch=(c.height-pad-30)/Math.max(1,offs.length);let vals=state.sections.flatMap(s=>s.points.map(p=>p.design-p.existing));let max=Math.max(.01,...vals.map(Math.abs));stas.forEach((sta,i)=>{let s=state.sections[i];offs.forEach((off,j)=>{let p=s.points.find(x=>Math.abs(x.offset-off)<1e-7),v=p?p.design-p.existing:0,a=Math.min(1,Math.abs(v)/max);ctx.fillStyle=v<0?`rgba(239,68,68,${.18+.78*a})`:v>0?`rgba(34,197,94,${.18+.78*a})`:'rgba(148,163,184,.45)';ctx.fillRect(pad+i*cw,pad+j*ch,cw-2,ch-2)});ctx.fillStyle='#dbeafe';ctx.font='12px Arial';ctx.fillText(fmtSta(sta),pad+i*cw,pad-12)});offs.forEach((o,j)=>{ctx.fillStyle='#dbeafe';ctx.fillText(o.toFixed(1),15,pad+j*ch+ch/2)});ctx.fillStyle='#eaf4ff';ctx.font='18px Arial';ctx.fillText('Heatmap Cut/Fill: merah = CUT, hijau = FILL',pad,28)}
+function fillImportSample(){ $('importText').value='sta,offset,existing,design\n0,-15,96.350,96.225\n0,-10,96.220,96.350\n0,-5,96.100,96.475\n0,0,96.000,96.600\n0,5,96.080,96.475\n0,10,96.200,96.350\n0,15,96.320,96.225\n50,-15,97.150,97.125\n50,-10,96.970,97.250\n50,-5,96.850,97.375\n50,0,96.780,97.500\n50,5,96.860,97.375\n50,10,97.020,97.250\n50,15,97.220,97.125\n100,-15,98.350,98.125\n100,-10,98.000,98.250\n100,-5,97.850,98.375\n100,0,97.820,98.500\n100,5,97.950,98.375\n100,10,98.250,98.250\n100,15,98.580,98.125\n150,-15,99.250,99.025\n150,-10,99.100,99.150\n150,-5,99.050,99.275\n150,0,98.950,99.400\n150,5,99.120,99.275\n150,10,99.420,99.150\n150,15,99.650,99.025\n200,-15,100.350,99.425\n200,-10,100.150,99.550\n200,-5,99.900,99.675\n200,0,99.750,99.800\n200,5,99.900,99.675\n200,10,100.300,99.550\n200,15,100.600,99.425'}
+function importData(){let txt=$('importText').value.trim(),ok=0,err=[];if(!txt){$('importLog').textContent='Tidak ada data import.';return}txt.split(/\n+/).forEach((line,idx)=>{let p=line.trim().split(/[;,\t ]+/);if(p.length<4)return;if(idx===0&&isNaN(parseFloat(p[0])))return;let arr=p.slice(0,4).map(parseFloat);if(arr.some(x=>!Number.isFinite(x))){err.push('Baris '+(idx+1)+' error: '+line);return}addCSPoint(arr[0],arr[1],arr[2],arr[3]);ok++});sortSections();computeAll();$('importLog').innerHTML='Import sukses: '+ok+' titik.<br>'+(err.length?'Error:<br>'+err.join('<br>'):'Tidak ada error.')}
+function downloadTemplateCSV(){downloadText('template_cross_section.csv','sta,offset,existing,design\n0,-10,98.900,99.200\n0,0,98.600,99.500\n0,10,99.000,99.200\n')}
+function renderTplHelp(){let t=$('tplType').value;let txt=t==='road'?'ROAD: Design RL offset = CL RL - |offset| × crossfall%. Cocok untuk badan jalan, shoulder, corridor.':t==='canal'?'CANAL: bottom width, invert RL, side slope H:V, depth. Membentuk saluran trapesium.':'PIPELINE/TRENCH: invert/pipe, cover/depth, trench width. Cocok galian pipa/manhole.';$('tplHelp').textContent=txt;drawTemplatePreview()}
+function applyTemplateToSta(sta){sta=sta??num($('tplSta').value);let s=ensureSection(sta);let type=$('tplType').value,center=num($('tplCenter').value),width=num($('tplWidth').value),cf=num($('tplCrossfall').value)/100,side=num($('tplSide').value),depth=num($('tplDepth').value);s.points.forEach(p=>{let o=Math.abs(p.offset);if(type==='road'){p.design=center-o*cf}else if(type==='canal'){let half=width/2;p.design=o<=half?center:center+(o-half)/Math.max(.001,side)}else{let half=width/2;p.design=o<=half?center+depth:center+depth+(o-half)*0.02}});computeAll();drawTemplatePreview()}
+function applyTemplateAll(){state.sections.forEach(s=>applyTemplateToSta(s.sta));computeAll()}
+function sampleTemplates(){if(!state.sections.length)sampleCrossSections();$('tplType').value='road';$('tplCenter').value='97.000';$('tplWidth').value='7';$('tplCrossfall').value='2.5';applyTemplateAll();renderTplHelp()}
+function drawTemplatePreview(){let box=$('tplSVG');if(!box)return;let sta=num($('tplSta').value),s=state.sections.find(x=>x.sta==sta)||state.sections[0]; if(!s){box.innerHTML='<div class="muted" style="padding:20px">Belum ada data.</div>';return}renderCSVisual('tplSVG',s.sta)}
+function addLevelRow(){let bs=$('lvBS').value===''?null:num($('lvBS').value),is=$('lvIS').value===''?null:num($('lvIS').value),fs=$('lvFS').value===''?null:num($('lvFS').value);state.level.push({point:$('lvPoint').value||('P'+(state.level.length+1)),bs,is,fs});renderLevel();computeAll()}
+function sampleLevel(){state.level=[];state.level.push({point:'BM START',bs:1.245,is:null,fs:null});state.level.push({point:'STA 0+000',bs:null,is:1.120,fs:null});state.level.push({point:'STA 0+100',bs:null,is:1.030,fs:null});state.level.push({point:'TP1',bs:1.430,is:null,fs:1.255});state.level.push({point:'STA 0+200',bs:null,is:1.100,fs:null});state.level.push({point:'BM CLOSE',bs:null,is:null,fs:1.420});$('lvCloseRL').value='100.000';$('lvKm').value='0.5';renderLevel();computeAll()}
+function clearLevel(){state.level=[];renderLevel();computeAll()}
+function renderLevel(){let rl=num($('metaDatum')?.value||100),hi=null;let rows=[],lastRL=rl;state.level.forEach((r,i)=>{if(r.bs!==null){hi=lastRL+r.bs}let read=r.is!==null?r.is:r.fs!==null?r.fs:null;if(read!==null&&hi!==null)lastRL=hi-read;r.hi=hi;r.rl=lastRL;rows.push(`<tr><td>${i+1}</td><td>${r.point}</td><td>${r.bs??''}</td><td>${r.is??''}</td><td>${r.fs??''}</td><td>${hi!==null?nf(hi,3):''}</td><td>${nf(lastRL,3)}</td><td id="corr${i}"></td><td id="adj${i}"></td></tr>`)});let qc=levelQC();$('levelTable').innerHTML='<thead><tr><th>No</th><th>Point</th><th>BS</th><th>IS</th><th>FS</th><th>HI</th><th>RL</th><th>Correction</th><th>Adjusted RL</th></tr></thead><tbody>'+rows.join('')+'</tbody>';state.level.forEach((r,i)=>{if($('corr'+i)){$('corr'+i).textContent=nf(r.corr||0,4);$('adj'+i).textContent=nf(r.adj||r.rl||0,3)}});$('levelSummary').innerHTML=`Computed close RL: ${nf(qc.close,3)} m\nKnown close RL: ${nf(qc.known,3)} m\nMisclose: ${nf(qc.mis*1000,1)} mm\nTolerance: ±${nf(qc.tol,1)} mm\nStatus: ${qc.ok?'OK':'CHECK / RE-RUN or APPLY ADJUSTMENT'}`}
+function levelQC(){let known=num($('lvCloseRL')?.value||$('metaDatum')?.value||100),km=Math.max(0,num($('lvKm')?.value||0)),C=num($('tolConst')?.value||12),tol=C*Math.sqrt(km),close=state.level.at(-1)?.rl??num($('metaDatum')?.value||100),mis=close-known,ok=Math.abs(mis*1000)<=tol;if(state.level.length){state.level.forEach((r,i)=>{let frac=state.level.length>1?i/(state.level.length-1):0;r.corr=-mis*frac;r.adj=(r.rl||0)+r.corr})}return{known,close,mis,tol,ok}}
+function sampleMarking(){$('mkRL').value='100.000';$('mkBS').value='1.420';$('mkDesign').value='100.150';$('mkActual').value='1.100';$('mkTol').value='0.005';calcMarking()}
+function calcMarking(){let hi=num($('mkRL').value)+num($('mkBS').value),target=hi-(num($('mkDesign').value)+num($('mkLayer').value)),actual=num($('mkActual').value),diff=actual-target,tol=num($('mkTol').value);let instr=Math.abs(diff)<=tol?'OK / sesuai elevasi':diff>0?'TIMBUN / naikkan '+nf(Math.abs(diff),3)+' m':'POTONG / turunkan '+nf(Math.abs(diff),3)+' m';$('mkOut').innerHTML=`HI = ${nf(hi,3)} m\nTarget bacaan rambu = ${nf(target,3)} m\nBacaan aktual = ${nf(actual,3)} m\nSelisih aktual-target = ${nf(diff,3)} m\nInstruksi: ${instr}`;drawMarking(hi,target,actual)}
+function drawMarking(hi,target,actual){let box=$('mkSVG');if(!box)return;let yT=135,yA=135+(actual-target)*140;box.innerHTML=`<svg viewBox="0 0 850 320" width="100%" height="100%"><rect x="0" y="0" width="850" height="320" fill="#061525"/><line x1="80" y1="250" x2="780" y2="250" stroke="#7b8ea8"/><line x1="150" y1="60" x2="150" y2="250" stroke="#e5e7eb" stroke-width="6"/><circle cx="520" cy="210" r="25" fill="#22d3ee"/><line x1="520" y1="210" x2="155" y2="${yT}" stroke="#22c55e" stroke-width="3"/><line x1="520" y1="210" x2="155" y2="${yA}" stroke="#ef4444" stroke-width="3"/><text x="180" y="${yT-8}" fill="#22c55e">Target ${nf(target,3)}</text><text x="180" y="${yA+18}" fill="#ef4444">Aktual ${nf(actual,3)}</text><text x="470" y="252" fill="#dbeafe">Level Instrument</text><text x="40" y="35" fill="#eaf4ff" font-size="18">Marking Assistant - HI ${nf(hi,3)} m</text></svg>`}
+function sampleSurface(){state.surface=[];for(let x=0;x<=160;x+=10){for(let y=-40;y<=40;y+=10){let existing=50+0.025*x+0.012*y+Math.sin(x/18)*.45+Math.cos(y/14)*.25;let design=51+0.015*x-0.008*Math.abs(y);state.surface.push({x,y,existing,design})}}buildSurface(true)}
+function buildSurface(draw=true){let box=$('threeBox');if(!box)return;let pts=state.surface.length?state.surface:state.sections.flatMap(s=>s.points.map(p=>({x:s.sta,y:p.offset,existing:p.existing,design:p.design})));if(!pts.length){box.innerHTML='<div class="muted" style="padding:20px">Belum ada data surface.</div>';return}let cell=Math.max(1,num($('gridCell').value)||5),zscale=num($('zScale').value)||2,xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),area=cell*cell,cut=0,fill=0,n=0;function idw(x,y,key){let sw=0,sv=0;for(let p of pts){let d=Math.hypot(x-p.x,y-p.y);if(d<1e-6)return p[key];let w=1/(d*d);sw+=w;sv+=w*p[key]}return sv/sw}let grid=[];for(let x=minX;x<=maxX;x+=cell){for(let y=minY;y<=maxY;y+=cell){let ex=idw(x,y,'existing'),de=idw(x,y,'design'),dh=de-ex;if(dh>=0)fill+=dh*area;else cut+=Math.abs(dh)*area;grid.push({x,y,dh});n++}}$('gridSummary').textContent=`Grid points: ${n}\nCell area: ${nf(area,2)} m²\nEstimated CUT: ${nf(cut,2)} m³\nEstimated FILL: ${nf(fill,2)} m³\nBalance: ${nf(cut-fill,2)} m³`;if(!draw)return;if(typeof THREE==='undefined'){box.innerHTML='<div class="muted" style="padding:20px">Three.js belum termuat. Buka dengan internet untuk 3D.</div>';return}box.innerHTML='';let scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(55,box.clientWidth/460,.1,5000),renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(box.clientWidth,460);box.appendChild(renderer.domElement);camera.position.set((maxX-minX)*.85,120,(maxY-minY)*2.8+130);camera.lookAt(0,0,0);scene.add(new THREE.AmbientLight(0xffffff,.85));let group=new THREE.Group();grid.forEach(g=>{let geom=new THREE.BoxGeometry(cell*.9,Math.max(.05,Math.abs(g.dh)*zscale),cell*.9),mat=new THREE.MeshBasicMaterial({color:g.dh>=0?0x22c55e:0xef4444,transparent:true,opacity:.72}),m=new THREE.Mesh(geom,mat);m.position.set(g.x-(minX+maxX)/2,g.dh*zscale/2,g.y-(minY+maxY)/2);group.add(m)});scene.add(group);scene.add(new THREE.GridHelper(Math.max(maxX-minX,maxY-minY)+50,20,0x335577,0x223344));renderer.render(scene,camera)}
+function renderPresentation(){let t=computeVolumes(false),qc=levelQC(),from=state.sections[0]?.sta,to=state.sections.at(-1)?.sta;$('pCut').textContent=nf(t.cut,2);$('pFill').textContent=nf(t.fill,2);$('pBalance').textContent=nf(t.balance,2);$('pAction').textContent=t.balance>=0?'DISPOSAL / REUSE':'BORROW AREA';$('pQC').textContent=state.level.length?(qc.ok?'OK':'CHECK'):'-';$('pRange').textContent=from!==undefined?fmtSta(from)+' - '+fmtSta(to):'-';$('presentText').innerHTML=`Berdasarkan hasil proses data awal, import/sort cross-section, validasi QC, dan perhitungan average end area:\n\nTotal CUT = ${nf(t.cut,2)} m³\nTotal FILL = ${nf(t.fill,2)} m³\nBalance = ${nf(t.balance,2)} m³\n\nKesimpulan: ${t.balance>=0?'material galian lebih besar dari timbunan. Rekomendasi: alokasikan surplus ke disposal area atau reuse pada zona fill berikutnya.':'kebutuhan timbunan lebih besar dari galian. Rekomendasi: siapkan borrow material dan validasi sumber material.'}\nQC Leveling: ${state.level.length?(qc.ok?'OK dalam toleransi.':'Perlu cek ulang atau gunakan adjusted RL sebelum final report.'):'belum ada data leveling.'}`;renderCSVisual('presentSVG',state.sections[Math.floor(state.sections.length/2)]?.sta)}
+function renderAudit(){let msgs=[],t=computeVolumes(false),qc=levelQC();for(let i=1;i<=10;i++){let ok=true,m='';if(i===1&&state.sections.length<2){ok=false;m='Data STA kurang dari 2.'}if(i===2&&state.sections.some(s=>s.points.length<2)){ok=false;m='Ada STA dengan offset kurang dari 2.'}if(i===3&&state.volumes.some(v=>v.L<=0)){ok=false;m='Urutan chainage salah.'}if(i===4&&state.sections.some(s=>new Set(s.points.map(p=>p.offset)).size!==s.points.length)){ok=false;m='Offset duplikat dalam STA.'}if(i===5&&state.sections.some(s=>s.points.some(p=>!Number.isFinite(p.existing)||!Number.isFinite(p.design)))){ok=false;m='Ada RL existing/design error.'}if(i===6&&(!Number.isFinite(t.cut)||!Number.isFinite(t.fill))){ok=false;m='Volume NaN/Infinity.'}if(i===7&&state.volumes.some(v=>v.cut<0||v.fill<0)){ok=false;m='Volume negatif.'}if(i===8&&Math.abs((t.cut-t.fill)-t.balance)>1e-6){ok=false;m='Balance tidak konsisten.'}if(i===9&&state.level.length>1&&!qc.ok){ok=false;m='Misclose leveling di luar toleransi.'}if(i===10&&state.sections.some(s=>Math.max(...s.points.map(p=>Math.abs(p.design-p.existing)))>10)){ok=false;m='Depth ekstrem > 10 m, cek data.'}msgs.push(`${i}. ${ok?'✅ OK':'⚠ '+m}`)}$('auditBox').innerHTML=msgs.join('\n')}
+function generateReport(){let t=computeAll(),qc=levelQC();let volRows=state.volumes.map(v=>`<tr><td>${fmtSta(v.from)}</td><td>${fmtSta(v.to)}</td><td>${nf(v.L,2)}</td><td>${nf(v.cut,2)}</td><td>${nf(v.fill,2)}</td><td>${nf(v.net,2)}</td><td>${nf(v.cum,2)}</td></tr>`).join('');let csRows=state.sections.map(s=>`<tr><td>${fmtSta(s.sta)}</td><td>${s.points.length}</td><td>${nf(s.cutArea,3)}</td><td>${nf(s.fillArea,3)}</td><td>${nf(s.maxDepth,3)}</td></tr>`).join('');$('reportSheet').innerHTML=`<h1 style="text-align:center">${$('reportTitle').value}</h1><h3 style="text-align:center">${$('metaProject').value}</h3><table><tr><th>Location</th><td>${$('metaLocation').value}</td><th>Drawing No</th><td>${$('metaDrawing').value}</td></tr><tr><th>Client</th><td>${$('metaClient').value}</td><th>Surveyor</th><td>${$('metaSurveyor').value}</td></tr><tr><th>Datum/BM</th><td>${$('metaDatum').value}</td><th>Method</th><td>${$('metaMethod').value}</td></tr></table><h2>1. Executive Summary</h2><table><tr><th>Total Cut</th><th>Total Fill</th><th>Balance Cut-Fill</th><th>Max Depth</th><th>QC Leveling</th></tr><tr><td class="cut">${nf(t.cut,2)} m³</td><td class="fill">${nf(t.fill,2)} m³</td><td>${nf(t.balance,2)} m³</td><td>${nf(t.maxDepth,3)} m</td><td>${state.level.length?(qc.ok?'OK':'CHECK'):'No Level Data'}</td></tr></table><h2>2. Workflow Processing</h2><ol><li>Data awal project dan datum/BM diisi.</li><li>Data import cross-section disortir berdasarkan STA dan offset.</li><li>Template road/canal/pipeline dapat diterapkan pada design RL.</li><li>Area cut/fill dihitung berbasis offset strip dan zero crossing.</li><li>Volume dihitung metode Average End Area.</li><li>Mass haul, heatmap, dan visual 3D digunakan untuk presentasi.</li></ol><h2>3. Cross Section Area Summary</h2><table><tr><th>STA</th><th>Jumlah Offset</th><th>Cut Area m²</th><th>Fill Area m²</th><th>Max Depth m</th></tr>${csRows}</table><h2>4. Earthwork Quantity Summary</h2><table><tr><th>From</th><th>To</th><th>Length m</th><th>Cut m³</th><th>Fill m³</th><th>Net</th><th>Cumulative</th></tr>${volRows}</table><h2>5. Leveling QC</h2><p>Close RL computed: ${nf(qc.close,3)} m, Known RL: ${nf(qc.known,3)} m, Misclose: ${nf(qc.mis*1000,1)} mm, Tolerance: ±${nf(qc.tol,1)} mm, Status: ${state.level.length?(qc.ok?'OK':'CHECK'):'No Level Data'}.</p><h2>6. Formula</h2><pre>h = Design RL − Existing RL
+Area strip = Σ((h1+h2)/2) × Δoffset
+Volume = (A1 + A2) / 2 × L
+Mass haul cumulative = Σ(Cut − Fill)
+HI = RL BM + BS, RL point = HI − staff reading</pre><h2>7. Conclusion</h2><p>${$('presentText').textContent.replace(/\n/g,'<br>')}</p><br><table><tr><th>Prepared by</th><th>Checked by</th><th>Approved by</th></tr><tr><td style="height:75px">${$('metaSurveyor').value}</td><td>${$('metaChecker').value}</td><td></td></tr></table>`;renderStepper()}
+function downloadReportHTML(){generateReport();downloadText('survey_engineer_report.html','<!DOCTYPE html><html><head><meta charset="utf-8"><title>Survey Report</title><style>body{font-family:Arial}table{width:100%;border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{background:#e5e7eb}.cut{color:#b91c1c}.fill{color:#047857}</style></head><body>'+$('reportSheet').innerHTML+'</body></html>')}
+function exportJSON(){downloadText('survey_engineer_combined_backup.json',JSON.stringify(state,null,2))}
+function exportCSV(type){let csv='';if(type==='cross')csv='sta,offset,existing,design,delta,cutArea,fillArea\n'+state.sections.flatMap(s=>s.points.map(p=>[s.sta,p.offset,p.existing,p.design,p.design-p.existing,s.cutArea||0,s.fillArea||0].join(','))).join('\n');else if(type==='level')csv='point,bs,is,fs,hi,rl,correction,adjusted\n'+state.level.map(r=>[r.point,r.bs??'',r.is??'',r.fs??'',r.hi??'',r.rl??'',r.corr??'',r.adj??''].join(',')).join('\n');else csv='from,to,length,cut,fill,net,cumulative\n'+state.volumes.map(v=>[v.from,v.to,v.L,v.cut,v.fill,v.net,v.cum].join(',')).join('\n');downloadText(type+'_export.csv',csv)}
+function downloadText(name,text){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function saveLocal(){localStorage.setItem('surveyEngineerCombined',JSON.stringify(state));alert('Data tersimpan.')}function loadLocal(){let s=localStorage.getItem('surveyEngineerCombined');if(s){state=JSON.parse(s);computeAll();alert('Data dimuat.')}}function resetAll(){if(confirm('Reset semua data?')){state={sections:[],level:[],volumes:[],surface:[],workflow:{}};computeAll();$('reportSheet').textContent='Klik Generate Report.'}}
+function runFullWorkflow(dummy){if(dummy){sampleMeta();sampleCrossSections();sampleLevel();sampleMarking();sampleTemplates()}sortSections();computeAll();buildSurface(false);generateReport();renderStepper();showTab(null,'workflow');document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));document.querySelector('.nav button').classList.add('active')}
+function refreshAll(full=true){renderStepper(); if(full)computeAll();}
+function init(){renderTplHelp();fillImportSample();sampleMarking();computeAll();renderStepper()}window.addEventListener('load',init);
+</script>
+<!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
+<style id="survai-embed-style">
+@media all{
+  html.survai-embed body{background:#f8fafc !important;}
+  /* Sembunyikan chrome bawaan file lama saat di-embed dalam shell baru */
+  html.survai-embed .status,
+  html.survai-embed .statusbar,
+  html.survai-embed .status-bar,
+  html.survai-embed .phone .status,
+  html.survai-embed .notch,
+  html.survai-embed .home-indicator{display:none !important;}
+  /* Header/hero/topbar internal: disembunyikan karena shell sudah punya header */
+  html.survai-embed > body header.header,
+  html.survai-embed > body .topbar,
+  html.survai-embed > body header.topbar,
+  html.survai-embed > body .app-header,
+  html.survai-embed .hero-row .back,
+  html.survai-embed .top-mini .back,
+  html.survai-embed .mf-head .back,
+  html.survai-embed .wl-head .back,
+  html.survai-embed .ct-top .ct-back{ }
+  /* Lepas frame "HP" agar konten full-width di Android */
+  html.survai-embed .phone,
+  html.survai-embed .mobile-frame{max-width:100% !important;width:100% !important;margin:0 !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;min-height:auto !important;}
+  html.survai-embed .app{max-width:100% !important;padding-bottom:24px !important;}
+  /* Anti horizontal-overflow di Android */
+  html.survai-embed,html.survai-embed body{overflow-x:hidden !important;}
+  html.survai-embed table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Target sentuh & tinggi input minimal */
+  html.survai-embed input,html.survai-embed select,html.survai-embed button{min-height:44px;}
+  /* Error box global untuk safeRun */
+  .survai-error-box{margin-top:12px;padding:12px 14px;border-radius:14px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:14px;line-height:1.5;}
+}
+</style>
+<script id="survai-embed-script">
+(function(){
+  try{
+    var p = new URLSearchParams(location.search);
+    if(p.get('embed')==='1'){ document.documentElement.classList.add('survai-embed'); }
+  }catch(e){}
+  // Wrapper aman untuk tombol hitung (opsional dipakai shell); TIDAK mengganti function asli
+  window.safeRun = window.safeRun || function(fn, targetId){
+    try{
+      if(typeof fn==='function'){ return fn(); }
+      if(typeof fn==='string' && typeof window[fn]==='function'){ return window[fn](); }
+      throw new Error('Function tidak ditemukan.');
+    }catch(error){
+      console.error(error);
+      var t = (targetId&&document.getElementById(targetId)) || document.querySelector('.result') || document.querySelector('.panel') || document.body;
+      var box=document.createElement('div'); box.className='survai-error-box';
+      box.innerHTML='<b>Perhitungan gagal diproses.</b><br>'+(error&&error.message?error.message:error);
+      t.appendChild(box);
+    }
+  };
+  // Beritahu shell bahwa submenu sudah siap (untuk hideLoading yang lebih akurat)
+  window.addEventListener('load',function(){
+    try{ if(parent && parent!==window){ parent.postMessage({survai:'ready'}, '*'); } }catch(e){}
+  });
+})();
+</script>
+<!-- ==== END SURVAI EMBED MODE ==== -->
+
+</body>
+</html>

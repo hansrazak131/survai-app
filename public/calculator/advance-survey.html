@@ -1,0 +1,2958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Casio fx-5800P — Land Surveying Programs</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #eeeff1;
+  --bg2: #0f1317;
+  --bg3: #141920;
+  --card: #151c24;
+  --card2: #1a2330;
+  --border: #1e2d3d;
+  --border2: #253545;
+  --amber: #f59e0b;
+  --amber2: #fbbf24;
+  --amber3: #d97706;
+  --cyan: #22d3ee;
+  --green: #34d399;
+  --red: #f87171;
+  --text: #1637f0;
+  --text2: #1e66cb;
+  --text3: #64748b;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Exo 2', sans-serif;
+  --head: 'Rajdhani', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* === GRID BACKGROUND === */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* === HEADER === */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10,12,15,0.95);
+  
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  height: 60px;
+  gap: 16px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-icon {
+  width: 34px; height: 34px;
+  background: var(--amber);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #000;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.logo-text {
+  font-family: var(--head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+.logo-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--amber);
+  letter-spacing: 2px;
+}
+.header-spacer { flex: 1; }
+.header-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--amber);
+  border: 1px solid var(--amber3);
+  padding: 3px 8px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+}
+.header-copy {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.header-copy strong {
+  color: var(--amber);
+  font-weight: 700;
+}
+.menu-btn {
+  display: none;
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+/* === LAYOUT === */
+.layout {
+  display: flex;
+  position: relative;
+  z-index: 1;
+  min-height: calc(100vh - 60px);
+}
+
+/* === SIDEBAR === */
+.sidebar {
+  width: 280px;
+  min-width: 280px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 60px;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 0;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.sidebar-section {
+  padding: 8px 16px 4px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+  margin: 1px 0;
+}
+.nav-item:hover {
+  background: var(--bg3);
+  border-left-color: var(--border2);
+}
+.nav-item.active {
+  background: rgba(245,158,11,0.08);
+  border-left-color: var(--amber);
+}
+.nav-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  min-width: 20px;
+}
+.nav-item.active .nav-num { color: var(--amber); }
+.nav-label {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.nav-item.active .nav-label { color: var(--text); }
+.nav-item:hover .nav-label { color: var(--text); }
+
+/* === MAIN === */
+.main {
+  flex: 1;
+  padding: 32px;
+  max-width: calc(100% - 280px);
+  overflow-x: hidden;
+}
+
+/* === PROGRAM CARD === */
+.program { display: none; animation: fadeIn 0.3s ease; }
+.program.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+.prog-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.prog-num {
+  font-family: var(--mono);
+  font-size: 28px;
+  color: var(--amber3);
+  font-weight: 700;
+  min-width: 56px;
+  text-align: right;
+  opacity: 0.6;
+  line-height: 1;
+  margin-top: 4px;
+}
+.prog-title-block {
+  flex: 1;
+}
+.prog-title {
+  font-family: var(--head);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+}
+.prog-desc {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.6;
+  max-width: 600px;
+}
+
+/* === GRID LAYOUT === */
+.prog-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.prog-grid.single { grid-template-columns: 1fr; }
+.prog-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+
+/* === SECTIONS === */
+.section-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+}
+.section-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--amber);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.section-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  opacity: 0.7;
+}
+.section-body { padding: 16px; }
+
+/* === FORMULA CODE === */
+.formula-block {
+  background: #060a0e;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.8;
+  color: #7dd3fc;
+  overflow-x: auto;
+  white-space: pre;
+}
+.formula-block .kw { color: var(--amber); }
+.formula-block .fn { color: var(--green); }
+.formula-block .str { color: #f9a8d4; }
+.formula-block .cmt { color: var(--text3); }
+
+/* === INPUT FORM === */
+.input-group {
+  display: grid;
+  gap: 12px;
+}
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.field label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--amber);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.field input, .field select {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.field input:focus, .field select:focus { border-color: var(--amber); }
+.field select { cursor: pointer; }
+.field select option { background: var(--bg3); }
+
+.calc-btn {
+  margin-top: 8px;
+  padding: 11px 24px;
+  background: var(--amber);
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  font-family: var(--head);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.calc-btn:hover { background: var(--amber2); transform: translateY(-1px); }
+.calc-btn:active { transform: none; }
+.calc-btn svg { width: 16px; height: 16px; }
+
+/* === OUTPUT === */
+.output-grid {
+  display: grid;
+  gap: 10px;
+}
+.output-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.output-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.output-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--cyan);
+  font-weight: 700;
+}
+.output-value.empty { color: var(--text3); font-size: 13px; }
+.output-unit {
+  font-size: 10px;
+  color: var(--text3);
+  margin-left: 4px;
+}
+
+/* === DIAGRAM SVG === */
+.diagram-wrap {
+  background: #060a0e;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 12px;
+}
+.diagram-wrap svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* === INFO TABLE === */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.info-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg3);
+  color: var(--amber);
+  font-size: 10px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+}
+.info-table td {
+  padding: 8px 12px;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+}
+.info-table tr:last-child td { border-bottom: none; }
+.info-table td:first-child { color: var(--cyan); }
+
+/* === EXAMPLE BOX === */
+.example-box {
+  background: rgba(34,211,238,0.05);
+  border: 1px solid rgba(34,211,238,0.15);
+  border-radius: 6px;
+  padding: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 2;
+  color: var(--text2);
+}
+.example-box .ex-label { color: var(--cyan); }
+.example-box .ex-val { color: var(--amber); }
+
+/* === ALERT === */
+.alert {
+  padding: 10px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: var(--mono);
+  margin-top: 8px;
+  display: none;
+}
+.alert.error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: var(--red); display: flex; gap: 8px; }
+.alert.success { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); color: var(--green); display: flex; gap: 8px; }
+
+/* === CALCULATOR INFO PAGE === */
+.calc-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.key-group {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.key-group-header {
+  padding: 8px 14px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--amber);
+  letter-spacing: 2px;
+}
+.key-list {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.key-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+}
+.key-badge {
+  background: var(--amber);
+  color: #000;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .sidebar.open { display: block; position: fixed; top: 60px; left: 0; z-index: 200; height: calc(100vh - 60px); }
+  .main { max-width: 100%; padding: 20px 16px; }
+  .prog-grid { grid-template-columns: 1fr; }
+  .prog-grid.three { grid-template-columns: 1fr; }
+  .input-row { grid-template-columns: 1fr; }
+  .menu-btn { display: block; }
+}
+</style>
+<link rel="stylesheet" href="../shared-home-theme.css" />
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">fx</div>
+    <div>
+      <div class="logo-text">FX-5800P</div>
+      <div class="logo-sub">LAND SURVEYING</div>
+    </div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="header-badge">21 PROGRAMS</div>
+  <div class="header-copy">© <strong>Egi Nugraha</strong></div>
+  <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">COORDINATE PROGRAMS</div>
+    <div class="nav-item active" onclick="showProg(1,this)"><span class="nav-num">01</span><span class="nav-label">Radial Bearing & H-Distance by Coordinates</span></div>
+    <div class="nav-item" onclick="showProg(2,this)"><span class="nav-num">02</span><span class="nav-label">Radial Coordinates by Bearing Distance</span></div>
+    <div class="nav-item" onclick="showProg(3,this)"><span class="nav-num">03</span><span class="nav-label">Point to Point XYZ</span></div>
+    <div class="nav-item" onclick="showProg(4,this)"><span class="nav-num">04</span><span class="nav-label">Reference Line</span></div>
+    <div class="nav-item" onclick="showProg(5,this)"><span class="nav-num">05</span><span class="nav-label">Chainage Offset</span></div>
+    <div class="sidebar-section">INTERSECTION PROGRAMS</div>
+    <div class="nav-item" onclick="showProg(6,this)"><span class="nav-num">06</span><span class="nav-label">Intersections by Coordinates</span></div>
+    <div class="nav-item" onclick="showProg(7,this)"><span class="nav-num">07</span><span class="nav-label">Intersections by Bearings</span></div>
+    <div class="nav-item" onclick="showProg(8,this)"><span class="nav-num">08</span><span class="nav-label">Intersections by Angles</span></div>
+    <div class="nav-item" onclick="showProg(9,this)"><span class="nav-num">09</span><span class="nav-label">Cross Point</span></div>
+    <div class="sidebar-section">TRAVERSE & RESECTION</div>
+    <div class="nav-item" onclick="showProg(10,this)"><span class="nav-num">10</span><span class="nav-label">Angles Clockwise / Anti-Clockwise</span></div>
+    <div class="nav-item" onclick="showProg(11,this)"><span class="nav-num">11</span><span class="nav-label">Point to Point Easting Northing</span></div>
+    <div class="nav-item" onclick="showProg(12,this)"><span class="nav-num">12</span><span class="nav-label">Point to Point Bearing & Distance</span></div>
+    <div class="nav-item" onclick="showProg(13,this)"><span class="nav-num">13</span><span class="nav-label">2 Point Resection</span></div>
+    <div class="nav-item" onclick="showProg(14,this)"><span class="nav-num">14</span><span class="nav-label">3 Point Resection</span></div>
+    <div class="sidebar-section">GEOMETRY & CURVES</div>
+    <div class="nav-item" onclick="showProg(15,this)"><span class="nav-num">15</span><span class="nav-label">3 Point Centre of Circle</span></div>
+    <div class="nav-item" onclick="showProg(16,this)"><span class="nav-num">16</span><span class="nav-label">Simple Horizontal Curve L & R</span></div>
+    <div class="sidebar-section">LEVELLING & VERTICAL</div>
+    <div class="nav-item" onclick="showProg(17,this)"><span class="nav-num">17</span><span class="nav-label">Level</span></div>
+    <div class="nav-item" onclick="showProg(18,this)"><span class="nav-num">18</span><span class="nav-label">Interpolation</span></div>
+    <div class="nav-item" onclick="showProg(19,this)"><span class="nav-num">19</span><span class="nav-label">Vertical Curve</span></div>
+    <div class="sidebar-section">GEOMETRY</div>
+    <div class="nav-item" onclick="showProg(20,this)"><span class="nav-num">20</span><span class="nav-label">Triangles</span></div>
+    <div class="sidebar-section">REFERENCE</div>
+    <div class="nav-item" onclick="showProg(21,this)"><span class="nav-num">21</span><span class="nav-label">Calculator Information</span></div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ===== PROGRAM 1 ===== -->
+    <div class="program active" id="prog1">
+      <div class="prog-header">
+        <div class="prog-num">01</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Radial Bearing & H-Distance by Coordinates</div>
+          <div class="prog-desc">Compute the Bearing & Distance from any station point to other points. This program removes the need to keep re-entering the first set of co-ordinates.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="kw">Deg:</span><span class="str">"STN E"</span>?A:<span class="str">"STN N"</span>?B:<span class="str">"SCALE FACTOR"</span>?Z
+<span class="kw">Lbl</span> 0:<span class="str">"POINT E"</span>?C:<span class="str">"POINT N"</span>?D
+<span class="str">"BEARING="</span>:<span class="fn">Arg</span>((B-D)+(A-C)i)+180►<span class="kw">DMS</span>
+<span class="str">"H-DIST="</span>:<span class="fn">Abs</span>((B-D)+(A-C)i)÷Z
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN E (Station Easting)</label><input type="number" id="p1_stn_e" value="4.00" step="any"></div>
+                  <div class="field"><label>STN N (Station Northing)</label><input type="number" id="p1_stn_n" value="5.00" step="any"></div>
+                </div>
+                <div class="field"><label>Scale Factor (1.0 if none)</label><input type="number" id="p1_sf" value="0.999621" step="any"></div>
+                <div class="input-row">
+                  <div class="field"><label>POINT E</label><input type="number" id="p1_pt_e" value="456.547" step="any"></div>
+                  <div class="field"><label>POINT N</label><input type="number" id="p1_pt_n" value="556.547" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc1()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+                <div class="alert error" id="p1_err">⚠ Please fill all fields.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <marker id="arr1" markerWidth="8" markerHeight="8" refX="4" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#f59e0b"/></marker>
+                    <marker id="arr1b" markerWidth="8" markerHeight="8" refX="4" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#22d3ee"/></marker>
+                  </defs>
+                  <!-- Grid -->
+                  <line x1="10" y1="10" x2="10" y2="210" stroke="#1e2d3d" stroke-width="1"/>
+                  <line x1="10" y1="210" x2="310" y2="210" stroke="#1e2d3d" stroke-width="1"/>
+                  <!-- North arrow -->
+                  <line x1="280" y1="30" x2="280" y2="10" stroke="#34d399" stroke-width="1.5" marker-end="url(#arr1b)"/>
+                  <text x="285" y="25" fill="#34d399" font-size="9" font-family="Share Tech Mono">N</text>
+                  <!-- STN point -->
+                  <circle cx="80" cy="160" r="5" fill="#f59e0b"/>
+                  <text x="55" y="178" fill="#f59e0b" font-size="10" font-family="Share Tech Mono">STN</text>
+                  <text x="50" y="190" fill="#64748b" font-size="9" font-family="Share Tech Mono">(E=4, N=5)</text>
+                  <!-- POINT -->
+                  <circle cx="240" cy="50" r="5" fill="#22d3ee"/>
+                  <text x="248" y="48" fill="#22d3ee" font-size="10" font-family="Share Tech Mono">POINT</text>
+                  <!-- Bearing line -->
+                  <line x1="80" y1="160" x2="240" y2="50" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr1)"/>
+                  <!-- North reference line -->
+                  <line x1="80" y1="160" x2="80" y2="60" stroke="#253545" stroke-width="1" stroke-dasharray="4,3"/>
+                  <!-- Bearing arc -->
+                  <path d="M80 100 A60 60 0 0 1 120 83" stroke="#f59e0b" stroke-width="1" fill="none"/>
+                  <text x="90" y="95" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">BRG</text>
+                  <!-- Distance label -->
+                  <text x="148" y="120" fill="#94a3b8" font-size="9" font-family="Share Tech Mono" transform="rotate(-33,148,120)">H-DISTANCE</text>
+                  <!-- Labels -->
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">BEARING &amp; H-DISTANCE</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item">
+                  <span class="output-label">BEARING</span>
+                  <span class="output-value" id="p1_out_brg"><span class="empty">— ° ' "</span></span>
+                </div>
+                <div class="output-item">
+                  <span class="output-label">H-DISTANCE</span>
+                  <span class="output-value" id="p1_out_dist"><span class="empty">—</span></span>
+                </div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXAMPLE: </span>STN E=<span class="ex-val">4.00</span> STN N=<span class="ex-val">5.00</span><br>
+                POINT E=<span class="ex-val">456.547</span> POINT N=<span class="ex-val">556.547</span><br>
+                SCALE FACTOR=<span class="ex-val">0.999621</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 2 ===== -->
+    <div class="program" id="prog2">
+      <div class="prog-header">
+        <div class="prog-num">02</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Radial Coordinates by Bearing Distance</div>
+          <div class="prog-desc">Compute the Easting & Northing from any point to other points using Bearing and H-Distance. No need to re-enter the first set of co-ordinates.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="kw">Deg:</span><span class="str">"STN E"</span>?A:<span class="str">"STN N"</span>?B:<span class="str">"SCALE FACTOR"</span>?Z
+<span class="kw">Lbl</span> 0:<span class="str">"BEARING"</span>?C:<span class="str">"H-DISTANCE"</span>?D
+<span class="str">"EASTING="</span>:(<span class="fn">sin</span>(C)×(D×Z))+A
+<span class="str">"NORTHING="</span>:(<span class="fn">cos</span>(C)×(D×Z))+B
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN E</label><input type="number" id="p2_stn_e" value="4.00" step="any"></div>
+                  <div class="field"><label>STN N</label><input type="number" id="p2_stn_n" value="5.00" step="any"></div>
+                </div>
+                <div class="field"><label>Scale Factor</label><input type="number" id="p2_sf" value="0.999621" step="any"></div>
+                <div class="input-row">
+                  <div class="field"><label>BEARING (decimal degrees)</label><input type="number" id="p2_brg" value="45.0" step="any"></div>
+                  <div class="field"><label>H-DISTANCE</label><input type="number" id="p2_dist" value="100" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc2()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr2" markerWidth="8" markerHeight="8" refX="4" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#f59e0b"/></marker></defs>
+                  <line x1="80" y1="160" x2="80" y2="60" stroke="#253545" stroke-width="1" stroke-dasharray="4,3"/>
+                  <circle cx="80" cy="160" r="5" fill="#f59e0b"/>
+                  <text x="55" y="178" fill="#f59e0b" font-size="10" font-family="Share Tech Mono">STN</text>
+                  <line x1="80" y1="160" x2="200" y2="80" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr2)"/>
+                  <circle cx="200" cy="80" r="5" fill="#22d3ee"/>
+                  <text x="208" y="78" fill="#22d3ee" font-size="10" font-family="Share Tech Mono">POINT</text>
+                  <text x="208" y="90" fill="#64748b" font-size="9" font-family="Share Tech Mono">(E,N)</text>
+                  <path d="M80 115 A45 45 0 0 1 110 98" stroke="#f59e0b" stroke-width="1" fill="none"/>
+                  <text x="92" y="110" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">BRG</text>
+                  <text x="118" y="130" fill="#94a3b8" font-size="9" font-family="Share Tech Mono" transform="rotate(-33,118,130)">H-DIST×SF</text>
+                  <line x1="275" y1="30" x2="275" y2="12" stroke="#34d399" stroke-width="1.5" marker-end="url(#arr2)"/>
+                  <text x="280" y="25" fill="#34d399" font-size="9" font-family="Share Tech Mono">N</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">COORDS BY BEARING &amp; DISTANCE</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">EASTING</span><span class="output-value" id="p2_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">NORTHING</span><span class="output-value" id="p2_out_n"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 3 ===== -->
+    <div class="program" id="prog3">
+      <div class="prog-header">
+        <div class="prog-num">03</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Point to Point XYZ</div>
+          <div class="prog-desc">Compute the Easting, Northing and Elevation of an observed point using Azimuth, Zenith Angle and H-Distance from a known station.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="str">"STN E"</span>?A:<span class="str">"STN N"</span>?B:<span class="str">"STN ELEV"</span>?C
+<span class="str">"AZIMUTH"</span>?D:<span class="str">"ZENITH ANG"</span>?E
+<span class="str">"H-DIST"</span>?F:<span class="str">"H.I"</span>?G:<span class="str">"T.H"</span>?H:<span class="str">"SF"</span>?Z
+<span class="kw">Lbl</span> 0
+<span class="str">"OBS EAST="</span>:A+(<span class="fn">sin</span>(D)×(F×Z))
+<span class="str">"OBS NORTH="</span>:B+(<span class="fn">cos</span>(D)×(F×Z))
+<span class="str">"OBS ELEV="</span>:C+G+(<span class="fn">sin</span>(90-E)×F)-H
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN E</label><input type="number" id="p3_stn_e" value="100" step="any"></div>
+                  <div class="field"><label>STN N</label><input type="number" id="p3_stn_n" value="100" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>STN ELEV</label><input type="number" id="p3_stn_z" value="0" step="any"></div>
+                  <div class="field"><label>H.I (Instrument Height)</label><input type="number" id="p3_hi" value="1.321" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>AZIMUTH (°)</label><input type="number" id="p3_az" value="45" step="any"></div>
+                  <div class="field"><label>ZENITH ANGLE (°)</label><input type="number" id="p3_zen" value="90" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>H-DISTANCE</label><input type="number" id="p3_hdist" value="141.421" step="any"></div>
+                  <div class="field"><label>T.H (Target Height)</label><input type="number" id="p3_th" value="1.300" step="any"></div>
+                </div>
+                <div class="field"><label>Scale Factor</label><input type="number" id="p3_sf" value="1.000000" step="any"></div>
+                <button class="calc-btn" onclick="calc3()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr3" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#f59e0b"/></marker></defs>
+                  <!-- Ground line -->
+                  <line x1="20" y1="180" x2="300" y2="180" stroke="#253545" stroke-width="1.5"/>
+                  <!-- STN vertical -->
+                  <line x1="80" y1="180" x2="80" y2="60" stroke="#1e2d3d" stroke-width="1" stroke-dasharray="4,3"/>
+                  <!-- Instrument -->
+                  <rect x="72" y="168" width="16" height="12" fill="none" stroke="#f59e0b" stroke-width="1.5" rx="2"/>
+                  <text x="65" y="200" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">STN</text>
+                  <!-- H.I arrow -->
+                  <line x1="60" y1="180" x2="60" y2="168" stroke="#34d399" stroke-width="1" marker-end="url(#arr3)"/>
+                  <text x="36" y="175" fill="#34d399" font-size="8" font-family="Share Tech Mono">H.I</text>
+                  <!-- Slope distance line -->
+                  <line x1="80" y1="168" x2="220" y2="90" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr3)"/>
+                  <!-- OBS point -->
+                  <circle cx="220" cy="90" r="5" fill="#22d3ee"/>
+                  <text x="228" y="88" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">OBS</text>
+                  <!-- T.H arrow -->
+                  <line x1="220" y1="103" x2="220" y2="90" stroke="#34d399" stroke-width="1" marker-end="url(#arr3)"/>
+                  <text x="225" y="100" fill="#34d399" font-size="8" font-family="Share Tech Mono">T.H</text>
+                  <!-- Zenith angle arc -->
+                  <path d="M80 105 A63 63 0 0 1 108 95" stroke="#f59e0b" stroke-width="1" fill="none"/>
+                  <text x="85" y="100" fill="#f59e0b" font-size="7" font-family="Share Tech Mono">ZA</text>
+                  <!-- Azimuth -->
+                  <text x="85" y="55" fill="#94a3b8" font-size="8" font-family="Share Tech Mono">AZ→</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">POINT XYZ (3D COORDINATES)</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">OBS EAST</span><span class="output-value" id="p3_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">OBS NORTH</span><span class="output-value" id="p3_out_n"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">OBS ELEV</span><span class="output-value" id="p3_out_z"><span class="empty">—</span></span></div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXAMPLE: </span>STN(100,100,0) AZ=<span class="ex-val">45°</span> ZA=<span class="ex-val">90°</span><br>
+                OBS E=<span class="ex-val">200.000</span> OBS N=<span class="ex-val">200.000</span> OBS Z=<span class="ex-val">3.000</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 4 ===== -->
+    <div class="program" id="prog4">
+      <div class="prog-header">
+        <div class="prog-num">04</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Reference Line</div>
+          <div class="prog-desc">Compute the Easting & Northing from a baseline to any other point with reference of distances and offsets.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="kw">Deg:</span><span class="str">"PT1-E"</span>?A:<span class="str">"PT1-N"</span>?B
+<span class="str">"PT2-E"</span>?C:<span class="str">"PT2-N"</span>?D
+<span class="kw">Lbl</span> 0:<span class="str">"DISTANCE"</span>?E:<span class="str">"OFFSET+/-"</span>?F
+<span class="str">"REQ-E="</span>:A+(<span class="fn">sin</span>(BRG)×E)+(<span class="fn">sin</span>(BRG+90)×F)
+<span class="str">"REQ-N="</span>:B+(<span class="fn">cos</span>(BRG)×E)+(<span class="fn">cos</span>(BRG+90)×F)
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>POINT-1 E</label><input type="number" id="p4_p1e" value="0" step="any"></div>
+                  <div class="field"><label>POINT-1 N</label><input type="number" id="p4_p1n" value="0" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>POINT-2 E</label><input type="number" id="p4_p2e" value="0" step="any"></div>
+                  <div class="field"><label>POINT-2 N</label><input type="number" id="p4_p2n" value="100" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>DISTANCE (along baseline)</label><input type="number" id="p4_dist" value="10" step="any"></div>
+                  <div class="field"><label>OFFSET (+/- from baseline)</label><input type="number" id="p4_off" value="1" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc4()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr4" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#f59e0b"/></marker></defs>
+                  <!-- Baseline -->
+                  <line x1="120" y1="190" x2="120" y2="30" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,2"/>
+                  <circle cx="120" cy="190" r="5" fill="#f59e0b"/>
+                  <text x="128" y="194" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">PT-1(0,0)</text>
+                  <circle cx="120" cy="30" r="5" fill="#f59e0b"/>
+                  <text x="128" y="34" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">PT-2(0,100)</text>
+                  <!-- Distance along baseline -->
+                  <circle cx="120" cy="170" r="3" fill="#94a3b8"/>
+                  <text x="62" y="173" fill="#94a3b8" font-size="9" font-family="Share Tech Mono">DIST=10</text>
+                  <!-- Offset point (right) -->
+                  <line x1="120" y1="170" x2="150" y2="170" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr4)"/>
+                  <circle cx="160" cy="170" r="5" fill="#22d3ee"/>
+                  <text x="168" y="174" fill="#22d3ee" font-size="9" font-family="Share Tech Mono">REQ(+1,10)</text>
+                  <!-- Offset (left) -->
+                  <line x1="120" y1="150" x2="90" y2="150" stroke="#34d399" stroke-width="1.5" marker-end="url(#arr4)"/>
+                  <circle cx="80" cy="150" r="5" fill="#34d399"/>
+                  <text x="30" y="154" fill="#34d399" font-size="9" font-family="Share Tech Mono">REQ(-1,10)</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">REFERENCE LINE</text>
+                  <!-- Offset label -->
+                  <text x="128" y="165" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">+OFFSET</text>
+                  <text x="40" y="145" fill="#34d399" font-size="8" font-family="Share Tech Mono">-OFFSET</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">REQ-E (Required Easting)</span><span class="output-value" id="p4_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">REQ-N (Required Northing)</span><span class="output-value" id="p4_out_n"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 5 ===== -->
+    <div class="program" id="prog5">
+      <div class="prog-header">
+        <div class="prog-num">05</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Chainage Offset</div>
+          <div class="prog-desc">Compute the Distance & Offset from a baseline to any observed point with reference of co-ordinates.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="kw">Deg:</span><span class="str">"STN E"</span>?A:<span class="str">"STN N"</span>?B
+<span class="str">"POINT E"</span>?C:<span class="str">"POINT N"</span>?D
+<span class="kw">Lbl</span> 0:<span class="str">"OBS-E"</span>?E:<span class="str">"OBS-N"</span>?F
+<span class="str">"DISTANCE="</span>:cos(BRG_obs - BRG_base) × Dist_obs
+<span class="str">"OFFSET="</span>:sin(BRG_obs - BRG_base) × Dist_obs
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN E (baseline start)</label><input type="number" id="p5_stn_e" value="0" step="any"></div>
+                  <div class="field"><label>STN N</label><input type="number" id="p5_stn_n" value="0" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>POINT E (baseline end)</label><input type="number" id="p5_pt_e" value="0" step="any"></div>
+                  <div class="field"><label>POINT N</label><input type="number" id="p5_pt_n" value="100" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>OBS-E (observed point E)</label><input type="number" id="p5_obs_e" value="1" step="any"></div>
+                  <div class="field"><label>OBS-N (observed point N)</label><input type="number" id="p5_obs_n" value="10" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc5()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr5" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#22d3ee"/></marker></defs>
+                  <line x1="120" y1="190" x2="120" y2="30" stroke="#f59e0b" stroke-width="2"/>
+                  <circle cx="120" cy="190" r="5" fill="#f59e0b"/>
+                  <text x="128" y="194" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">STN(0,0)</text>
+                  <circle cx="120" cy="30" r="5" fill="#f59e0b"/>
+                  <text x="128" y="34" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">POINT(0,100)</text>
+                  <!-- OBS point -->
+                  <circle cx="160" cy="170" r="5" fill="#22d3ee"/>
+                  <text x="168" y="174" fill="#22d3ee" font-size="9" font-family="Share Tech Mono">OBS(1,10)</text>
+                  <!-- Perpendicular foot -->
+                  <circle cx="120" cy="170" r="3" fill="#94a3b8"/>
+                  <!-- Chainage line -->
+                  <line x1="120" y1="190" x2="120" y2="170" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,2"/>
+                  <text x="70" y="182" fill="#94a3b8" font-size="8" font-family="Share Tech Mono">DIST=10</text>
+                  <!-- Offset line -->
+                  <line x1="120" y1="170" x2="160" y2="170" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr5)"/>
+                  <text x="128" y="164" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">OFFSET=1</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">CHAINAGE OFFSET</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">DISTANCE (Chainage)</span><span class="output-value" id="p5_out_dist"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">OFFSET (from baseline)</span><span class="output-value" id="p5_out_off"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 6 ===== -->
+    <div class="program" id="prog6">
+      <div class="prog-header">
+        <div class="prog-num">06</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Intersections by Coordinates</div>
+          <div class="prog-desc">Compute the Easting & Northing of two-line intersection. Input four points defining two lines; output is the PI (Point of Intersection).</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="kw">Lbl</span> 0
+(A-C)÷(B-D)→I:(E-G)÷(F-H)→J
+<span class="str">"PI EAST="</span>:(E-A-(J×F)+(I×B))÷(I-J)→K
+<span class="str">"PI NORTH="</span>:A-(I×(B-K))
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div style="font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:1px;margin-bottom:4px">LINE 1</div>
+                <div class="input-row">
+                  <div class="field"><label>EAST 1</label><input type="number" id="p6_e1" value="17.153" step="any"></div>
+                  <div class="field"><label>NORTH 1</label><input type="number" id="p6_n1" value="15.870" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>EAST 2</label><input type="number" id="p6_e2" value="24.432" step="any"></div>
+                  <div class="field"><label>NORTH 2</label><input type="number" id="p6_n2" value="19.431" step="any"></div>
+                </div>
+                <div style="font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:1px;margin-bottom:4px;margin-top:4px">LINE 2</div>
+                <div class="input-row">
+                  <div class="field"><label>EAST 3</label><input type="number" id="p6_e3" value="40.205" step="any"></div>
+                  <div class="field"><label>NORTH 3</label><input type="number" id="p6_n3" value="9.809" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>EAST 4</label><input type="number" id="p6_e4" value="35.958" step="any"></div>
+                  <div class="field"><label>NORTH 4</label><input type="number" id="p6_n4" value="16.400" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc6()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <marker id="arr6a" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#f59e0b"/></marker>
+                    <marker id="arr6b" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#22d3ee"/></marker>
+                  </defs>
+                  <!-- Line 1 -->
+                  <line x1="40" y1="140" x2="260" y2="50" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr6a)"/>
+                  <circle cx="60" cy="133" r="4" fill="#f59e0b"/>
+                  <text x="42" y="148" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">PT1</text>
+                  <circle cx="160" cy="93" r="4" fill="#f59e0b"/>
+                  <text x="162" y="90" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">PT2</text>
+                  <!-- Line 2 -->
+                  <line x1="260" y1="155" x2="80" y2="55" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr6b)"/>
+                  <circle cx="235" cy="145" r="4" fill="#22d3ee"/>
+                  <text x="242" y="148" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PT3</text>
+                  <circle cx="170" cy="112" r="4" fill="#22d3ee"/>
+                  <text x="175" y="110" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PT4</text>
+                  <!-- PI point -->
+                  <circle cx="160" cy="100" r="7" fill="none" stroke="#34d399" stroke-width="2"/>
+                  <circle cx="160" cy="100" r="3" fill="#34d399"/>
+                  <text x="168" y="100" fill="#34d399" font-size="10" font-family="Share Tech Mono">PI</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">INTERSECTION BY COORDINATES</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">PI EAST</span><span class="output-value" id="p6_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">PI NORTH</span><span class="output-value" id="p6_out_n"><span class="empty">—</span></span></div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXPECTED: </span>PI East=<span class="ex-val">31.712</span> PI North=<span class="ex-val">22.991</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 7 ===== -->
+    <div class="program" id="prog7">
+      <div class="prog-header">
+        <div class="prog-num">07</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Intersections by Bearings</div>
+          <div class="prog-desc">Compute the Easting & Northing of two-line intersection using two station coordinates and two azimuths (bearings from each station).</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block">1÷(<span class="fn">tan</span>(AZ1))→P:1÷(<span class="fn">tan</span>(AZ2))→Q
+<span class="fn">tan</span>(AZ1)→R:<span class="fn">tan</span>(AZ2)→S
+((C×Q)-(A×P)+B-D)÷(Q-P)→X
+((D×S)-(B×R)+A-C)÷(S-R)→Y
+<span class="str">"EASTING="</span>:X
+<span class="str">"NORTHING="</span>:Y</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN-1 E</label><input type="number" id="p7_e1" value="17.153" step="any"></div>
+                  <div class="field"><label>STN-1 N</label><input type="number" id="p7_n1" value="15.870" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>STN-2 E</label><input type="number" id="p7_e2" value="40.205" step="any"></div>
+                  <div class="field"><label>STN-2 N</label><input type="number" id="p7_n2" value="9.809" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>AZIMUTH 1 (°)</label><input type="number" id="p7_az1" value="40.795" step="any"></div>
+                  <div class="field"><label>AZIMUTH 2 (°)</label><input type="number" id="p7_az2" value="318.472" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc7()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <marker id="arr7a" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#f59e0b"/></marker>
+                    <marker id="arr7b" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#22d3ee"/></marker>
+                  </defs>
+                  <circle cx="70" cy="160" r="5" fill="#f59e0b"/>
+                  <text x="52" y="176" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">STN-1</text>
+                  <!-- North ref 1 -->
+                  <line x1="70" y1="160" x2="70" y2="100" stroke="#253545" stroke-width="1" stroke-dasharray="3,3"/>
+                  <!-- Azimuth 1 line -->
+                  <line x1="70" y1="160" x2="185" y2="65" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr7a)"/>
+                  <path d="M70 120 A40 40 0 0 1 90 110" stroke="#f59e0b" fill="none" stroke-width="1"/>
+                  <text x="76" y="115" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">AZ1</text>
+                  <!-- STN2 -->
+                  <circle cx="260" cy="170" r="5" fill="#22d3ee"/>
+                  <text x="248" y="186" fill="#22d3ee" font-size="9" font-family="Share Tech Mono">STN-2</text>
+                  <!-- North ref 2 -->
+                  <line x1="260" y1="170" x2="260" y2="110" stroke="#253545" stroke-width="1" stroke-dasharray="3,3"/>
+                  <!-- Azimuth 2 line -->
+                  <line x1="260" y1="170" x2="185" y2="65" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr7b)"/>
+                  <path d="M260 130 A40 40 0 0 0 242 115" stroke="#22d3ee" fill="none" stroke-width="1"/>
+                  <text x="232" y="120" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">AZ2</text>
+                  <!-- PI -->
+                  <circle cx="185" cy="65" r="7" fill="none" stroke="#34d399" stroke-width="2"/>
+                  <circle cx="185" cy="65" r="3" fill="#34d399"/>
+                  <text x="194" y="63" fill="#34d399" font-size="9" font-family="Share Tech Mono">PI</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">INTERSECTION BY BEARINGS</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">EASTING</span><span class="output-value" id="p7_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">NORTHING</span><span class="output-value" id="p7_out_n"><span class="empty">—</span></span></div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXPECTED: </span>E=<span class="ex-val">31.712</span> N=<span class="ex-val">22.991</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 8 ===== -->
+    <div class="program" id="prog8">
+      <div class="prog-header">
+        <div class="prog-num">08</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Intersections by Angles</div>
+          <div class="prog-desc">Compute the Easting & Northing of two-line intersection using two station coordinates and two observed angles.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block">180-(E+F)→G (Angle C)
+<span class="fn">Arg</span>((B-D)+(A-C)i)+180→H (BRG 1-2)
+<span class="fn">Abs</span>((B-D)+(A-C)i)→I (Dist 1-2)
+(I×<span class="fn">sin</span>(F))÷<span class="fn">sin</span>(G)→J (Dist to PI)
+<span class="str">"PI EAST="</span>:A+(<span class="fn">sin</span>(H-E)×J)
+<span class="str">"PI NORTH="</span>:B+(<span class="fn">cos</span>(H-E)×J)</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN-1 E</label><input type="number" id="p8_e1" value="17.153" step="any"></div>
+                  <div class="field"><label>STN-1 N</label><input type="number" id="p8_n1" value="15.870" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>STN-2 E</label><input type="number" id="p8_e2" value="40.205" step="any"></div>
+                  <div class="field"><label>STN-2 N</label><input type="number" id="p8_n2" value="9.809" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>ANGLE 1 (° from STN1)</label><input type="number" id="p8_ang1" value="40.795" step="any"></div>
+                  <div class="field"><label>ANGLE 2 (° from STN2)</label><input type="number" id="p8_ang2" value="41.474" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc8()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr8" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#34d399"/></marker></defs>
+                  <circle cx="70" cy="170" r="5" fill="#f59e0b"/>
+                  <text x="52" y="186" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">STN-1</text>
+                  <circle cx="250" cy="170" r="5" fill="#22d3ee"/>
+                  <text x="240" y="186" fill="#22d3ee" font-size="9" font-family="Share Tech Mono">STN-2</text>
+                  <!-- Baseline -->
+                  <line x1="70" y1="170" x2="250" y2="170" stroke="#253545" stroke-width="1.5" stroke-dasharray="5,3"/>
+                  <!-- Lines to PI -->
+                  <line x1="70" y1="170" x2="165" y2="70" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr8)"/>
+                  <line x1="250" y1="170" x2="165" y2="70" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr8)"/>
+                  <!-- Angles -->
+                  <path d="M110 170 A40 40 0 0 1 90 143" stroke="#f59e0b" fill="none" stroke-width="1"/>
+                  <text x="108" y="158" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">A1</text>
+                  <path d="M210 170 A40 40 0 0 0 230 143" stroke="#22d3ee" fill="none" stroke-width="1"/>
+                  <text x="200" y="158" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">A2</text>
+                  <!-- PI -->
+                  <circle cx="165" cy="70" r="7" fill="none" stroke="#34d399" stroke-width="2"/>
+                  <circle cx="165" cy="70" r="3" fill="#34d399"/>
+                  <text x="174" y="68" fill="#34d399" font-size="9" font-family="Share Tech Mono">PI</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">INTERSECTION BY ANGLES</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">PI EAST</span><span class="output-value" id="p8_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">PI NORTH</span><span class="output-value" id="p8_out_n"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 9 ===== -->
+    <div class="program" id="prog9">
+      <div class="prog-header">
+        <div class="prog-num">09</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Cross Point</div>
+          <div class="prog-desc">Compute the Cross coordinates (or change elevation) of two lines from four points. Useful for road design cross-sections and elevation change calculations.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block">(D-B)÷(C-A)→H:(E-X)÷(F-Y)→G
+<span class="str">"CROSS E="</span>:(F-1÷G×E-B+H×A)÷(H-1÷G)→I
+<span class="str">"CROSS N="</span>:B+H×(I-A)</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>EAST 1</label><input type="number" id="p9_e1" value="16.433" step="any"></div>
+                  <div class="field"><label>NORTH 1</label><input type="number" id="p9_n1" value="12.573" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>EAST 2</label><input type="number" id="p9_e2" value="30.053" step="any"></div>
+                  <div class="field"><label>NORTH 2</label><input type="number" id="p9_n2" value="22.336" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>EAST 3</label><input type="number" id="p9_e3" value="19.157" step="any"></div>
+                  <div class="field"><label>NORTH 3</label><input type="number" id="p9_n3" value="24.584" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>EAST 4</label><input type="number" id="p9_e4" value="27.329" step="any"></div>
+                  <div class="field"><label>NORTH 4</label><input type="number" id="p9_n4" value="10.325" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc9()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <marker id="arr9a" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#f59e0b"/></marker>
+                    <marker id="arr9b" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#22d3ee"/></marker>
+                  </defs>
+                  <line x1="40" y1="160" x2="280" y2="60" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arr9a)"/>
+                  <circle cx="70" cy="148" r="4" fill="#f59e0b"/>
+                  <text x="42" y="164" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">PT1</text>
+                  <circle cx="200" cy="95" r="4" fill="#f59e0b"/>
+                  <text x="205" y="92" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">PT2</text>
+                  <line x1="60" y1="55" x2="260" y2="165" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr9b)"/>
+                  <circle cx="90" cy="72" r="4" fill="#22d3ee"/>
+                  <text x="55" y="69" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PT3</text>
+                  <circle cx="205" cy="130" r="4" fill="#22d3ee"/>
+                  <text x="210" y="145" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PT4</text>
+                  <!-- Cross point -->
+                  <circle cx="155" cy="110" r="8" fill="none" stroke="#34d399" stroke-width="2"/>
+                  <circle cx="155" cy="110" r="3" fill="#34d399"/>
+                  <text x="164" y="108" fill="#34d399" font-size="9" font-family="Share Tech Mono">CROSS</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">CROSS POINT</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">CROSS POINT EAST</span><span class="output-value" id="p9_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">CROSS POINT NORTH</span><span class="output-value" id="p9_out_n"><span class="empty">—</span></span></div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXPECTED: </span>E=<span class="ex-val">23.243</span> N=<span class="ex-val">17.455</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 10 ===== -->
+    <div class="program" id="prog10">
+      <div class="prog-header">
+        <div class="prog-num">10</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Angles Clockwise / Anti-Clockwise</div>
+          <div class="prog-desc">Compute the clockwise and anti-clockwise angle between two directions from a station point. Input backsight and foresight horizontal angles.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="kw">Lbl</span> 0
+<span class="str">"BACKSIGHT"</span>?A:<span class="str">"FORSIGHT"</span>?B
+<span class="kw">If</span> (B-A)&lt;0:<span class="kw">Then</span> 360+(B-A)→C
+<span class="kw">Else</span> (B-A)→C
+<span class="str">"CLOCKWISE="</span>:C►<span class="kw">DMS</span>
+<span class="str">"ANTI-CW="</span>:360-C►<span class="kw">DMS</span>
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="field"><label>BACKSIGHT (decimal degrees)</label><input type="number" id="p10_bs" value="30" step="any"></div>
+                <div class="field"><label>FORESIGHT (decimal degrees)</label><input type="number" id="p10_fs" value="120" step="any"></div>
+                <button class="calc-btn" onclick="calc10()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <marker id="arr10a" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#f59e0b"/></marker>
+                    <marker id="arr10b" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#22d3ee"/></marker>
+                  </defs>
+                  <!-- Station -->
+                  <circle cx="160" cy="130" r="6" fill="#34d399"/>
+                  <text x="168" y="134" fill="#34d399" font-size="9" font-family="Share Tech Mono">STN</text>
+                  <!-- Backsight -->
+                  <line x1="160" y1="130" x2="80" y2="60" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr10a)"/>
+                  <text x="60" y="52" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">BACKSIGHT</text>
+                  <!-- Foresight -->
+                  <line x1="160" y1="130" x2="260" y2="60" stroke="#22d3ee" stroke-width="2" marker-end="url(#arr10b)"/>
+                  <text x="232" y="52" fill="#22d3ee" font-size="9" font-family="Share Tech Mono">FORESIGHT</text>
+                  <!-- CW arc -->
+                  <path d="M 115 100 A 60 60 0 0 1 210 100" stroke="#f59e0b" fill="none" stroke-width="1.5"/>
+                  <text x="140" y="97" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">CW</text>
+                  <!-- ACW arc -->
+                  <path d="M 210 155 A 70 70 0 1 0 115 155" stroke="#22d3ee" fill="none" stroke-width="1" stroke-dasharray="4,2"/>
+                  <text x="150" y="200" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">ANTI-CW</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">ANGLE CW / ANTI-CW</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">CLOCKWISE ANGLE</span><span class="output-value" id="p10_out_cw"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">ANTI-CLOCKWISE</span><span class="output-value" id="p10_out_acw"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 11 ===== -->
+    <div class="program" id="prog11">
+      <div class="prog-header">
+        <div class="prog-num">11</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Point to Point Easting Northing</div>
+          <div class="prog-desc">Compute Easting & Northing using Azimuth & Distance — automatically updates station coordinates to the calculated point for traverse computation.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="str">"STN E"</span>?A:<span class="str">"STN N"</span>?B:<span class="str">"SF"</span>?Z
+<span class="kw">Lbl</span> 0:<span class="str">"AZIMUTH"</span>?C:<span class="str">"DISTANCE"</span>?D
+<span class="str">"NEXT E="</span>:(<span class="fn">sin</span>(C)×(D×Z))+A→A
+<span class="str">"NEXT N="</span>:(<span class="fn">cos</span>(C)×(D×Z))+B→B
+<span class="kw">Goto</span> 0 <span class="cmt">← A,B auto-updated</span></div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN E (Start)</label><input type="number" id="p11_stn_e" value="100" step="any"></div>
+                  <div class="field"><label>STN N (Start)</label><input type="number" id="p11_stn_n" value="100" step="any"></div>
+                </div>
+                <div class="field"><label>Scale Factor</label><input type="number" id="p11_sf" value="0.999621" step="any"></div>
+                <div class="input-row">
+                  <div class="field"><label>AZIMUTH (°)</label><input type="number" id="p11_az" value="45" step="any"></div>
+                  <div class="field"><label>DISTANCE</label><input type="number" id="p11_dist" value="100" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc11()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr11" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#f59e0b"/></marker></defs>
+                  <circle cx="60" cy="170" r="5" fill="#f59e0b"/>
+                  <text x="40" y="186" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">STN(100,100)</text>
+                  <line x1="60" y1="170" x2="140" y2="110" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr11)"/>
+                  <circle cx="150" cy="103" r="5" fill="#22d3ee"/>
+                  <text x="158" y="100" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PT1</text>
+                  <line x1="150" y1="103" x2="220" y2="60" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr11)"/>
+                  <circle cx="230" cy="53" r="5" fill="#34d399"/>
+                  <text x="238" y="52" fill="#34d399" font-size="8" font-family="Share Tech Mono">PT2</text>
+                  <line x1="230" y1="53" x2="290" y2="30" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arr11)"/>
+                  <circle cx="295" cy="27" r="5" fill="#34d399"/>
+                  <text x="270" y="22" fill="#34d399" font-size="8" font-family="Share Tech Mono">PT3</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">TRAVERSE (AZ + DIST)</text>
+                  <text x="10" y="200" fill="#253545" font-size="8" font-family="Share Tech Mono">Auto-updates station after each point</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">NEXT EASTING</span><span class="output-value" id="p11_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">NEXT NORTHING</span><span class="output-value" id="p11_out_n"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 12 ===== -->
+    <div class="program" id="prog12">
+      <div class="prog-header">
+        <div class="prog-num">12</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Point to Point Bearing & Distance</div>
+          <div class="prog-desc">Compute Bearing & Distance using Easting & Northing — automatically updates station for continuous traverse inverse computation.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="str">"STN E"</span>?A:<span class="str">"STN N"</span>?B:<span class="str">"SF"</span>?Z
+<span class="kw">Lbl</span> 0:<span class="str">"POINT E"</span>?C:<span class="str">"POINT N"</span>?D
+<span class="str">"BEARING="</span>:<span class="fn">Arg</span>((B-D)+(A-C)i)+180►<span class="kw">DMS</span>
+<span class="str">"H-DIST="</span>:<span class="fn">Abs</span>((B-D)+(A-C)i)÷Z
+C→A:D→B <span class="cmt">← auto-update</span>
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>STN E</label><input type="number" id="p12_stn_e" value="100" step="any"></div>
+                  <div class="field"><label>STN N</label><input type="number" id="p12_stn_n" value="100" step="any"></div>
+                </div>
+                <div class="field"><label>Scale Factor</label><input type="number" id="p12_sf" value="0.999621" step="any"></div>
+                <div class="input-row">
+                  <div class="field"><label>POINT E</label><input type="number" id="p12_pt_e" value="170.684" step="any"></div>
+                  <div class="field"><label>POINT N</label><input type="number" id="p12_pt_n" value="170.684" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc12()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr12" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#22d3ee"/></marker></defs>
+                  <circle cx="60" cy="170" r="5" fill="#f59e0b"/>
+                  <text x="40" y="186" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">STN(E,N)</text>
+                  <circle cx="180" cy="100" r="5" fill="#22d3ee"/>
+                  <text x="188" y="98" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">POINT(E,N)</text>
+                  <line x1="60" y1="170" x2="178" y2="102" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arr12)"/>
+                  <!-- BRG label -->
+                  <line x1="60" y1="170" x2="60" y2="100" stroke="#253545" stroke-width="1" stroke-dasharray="3,3"/>
+                  <path d="M60 132 A38 38 0 0 1 85 120" stroke="#22d3ee" fill="none" stroke-width="1"/>
+                  <text x="65" y="128" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">BRG</text>
+                  <text x="100" y="148" fill="#94a3b8" font-size="8" font-family="Share Tech Mono" transform="rotate(-30,100,148)">DIST/SF</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">INVERSE TRAVERSE (E,N → BRG,DIST)</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">BEARING</span><span class="output-value" id="p12_out_brg"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">H-DISTANCE</span><span class="output-value" id="p12_out_dist"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 13 ===== -->
+    <div class="program" id="prog13">
+      <div class="prog-header">
+        <div class="prog-num">13</div>
+        <div class="prog-title-block">
+          <div class="prog-title">2 Point Resection</div>
+          <div class="prog-desc">Compute the co-ordinate of a free station from two known points using distances. Note: Internal angle must always be less than 180°.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block">A-C→X:B-D→Y
+<span class="fn">Arg</span>(X+Yi)+180→J
+<span class="fn">Abs</span>(X+Yi)→I
+J+<span class="fn">cos⁻¹</span>((I²+E²-F²)÷(2×I×E))→T
+<span class="str">"STN E="</span>:B+<span class="fn">sin</span>(T)×E→N
+<span class="str">"STN N="</span>:A+<span class="fn">cos</span>(T)×E→M
+<span class="str">"OBS ANG="</span>:<span class="fn">cos⁻¹</span>((E²+F²-I²)÷(2×E×F))</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>1ST POINT E</label><input type="number" id="p13_p1e" value="467081.935" step="any"></div>
+                  <div class="field"><label>1ST POINT N</label><input type="number" id="p13_p1n" value="2907050.000" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>2ND POINT E</label><input type="number" id="p13_p2e" value="467211.094" step="any"></div>
+                  <div class="field"><label>2ND POINT N</label><input type="number" id="p13_p2n" value="2907101.228" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>1ST POINT DIST</label><input type="number" id="p13_d1" value="100" step="any"></div>
+                  <div class="field"><label>2ND POINT DIST</label><input type="number" id="p13_d2" value="80" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc13()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr13" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#94a3b8"/></marker></defs>
+                  <circle cx="80" cy="60" r="6" fill="#f59e0b"/>
+                  <text x="60" y="52" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">PT1</text>
+                  <circle cx="240" cy="60" r="6" fill="#22d3ee"/>
+                  <text x="248" y="52" fill="#22d3ee" font-size="9" font-family="Share Tech Mono">PT2</text>
+                  <!-- Unknown station -->
+                  <circle cx="160" cy="170" r="8" fill="none" stroke="#34d399" stroke-width="2"/>
+                  <circle cx="160" cy="170" r="3" fill="#34d399"/>
+                  <text x="168" y="185" fill="#34d399" font-size="9" font-family="Share Tech Mono">FREE STN</text>
+                  <!-- Distance lines -->
+                  <line x1="80" y1="60" x2="160" y2="170" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr13)"/>
+                  <text x="95" y="130" fill="#f59e0b" font-size="8" font-family="Share Tech Mono" transform="rotate(53,95,130)">D1</text>
+                  <line x1="240" y1="60" x2="160" y2="170" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr13)"/>
+                  <text x="218" y="130" fill="#22d3ee" font-size="8" font-family="Share Tech Mono" transform="rotate(-53,218,130)">D2</text>
+                  <!-- Baseline -->
+                  <line x1="80" y1="60" x2="240" y2="60" stroke="#253545" stroke-width="1" stroke-dasharray="3,3"/>
+                  <!-- Angle at free stn -->
+                  <path d="M125 157 A40 40 0 0 1 195 157" stroke="#34d399" fill="none" stroke-width="1"/>
+                  <text x="148" y="152" fill="#34d399" font-size="8" font-family="Share Tech Mono">α</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">2-POINT RESECTION</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">STN E (Free Station)</span><span class="output-value" id="p13_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">STN N</span><span class="output-value" id="p13_out_n"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">OBS ANGLE</span><span class="output-value" id="p13_out_ang"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 14 ===== -->
+    <div class="program" id="prog14">
+      <div class="prog-header">
+        <div class="prog-num">14</div>
+        <div class="prog-title-block">
+          <div class="prog-title">3 Point Resection</div>
+          <div class="prog-desc">Compute the co-ordinate of a free station from three known points using angular resection. Menu: [1] New Stations, [2] New Bearings.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE (abbreviated)</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="cmt">Compute subtended angles P,Q,R</span>
+<span class="cmt">Compute observed angles S,T,U</span>
+1÷(1÷<span class="fn">tan</span>(P)-1÷<span class="fn">tan</span>(S))→V
+1÷(1÷<span class="fn">tan</span>(Q)-1÷<span class="fn">tan</span>(T))→W
+1÷(1÷<span class="fn">tan</span>(R)-1÷<span class="fn">tan</span>(U))→X
+((V×A)+(W×C)+(X×E))÷(V+W+X)→M
+((V×B)+(W×D)+(X×F))÷(V+W+X)→N
+<span class="str">"EASTING="</span>:M
+<span class="str">"NORTHING="</span>:N</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>PT1 E</label><input type="number" id="p14_e1" value="100" step="any"></div>
+                  <div class="field"><label>PT1 N</label><input type="number" id="p14_n1" value="200" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>PT2 E</label><input type="number" id="p14_e2" value="300" step="any"></div>
+                  <div class="field"><label>PT2 N</label><input type="number" id="p14_n2" value="200" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>PT3 E</label><input type="number" id="p14_e3" value="200" step="any"></div>
+                  <div class="field"><label>PT3 N</label><input type="number" id="p14_n3" value="50" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>AZ to PT1 (°)</label><input type="number" id="p14_az1" value="330" step="any"></div>
+                  <div class="field"><label>AZ to PT2 (°)</label><input type="number" id="p14_az2" value="20" step="any"></div>
+                </div>
+                <div class="field"><label>AZ to PT3 (°)</label><input type="number" id="p14_az3" value="140" step="any"></div>
+                <button class="calc-btn" onclick="calc14()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr14" markerWidth="7" markerHeight="7" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#94a3b8"/></marker></defs>
+                  <circle cx="80" cy="50" r="6" fill="#f59e0b"/><text x="60" y="44" fill="#f59e0b" font-size="9" font-family="Share Tech Mono">PT1</text>
+                  <circle cx="240" cy="50" r="6" fill="#22d3ee"/><text x="248" y="44" fill="#22d3ee" font-size="9" font-family="Share Tech Mono">PT2</text>
+                  <circle cx="160" cy="60" r="6" fill="#34d399"/><text x="168" y="58" fill="#34d399" font-size="9" font-family="Share Tech Mono">PT3</text>
+                  <circle cx="160" cy="170" r="8" fill="none" stroke="#f87171" stroke-width="2"/>
+                  <circle cx="160" cy="170" r="3" fill="#f87171"/>
+                  <text x="168" y="185" fill="#f87171" font-size="9" font-family="Share Tech Mono">FREE STN</text>
+                  <line x1="80" y1="50" x2="160" y2="170" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,2" marker-end="url(#arr14)"/>
+                  <line x1="240" y1="50" x2="160" y2="170" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,2" marker-end="url(#arr14)"/>
+                  <line x1="160" y1="60" x2="160" y2="170" stroke="#34d399" stroke-width="1" stroke-dasharray="4,2" marker-end="url(#arr14)"/>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">3-POINT RESECTION (ANGULAR)</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">EASTING</span><span class="output-value" id="p14_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">NORTHING</span><span class="output-value" id="p14_out_n"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 15 ===== -->
+    <div class="program" id="prog15">
+      <div class="prog-header">
+        <div class="prog-num">15</div>
+        <div class="prog-title-block">
+          <div class="prog-title">3 Point Centre of Circle Coordinates</div>
+          <div class="prog-desc">Compute the Centre Point Easting, Northing and Radius of a circle from three coordinate points. Always input coordinates in clockwise direction.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block">(A+C)÷2→G:(B+D)÷2→H
+(C+E)÷2→I:(D+F)÷2→J
+<span class="fn">tan⁻¹</span>((C-A)÷(D-B))+90→K
+<span class="fn">tan⁻¹</span>((C-E)÷(D-F))+90→L
+<span class="cmt">Solve for perpendicular bisector intersection</span>
+<span class="str">"C.P EAST="</span>:X
+<span class="str">"C.P NORTH="</span>:Y
+<span class="str">"RADIUS="</span>:√((A-X)²+(B-Y)²)</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA (Clockwise)</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>1ST E</label><input type="number" id="p15_e1" value="23.7368" step="any"></div>
+                  <div class="field"><label>1ST N</label><input type="number" id="p15_n1" value="19.0763" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>2ND E</label><input type="number" id="p15_e2" value="27.5617" step="any"></div>
+                  <div class="field"><label>2ND N</label><input type="number" id="p15_n2" value="18.7473" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>3RD E</label><input type="number" id="p15_e3" value="30.0259" step="any"></div>
+                  <div class="field"><label>3RD N</label><input type="number" id="p15_n3" value="15.8035" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc15()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Circle -->
+                  <circle cx="160" cy="110" r="80" fill="none" stroke="#253545" stroke-width="1.5" stroke-dasharray="5,3"/>
+                  <!-- Center -->
+                  <circle cx="160" cy="110" r="5" fill="#34d399"/>
+                  <text x="168" y="108" fill="#34d399" font-size="9" font-family="Share Tech Mono">CENTRE</text>
+                  <!-- Radius -->
+                  <line x1="160" y1="110" x2="228" y2="68" stroke="#34d399" stroke-width="1" stroke-dasharray="3,2"/>
+                  <text x="185" y="88" fill="#34d399" font-size="8" font-family="Share Tech Mono">R</text>
+                  <!-- 3 points on circle -->
+                  <circle cx="105" cy="55" r="5" fill="#f59e0b"/>
+                  <text x="90" y="48" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">PT1</text>
+                  <circle cx="228" cy="68" r="5" fill="#22d3ee"/>
+                  <text x="236" y="66" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PT2</text>
+                  <circle cx="230" cy="155" r="5" fill="#f87171"/>
+                  <text x="238" y="168" fill="#f87171" font-size="8" font-family="Share Tech Mono">PT3</text>
+                  <!-- CW arrow -->
+                  <path d="M115 50 A85 85 0 0 1 228 60" stroke="#94a3b8" fill="none" stroke-width="1" stroke-dasharray="3,2"/>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">CIRCLE FROM 3 POINTS (CW)</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">C.P EAST (Centre)</span><span class="output-value" id="p15_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">C.P NORTH</span><span class="output-value" id="p15_out_n"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">RADIUS</span><span class="output-value" id="p15_out_r"><span class="empty">—</span></span></div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXPECTED: </span>E=<span class="ex-val">25.254</span> N=<span class="ex-val">14.312</span> R=<span class="ex-val">5.000</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 16 ===== -->
+    <div class="program" id="prog16">
+      <div class="prog-header">
+        <div class="prog-num">16</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Simple Horizontal Curve — Left & Right</div>
+          <div class="prog-desc">Compute Easting & Northing or Chainage & Offset on a simple horizontal curve. Supports both Left and Right curves, and both [1] E,N and [2] Chainage/Offset modes.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">CURVE ELEMENTS</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>BC E (Begin Curve E)</label><input type="number" id="p16_bc_e" value="100" step="any"></div>
+                  <div class="field"><label>BC N</label><input type="number" id="p16_bc_n" value="100" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>EC E (End Curve E)</label><input type="number" id="p16_ec_e" value="200" step="any"></div>
+                  <div class="field"><label>EC N</label><input type="number" id="p16_ec_n" value="150" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>RADIUS</label><input type="number" id="p16_r" value="150" step="any"></div>
+                  <div class="field"><label>BC CHAINAGE</label><input type="number" id="p16_bc_ch" value="0" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>DIRECTION</label>
+                    <select id="p16_dir">
+                      <option value="1">RIGHT</option>
+                      <option value="-1">LEFT</option>
+                    </select>
+                  </div>
+                  <div class="field"><label>REQ CHAINAGE</label><input type="number" id="p16_req_ch" value="50" step="any"></div>
+                </div>
+                <div class="field"><label>OFFSET (+/- from CL)</label><input type="number" id="p16_offset" value="0" step="any"></div>
+                <button class="calc-btn" onclick="calc16()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Curve arc -->
+                  <path d="M 50 170 Q 165 20 280 130" fill="none" stroke="#f59e0b" stroke-width="2.5"/>
+                  <!-- BC -->
+                  <circle cx="50" cy="170" r="5" fill="#f59e0b"/>
+                  <text x="30" y="186" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">BC</text>
+                  <!-- EC -->
+                  <circle cx="280" cy="130" r="5" fill="#f59e0b"/>
+                  <text x="286" y="128" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">EC</text>
+                  <!-- PI/Apex -->
+                  <circle cx="165" cy="35" r="4" fill="#94a3b8"/>
+                  <text x="172" y="33" fill="#94a3b8" font-size="8" font-family="Share Tech Mono">PI/APEX</text>
+                  <line x1="50" y1="170" x2="165" y2="35" stroke="#253545" stroke-width="1" stroke-dasharray="3,3"/>
+                  <line x1="280" y1="130" x2="165" y2="35" stroke="#253545" stroke-width="1" stroke-dasharray="3,3"/>
+                  <!-- Long chord -->
+                  <line x1="50" y1="170" x2="280" y2="130" stroke="#22d3ee" stroke-width="1" stroke-dasharray="4,2"/>
+                  <text x="140" y="168" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">LONG CHORD</text>
+                  <!-- Mid ordinate -->
+                  <circle cx="165" cy="100" r="4" fill="#34d399"/>
+                  <line x1="165" y1="100" x2="165" y2="152" stroke="#34d399" stroke-width="1" stroke-dasharray="2,2"/>
+                  <text x="168" y="135" fill="#34d399" font-size="8" font-family="Share Tech Mono">MO</text>
+                  <!-- Labels -->
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">SIMPLE HORIZONTAL CURVE</text>
+                  <text x="70" y="90" fill="#f59e0b" font-size="8" font-family="Share Tech Mono" transform="rotate(-40,70,90)">CURVE</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT — CURVE ELEMENTS</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">LONG CHORD</span><span class="output-value" id="p16_out_lc"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">DEFLECTION ANGLE</span><span class="output-value" id="p16_out_da"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">TANGENT LENGTH</span><span class="output-value" id="p16_out_tl"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">CURVE LENGTH</span><span class="output-value" id="p16_out_cl"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">MID ORDINATE</span><span class="output-value" id="p16_out_mo"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">REQ EASTING</span><span class="output-value" id="p16_out_e"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">REQ NORTHING</span><span class="output-value" id="p16_out_n"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 17 ===== -->
+    <div class="program" id="prog17">
+      <div class="prog-header">
+        <div class="prog-num">17</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Level</div>
+          <div class="prog-desc">Compute the Level or Staff reading for level calculation or Level marking from Bench Mark. Classic rise-and-fall levelling computation.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="kw">Deg:</span><span class="str">"BM"</span>?A:<span class="str">"BACK SIGHT"</span>?B
+<span class="kw">Lbl</span> 0:<span class="str">"F.S/I.S/REQ"</span>?C
+<span class="str">"LEVEL/I.S="</span>:(A+B)-C
+<span class="kw">Goto</span> 0
+<span class="cmt">Height of Instrument = BM + BS</span>
+<span class="cmt">Level = HI - FS</span></div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="field"><label>BM (Bench Mark Elevation)</label><input type="number" id="p17_bm" value="3.000" step="any"></div>
+                <div class="field"><label>BACK SIGHT reading</label><input type="number" id="p17_bs" value="1.300" step="any"></div>
+                <div class="field"><label>F.S / I.S / REQ LEVEL reading</label><input type="number" id="p17_fs" value="1.700" step="any"></div>
+                <button class="calc-btn" onclick="calc17()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr17" markerWidth="6" markerHeight="6" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#34d399"/></marker></defs>
+                  <!-- Ground line -->
+                  <line x1="20" y1="185" x2="300" y2="185" stroke="#253545" stroke-width="2"/>
+                  <!-- BM staff -->
+                  <rect x="60" y="140" width="8" height="45" fill="#253545" stroke="#f59e0b" stroke-width="1.5"/>
+                  <text x="48" y="198" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">BM</text>
+                  <text x="35" y="165" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">3.000</text>
+                  <!-- Level instrument -->
+                  <ellipse cx="160" cy="150" rx="18" ry="8" fill="none" stroke="#94a3b8" stroke-width="1.5"/>
+                  <line x1="160" y1="150" x2="160" y2="185" stroke="#94a3b8" stroke-width="1.5"/>
+                  <!-- HI line -->
+                  <line x1="40" y1="135" x2="280" y2="135" stroke="#22d3ee" stroke-width="1" stroke-dasharray="5,3"/>
+                  <text x="8" y="133" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">HI</text>
+                  <!-- BS arrow -->
+                  <line x1="64" y1="140" x2="64" y2="135" stroke="#34d399" stroke-width="1" marker-end="url(#arr17)"/>
+                  <text x="72" y="142" fill="#34d399" font-size="8" font-family="Share Tech Mono">BS=1.3</text>
+                  <!-- FS staff -->
+                  <rect x="238" y="150" width="8" height="35" fill="#253545" stroke="#22d3ee" stroke-width="1.5"/>
+                  <text x="235" y="198" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">FS</text>
+                  <!-- FS arrow -->
+                  <line x1="242" y1="135" x2="242" y2="152" stroke="#22d3ee" stroke-width="1" marker-end="url(#arr17)"/>
+                  <text x="250" y="148" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">FS=1.7</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">LEVELLING (HPC METHOD)</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">Height of Instrument (HI)</span><span class="output-value" id="p17_out_hi"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">LEVEL / I.S / REQ LEVEL</span><span class="output-value" id="p17_out_lvl"><span class="empty">—</span></span></div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXAMPLE: </span>BM=<span class="ex-val">3.000</span> BS=<span class="ex-val">1.300</span> FS=<span class="ex-val">1.700</span><br>
+                HI=<span class="ex-val">4.300</span> Level=<span class="ex-val">2.600</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 18 ===== -->
+    <div class="program" id="prog18">
+      <div class="prog-header">
+        <div class="prog-num">18</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Interpolation</div>
+          <div class="prog-desc">Compute the Level in Slopes at a required chainage using linear interpolation between two known points.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="str">"START ELEV"</span>?A:<span class="str">"START CH"</span>?B
+<span class="str">"END ELEV"</span>?C:<span class="str">"END CH"</span>?D
+<span class="kw">Lbl</span> 0:<span class="str">"REQ CH"</span>?E
+<span class="str">"REQ ELEV="</span>:((C-A)÷(D-B)×(E-B))+A
+<span class="kw">Goto</span> 0</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>START CH</label><input type="number" id="p18_sch" value="0" step="any"></div>
+                  <div class="field"><label>START ELEV</label><input type="number" id="p18_se" value="0" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>END CH</label><input type="number" id="p18_ech" value="100" step="any"></div>
+                  <div class="field"><label>END ELEV</label><input type="number" id="p18_ee" value="5" step="any"></div>
+                </div>
+                <div class="field"><label>REQ CH</label><input type="number" id="p18_rch" value="30" step="any"></div>
+                <button class="calc-btn" onclick="calc18()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <defs><marker id="arr18" markerWidth="6" markerHeight="6" refX="3" refY="2" orient="auto"><polygon points="0 0, 5 2, 0 4" fill="#22d3ee"/></marker></defs>
+                  <!-- Ground slope line -->
+                  <line x1="40" y1="170" x2="280" y2="80" stroke="#f59e0b" stroke-width="2"/>
+                  <circle cx="40" cy="170" r="5" fill="#f59e0b"/>
+                  <text x="22" y="184" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">START</text>
+                  <text x="22" y="195" fill="#64748b" font-size="7" font-family="Share Tech Mono">CH=0, Z=0</text>
+                  <circle cx="280" cy="80" r="5" fill="#f59e0b"/>
+                  <text x="288" y="78" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">END</text>
+                  <text x="288" y="90" fill="#64748b" font-size="7" font-family="Share Tech Mono">CH=100,Z=5</text>
+                  <!-- Req point -->
+                  <circle cx="112" cy="144" r="5" fill="#22d3ee"/>
+                  <line x1="112" y1="185" x2="112" y2="145" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr18)"/>
+                  <text x="115" y="183" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">CH=30</text>
+                  <text x="115" y="140" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">Z=1.5</text>
+                  <!-- Horizontal baseline -->
+                  <line x1="40" y1="185" x2="280" y2="185" stroke="#253545" stroke-width="1.5"/>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">SLOPE INTERPOLATION</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">REQ ELEV</span><span class="output-value" id="p18_out"><span class="empty">—</span></span></div>
+              </div>
+              <div class="example-box" style="margin-top:12px">
+                <span class="ex-label">EXPECTED: </span>REQ CH=<span class="ex-val">30</span> → REQ ELEV=<span class="ex-val">1.500</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 19 ===== -->
+    <div class="program" id="prog19">
+      <div class="prog-header">
+        <div class="prog-num">19</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Vertical Curve</div>
+          <div class="prog-desc">Compute the Elevation on a Vertical Curve. Also calculates PVC, PVT chainage and elevation. Input: PVI chainage, elevation, curve length, and two grades.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="str">"PVI CH"</span>?A:<span class="str">"PVI ELEV"</span>?B
+<span class="str">"CURVE LEN"</span>?C:<span class="str">"GRAD1%"</span>?D:<span class="str">"GRAD2%"</span>?E
+<span class="str">"PVC CH="</span>:A-(C÷2)→F
+<span class="str">"PVC ELEV="</span>:B-((D÷100)×(C÷2))→G
+<span class="str">"PVT CH="</span>:F+C→H
+<span class="str">"PVT ELEV="</span>:B+((E÷100)×(C÷2))→I
+REQ ELEV=G+((D÷100)×(J-F))
+       +(((E-D)÷(200×C))×(J-F)²)</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">INPUT DATA</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="input-row">
+                  <div class="field"><label>PVI CH</label><input type="number" id="p19_pvich" value="50" step="any"></div>
+                  <div class="field"><label>PVI ELEV</label><input type="number" id="p19_pvie" value="-0.500" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>CURVE LENGTH</label><input type="number" id="p19_cl" value="100" step="any"></div>
+                  <div class="field"><label>GRAD-1 %</label><input type="number" id="p19_g1" value="-1" step="any"></div>
+                </div>
+                <div class="input-row">
+                  <div class="field"><label>GRAD-2 %</label><input type="number" id="p19_g2" value="1" step="any"></div>
+                  <div class="field"><label>REQ CH</label><input type="number" id="p19_rch" value="45" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc19()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <!-- PVC-PVI line -->
+                  <line x1="40" y1="130" x2="160" y2="175" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2"/>
+                  <!-- PVI-PVT line -->
+                  <line x1="160" y1="175" x2="280" y2="130" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2"/>
+                  <!-- Parabola curve (sag) -->
+                  <path d="M40 130 Q160 200 280 130" fill="none" stroke="#f59e0b" stroke-width="2.5"/>
+                  <!-- Points -->
+                  <circle cx="40" cy="130" r="5" fill="#22d3ee"/>
+                  <text x="24" y="122" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PVC</text>
+                  <circle cx="160" cy="175" r="5" fill="#94a3b8"/>
+                  <text x="168" y="178" fill="#94a3b8" font-size="8" font-family="Share Tech Mono">PVI</text>
+                  <circle cx="280" cy="130" r="5" fill="#22d3ee"/>
+                  <text x="288" y="128" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">PVT</text>
+                  <!-- Grade labels -->
+                  <text x="65" y="152" fill="#94a3b8" font-size="8" font-family="Share Tech Mono" transform="rotate(18,65,152)">G1%</text>
+                  <text x="205" y="155" fill="#94a3b8" font-size="8" font-family="Share Tech Mono" transform="rotate(-18,205,155)">G2%</text>
+                  <!-- REQ point -->
+                  <circle cx="150" cy="194" r="4" fill="#34d399"/>
+                  <line x1="150" y1="194" x2="150" y2="210" stroke="#34d399" stroke-width="1" stroke-dasharray="2,2"/>
+                  <text x="128" y="210" fill="#34d399" font-size="7" font-family="Share Tech Mono">REQ CH</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">VERTICAL CURVE (PARABOLA)</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">PVC CH</span><span class="output-value" id="p19_out_pvcc"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">PVC ELEV</span><span class="output-value" id="p19_out_pvce"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">PVT CH</span><span class="output-value" id="p19_out_pvtc"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">PVT ELEV</span><span class="output-value" id="p19_out_pvte"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">REQ ELEV</span><span class="output-value" id="p19_out_re"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 20 ===== -->
+    <div class="program" id="prog20">
+      <div class="prog-header">
+        <div class="prog-num">20</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Triangles</div>
+          <div class="prog-desc">Compute Sides, Angles & Area of a triangle. Three options: [1] SSS — three sides known, [2] ASS — angle A + sides B, C, [3] SAA — side A + angles B, C.</div>
+        </div>
+      </div>
+      <div class="prog-grid">
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">PROGRAM CODE</span></div>
+            <div class="section-body">
+              <div class="formula-block"><span class="cmt">Option [1] SSS → All angles + Area</span>
+Ang-A = <span class="fn">cos⁻¹</span>((B²+C²-A²)÷(2BC))
+Ang-B = <span class="fn">cos⁻¹</span>((A²+C²-B²)÷(2AC))
+Ang-C = <span class="fn">cos⁻¹</span>((A²+B²-C²)÷(2AB))
+Area  = (C×B×<span class="fn">sin</span>(Ang-A))÷2
+
+<span class="cmt">Option [2] ASS → Side A + angles</span>
+Side-A = √(B²+C²-2BC<span class="fn">cos</span>(A))
+Area   = B×C×<span class="fn">sin</span>(A)÷2
+
+<span class="cmt">Option [3] SAA → Sides + Angle A</span>
+Ang-A = 180-(B+C)
+Side-B = (A×<span class="fn">sin</span>(B))÷<span class="fn">sin</span>(Ang-A)
+Area  = F×E×<span class="fn">sin</span>(Ang-A)÷2</div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">SELECT METHOD & INPUT</span></div>
+            <div class="section-body">
+              <div class="input-group">
+                <div class="field"><label>METHOD</label>
+                  <select id="p20_method" onchange="updateTriMethod()">
+                    <option value="1">[1] SSS — Three Sides Known</option>
+                    <option value="2">[2] ASS — Angle A + Sides B, C</option>
+                    <option value="3">[3] SAA — Side A + Angles B, C</option>
+                  </select>
+                </div>
+                <div id="p20_inputs_1">
+                  <div class="input-row">
+                    <div class="field"><label>SIDE A</label><input type="number" id="p20_a" value="22" step="any"></div>
+                    <div class="field"><label>SIDE B</label><input type="number" id="p20_b" value="25" step="any"></div>
+                  </div>
+                  <div class="field"><label>SIDE C</label><input type="number" id="p20_c" value="20" step="any"></div>
+                </div>
+                <div id="p20_inputs_2" style="display:none">
+                  <div class="input-row">
+                    <div class="field"><label>ANGLE A (°)</label><input type="number" id="p20_ang_a" value="60" step="any"></div>
+                    <div class="field"><label>SIDE B</label><input type="number" id="p20_sb" value="25" step="any"></div>
+                  </div>
+                  <div class="field"><label>SIDE C</label><input type="number" id="p20_sc" value="20" step="any"></div>
+                </div>
+                <div id="p20_inputs_3" style="display:none">
+                  <div class="input-row">
+                    <div class="field"><label>SIDE A</label><input type="number" id="p20_sa" value="22" step="any"></div>
+                    <div class="field"><label>ANGLE B (°)</label><input type="number" id="p20_ab" value="72.883" step="any"></div>
+                  </div>
+                  <div class="field"><label>ANGLE C (°)</label><input type="number" id="p20_ac" value="49.869" step="any"></div>
+                </div>
+                <button class="calc-btn" onclick="calc20()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                  CALCULATE
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="section-card" style="margin-bottom:16px">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">DIAGRAM</span></div>
+            <div class="section-body">
+              <div class="diagram-wrap">
+                <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Triangle -->
+                  <polygon points="160,30 40,180 280,180" fill="none" stroke="#f59e0b" stroke-width="2"/>
+                  <!-- Vertices -->
+                  <circle cx="160" cy="30" r="4" fill="#f59e0b"/>
+                  <text x="166" y="28" fill="#f59e0b" font-size="10" font-family="Share Tech Mono">A</text>
+                  <circle cx="40" cy="180" r="4" fill="#22d3ee"/>
+                  <text x="22" y="196" fill="#22d3ee" font-size="10" font-family="Share Tech Mono">B</text>
+                  <circle cx="280" cy="180" r="4" fill="#34d399"/>
+                  <text x="288" y="196" fill="#34d399" font-size="10" font-family="Share Tech Mono">C</text>
+                  <!-- Side labels -->
+                  <text x="88" y="112" fill="#94a3b8" font-size="9" font-family="Share Tech Mono" transform="rotate(57,88,112)">Side c</text>
+                  <text x="225" y="112" fill="#94a3b8" font-size="9" font-family="Share Tech Mono" transform="rotate(-57,225,112)">Side b</text>
+                  <text x="145" y="198" fill="#94a3b8" font-size="9" font-family="Share Tech Mono">Side a</text>
+                  <!-- Angle arcs -->
+                  <path d="M145 48 A30 30 0 0 1 175 48" stroke="#f59e0b" fill="none" stroke-width="1"/>
+                  <text x="150" y="65" fill="#f59e0b" font-size="8" font-family="Share Tech Mono">∠A</text>
+                  <path d="M55 177 A25 25 0 0 1 65 162" stroke="#22d3ee" fill="none" stroke-width="1"/>
+                  <text x="65" y="175" fill="#22d3ee" font-size="8" font-family="Share Tech Mono">∠B</text>
+                  <path d="M255 177 A25 25 0 0 0 265 162" stroke="#34d399" fill="none" stroke-width="1"/>
+                  <text x="238" y="175" fill="#34d399" font-size="8" font-family="Share Tech Mono">∠C</text>
+                  <!-- Area label -->
+                  <text x="148" y="140" fill="#64748b" font-size="9" font-family="Share Tech Mono">AREA</text>
+                  <text x="10" y="15" fill="#64748b" font-size="9" font-family="Share Tech Mono">TRIANGLE SOLVER</text>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="section-card">
+            <div class="section-header"><div class="section-dot"></div><span class="section-tag">OUTPUT</span></div>
+            <div class="section-body">
+              <div class="output-grid">
+                <div class="output-item"><span class="output-label">ANGLE A</span><span class="output-value" id="p20_out_a"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">ANGLE B</span><span class="output-value" id="p20_out_b"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">ANGLE C</span><span class="output-value" id="p20_out_c"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">SIDE A</span><span class="output-value" id="p20_out_sa"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">SIDE B</span><span class="output-value" id="p20_out_sb"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">SIDE C</span><span class="output-value" id="p20_out_sc"><span class="empty">—</span></span></div>
+                <div class="output-item"><span class="output-label">AREA (sq.m)</span><span class="output-value" id="p20_out_area"><span class="empty">—</span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PROGRAM 21 ===== -->
+    <div class="program" id="prog21">
+      <div class="prog-header">
+        <div class="prog-num">21</div>
+        <div class="prog-title-block">
+          <div class="prog-title">Calculator Information</div>
+          <div class="prog-desc">Key reference guide for programming the Casio fx-5800P. Function keys, program entry shortcuts, and setup instructions.</div>
+        </div>
+      </div>
+      <div class="prog-grid single">
+        <div class="calc-info-grid">
+          <div class="key-group">
+            <div class="key-group-header">FUNCTION → 2:COMPLX</div>
+            <div class="key-list">
+              <div class="key-item"><span class="key-badge">1</span> Abs</div>
+              <div class="key-item"><span class="key-badge">2</span> Arg</div>
+              <div class="key-item"><span class="key-badge">3</span> Conjg</div>
+              <div class="key-item"><span class="key-badge">4</span> ReP</div>
+              <div class="key-item"><span class="key-badge">5</span> ImP</div>
+              <div class="key-item"><span class="key-badge">6</span> ►rθ</div>
+              <div class="key-item"><span class="key-badge">7</span> ►a+bi</div>
+            </div>
+          </div>
+          <div class="key-group">
+            <div class="key-group-header">FUNCTION → 2:PROG</div>
+            <div class="key-list">
+              <div class="key-item"><span class="key-badge">1</span> ?</div>
+              <div class="key-item"><span class="key-badge">2</span> →</div>
+              <div class="key-item"><span class="key-badge">3</span> If</div>
+              <div class="key-item"><span class="key-badge">4</span> Then</div>
+              <div class="key-item"><span class="key-badge">5</span> Else</div>
+              <div class="key-item"><span class="key-badge">6</span> If End</div>
+              <div class="key-item"><span class="key-badge">7</span> Lbl</div>
+              <div class="key-item"><span class="key-badge">8</span> Goto</div>
+            </div>
+          </div>
+          <div class="key-group">
+            <div class="key-group-header">REPLAY BUTTON</div>
+            <div class="key-list">
+              <div class="key-item"><span class="key-badge">1</span> =</div>
+              <div class="key-item"><span class="key-badge">2</span> ≠</div>
+              <div class="key-item"><span class="key-badge">3</span> &gt;</div>
+              <div class="key-item"><span class="key-badge">4</span> &lt;</div>
+              <div class="key-item"><span class="key-badge">5</span> ≥</div>
+              <div class="key-item"><span class="key-badge">6</span> ≤</div>
+            </div>
+          </div>
+          <div class="key-group">
+            <div class="key-group-header">FUNCTION → 5:ANGLE</div>
+            <div class="key-list">
+              <div class="key-item"><span class="key-badge">1</span> °</div>
+              <div class="key-item"><span class="key-badge">2</span> r</div>
+              <div class="key-item"><span class="key-badge">3</span> g</div>
+              <div class="key-item"><span class="key-badge">4</span> ►DMS</div>
+            </div>
+          </div>
+          <div class="key-group">
+            <div class="key-group-header">SHIFT → SETUP</div>
+            <div class="key-list">
+              <div class="key-item"><span class="key-badge">3</span> Deg</div>
+              <div class="key-item"><span class="key-badge">6</span> Fix</div>
+            </div>
+          </div>
+          <div class="key-group">
+            <div class="key-group-header">KEY SHORTCUTS</div>
+            <div class="key-list">
+              <div class="key-item"><span class="key-badge">SHIFT</span> △, Sin⁻¹, Cos⁻¹, Tan⁻¹</div>
+              <div class="key-item"><span class="key-badge">ALPHA</span> " [ ] A–Z SPACE =</div>
+              <div class="key-item"><span class="key-badge">EXE</span> ↵ (Enter)</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-card" style="margin-top:20px">
+          <div class="section-header"><div class="section-dot"></div><span class="section-tag">NEW PROGRAM — STEP BY STEP</span></div>
+          <div class="section-body">
+            <table class="info-table">
+              <thead><tr><th>STEP</th><th>PRESS</th><th>ACTION</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>MODE</td><td>Open mode menu</td></tr>
+                <tr><td>2</td><td>5:PROG → 5</td><td>Enter program mode</td></tr>
+                <tr><td>3</td><td>1:NEW → 1</td><td>Create new program</td></tr>
+                <tr><td>4</td><td>File Name?</td><td>Type program name (e.g. TEST)</td></tr>
+                <tr><td>5</td><td>File Mode → 1:COMP → 1</td><td>Select COMP mode</td></tr>
+                <tr><td>6</td><td>—</td><td>Start program installation / typing</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="section-card" style="margin-top:16px">
+          <div class="section-header"><div class="section-dot"></div><span class="section-tag">ABOUT THIS SOFTWARE</span></div>
+          <div class="section-body">
+            <div class="example-box">
+              <span class="ex-label">Original Programs:</span> <span class="ex-val">Malik Abdur Rehman</span><br>
+              <span class="ex-label">Email:</span> <span class="ex-val">geodasi@gmail.com</span><br>
+              <span class="ex-label">Calculator:</span> <span class="ex-val">Casio fx-5800P (SUPER-FX PLUS)</span><br>
+              <span class="ex-label">Total Programs:</span> <span class="ex-val">21 Land Surveying Programs</span><br>
+              <span class="ex-label">Web Version:</span> <span class="ex-val">All 21 programs implemented in JavaScript</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ===== UTILITY FUNCTIONS =====
+const D2R = Math.PI / 180;
+const R2D = 180 / Math.PI;
+
+function bearingDeg(fromE, fromN, toE, toN) {
+  let b = Math.atan2(toE - fromE, toN - fromN) * R2D;
+  if (b < 0) b += 360;
+  return b;
+}
+
+function toDMS(deg) {
+  if (deg === null || isNaN(deg)) return '—';
+  let d = Math.floor(Math.abs(deg));
+  let m = Math.floor((Math.abs(deg) - d) * 60);
+  let s = ((Math.abs(deg) - d) * 60 - m) * 60;
+  const sign = deg < 0 ? '-' : '';
+  return `${sign}${d}° ${m}' ${s.toFixed(2)}"`;
+}
+
+function fmt(v, d=4) {
+  if (v === null || isNaN(v)) return '—';
+  return v.toFixed(d);
+}
+
+function setOut(id, val, unit='') {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = `${val}<span class="output-unit">${unit}</span>`;
+}
+
+function g(id) { return parseFloat(document.getElementById(id).value); }
+
+// ===== NAVIGATION =====
+function showProg(num, el) {
+  document.querySelectorAll('.program').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const prog = document.getElementById('prog' + num);
+  if (prog) prog.classList.add('active');
+  if (el) el.classList.add('active');
+  if (window.innerWidth <= 900) document.getElementById('sidebar').classList.remove('open');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===== PROGRAM 1: Radial Bearing & H-Distance =====
+function calc1() {
+  const stn_e = g('p1_stn_e'), stn_n = g('p1_stn_n');
+  const pt_e = g('p1_pt_e'), pt_n = g('p1_pt_n');
+  const sf = g('p1_sf') || 1;
+  const brg = bearingDeg(stn_e, stn_n, pt_e, pt_n);
+  const dist = Math.sqrt(Math.pow(pt_e - stn_e, 2) + Math.pow(pt_n - stn_n, 2)) / sf;
+  setOut('p1_out_brg', toDMS(brg));
+  setOut('p1_out_dist', fmt(dist));
+}
+
+// ===== PROGRAM 2: Radial Coordinates by Bearing Distance =====
+function calc2() {
+  const stn_e = g('p2_stn_e'), stn_n = g('p2_stn_n');
+  const sf = g('p2_sf') || 1;
+  const brg = g('p2_brg'), dist = g('p2_dist');
+  const e = stn_e + Math.sin(brg * D2R) * dist * sf;
+  const n = stn_n + Math.cos(brg * D2R) * dist * sf;
+  setOut('p2_out_e', fmt(e));
+  setOut('p2_out_n', fmt(n));
+}
+
+// ===== PROGRAM 3: Point to Point XYZ =====
+function calc3() {
+  const stn_e = g('p3_stn_e'), stn_n = g('p3_stn_n'), stn_z = g('p3_stn_z');
+  const az = g('p3_az'), zen = g('p3_zen'), hdist = g('p3_hdist');
+  const hi = g('p3_hi'), th = g('p3_th'), sf = g('p3_sf') || 1;
+  const obs_e = stn_e + Math.sin(az * D2R) * hdist * sf;
+  const obs_n = stn_n + Math.cos(az * D2R) * hdist * sf;
+  const obs_z = stn_z + hi + Math.sin((90 - zen) * D2R) * hdist - th;
+  setOut('p3_out_e', fmt(obs_e));
+  setOut('p3_out_n', fmt(obs_n));
+  setOut('p3_out_z', fmt(obs_z));
+}
+
+// ===== PROGRAM 4: Reference Line =====
+function calc4() {
+  const p1e = g('p4_p1e'), p1n = g('p4_p1n');
+  const p2e = g('p4_p2e'), p2n = g('p4_p2n');
+  const dist = g('p4_dist'), off = g('p4_off');
+  const brg = bearingDeg(p1e, p1n, p2e, p2n) * D2R;
+  const req_e = p1e + Math.sin(brg) * dist + Math.sin(brg + Math.PI/2) * off;
+  const req_n = p1n + Math.cos(brg) * dist + Math.cos(brg + Math.PI/2) * off;
+  setOut('p4_out_e', fmt(req_e));
+  setOut('p4_out_n', fmt(req_n));
+}
+
+// ===== PROGRAM 5: Chainage Offset =====
+function calc5() {
+  const se = g('p5_stn_e'), sn = g('p5_stn_n');
+  const pe = g('p5_pt_e'), pn = g('p5_pt_n');
+  const oe = g('p5_obs_e'), on_ = g('p5_obs_n');
+  const brg_base = bearingDeg(se, sn, pe, pn);
+  const brg_obs = bearingDeg(se, sn, oe, on_);
+  const dist_obs = Math.sqrt(Math.pow(oe - se, 2) + Math.pow(on_ - sn, 2));
+  const angle_diff = (brg_obs - brg_base) * D2R;
+  const chainage = Math.cos(angle_diff) * dist_obs;
+  const offset = Math.sin(angle_diff) * dist_obs;
+  setOut('p5_out_dist', fmt(chainage));
+  setOut('p5_out_off', fmt(offset));
+}
+
+// ===== PROGRAM 6: Intersections by Coordinates =====
+function calc6() {
+  const B = g('p6_n1'), A = g('p6_e1'), D = g('p6_n2'), C = g('p6_e2');
+  const F = g('p6_n3'), E = g('p6_e3'), H = g('p6_n4'), G = g('p6_e4');
+  const I = (A - C) / (B - D);
+  const J = (E - G) / (F - H);
+  if (Math.abs(I - J) < 1e-10) { alert('Lines are parallel!'); return; }
+  const K = (E - A - J * F + I * B) / (I - J);
+  const L = A - I * (B - K);
+  setOut('p6_out_e', fmt(K));
+  setOut('p6_out_n', fmt(L));
+}
+
+// ===== PROGRAM 7: Intersections by Bearings =====
+function calc7() {
+  const A = g('p7_e1'), B = g('p7_n1');
+  const C = g('p7_e2'), D = g('p7_n2');
+  let az1 = g('p7_az1'), az2 = g('p7_az2');
+  // Handle special angles
+  const eps = 0.0000001;
+  [0, 90, 180, 270].forEach(v => { if (az1 === v) az1 += eps; if (az2 === v) az2 += eps; });
+  const P = 1 / Math.tan(az1 * D2R);
+  const Q = 1 / Math.tan(az2 * D2R);
+  const R = Math.tan(az1 * D2R);
+  const S = Math.tan(az2 * D2R);
+  const X = (C * Q - A * P + B - D) / (Q - P);
+  const Y = (D * S - B * R + A - C) / (S - R);
+  setOut('p7_out_e', fmt(X));
+  setOut('p7_out_n', fmt(Y));
+}
+
+// ===== PROGRAM 8: Intersections by Angles =====
+function calc8() {
+  const A = g('p8_e1'), B = g('p8_n1');
+  const C = g('p8_e2'), D = g('p8_n2');
+  const E = g('p8_ang1'), F = g('p8_ang2');
+  const G = 180 - (E + F);
+  const H = bearingDeg(A, B, C, D);
+  const I = Math.sqrt(Math.pow(C - A, 2) + Math.pow(D - B, 2));
+  const J = (I * Math.sin(F * D2R)) / Math.sin(G * D2R);
+  const pi_e = A + Math.sin((H - E) * D2R) * J;
+  const pi_n = B + Math.cos((H - E) * D2R) * J;
+  setOut('p8_out_e', fmt(pi_e));
+  setOut('p8_out_n', fmt(pi_n));
+}
+
+// ===== PROGRAM 9: Cross Point =====
+function calc9() {
+  const A = g('p9_e1'), B = g('p9_n1'), C = g('p9_e2'), D = g('p9_n2');
+  const E = g('p9_e3'), F = g('p9_n3'), X = g('p9_e4'), Y = g('p9_n4');
+  const H = (D - B) / (C - A);
+  const G = (E - X) / (F - Y);
+  const I = (F - (1 / G) * E - B + H * A) / (H - (1 / G));
+  const N = B + H * (I - A);
+  setOut('p9_out_e', fmt(I));
+  setOut('p9_out_n', fmt(N));
+}
+
+// ===== PROGRAM 10: Angles CW / ACW =====
+function calc10() {
+  const A = g('p10_bs'), B = g('p10_fs');
+  let C = (B - A < 0) ? 360 + (B - A) : (B - A);
+  setOut('p10_out_cw', toDMS(C));
+  setOut('p10_out_acw', toDMS(360 - C));
+}
+
+// ===== PROGRAM 11: Pt-Pt Easting Northing =====
+function calc11() {
+  const se = g('p11_stn_e'), sn = g('p11_stn_n');
+  const sf = g('p11_sf') || 1;
+  const az = g('p11_az'), dist = g('p11_dist');
+  const ne = se + Math.sin(az * D2R) * dist * sf;
+  const nn = sn + Math.cos(az * D2R) * dist * sf;
+  setOut('p11_out_e', fmt(ne));
+  setOut('p11_out_n', fmt(nn));
+}
+
+// ===== PROGRAM 12: Pt-Pt Bearing Distance =====
+function calc12() {
+  const se = g('p12_stn_e'), sn = g('p12_stn_n');
+  const pe = g('p12_pt_e'), pn = g('p12_pt_n');
+  const sf = g('p12_sf') || 1;
+  const brg = bearingDeg(se, sn, pe, pn);
+  const dist = Math.sqrt(Math.pow(pe - se, 2) + Math.pow(pn - sn, 2)) / sf;
+  setOut('p12_out_brg', toDMS(brg));
+  setOut('p12_out_dist', fmt(dist));
+}
+
+// ===== PROGRAM 13: 2 Point Resection =====
+function calc13() {
+  const B = g('p13_p1e'), A = g('p13_p1n');
+  const D = g('p13_p2e'), C = g('p13_p2n');
+  const E = g('p13_d1'), F = g('p13_d2');
+  const X = A - C, Y = B - D;
+  const J = Math.atan2(X, Y) * R2D + 360;
+  const I = Math.sqrt(X * X + Y * Y);
+  const cosVal = (I * I + E * E - F * F) / (2 * I * E);
+  if (cosVal < -1 || cosVal > 1) { setOut('p13_out_e', 'No solution'); return; }
+  const T = J % 360 + Math.acos(cosVal) * R2D;
+  const N = B + Math.sin(T * D2R) * E;
+  const M = A + Math.cos(T * D2R) * E;
+  const obsAng = Math.acos((E * E + F * F - I * I) / (2 * E * F)) * R2D;
+  setOut('p13_out_e', fmt(N));
+  setOut('p13_out_n', fmt(M));
+  setOut('p13_out_ang', toDMS(obsAng));
+}
+
+// ===== PROGRAM 14: 3 Point Resection =====
+function calc14() {
+  const A = g('p14_e1'), B = g('p14_n1');
+  const C = g('p14_e2'), D = g('p14_n2');
+  const E = g('p14_e3'), F = g('p14_n3');
+  const G = g('p14_az1'), H = g('p14_az2'), I = g('p14_az3');
+
+  function angBetween(ax, ay, bx, by) {
+    let a1 = Math.atan2(ax - bx, ay - by) * R2D + 180;
+    let a2 = Math.atan2(ax - bx, ay - by) * R2D + 180; // simplified
+    return Math.abs(a1 - a2);
+  }
+
+  // Subtended angles from the three control points
+  function sub(x1,y1,x2,y2,x3,y3) {
+    let n = Math.atan2(x1-x2,y1-y2)*R2D+180;
+    let o = Math.atan2(x1-x3,y1-y3)*R2D+180;
+    let diff = o - n; if(diff<0) diff+=360; return diff;
+  }
+  const P = sub(A,B,C,D,E,F);
+  const Q = sub(C,D,A,B,E,F);
+  const R = sub(E,F,A,B,C,D);
+  const S = (I-H<0)?I-H+360:I-H;
+  const T_ = (G-I<0)?G-I+360:G-I;
+  const U = (H-G<0)?H-G+360:H-G;
+  const V = 1/(1/Math.tan(P*D2R)-1/Math.tan(S*D2R));
+  const W = 1/(1/Math.tan(Q*D2R)-1/Math.tan(T_*D2R));
+  const X2 = 1/(1/Math.tan(R*D2R)-1/Math.tan(U*D2R));
+  const M = (V*A+W*C+X2*E)/(V+W+X2);
+  const N = (V*B+W*D+X2*F)/(V+W+X2);
+  setOut('p14_out_e', fmt(M));
+  setOut('p14_out_n', fmt(N));
+}
+
+// ===== PROGRAM 15: 3 Point Circle Center =====
+function calc15() {
+  const A = g('p15_e1'), B = g('p15_n1');
+  const C = g('p15_e2'), D = g('p15_n2');
+  const E = g('p15_e3'), F = g('p15_n3');
+  let D2 = D; let C2 = C;
+  if(Math.abs(B-D2)<1e-10) D2+=0.00001;
+  if(Math.abs(D2-F)<1e-10) D2+=0.00001;
+  if(Math.abs(C2-A)<1e-10) C2+=0.00001;
+  if(Math.abs(C2-E)<1e-10) C2+=0.00001;
+  const G=(A+C2)/2, H=(B+D2)/2, Ii=(C2+E)/2, J=(D2+F)/2;
+  const K=Math.atan2(C2-A,D2-B)*R2D+90;
+  const L=Math.atan2(C2-E,D2-F)*R2D+90;
+  const P_=1/Math.tan(K*D2R), Q_=1/Math.tan(L*D2R);
+  const R_=Math.tan(K*D2R), S_=Math.tan(L*D2R);
+  const X=(Ii*Q_-G*P_+H-J)/(Q_-P_);
+  const Y=(J*S_-H*R_+G-Ii)/(S_-R_);
+  const rad=Math.sqrt(Math.pow(A-X,2)+Math.pow(B-Y,2));
+  setOut('p15_out_e', fmt(X));
+  setOut('p15_out_n', fmt(Y));
+  setOut('p15_out_r', fmt(rad));
+}
+
+// ===== PROGRAM 16: Simple Horizontal Curve =====
+function calc16() {
+  const bc_e=g('p16_bc_e'),bc_n=g('p16_bc_n');
+  const ec_e=g('p16_ec_e'),ec_n=g('p16_ec_n');
+  const F=g('p16_r'), A=g('p16_bc_ch');
+  const Z=parseFloat(document.getElementById('p16_dir').value);
+  const M=g('p16_req_ch'), N=g('p16_offset');
+  const G=Math.sqrt(Math.pow(bc_e-ec_e,2)+Math.pow(bc_n-ec_n,2));
+  const H=Math.asin((G/2)/F)*2*R2D;
+  const tang=(G/2)/Math.cos(H/2*D2R);
+  const L=((F*2)*Math.PI/360)*H;
+  const midOrd=(G/2)*Math.tan(H/4*D2R);
+  const apex=(G/2)*Math.tan(H/2*D2R)-midOrd;
+  const rise=F-midOrd;
+  setOut('p16_out_lc', fmt(G));
+  setOut('p16_out_da', toDMS(H));
+  setOut('p16_out_tl', fmt(tang));
+  setOut('p16_out_cl', fmt(L));
+  setOut('p16_out_mo', fmt(midOrd));
+  // RP calculation
+  const J=bearingDeg(bc_e,bc_n,ec_e,ec_n);
+  const Ja=(J+(90-(H/2))*Z)*D2R;
+  const X=bc_e+Math.sin(Ja)*F;
+  const Y=bc_n+Math.cos(Ja)*F;
+  const K=bearingDeg(X,Y,bc_e,bc_n);
+  const reqE=X+(Math.sin((K+((H/L)*(M-A)*Z)*D2R))*(F-(N*Z)));
+  const reqN=Y+(Math.cos((K+((H/L)*(M-A)*Z)*D2R))*(F-(N*Z)));
+  setOut('p16_out_e', fmt(reqE));
+  setOut('p16_out_n', fmt(reqN));
+}
+
+// ===== PROGRAM 17: Level =====
+function calc17() {
+  const bm=g('p17_bm'),bs=g('p17_bs'),fs=g('p17_fs');
+  const hi=bm+bs;
+  const lvl=hi-fs;
+  setOut('p17_out_hi', fmt(hi));
+  setOut('p17_out_lvl', fmt(lvl));
+}
+
+// ===== PROGRAM 18: Interpolation =====
+function calc18() {
+  const A=g('p18_se'),B=g('p18_sch');
+  const C=g('p18_ee'),D=g('p18_ech');
+  const E=g('p18_rch');
+  const elev=((C-A)/(D-B)*(E-B))+A;
+  setOut('p18_out', fmt(elev));
+}
+
+// ===== PROGRAM 19: Vertical Curve =====
+function calc19() {
+  const A=g('p19_pvich'),B=g('p19_pvie');
+  const C=g('p19_cl'),D=g('p19_g1'),E=g('p19_g2');
+  const J=g('p19_rch');
+  const F=A-(C/2);
+  const G=B-((D/100)*(C/2));
+  const H=F+C;
+  const Ii=B+((E/100)*(C/2));
+  const re=G+((D/100)*(J-F))+(((E-D)/(200*C))*Math.pow(J-F,2));
+  setOut('p19_out_pvcc', fmt(F));
+  setOut('p19_out_pvce', fmt(G));
+  setOut('p19_out_pvtc', fmt(H));
+  setOut('p19_out_pvte', fmt(Ii));
+  setOut('p19_out_re', fmt(re));
+}
+
+// ===== PROGRAM 20: Triangles =====
+function updateTriMethod() {
+  const m = document.getElementById('p20_method').value;
+  document.getElementById('p20_inputs_1').style.display = m=='1'?'':'none';
+  document.getElementById('p20_inputs_2').style.display = m=='2'?'':'none';
+  document.getElementById('p20_inputs_3').style.display = m=='3'?'':'none';
+}
+
+function calc20() {
+  const m = document.getElementById('p20_method').value;
+  let angA,angB,angC,sA,sB,sC,area;
+  if(m=='1') {
+    const A=g('p20_a'),B=g('p20_b'),C=g('p20_c');
+    angA=Math.acos((B*B+C*C-A*A)/(2*B*C))*R2D;
+    angB=Math.acos((A*A+C*C-B*B)/(2*A*C))*R2D;
+    angC=Math.acos((A*A+B*B-C*C)/(2*A*B))*R2D;
+    area=(C*B*Math.sin(angA*D2R))/2;
+    sA=A;sB=B;sC=C;
+  } else if(m=='2') {
+    const A=g('p20_ang_a'),B=g('p20_sb'),C=g('p20_sc');
+    const D=Math.sqrt(B*B+C*C-2*B*C*Math.cos(A*D2R));
+    const E=Math.acos((D*D+C*C-B*B)/(2*D*C))*R2D;
+    angA=A;angB=E;angC=180-(A+E);
+    sA=D;sB=B;sC=C;area=(B*C*Math.sin(A*D2R))/2;
+  } else {
+    const A=g('p20_sa'),B=g('p20_ab'),C=g('p20_ac');
+    const D=180-(B+C);
+    const E=(A*Math.sin(B*D2R))/Math.sin(D*D2R);
+    const F2=(E*Math.sin(C*D2R))/Math.sin(B*D2R);
+    angA=D;angB=B;angC=C;sA=A;sB=E;sC=F2;area=(F2*E*Math.sin(D*D2R))/2;
+  }
+  setOut('p20_out_a', toDMS(angA));
+  setOut('p20_out_b', toDMS(angB));
+  setOut('p20_out_c', toDMS(angC));
+  setOut('p20_out_sa', fmt(sA));
+  setOut('p20_out_sb', fmt(sB));
+  setOut('p20_out_sc', fmt(sC));
+  setOut('p20_out_area', fmt(area,3) + ' sq.m');
+}
+</script>
+<!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
+<style id="survai-embed-style">
+@media all{
+  html.survai-embed body{background:#f8fafc !important;}
+  /* Sembunyikan chrome bawaan file lama saat di-embed dalam shell baru */
+  html.survai-embed .status,
+  html.survai-embed .statusbar,
+  html.survai-embed .status-bar,
+  html.survai-embed .phone .status,
+  html.survai-embed .notch,
+  html.survai-embed .home-indicator{display:none !important;}
+  /* Header/hero/topbar internal: disembunyikan karena shell sudah punya header */
+  html.survai-embed > body header.header,
+  html.survai-embed > body .topbar,
+  html.survai-embed > body header.topbar,
+  html.survai-embed > body .app-header,
+  html.survai-embed .hero-row .back,
+  html.survai-embed .top-mini .back,
+  html.survai-embed .mf-head .back,
+  html.survai-embed .wl-head .back,
+  html.survai-embed .ct-top .ct-back{ }
+  /* Lepas frame "HP" agar konten full-width di Android */
+  html.survai-embed .phone,
+  html.survai-embed .mobile-frame{max-width:100% !important;width:100% !important;margin:0 !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;min-height:auto !important;}
+  html.survai-embed .app{max-width:100% !important;padding-bottom:24px !important;}
+  /* Anti horizontal-overflow di Android */
+  html.survai-embed,html.survai-embed body{overflow-x:hidden !important;}
+  html.survai-embed table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Target sentuh & tinggi input minimal */
+  html.survai-embed input,html.survai-embed select,html.survai-embed button{min-height:44px;}
+  /* Error box global untuk safeRun */
+  .survai-error-box{margin-top:12px;padding:12px 14px;border-radius:14px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:14px;line-height:1.5;}
+}
+</style>
+<script id="survai-embed-script">
+(function(){
+  try{
+    var p = new URLSearchParams(location.search);
+    if(p.get('embed')==='1'){ document.documentElement.classList.add('survai-embed'); }
+  }catch(e){}
+  // Wrapper aman untuk tombol hitung (opsional dipakai shell); TIDAK mengganti function asli
+  window.safeRun = window.safeRun || function(fn, targetId){
+    try{
+      if(typeof fn==='function'){ return fn(); }
+      if(typeof fn==='string' && typeof window[fn]==='function'){ return window[fn](); }
+      throw new Error('Function tidak ditemukan.');
+    }catch(error){
+      console.error(error);
+      var t = (targetId&&document.getElementById(targetId)) || document.querySelector('.result') || document.querySelector('.panel') || document.body;
+      var box=document.createElement('div'); box.className='survai-error-box';
+      box.innerHTML='<b>Perhitungan gagal diproses.</b><br>'+(error&&error.message?error.message:error);
+      t.appendChild(box);
+    }
+  };
+  // Beritahu shell bahwa submenu sudah siap (untuk hideLoading yang lebih akurat)
+  window.addEventListener('load',function(){
+    try{ if(parent && parent!==window){ parent.postMessage({survai:'ready'}, '*'); } }catch(e){}
+  });
+})();
+</script>
+<!-- ==== END SURVAI EMBED MODE ==== -->
+
+</body>
+</html>

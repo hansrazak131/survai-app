@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Drone Mapping — SurvAI</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+:root{
+  --navy:#17365f; --blue:#2563eb; --blue-ink:#094cb2; --teal:#14b8a6; --cyan:#06b6d4;
+  --bg:#f8fafc; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --ok:#22c55e; --warn:#eab308; --poor:#f97316; --bad:#ef4444;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+body{padding:0 0 40px;overflow-x:hidden;}
+button{font-family:inherit;cursor:pointer;}
+
+/* ===== MAP VIEWER ===== */
+#mapWrap{position:relative;width:100%;height:46vh;min-height:300px;background:#0b1220;}
+#map{position:absolute;inset:0;}
+.map-overlay-top{position:absolute;top:10px;left:10px;right:10px;z-index:500;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none;}
+.basemap-chips{display:flex;gap:6px;overflow-x:auto;pointer-events:auto;scrollbar-width:none;}
+.basemap-chips::-webkit-scrollbar{display:none;}
+.bm-chip{flex:0 0 auto;border:0;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700;
+  background:rgba(255,255,255,.92);color:var(--ink);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.bm-chip.active{background:var(--blue);color:#fff;}
+.map-fab-col{position:absolute;right:10px;bottom:14px;z-index:500;display:flex;flex-direction:column;gap:8px;}
+.map-fab{width:44px;height:44px;border-radius:13px;border:0;background:rgba(255,255,255,.95);color:var(--ink);
+  font-size:18px;font-weight:800;box-shadow:0 4px 12px rgba(0,0,0,.2);display:grid;place-items:center;}
+.map-fab.on{background:var(--blue);color:#fff;}
+.draw-toolbar{position:absolute;left:10px;bottom:14px;z-index:500;display:flex;gap:6px;flex-wrap:wrap;max-width:62%;}
+.draw-btn{border:0;border-radius:11px;padding:8px 10px;font-size:11.5px;font-weight:700;
+  background:rgba(255,255,255,.95);color:var(--ink);box-shadow:0 3px 10px rgba(0,0,0,.18);}
+.draw-btn.on{background:var(--teal);color:#fff;}
+.map-info{position:absolute;left:10px;top:48px;z-index:490;background:rgba(8,16,29,.72);color:#fff;
+  border-radius:10px;padding:6px 10px;font-size:11.5px;font-weight:600;pointer-events:none;max-width:70%;}
+
+/* ===== CONTENT ===== */
+.content{padding:14px 14px 0;}
+.steps{display:flex;gap:6px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none;}
+.steps::-webkit-scrollbar{display:none;}
+.step-pill{flex:0 0 auto;font-size:12px;font-weight:700;padding:8px 13px;border-radius:999px;
+  border:1px solid var(--line);background:#fff;color:var(--muted);white-space:nowrap;}
+.step-pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.step-pill.done{background:#eef4ff;color:var(--blue-ink);border-color:#dbe6ff;}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+.card h2{font-size:17px;font-weight:800;margin:0 0 4px;}
+.card .sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.4;}
+
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.field input,.field select{width:100%;height:48px;border:1.5px solid var(--line);border-radius:12px;
+  padding:0 13px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;background:var(--bg);}
+.field input:focus,.field select:focus{border-color:var(--blue);}
+.field .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.35;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+@media(min-width:560px){.grid2{grid-template-columns:1fr 1fr 1fr;}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:11px;padding:9px 13px;font-size:13.5px;font-weight:600;}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+.nav-row{display:flex;gap:10px;margin-bottom:14px;}
+.btn{flex:1;height:50px;border:0;border-radius:13px;font-size:15px;font-weight:700;}
+.btn:active{opacity:.85;}
+.btn.primary{background:linear-gradient(135deg,var(--blue),var(--blue-ink));color:#fff;}
+.btn.ghost{background:#fff;color:var(--muted);border:1.5px solid var(--line);}
+.btn.wide{width:100%;flex:none;}
+
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:11px 13px;font-size:12px;color:#92400e;line-height:1.5;margin-bottom:12px;}
+.res-card{border-radius:16px;padding:15px;margin-bottom:12px;border:1px solid var(--line);background:#fff;}
+.res-card h3{font-size:15px;font-weight:800;margin:0 0 11px;}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed #eef1f5;font-size:13.5px;}
+.kv:last-child{border-bottom:0;}
+.kv .k{color:var(--muted);} .kv .v{font-weight:700;text-align:right;}
+.status-banner{border-radius:16px;padding:16px;margin-bottom:12px;color:#fff;font-weight:800;text-align:center;}
+.status-banner .big{font-size:20px;margin-bottom:3px;} .status-banner .small{font-size:12.5px;font-weight:600;opacity:.95;}
+.st-ok{background:linear-gradient(135deg,#16a34a,#22c55e);}
+.st-cond{background:linear-gradient(135deg,#ca8a04,#eab308);}
+.st-warn{background:linear-gradient(135deg,#ea580c,#f97316);}
+.st-bad{background:linear-gradient(135deg,#dc2626,#ef4444);}
+.rec-item{display:flex;gap:9px;padding:8px 0;font-size:13px;line-height:1.45;border-bottom:1px dashed #eef1f5;}
+.rec-item:last-child{border-bottom:0;}
+.rec-item .ic{flex:0 0 auto;width:20px;height:20px;border-radius:6px;background:#eef4ff;color:var(--blue-ink);display:grid;place-items:center;font-size:12px;font-weight:800;}
+.bar-meter{height:8px;border-radius:4px;background:#eef1f5;overflow:hidden;margin-top:4px;}
+.bar-meter>i{display:block;height:100%;border-radius:4px;}
+.section-screen{display:none;} .section-screen.active{display:block;}
+.hidden{display:none !important;}
+.lod-badge{display:inline-block;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:800;}
+</style>
+</head>
+<body>
+
+<!-- ===== MAP ===== -->
+<div id="mapWrap">
+  <div id="map"></div>
+  <div class="map-overlay-top">
+    <div class="basemap-chips" id="basemapChips"></div>
+  </div>
+  <div class="map-info" id="mapInfo">Gambar AOI atau import KML/GeoJSON</div>
+  <div class="draw-toolbar" id="drawToolbar"></div>
+  <div class="map-fab-col">
+    <button class="map-fab" id="fab3d" onclick="toggle3D()" title="Toggle 2D/3D">3D</button>
+    <button class="map-fab" onclick="zoomMap(1)">+</button>
+    <button class="map-fab" onclick="zoomMap(-1)">−</button>
+    <button class="map-fab" onclick="fitAOI()" title="Fit AOI">⊡</button>
+    <button class="map-fab" onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="steps" id="stepper"></div>
+
+  <!-- SCREEN 0: Import / Drone / Mode -->
+  <div class="section-screen active" id="dm-screen-0">
+    <div class="card">
+      <h2>1. Area & Drone</h2>
+      <p class="sub">Gambar AOI di peta atau import file. Pilih drone/sensor & mode.</p>
+      <div class="field">
+        <label>Import Data (KML / KMZ / GeoJSON)</label>
+        <input type="file" id="importFile" accept=".kml,.kmz,.geojson,.json" onchange="importAOI(event)">
+        <div class="hint">Atau gunakan tombol gambar (polygon/line/waypoint) di peta.</div>
+      </div>
+      <div class="field">
+        <label>Drone / Sensor</label>
+        <select id="dmDrone" onchange="onDmDroneChange()"></select>
+        <div class="hint" id="dmDroneHint"></div>
+      </div>
+      <div class="field">
+        <label>Mapping Mode</label>
+        <div class="chips" id="modeChips"></div>
+      </div>
+      <div class="field">
+        <label>Mission Type</label>
+        <select id="missionType" onchange="onMissionChange()"></select>
+      </div>
+    </div>
+    <div class="nav-row"><button class="btn primary wide" onclick="dmStep(1)">Lanjut</button></div>
+  </div>
+
+  <!-- SCREEN 1: Custom drone/sensor (jika manual) + Target -->
+  <div class="section-screen" id="dm-screen-1">
+    <div class="card" id="customSensorCard">
+      <h2>2. Spesifikasi Sensor</h2>
+      <p class="sub" id="sensorAutoNote">Drone terpilih punya spesifikasi resmi. Ubah hanya jika perlu.</p>
+      <div class="grid2">
+        <div class="field"><label>Sensor Width (mm)</label><input type="number" id="sw" inputmode="decimal"></div>
+        <div class="field"><label>Sensor Height (mm)</label><input type="number" id="sh" inputmode="decimal"></div>
+        <div class="field"><label>Focal Length (mm)</label><input type="number" id="fl" inputmode="decimal"></div>
+        <div class="field"><label>Image Width (px)</label><input type="number" id="iw" inputmode="numeric"></div>
+        <div class="field"><label>Image Height (px)</label><input type="number" id="ih" inputmode="numeric"></div>
+        <div class="field"><label>Baterai Usable (menit)</label><input type="number" id="usableBatt" inputmode="decimal"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Target Penggunaan</h2>
+      <div class="field">
+        <label>Target Output</label>
+        <select id="target" onchange="onTargetChange()"></select>
+      </div>
+      <div class="field hidden" id="commodityField">
+        <label>Komoditas (untuk Multispectral/Agriculture)</label>
+        <div class="chips" id="dmCommodityChips"></div>
+      </div>
+    </div>
+    <div class="nav-row">
+      <button class="btn ghost" onclick="dmStep(0)">Kembali</button>
+      <button class="btn primary" onclick="dmStep(2)">Lanjut</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Mission params -->
+  <div class="section-screen" id="dm-screen-2">
+    <div class="card">
+      <h2>3. Parameter Misi</h2>
+      <p class="sub">Isi target GSD ATAU altitude. Overlap auto sesuai mode bila kosong.</p>
+      <div class="grid2">
+        <div class="field"><label>Target GSD (cm/px)</label><input type="number" id="targetGSD" inputmode="decimal" placeholder="cth: 2"></div>
+        <div class="field"><label>Altitude (m)</label><input type="number" id="altitude" inputmode="decimal" placeholder="auto"></div>
+        <div class="field"><label>Flight Speed (m/s)</label><input type="number" id="speed" inputmode="decimal" placeholder="cth: 5"></div>
+        <div class="field"><label>Front Overlap (%)</label><input type="number" id="frontOv" inputmode="decimal" placeholder="auto"></div>
+        <div class="field"><label>Side Overlap (%)</label><input type="number" id="sideOv" inputmode="decimal" placeholder="auto"></div>
+        <div class="field"><label>Flight Direction (°)</label><input type="number" id="flightDir" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label>Gimbal Angle (°)</label><input type="number" id="gimbal" inputmode="decimal" placeholder="-90 nadir"></div>
+        <div class="field"><label>Corridor Width (m)</label><input type="number" id="corridorW" inputmode="decimal" placeholder="utk corridor"></div>
+        <div class="field"><label>Safety Factor</label><input type="number" id="safety" inputmode="decimal" value="1.2" step="0.05"></div>
+      </div>
+      <div class="field">
+        <label>Terrain Follow</label>
+        <select id="terrainFollow"><option value="off">Off</option><option value="on">On (AGL reference)</option></select>
+      </div>
+    </div>
+    <div class="nav-row">
+      <button class="btn ghost" onclick="dmStep(1)">Kembali</button>
+      <button class="btn primary" onclick="dmStep(3)">Lanjut</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: Weather -->
+  <div class="section-screen" id="dm-screen-3">
+    <div class="card">
+      <h2>4. Cuaca & Lapangan</h2>
+      <div class="grid2">
+        <div class="field"><label>Wind Speed (m/s)</label><input type="number" id="wind" inputmode="decimal" placeholder="cth: 4"></div>
+        <div class="field"><label>Wind Gust (m/s)</label><input type="number" id="gust" inputmode="decimal" placeholder="cth: 6"></div>
+        <div class="field"><label>Suhu (°C)</label><input type="number" id="temp" inputmode="decimal" placeholder="cth: 30"></div>
+        <div class="field"><label>Kelembapan (%)</label><input type="number" id="humidity" inputmode="decimal" placeholder="cth: 70"></div>
+        <div class="field"><label>Tutupan Awan (%)</label><input type="number" id="cloud" inputmode="decimal" placeholder="cth: 30"></div>
+      </div>
+      <div class="field"><label>Status Hujan</label>
+        <select id="rain"><option value="none">Tidak hujan</option><option value="forecast">Perkiraan hujan segera</option><option value="now">Sedang hujan</option></select></div>
+      <div class="field"><label>Visibility</label>
+        <select id="visibility"><option value="good">Baik</option><option value="low">Rendah/berkabut</option></select></div>
+      <div class="field"><label>Terrain</label>
+        <select id="terrain"><option value="flat">Datar</option><option value="rugged">Berbukit/curam</option></select></div>
+      <div class="field"><label>Matahari Tinggi (siang)?</label>
+        <select id="sunHigh"><option value="no">Tidak</option><option value="yes">Ya</option></select></div>
+      <button class="btn ghost wide" onclick="dmAutofillWeather()">📍 Isi otomatis dari cuaca lokasi</button>
+    </div>
+    <div class="nav-row">
+      <button class="btn ghost" onclick="dmStep(2)">Kembali</button>
+      <button class="btn primary" onclick="computeAll()">Hitung Misi</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: Results -->
+  <div class="section-screen" id="dm-screen-4">
+    <div id="dmResult"></div>
+    <div class="nav-row"><button class="btn ghost wide" onclick="dmStep(3)">← Ubah Input</button></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+/* ============================================================
+   DRONE MAPPING PLANNER — Logic (PRD v2 3D)
+   Rumus presisi sesuai PRD §10. Tidak mengarang spesifikasi.
+   ============================================================ */
+
+/* ---- Database drone+sensor (spesifikasi resmi; low/manual = input manual) ---- */
+const DM_DRONES = [
+  {id:'m3e', label:'DJI Mavic 3 Enterprise', sw:17.3, sh:13.0, fl:12.29, iw:5280, ih:3956, batt:35, conf:'high'},
+  {id:'m3m', label:'DJI Mavic 3 Multispectral', sw:17.3, sh:13.0, fl:12.29, iw:5280, ih:3956, batt:35, conf:'high', multi:true},
+  {id:'p4rtk', label:'DJI Phantom 4 RTK', sw:13.2, sh:8.8, fl:8.8, iw:5472, ih:3648, batt:28, conf:'high'},
+  {id:'m300-p1', label:'DJI M300 + Zenmuse P1 (35mm)', sw:35.9, sh:24.0, fl:35, iw:8192, ih:5460, batt:45, conf:'high'},
+  {id:'m350-l2', label:'DJI M350 + Zenmuse L2 (LiDAR)', sw:0, sh:0, fl:0, iw:0, ih:0, batt:40, conf:'high', lidar:true, pps:240000, swath:0.95},
+  {id:'m30t', label:'DJI M30T (Thermal)', sw:7.4, sh:5.6, fl:12, iw:1280, ih:1024, batt:35, conf:'medium', thermal:true},
+  {id:'autel-evo2', label:'Autel EVO II Pro', sw:13.2, sh:8.8, fl:10, iw:5472, ih:3648, batt:38, conf:'medium'},
+  {id:'autel-m3d', label:'Autel Dragonfish / Custom Autel', sw:0, sh:0, fl:0, iw:0, ih:0, batt:0, conf:'manual'},
+  {id:'custom', label:'Custom Drone / Sensor Manual Input', sw:0, sh:0, fl:0, iw:0, ih:0, batt:0, conf:'manual'},
+];
+
+const DM_COMMODITIES = ['Tebu','Sawah/Padi','Sawit','Teh','Kopi','Kelapa','Pisang'];
+const DM_MODES = ['RGB','LiDAR','Multispectral','Thermal'];
+const DM_MISSIONS = ['Waypoints','Mapping / Nadir Grid','Oblique','Corridor','Detailed Inspection','Real-Time Terrain Follow'];
+const DM_TARGETS = ['Orthomosaic 2D','DSM/DEM/DTM','3D Model','Stockpile/Volume','Corridor/Utility','SUTET/Telecom Inspection','Vegetation Monitoring','Plantation Monitoring','Construction Progress','Topographic Mapping','Precision Agriculture'];
+
+const MISSION_FACTOR = {
+  'Waypoints':1.0, 'Mapping / Nadir Grid':1.0, 'Oblique':2.6,
+  'Corridor':1.0, 'Detailed Inspection':2.0, 'Real-Time Terrain Follow':1.0,
+};
+const SENSOR_SENS = { 'RGB':1.0, 'Oblique/3D':1.2, 'LiDAR':1.1, 'Multispectral':1.1, 'Thermal':1.0 };
+
+/* Index multispectral per komoditas (PRD §logika 5) */
+const MULTI_INDEX = {
+  'Tebu':['NDVI','NDRE','GNDVI'], 'Sawah/Padi':['NDVI','NDRE','SAVI'],
+  'Sawit':['NDVI','NDRE','GNDVI'], 'Teh':['NDVI','GNDVI','NDWI'],
+  'Kopi':['NDVI','NDRE'], 'Kelapa':['NDVI','SAVI'], 'Pisang':['NDVI','NDRE','GNDVI'],
+};
+
+/* ===================== RUMUS PRD §10 ===================== */
+// 1. GSD (cm/pixel) = (Altitude × SensorWidth × 100) / (FocalLength × ImageWidth)
+function calcGSD(alt, sw, fl, iw){
+  if(fl<=0||iw<=0) return 0;
+  return (alt * sw * 100) / (fl * iw);
+}
+// 2. Altitude (m) = (TargetGSD × FocalLength × ImageWidth) / (SensorWidth × 100)
+function calcAltitude(gsd, fl, iw, sw){
+  if(sw<=0) return 0;
+  return (gsd * fl * iw) / (sw * 100);
+}
+// 3/4. Footprint (m) = GSD(m/px) × ImagePixels ; GSD cm/px -> m/px = /100
+function calcFootprint(gsdCm, px){ return (gsdCm/100) * px; }
+
+// 5. Photo Spacing = FootprintHeight × (1 - FrontOverlap)
+function photoSpacing(fpH, frontOv){ return fpH * (1 - frontOv/100); }
+// 6. Line Spacing = FootprintWidth × (1 - SideOverlap)
+function lineSpacing(fpW, sideOv){ return fpW * (1 - sideOv/100); }
+// 7. Line Count = AOI Effective Width / Line Spacing
+function lineCount(aoiW, lineSp){ return lineSp>0 ? aoiW/lineSp : 0; }
+// 8. Photo Count Per Line = Line Length / Photo Spacing
+function photoPerLine(lineLen, photoSp){ return photoSp>0 ? lineLen/photoSp : 0; }
+// 9. Total Photos = LineCount × PhotoPerLine × MissionFactor
+function totalPhotos(lc, ppl, mf){ return Math.ceil(lc * ppl * mf); }
+// 10. Trigger Interval (s) = Photo Spacing / Flight Speed
+function triggerInterval(photoSp, speed){ return speed>0 ? photoSp/speed : 0; }
+// 11. Route Length = LineCount × LineLength + TurnDistance
+function routeLength(lc, lineLen, turnDist){ return lc*lineLen + turnDist; }
+// 12. Flight Time (min) = RouteLength / Speed / 60
+function flightTime(routeLen, speed){ return speed>0 ? routeLen/speed/60 : 0; }
+// 13. Battery Count = FlightTime / UsableBatteryTime × SafetyFactor
+function batteryCount(ft, usable, safety){ return usable>0 ? Math.ceil((ft/usable)*safety) : 0; }
+// 14. Wind Risk = WindSpeed × ExposureFactor × SensorSensitivity
+function windRisk(wind, exposure, sensFactor){ return wind * exposure * sensFactor; }
+// 15. LiDAR Point Density = (PPS × ScanEff) / (Speed × Swath)
+function pointDensity(pps, eff, speed, swath){ return (speed*swath>0) ? (pps*eff)/(speed*swath) : 0; }
+
+/* ===================== AREA & PERIMETER (geodesic) ===================== */
+function polygonAreaHa(latlngs){
+  // Shoelace di proyeksi lokal ekuirektangular (cukup akurat utk AOI kecil)
+  if(!latlngs||latlngs.length<3) return 0;
+  const R=6378137;
+  const lat0 = latlngs.reduce((s,p)=>s+p[0],0)/latlngs.length * Math.PI/180;
+  const pts = latlngs.map(p=>[ R*(p[1]*Math.PI/180)*Math.cos(lat0), R*(p[0]*Math.PI/180) ]);
+  let area=0;
+  for(let i=0;i<pts.length;i++){
+    const j=(i+1)%pts.length;
+    area += pts[i][0]*pts[j][1] - pts[j][0]*pts[i][1];
+  }
+  return Math.abs(area/2)/10000; // m² -> ha
+}
+function bboxDims(latlngs){
+  // Lebar & tinggi efektif AOI dalam meter
+  if(!latlngs||latlngs.length<2) return {w:0,h:0};
+  const lats=latlngs.map(p=>p[0]), lons=latlngs.map(p=>p[1]);
+  const lat0=(Math.min(...lats)+Math.max(...lats))/2 * Math.PI/180;
+  const R=6378137;
+  const w = R*((Math.max(...lons)-Math.min(...lons))*Math.PI/180)*Math.cos(lat0);
+  const h = R*((Math.max(...lats)-Math.min(...lats))*Math.PI/180);
+  return {w:Math.abs(w), h:Math.abs(h)};
+}
+function lineLengthM(latlngs){
+  if(!latlngs||latlngs.length<2) return 0;
+  let d=0;
+  for(let i=0;i<latlngs.length-1;i++) d += haversine(latlngs[i],latlngs[i+1]);
+  return d;
+}
+function haversine(a,b){
+  const R=6378137, toR=Math.PI/180;
+  const dLat=(b[0]-a[0])*toR, dLon=(b[1]-a[1])*toR;
+  const la1=a[0]*toR, la2=b[0]*toR;
+  const x=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+
+/* ===================== MISSION COMPUTE ===================== */
+function computeMission(p){
+  const o={};
+  const drone=p.drone;
+  // GSD & altitude
+  if(p.mode==='LiDAR'){
+    o.gsd=0; o.altitude=p.altitude||80;
+  } else if(p.targetGSD>0 && drone.sw>0){
+    o.altitude = calcAltitude(p.targetGSD, drone.fl, drone.iw, drone.sw);
+    o.gsd = p.targetGSD;
+  } else {
+    o.altitude = p.altitude||100;
+    o.gsd = calcGSD(o.altitude, drone.sw, drone.fl, drone.iw);
+  }
+  // Footprint
+  o.fpW = calcFootprint(o.gsd, drone.iw);
+  o.fpH = calcFootprint(o.gsd, drone.ih);
+  // Overlap & spacing
+  o.photoSp = photoSpacing(o.fpH, p.frontOv);
+  o.lineSp = lineSpacing(o.fpW, p.sideOv);
+  // AOI dims
+  o.area = p.area;            // ha
+  o.aoiW = p.aoiW;            // m
+  o.lineLen = p.lineLen||p.aoiH; // m
+  // Counts
+  o.lineCount = Math.ceil(lineCount(o.aoiW, o.lineSp));
+  o.photoPerLine = photoPerLine(o.lineLen, o.photoSp);
+  const mf = p.missionFactor || MISSION_FACTOR[p.mission] || 1.0;
+  o.missionFactor = mf;
+  o.totalPhotos = totalPhotos(o.lineCount, o.photoPerLine, mf);
+  // Timing
+  o.trigger = triggerInterval(o.photoSp, p.speed);
+  o.turnDist = o.lineCount * (o.lineSp + 10); // estimasi belokan
+  o.routeLen = routeLength(o.lineCount, o.lineLen, o.turnDist);
+  o.flightTime = flightTime(o.routeLen, p.speed);
+  o.battery = batteryCount(o.flightTime, p.usableBatt||drone.batt||25, p.safety||1.2);
+  o.sorties = o.battery; // 1 sortie per baterai (estimasi)
+  // LiDAR density
+  if(p.mode==='LiDAR' && drone.lidar){
+    o.pointDensity = pointDensity(drone.pps||240000, 0.7, p.speed, (drone.swath||0.9)*2*o.altitude*Math.tan(20*Math.PI/180)||10);
+  }
+  return o;
+}
+
+/* ===================== QUALITY & LOD SCORE (PRD §10.16) ===================== */
+function lodScore(p, m){
+  let score=50;
+  // GSD: makin kecil makin bagus utk 3D
+  if(m.gsd>0 && m.gsd<=2) score+=20; else if(m.gsd<=4) score+=10;
+  // Overlap
+  if(p.frontOv>=80 && p.sideOv>=70) score+=15; else if(p.frontOv>=75 && p.sideOv>=65) score+=8;
+  // Oblique / crosshatch
+  if(p.mission==='Oblique') score+=15;
+  if(p.mission==='Detailed Inspection') score+=10;
+  // Terrain follow
+  if(p.terrainFollow) score+=5;
+  return Math.min(100, score);
+}
+function overlapQuality(front, side){
+  let s=50;
+  if(front>=80) s+=25; else if(front>=75) s+=15; else if(front>=70) s+=5; else s-=10;
+  if(side>=70) s+=25; else if(side>=60) s+=15; else if(side>=55) s+=5; else s-=10;
+  return Math.max(0,Math.min(100,s));
+}
+
+/* ===================== WEATHER & SAFETY (PRD §status akhir) ===================== */
+function missionWeather(w, mode, m, p){
+  const sensF = mode==='Oblique'||p.mission==='Oblique' ? 1.2 : (SENSOR_SENS[mode]||1.0);
+  const exposure = w.terrain==='rugged'?1.3:1.0;
+  const wRisk = windRisk(w.wind, exposure, sensF);
+  const gustRisk = (w.gust - w.wind);
+
+  const warnings=[];
+  let status, statusClass;
+
+  // Hard stops
+  if(w.rainNow){ status='Jangan Terbang'; statusClass='st-bad'; warnings.push('Sedang hujan — jangan terbang.'); }
+  else if(w.wind>12 || w.gust>14){ status='Jangan Terbang'; statusClass='st-bad'; warnings.push('Angin '+w.wind+' m/s (gust '+w.gust+') melebihi batas aman drone.'); }
+  else if(w.rainForecast){ status='Waspada'; statusClass='st-warn'; warnings.push('Perkiraan hujan segera — siapkan rencana RTH.'); }
+
+  // Soft warnings
+  if(w.wind>8 && w.wind<=12) warnings.push('Angin kencang ('+w.wind+' m/s) — risiko blur & drift jalur; turunkan speed.');
+  if(gustRisk>4) warnings.push('Turbulensi tinggi (gust−angin = '+gustRisk.toFixed(1)+' m/s) — stabilitas gimbal terganggu.');
+  if(w.cloud>70 && (mode==='Multispectral'||mode==='RGB')) warnings.push('Tutupan awan tinggi — cahaya tidak konsisten, hasil ortho/indeks bias.');
+  if(mode==='Thermal' && w.temp>38) warnings.push('Suhu ekstrem — kontras termal turun; terbang pagi/sore.');
+  if(mode==='Thermal' && w.sunHigh) warnings.push('Matahari tinggi — risiko pantulan termal (sun glint).');
+  if(p.speed>0 && m.trigger>0 && p.speed > (m.photoSp/Math.max(0.5,m.trigger))*1.2) warnings.push('Speed terlalu tinggi untuk interval trigger — risiko gap foto.');
+  if(m.gsd>5 && (p.target||'').indexOf('3D')>=0) warnings.push('GSD besar ('+m.gsd.toFixed(1)+' cm/px) kurang ideal untuk 3D model.');
+  if(p.frontOv<75 || p.sideOv<60) warnings.push('Overlap di bawah rekomendasi (75%/60%) — risiko lubang rekonstruksi.');
+  if(w.visibility==='low') warnings.push('Jarak pandang rendah — pastikan VLOS & izin terbang.');
+  if(mode==='LiDAR' && p.speed>8) warnings.push('Speed tinggi untuk LiDAR — kepadatan titik turun, strip overlap berkurang.');
+
+  // Determine status if not hard-stopped
+  if(!status){
+    if(wRisk<6 && warnings.length===0){ status='Layak Terbang'; statusClass='st-ok'; }
+    else if(wRisk<10 && warnings.length<=2){ status='Layak Bersyarat'; statusClass='st-cond'; }
+    else if(wRisk<14){ status='Waspada'; statusClass='st-warn'; }
+    else { status='Jangan Terbang'; statusClass='st-bad'; }
+  }
+  if(warnings.length===0) warnings.push('Kondisi mendukung. Tetap cek NOTAM/NFZ & izin sebelum terbang.');
+
+  return {wRisk, status, statusClass, warnings, sensF};
+}
+
+/* RTK/GCP suggestion */
+function rtkSuggestion(target, mode){
+  if(/Topographic|DSM|DEM|DTM|Stockpile|Volume/.test(target) || mode==='LiDAR')
+    return 'Disarankan RTK/PPK + minimum 5 GCP & 3 check point untuk akurasi absolut.';
+  if(/3D Model|Construction/.test(target))
+    return 'Disarankan RTK atau GCP terdistribusi untuk skala & akurasi model.';
+  return 'GCP opsional; RTK meningkatkan akurasi absolut. Tetap pasang check point bila memungkinkan.';
+}
+
+</script>
+<script>/* ===================== DRONE MAPPING UI ===================== */
+const DM_STEPS=['Area & Drone','Sensor & Target','Parameter','Cuaca','Hasil'];
+let dmCur=0, dmMode='RGB', dmCommodity='Sawit', dmIs3D=false;
+let map, aoiLayer, drawLayer, flightLayer, drawMode=null, drawPts=[], aoiData=null, aoiType=null;
+let baseLayers={}, curBase='sat';
+
+function $(id){return document.getElementById(id);}
+function dmNum(id){const v=parseFloat(($(id)||{}).value);return isNaN(v)?0:v;}
+
+/* ---- Basemaps (gratis tanpa key + slot Google bila key ada) ---- */
+const GOOGLE_KEY = (window.SURVAI_GOOGLE_KEY||'').trim(); // isi via window.SURVAI_GOOGLE_KEY bila punya
+function initMap(){
+  map = L.map('map',{zoomControl:false,attributionControl:true}).setView([-6.12,106.15],13);
+
+  baseLayers.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:19, attribution:'Esri Satellite'});
+  baseLayers.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19, attribution:'© OpenStreetMap'});
+  baseLayers.topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    {maxZoom:17, attribution:'© OpenTopoMap'});
+
+  // Google (hanya jika key tersedia)
+  if(GOOGLE_KEY){
+    baseLayers.gsat = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&key='+GOOGLE_KEY,{maxZoom:21,attribution:'Google Satellite'});
+    baseLayers.ghyb = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key='+GOOGLE_KEY,{maxZoom:21,attribution:'Google Hybrid'});
+    baseLayers.groad = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key='+GOOGLE_KEY,{maxZoom:21,attribution:'Google Roadmap'});
+    baseLayers.gterr = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&key='+GOOGLE_KEY,{maxZoom:21,attribution:'Google Terrain'});
+    curBase='gsat';
+  }
+  baseLayers[curBase].addTo(map);
+
+  aoiLayer = L.layerGroup().addTo(map);
+  drawLayer = L.layerGroup().addTo(map);
+  flightLayer = L.layerGroup().addTo(map);
+
+  map.on('click', onMapClick);
+  renderBasemapChips();
+  renderDrawToolbar();
+
+  // coba center ke lokasi GPS
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],15),()=>{},{timeout:8000});
+  }
+}
+
+function renderBasemapChips(){
+  const opts = GOOGLE_KEY
+    ? [['gsat','Google Sat'],['ghyb','Google Hybrid'],['groad','Roadmap'],['gterr','Terrain'],['sat','Esri Sat'],['osm','OSM'],['topo','Topo']]
+    : [['sat','Satelit'],['osm','Jalan'],['topo','Topografi']];
+  $('basemapChips').innerHTML = opts.map(([k,l])=>
+    '<button class="bm-chip'+(k===curBase?' active':'')+'" onclick="setBasemap(\''+k+'\')">'+l+'</button>').join('');
+}
+function setBasemap(k){
+  if(!baseLayers[k]) return;
+  if(baseLayers[curBase]) map.removeLayer(baseLayers[curBase]);
+  curBase=k; baseLayers[k].addTo(map);
+  renderBasemapChips();
+}
+
+function renderDrawToolbar(){
+  $('drawToolbar').innerHTML =
+    '<button class="draw-btn" id="db-poly" onclick="startDraw(\'polygon\')">▱ AOI</button>'+
+    '<button class="draw-btn" id="db-line" onclick="startDraw(\'line\')">⟋ Corridor</button>'+
+    '<button class="draw-btn" id="db-wp" onclick="startDraw(\'waypoint\')">⦿ Waypoint</button>'+
+    '<button class="draw-btn" onclick="clearDraw()">✕ Hapus</button>'+
+    '<button class="draw-btn" id="db-done" onclick="finishDraw()">✓ Selesai</button>';
+}
+
+function startDraw(mode){
+  drawMode=mode; drawPts=[];
+  drawLayer.clearLayers();
+  document.querySelectorAll('.draw-btn').forEach(b=>b.classList.remove('on'));
+  const id = mode==='polygon'?'db-poly':mode==='line'?'db-line':'db-wp';
+  if($(id)) $(id).classList.add('on');
+  $('mapInfo').textContent = mode==='polygon'?'Tap titik-titik AOI, lalu ✓ Selesai'
+    : mode==='line'?'Tap titik centerline corridor, lalu ✓ Selesai'
+    : 'Tap untuk menaruh waypoint, lalu ✓ Selesai';
+}
+function onMapClick(e){
+  if(!drawMode) return;
+  drawPts.push([e.latlng.lat,e.latlng.lng]);
+  redrawTemp();
+}
+function redrawTemp(){
+  drawLayer.clearLayers();
+  drawPts.forEach((p,i)=>{
+    L.circleMarker(p,{radius:6,color:'#14b8a6',fillColor:'#14b8a6',fillOpacity:1,weight:2}).addTo(drawLayer);
+    if(drawMode==='waypoint') L.marker(p).bindTooltip(''+(i+1),{permanent:true,direction:'top'}).addTo(drawLayer);
+  });
+  if(drawMode==='polygon' && drawPts.length>=2)
+    L.polygon(drawPts,{color:'#2563eb',weight:2,fillOpacity:.12}).addTo(drawLayer);
+  if(drawMode==='line' && drawPts.length>=2)
+    L.polyline(drawPts,{color:'#eab308',weight:3}).addTo(drawLayer);
+}
+function finishDraw(){
+  if(drawPts.length<1){ $('mapInfo').textContent='Belum ada titik digambar.'; return; }
+  aoiType = drawMode;
+  aoiData = drawPts.slice();
+  drawMode=null;
+  document.querySelectorAll('.draw-btn').forEach(b=>b.classList.remove('on'));
+  renderAOI();
+}
+function clearDraw(){
+  drawPts=[]; aoiData=null; aoiType=null; drawMode=null;
+  drawLayer.clearLayers(); aoiLayer.clearLayers(); flightLayer.clearLayers();
+  document.querySelectorAll('.draw-btn').forEach(b=>b.classList.remove('on'));
+  $('mapInfo').textContent='Gambar AOI atau import KML/GeoJSON';
+}
+function renderAOI(){
+  aoiLayer.clearLayers(); drawLayer.clearLayers(); flightLayer.clearLayers();
+  if(!aoiData) return;
+  if(aoiType==='polygon'){
+    const poly=L.polygon(aoiData,{color:'#2563eb',weight:2.5,fillOpacity:.1}).addTo(aoiLayer);
+    map.fitBounds(poly.getBounds(),{padding:[30,30]});
+    const a=polygonAreaHa(aoiData);
+    const d=bboxDims(aoiData);
+    $('mapInfo').textContent='AOI: '+a.toFixed(2)+' ha · '+d.w.toFixed(0)+'×'+d.h.toFixed(0)+' m';
+  } else if(aoiType==='line'){
+    const ln=L.polyline(aoiData,{color:'#eab308',weight:3.5}).addTo(aoiLayer);
+    map.fitBounds(ln.getBounds(),{padding:[30,30]});
+    const len=lineLengthM(aoiData);
+    $('mapInfo').textContent='Corridor: '+len.toFixed(0)+' m';
+  } else {
+    aoiData.forEach((p,i)=>{
+      L.marker(p).bindTooltip(''+(i+1),{permanent:true,direction:'top'}).addTo(aoiLayer);
+    });
+    if(aoiData.length>1) L.polyline(aoiData,{color:'#2563eb',weight:2,dashArray:'5,5'}).addTo(aoiLayer);
+    $('mapInfo').textContent=aoiData.length+' waypoint';
+  }
+}
+
+/* ---- Flight line preview di peta ---- */
+function drawFlightLines(m){
+  flightLayer.clearLayers();
+  if(aoiType!=='polygon' || !aoiData) return;
+  const lats=aoiData.map(p=>p[0]), lons=aoiData.map(p=>p[1]);
+  const latMin=Math.min(...lats),latMax=Math.max(...lats),lonMin=Math.min(...lons),lonMax=Math.max(...lons);
+  const n=Math.min(m.lineCount, 40); // batasi gambar agar ringan
+  for(let i=0;i<=n;i++){
+    const lat = latMin + (latMax-latMin)*i/n;
+    L.polyline([[lat,lonMin],[lat,lonMax]],{color:'#3b82f6',weight:1.6,opacity:.8}).addTo(flightLayer);
+  }
+  // waypoint angka di ujung-ujung
+  let wp=1;
+  for(let i=0;i<=n && wp<=8;i++){
+    if(i%Math.ceil(n/4)===0){
+      const lat=latMin+(latMax-latMin)*i/n;
+      L.circleMarker([lat, i%2?lonMin:lonMax],{radius:9,color:'#1d4ed8',fillColor:'#2563eb',fillOpacity:1,weight:2})
+        .bindTooltip(''+(wp++),{permanent:true,direction:'center',className:'wp-lbl'}).addTo(flightLayer);
+    }
+  }
+}
+
+/* ---- Toggle 3D (fallback: tilt via CSS perspective pada container) ---- */
+function toggle3D(){
+  dmIs3D=!dmIs3D;
+  $('fab3d').textContent = dmIs3D?'2D':'3D';
+  $('fab3d').classList.toggle('on',dmIs3D);
+  const mapEl=$('map');
+  if(dmIs3D){
+    // fallback oblique preview: perspektif ringan (Google Photoreal butuh key+SDK)
+    mapEl.style.transform='perspective(1200px) rotateX(38deg)';
+    mapEl.style.transformOrigin='center 70%';
+    $('mapInfo').textContent = GOOGLE_KEY?'Mode 3D (oblique preview)':'Mode 3D oblique (fallback — Google 3D perlu API key)';
+  } else {
+    mapEl.style.transform='none';
+  }
+  setTimeout(()=>map.invalidateSize(),300);
+}
+function zoomMap(d){ map.setZoom(map.getZoom()+d); }
+function fitAOI(){ if(aoiData&&aoiData.length){ aoiType==='polygon'?map.fitBounds(L.polygon(aoiData).getBounds(),{padding:[30,30]}):map.fitBounds(L.polyline(aoiData).getBounds(),{padding:[30,30]}); } }
+function toggleFullscreen(){
+  const w=$('mapWrap');
+  if(!document.fullscreenElement){ (w.requestFullscreen||w.webkitRequestFullscreen||function(){}).call(w); }
+  else { (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document); }
+  setTimeout(()=>map.invalidateSize(),400);
+}
+
+/* ---- Import KML / KMZ / GeoJSON ---- */
+function importAOI(ev){
+  const file=ev.target.files[0]; if(!file) return;
+  const name=file.name.toLowerCase();
+  if(name.endsWith('.kmz')){
+    $('mapInfo').textContent='KMZ perlu di-unzip dulu. Gunakan KML/GeoJSON, atau ekstrak KMZ→KML.';
+    // KMZ = zip; tanpa lib unzip, minta user ekstrak. (hindari library berat)
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const txt=e.target.result;
+      let coords=null, type='polygon';
+      if(name.endsWith('.geojson')||name.endsWith('.json')){
+        const gj=JSON.parse(txt);
+        const g=findFirstGeom(gj);
+        if(g){ const r=geomToLatlng(g); coords=r.coords; type=r.type; }
+      } else { // KML
+        const r=parseKML(txt); coords=r.coords; type=r.type;
+      }
+      if(coords&&coords.length){ aoiData=coords; aoiType=type; renderAOI(); }
+      else $('mapInfo').textContent='Tidak menemukan geometri di file.';
+    }catch(err){ console.error(err); $('mapInfo').textContent='Gagal baca file: '+err.message; }
+  };
+  reader.readAsText(file);
+}
+function findFirstGeom(gj){
+  if(gj.type==='FeatureCollection') return gj.features.length?gj.features[0].geometry:null;
+  if(gj.type==='Feature') return gj.geometry;
+  if(gj.coordinates) return gj;
+  return null;
+}
+function geomToLatlng(g){
+  if(g.type==='Polygon') return {coords:g.coordinates[0].map(c=>[c[1],c[0]]),type:'polygon'};
+  if(g.type==='LineString') return {coords:g.coordinates.map(c=>[c[1],c[0]]),type:'line'};
+  if(g.type==='Point') return {coords:[[g.coordinates[1],g.coordinates[0]]],type:'waypoint'};
+  if(g.type==='MultiPolygon') return {coords:g.coordinates[0][0].map(c=>[c[1],c[0]]),type:'polygon'};
+  return {coords:[],type:'polygon'};
+}
+function parseKML(txt){
+  const doc=new DOMParser().parseFromString(txt,'text/xml');
+  // Polygon
+  let node=doc.querySelector('Polygon coordinates')||doc.querySelector('LineString coordinates')||doc.querySelector('Point coordinates');
+  let type = doc.querySelector('Polygon')?'polygon':doc.querySelector('LineString')?'line':'waypoint';
+  if(!node) return {coords:[],type:'polygon'};
+  const coords=node.textContent.trim().split(/\s+/).map(pair=>{
+    const [lon,lat]=pair.split(',').map(parseFloat); return [lat,lon];
+  }).filter(c=>!isNaN(c[0])&&!isNaN(c[1]));
+  return {coords,type};
+}
+
+/* ===================== UI INIT ===================== */
+function dmRenderStepper(){
+  $('stepper').innerHTML=DM_STEPS.map((l,i)=>
+    '<div class="step-pill '+(i===dmCur?'active':i<dmCur?'done':'')+'" onclick="dmStep('+i+')">'+(i+1)+'. '+l+'</div>').join('');
+}
+function dmStep(n){
+  if(n<0||n>4)return; dmCur=n;
+  document.querySelectorAll('.section-screen').forEach((s,i)=>s.classList.toggle('active',i===n));
+  dmRenderStepper();
+  window.scrollTo({top:0,behavior:'auto'});
+  setTimeout(()=>{ if(map) map.invalidateSize(); },200);
+}
+function dmInitDropdowns(){
+  $('dmDrone').innerHTML=DM_DRONES.map(d=>'<option value="'+d.id+'">'+d.label+(d.conf==='manual'?' ⚠':'')+'</option>').join('');
+  $('missionType').innerHTML=DM_MISSIONS.map(m=>'<option value="'+m+'">'+m+'</option>').join('');
+  $('target').innerHTML=DM_TARGETS.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  $('modeChips').innerHTML=DM_MODES.map(m=>'<button class="chip'+(m===dmMode?' on':'')+'" onclick="selectMode(\''+m+'\')">'+m+'</button>').join('');
+  $('dmCommodityChips').innerHTML=DM_COMMODITIES.map(c=>'<button class="chip'+(c===dmCommodity?' on':'')+'" onclick="selectDmCommodity(\''+c+'\')">'+c+'</button>').join('');
+  onDmDroneChange(); onTargetChange();
+}
+function selectMode(m){ dmMode=m; document.querySelectorAll('#modeChips .chip').forEach(b=>b.classList.toggle('on',b.textContent===m)); onTargetChange(); }
+function selectDmCommodity(c){ dmCommodity=c; document.querySelectorAll('#dmCommodityChips .chip').forEach(b=>b.classList.toggle('on',b.textContent===c)); }
+function onDmDroneChange(){
+  const d=DM_DRONES.find(x=>x.id===$('dmDrone').value);
+  if(!d)return;
+  // isi field sensor
+  $('sw').value=d.sw||''; $('sh').value=d.sh||''; $('fl').value=d.fl||'';
+  $('iw').value=d.iw||''; $('ih').value=d.ih||''; $('usableBatt').value=d.batt||'';
+  const hint=$('dmDroneHint');
+  if(d.conf==='manual'){ hint.innerHTML='⚠ Spesifikasi belum lengkap. Isi sensor width/height, focal, image pixel & baterai secara manual.'; hint.style.color='#b45309'; }
+  else { hint.textContent='Sensor '+(d.sw||'?')+'×'+(d.sh||'?')+'mm · f'+(d.fl||'?')+'mm · '+(d.iw||'?')+'×'+(d.ih||'?')+'px · baterai '+(d.batt||'?')+'min (confidence: '+d.conf+')'; hint.style.color='var(--muted)'; }
+}
+function onMissionChange(){}
+function onTargetChange(){
+  const isAgri = dmMode==='Multispectral' || /Agriculture|Vegetation|Plantation/.test($('target').value);
+  $('commodityField').classList.toggle('hidden',!isAgri);
+}
+
+/* ---- Auto-fill weather (Open-Meteo, gratis) ---- */
+function dmAutofillWeather(){
+  if(!navigator.geolocation){ alert('GPS tidak tersedia'); return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const url='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude.toFixed(3)+
+        '&longitude='+pos.coords.longitude.toFixed(3)+
+        '&current=temperature_2m,relative_humidity_2m,precipitation,cloud_cover,wind_speed_10m,wind_gusts_10m'+
+        '&wind_speed_unit=ms&timezone=auto';
+      const r=await fetch(url,{cache:'no-store'}); const c=(await r.json()).current;
+      $('wind').value=c.wind_speed_10m.toFixed(1); $('gust').value=c.wind_gusts_10m.toFixed(1);
+      $('temp').value=Math.round(c.temperature_2m); $('humidity').value=Math.round(c.relative_humidity_2m);
+      $('cloud').value=Math.round(c.cloud_cover); $('rain').value=c.precipitation>=0.5?'now':'none';
+      alert('Cuaca lokasi terisi otomatis.');
+    }catch(e){ alert('Gagal ambil cuaca: perlu internet.'); }
+  },()=>alert('Izinkan lokasi untuk isi cuaca.'),{timeout:15000});
+}
+
+/* ===================== COMPUTE ALL ===================== */
+function computeAll(){
+  try{
+    const drone={ sw:dmNum('sw'),sh:dmNum('sh'),fl:dmNum('fl'),iw:dmNum('iw'),ih:dmNum('ih'),
+      batt:dmNum('usableBatt'), lidar:dmMode==='LiDAR',
+      pps:(DM_DRONES.find(x=>x.id===$('dmDrone').value)||{}).pps,
+      swath:(DM_DRONES.find(x=>x.id===$('dmDrone').value)||{}).swath };
+
+    if(dmMode!=='LiDAR' && (drone.sw<=0||drone.fl<=0||drone.iw<=0)){
+      alert('Spesifikasi sensor belum lengkap. Isi di langkah Sensor (drone custom).'); dmStep(1); return;
+    }
+
+    // AOI dims
+    let area=0, aoiW=0, aoiH=0, lineLen=0;
+    if(aoiType==='polygon' && aoiData){
+      area=polygonAreaHa(aoiData); const d=bboxDims(aoiData); aoiW=d.w; aoiH=d.h; lineLen=d.h;
+    } else if(aoiType==='line' && aoiData){
+      lineLen=lineLengthM(aoiData); aoiW=dmNum('corridorW')||50; aoiH=lineLen;
+    } else {
+      // tanpa AOI: pakai default area kecil supaya tetap hitung parameter
+      area=10; aoiW=300; aoiH=300; lineLen=300;
+    }
+
+    // Overlap auto sesuai mode/mission
+    let front=dmNum('frontOv'), side=dmNum('sideOv');
+    if(!front||!side){
+      const m=$('missionType').value;
+      if(dmMode==='Multispectral'){ front=front||85; side=side||80; }
+      else if(m==='Oblique'||/3D Model/.test($('target').value)){ front=front||85; side=side||75; }
+      else if(dmMode==='LiDAR'){ front=front||60; side=side||50; }
+      else { front=front||80; side=side||70; }
+    }
+
+    const params={
+      drone, mode:dmMode, mission:$('missionType').value, target:$('target').value,
+      area, aoiW, aoiH, lineLen,
+      targetGSD:dmNum('targetGSD'), altitude:dmNum('altitude'),
+      speed:dmNum('speed')||5, frontOv:front, sideOv:side,
+      safety:dmNum('safety')||1.2, usableBatt:dmNum('usableBatt')||drone.batt,
+      terrainFollow:$('terrainFollow').value==='on',
+    };
+    const m=computeMission(params);
+    const lod=lodScore(params,m);
+    const ovq=overlapQuality(front,side);
+    const w={ wind:dmNum('wind'),gust:dmNum('gust')||dmNum('wind'),temp:dmNum('temp'),humidity:dmNum('humidity'),
+      cloud:dmNum('cloud'),rainNow:$('rain').value==='now',rainForecast:$('rain').value==='forecast',
+      visibility:$('visibility').value,terrain:$('terrain').value,sunHigh:$('sunHigh').value==='yes' };
+    const weather=missionWeather(w,dmMode,m,params);
+
+    drawFlightLines(m);
+    renderDmResults(params,m,lod,ovq,weather,front,side);
+    dmStep(4);
+  }catch(err){
+    console.error(err);
+    $('dmResult').innerHTML='<div class="card"><b style="color:#dc2626">Perhitungan gagal:</b><br>'+err.message+'</div>';
+    dmStep(4);
+  }
+}
+function dmFmt(n,d){ return (isFinite(n)?n:0).toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d||2}); }
+function kvRow(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+
+function renderDmResults(p,m,lod,ovq,weather,front,side){
+  let h='';
+  h+='<div class="status-banner '+weather.statusClass+'"><div class="big">'+weather.status+'</div>'+
+     '<div class="small">Wind Risk: '+dmFmt(weather.wRisk,1)+' · Overlap Quality: '+ovq+'/100</div></div>';
+
+  // 1. Mission Summary
+  h+='<div class="res-card"><h3>🗺️ Mission Summary</h3>'+
+    kvRow('Mission Type',p.mission)+kvRow('Mapping Mode',p.mode)+
+    kvRow(aoiType==='line'?'Corridor Length':'Luas AOI', aoiType==='line'?dmFmt(p.lineLen,0)+' m':dmFmt(p.area,2)+' ha')+
+    kvRow('Drone/Payload',(DM_DRONES.find(x=>x.id===$('dmDrone').value)||{}).label)+
+    kvRow('Target GSD', m.gsd>0?dmFmt(m.gsd,2)+' cm/px':'—')+
+    kvRow('Altitude', dmFmt(m.altitude,1)+' m')+
+    kvRow('Speed', dmFmt(p.speed,1)+' m/s')+
+    kvRow('Front Overlap',front+' %')+kvRow('Side Overlap',side+' %')+
+    kvRow('Gimbal Angle',(dmNum('gimbal')||-90)+'°')+
+    kvRow('Flight Direction',(dmNum('flightDir')||0)+'°')+
+    kvRow('Trigger Interval',dmFmt(m.trigger,2)+' s')+'</div>';
+
+  // 3. Accuracy & Quality
+  let lodColor=lod>=80?'#22c55e':lod>=65?'#eab308':'#f97316';
+  h+='<div class="res-card"><h3>🎯 Accuracy & Quality</h3>'+
+    kvRow('Expected GSD', m.gsd>0?dmFmt(m.gsd,2)+' cm/px':'LiDAR (n/a)')+
+    kvRow('Overlap Quality', ovq+'/100')+
+    '<div class="kv"><span class="k">LOD Suitability</span><span class="v"><span class="lod-badge" style="background:'+lodColor+'22;color:'+lodColor+'">'+lod+'/100</span></span></div>';
+  if(p.mode==='LiDAR' && m.pointDensity) h+=kvRow('Est. Point Density',dmFmt(m.pointDensity,1)+' pts/m²');
+  if(p.mode==='Multispectral'){ const idx=MULTI_INDEX[dmCommodity]||['NDVI']; h+=kvRow('Indeks ('+dmCommodity+')',idx.join(', ')); }
+  if(p.mode==='Thermal') h+=kvRow('Thermal pixel footprint', m.gsd>0?dmFmt(m.gsd,1)+' cm/px':'—');
+  h+=kvRow('RTK/GCP', '')+'<div class="rec-item"><span class="ic">i</span><span>'+rtkSuggestion(p.target,p.mode)+'</span></div></div>';
+
+  // 4. Efficiency
+  h+='<div class="res-card"><h3>⚡ Efficiency</h3>'+
+    kvRow('Estimasi Foto', dmFmt(m.totalPhotos,0)+' foto')+
+    kvRow('Jumlah Jalur (line)', m.lineCount)+
+    kvRow('Route Length', dmFmt(m.routeLen,0)+' m')+
+    kvRow('Durasi Terbang', dmFmt(m.flightTime,1)+' menit')+
+    kvRow('Jumlah Baterai', m.battery+' baterai')+
+    kvRow('Rekomendasi Sortie', m.sorties+' sortie')+'</div>';
+
+  // 5. Weather & Safety
+  h+='<div class="res-card"><h3>🌦️ Weather & Safety</h3>'+
+    weather.warnings.map(wn=>'<div class="rec-item"><span class="ic">!</span><span>'+wn+'</span></div>').join('')+'</div>';
+
+  // 2. Recommendations (logika per mode)
+  const recs=[];
+  if(p.mode==='RGB' && /Orthomosaic/.test(p.target)){ recs.push('Ortho RGB: overlap minimal 75% front / 60% side. Naikkan bila vegetasi rapat/area homogen.'); }
+  if(p.mission==='Oblique'||/3D Model/.test(p.target)){ recs.push('3D/Oblique: aktifkan double grid/crosshatch, gimbal oblique (−45°), turunkan speed bila blur.'); }
+  if(p.mission==='Corridor'){ recs.push('Corridor: pakai centerline, hitung lebar kiri/kanan, atur pass count sesuai corridor width.'); }
+  if(p.terrainFollow){ recs.push('Terrain Follow: pastikan sumber AGL/DEM valid; medan curam butuh margin altitude.'); }
+  if(p.mode==='Multispectral'){ recs.push('Multispectral: kalibrasi panel reflektansi sebelum & sesudah; terbang saat cahaya stabil (10.00–14.00).'); }
+  if(p.mode==='LiDAR'){ recs.push('LiDAR: gunakan RTK/PPK, jaga strip overlap ≥50%, turunkan speed bila density kurang.'); }
+  if(p.mode==='Thermal'){ recs.push('Thermal: terbang pagi/sore untuk kontras termal, hindari pantulan matahari & cuaca tidak stabil.'); }
+  if(ovq<70) recs.push('Naikkan overlap untuk menghindari lubang rekonstruksi.');
+  if(recs.length){
+    h+='<div class="res-card"><h3>🔧 Rekomendasi</h3>'+recs.map(r=>'<div class="rec-item"><span class="ic">→</span><span>'+r+'</span></div>').join('')+'</div>';
+  }
+
+  $('dmResult').innerHTML=h;
+}
+
+/* INIT */
+window.addEventListener('load',function(){
+  try{ initMap(); }catch(e){ console.error('Map init:',e); }
+  dmRenderStepper();
+  dmInitDropdowns();
+});
+</script>
+
+<!-- ==== SURVAI EMBED MODE ==== -->
+<style id="survai-embed-style">html.survai-embed body{background:#f8fafc !important;}</style>
+<script id="survai-embed-script">
+(function(){ try{ var p=new URLSearchParams(location.search); if(p.get('embed')==='1') document.documentElement.classList.add('survai-embed'); }catch(e){} })();
+</script>
+</body>
+</html>

@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Hydro Bathymetry QC — SurvAI</title>
+<style>
+:root{
+  --navy:#17365f;--blue:#2563eb;--blue-ink:#094cb2;--teal:#14b8a6;--cyan:#06b6d4;
+  --bg:#f8fafc;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;
+  --ok:#22c55e;--warn:#eab308;--bad:#ef4444;--inblue:#eff6ff;--inborder:#93c5fd;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+body{padding:12px 12px 60px;overflow-x:hidden;}
+h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
+.qc-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none;}
+.qc-tabs::-webkit-scrollbar{display:none;}
+.qc-tab{flex:0 0 auto;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:8px 13px;font-size:12.5px;font-weight:700;white-space:nowrap;}
+.qc-tab.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:13px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+.card h2{font-size:17px;font-weight:800;margin:0 0 4px;}
+.card .sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.45;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;}
+/* input aktif = biru (konsep Excel "isi warna biru") */
+.field input,.field select,.field textarea{width:100%;height:46px;border:1.5px solid var(--inborder);border-radius:11px;padding:0 12px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;background:var(--inblue);}
+.field textarea{height:auto;min-height:90px;padding:10px 12px;resize:vertical;font-family:monospace;font-size:13px;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);background:#fff;}
+.field .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:380px){.grid2{grid-template-columns:1fr;}}
+.nav-row{display:flex;gap:9px;margin-bottom:13px;}
+.btn{flex:1;height:48px;border:0;border-radius:12px;font-size:14.5px;font-weight:700;}
+.btn:active{opacity:.85;}
+.btn.primary{background:linear-gradient(135deg,var(--blue),var(--blue-ink));color:#fff;}
+.btn.ghost{background:#fff;color:var(--blue-ink);border:1.5px solid var(--line);}
+.btn.wide{width:100%;flex:none;}
+.res-card{border-radius:15px;padding:15px;margin-bottom:11px;border:1px solid var(--line);background:#fff;}
+.res-card h3{font-size:15px;font-weight:800;margin:0 0 10px;}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed #eef1f5;font-size:13.5px;}
+.kv:last-child{border-bottom:0;}.kv .k{color:var(--muted);}.kv .v{font-weight:700;text-align:right;}
+.status-banner{border-radius:15px;padding:15px;margin-bottom:11px;color:#fff;font-weight:800;text-align:center;}
+.status-banner .big{font-size:19px;margin-bottom:2px;}.status-banner .small{font-size:12px;font-weight:600;opacity:.95;}
+.st-ok{background:linear-gradient(135deg,#16a34a,#22c55e);}
+.st-cond{background:linear-gradient(135deg,#ca8a04,#eab308);}
+.st-warn{background:linear-gradient(135deg,#ea580c,#f97316);}
+.st-bad{background:linear-gradient(135deg,#dc2626,#ef4444);}
+.qc-badge{padding:3px 10px;border-radius:7px;font-size:12px;font-weight:800;color:#fff;}
+.rec-item{display:flex;gap:9px;padding:8px 0;font-size:13px;line-height:1.45;border-bottom:1px dashed #eef1f5;}
+.rec-item:last-child{border-bottom:0;}
+.rec-item .ic{flex:0 0 auto;width:20px;height:20px;border-radius:6px;background:#eef4ff;color:var(--blue-ink);display:grid;place-items:center;font-size:12px;font-weight:800;}
+.qc-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.qc-tbl th,.qc-tbl td{padding:6px 8px;text-align:right;border-bottom:1px solid #eef1f5;white-space:nowrap;}
+.qc-tbl th{background:#f1f5f9;font-weight:700;}
+.qc-bars{display:flex;flex-direction:column;gap:9px;}
+.qc-bar-row{display:flex;align-items:center;gap:8px;font-size:12px;}
+.qc-bar-lbl{flex:0 0 80px;color:var(--muted);font-weight:600;}
+.qc-bar{flex:1;height:14px;background:#eef1f5;border-radius:7px;overflow:hidden;}
+.qc-bar>i{display:block;height:100%;border-radius:7px;}
+.qc-bar-val{flex:0 0 48px;text-align:right;font-weight:700;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-size:11px;color:var(--muted);}
+.chart-legend .lg{display:flex;align-items:center;gap:4px;}
+.chart-legend .lg i{width:11px;height:11px;border-radius:50%;display:inline-block;}
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:11px;padding:10px 12px;font-size:12px;color:#92400e;line-height:1.5;margin-bottom:11px;}
+.qc-quick{display:flex;gap:8px;flex-wrap:wrap;}
+.qc-quick .btn{flex:1 1 28%;height:42px;font-size:13px;}
+.qc-screen{display:none;}.qc-screen.active{display:block;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div class="qc-tabs" id="qcTabs"></div>
+
+<!-- 0 DASHBOARD -->
+<div class="qc-screen active" id="qc-0">
+  <div class="card"><h2>Hydro Bathymetry QC</h2><p class="sub">Quality Control survei batimetri: TVU (IHO S-44), Lajur MBES/SBES/SSS, & Validasi GNSS dalam satu alur.</p></div>
+  <div id="dashResult"></div>
+  <button class="btn ghost wide" onclick="qcReset()" style="margin-bottom:13px">↺ Reset Semua</button>
+</div>
+
+<!-- 1 TVU -->
+<div class="qc-screen" id="qc-1">
+  <div class="card">
+    <h2>TVU Bathymetry</h2>
+    <p class="sub">Total Vertical Uncertainty per IHO S-44. Bandingkan kedalaman utama vs crossline.</p>
+    <div class="field"><label>Tempel data (X Y Cross Utama — per baris)</label>
+      <textarea id="tvuPaste" placeholder="469558 9880746 -20.024 -20.163&#10;469556 9880746 -19.835 -19.812&#10;..."></textarea>
+      <div class="hint">Pisahkan kolom dengan spasi/tab/koma. Atau pakai data sampel Excel.</div>
+    </div>
+    <div class="nav-row">
+      <button class="btn ghost" onclick="tvuLoadSample()">Muat Sampel (40 data)</button>
+      <button class="btn primary" onclick="tvuParsePaste()">Hitung dari Tempel</button>
+    </div>
+    <p class="hint" id="tvuStatus">Belum ada data.</p>
+  </div>
+  <div id="tvuResult"></div>
+</div>
+
+<!-- 2 MBES -->
+<div class="qc-screen" id="qc-2">
+  <div class="card">
+    <h2>Lajur Survei MBES</h2>
+    <p class="sub">Rencana lajur Multibeam: swath, overlap, crossline, durasi, total hari.</p>
+    <div class="grid2">
+      <div class="field"><label>Panjang area (m)</label><input type="number" id="mb_panjang" value="20000"></div>
+      <div class="field"><label>Lebar area (m)</label><input type="number" id="mb_lebar" value="10000"></div>
+      <div class="field"><label>Kedalaman rata-rata (m)</label><input type="number" id="mb_depth" value="20"></div>
+      <div class="field"><label>Jam kerja/hari</label><input type="number" id="mb_jam" value="8"></div>
+      <div class="field"><label>Kecepatan (knot)</label><input type="number" id="mb_speed" value="5"></div>
+      <div class="field"><label>Metode swath</label><select id="mb_metode"><option value="mult">Multiplier kedalaman</option><option value="angle">Sudut beam</option></select></div>
+      <div class="field"><label>Swath multiplier (×depth)</label><input type="number" id="mb_mult" value="5"></div>
+      <div class="field"><label>Swath angle (°)</label><input type="number" id="mb_angle" value="120"></div>
+      <div class="field"><label>Overlap (%)</label><input type="number" id="mb_overlap" value="20"></div>
+      <div class="field"><label>Faktor cuaca (%)</label><input type="number" id="mb_cuaca" value="10"></div>
+      <div class="field"><label>Embarkasi (hari)</label><input type="number" id="mb_embark" value="1"></div>
+      <div class="field"><label>Debarkasi (hari)</label><input type="number" id="mb_debark" value="1"></div>
+      <div class="field"><label>Instalasi+bongkar (hari)</label><input type="number" id="mb_inst" value="1"></div>
+      <div class="field"><label>Patch test (hari)</label><input type="number" id="mb_patch" value="1"></div>
+    </div>
+    <button class="btn primary wide" onclick="mbesRun()">Hitung Lajur MBES</button>
+  </div>
+  <div id="mbesResult"></div>
+</div>
+
+<!-- 3 SBES -->
+<div class="qc-screen" id="qc-3">
+  <div class="card">
+    <h2>Lajur Survei SBES</h2>
+    <p class="sub">Single Beam: spasi lajur dari skala peta, crossline, durasi.</p>
+    <div class="grid2">
+      <div class="field"><label>Panjang area (m)</label><input type="number" id="sb_panjang" value="10000"></div>
+      <div class="field"><label>Lebar area (m)</label><input type="number" id="sb_lebar" value="5000"></div>
+      <div class="field"><label>Skala peta (1:?)</label><input type="number" id="sb_skala" value="10000"></div>
+      <div class="field"><label>Jam kerja/hari</label><input type="number" id="sb_jam" value="8"></div>
+      <div class="field"><label>Kecepatan (knot)</label><input type="number" id="sb_speed" value="5"></div>
+      <div class="field"><label>Luas daratan (%)</label><input type="number" id="sb_darat" value="20"></div>
+      <div class="field"><label>Faktor cuaca (%)</label><input type="number" id="sb_cuaca" value="20"></div>
+      <div class="field"><label>Embarkasi (hari)</label><input type="number" id="sb_embark" value="1"></div>
+      <div class="field"><label>Debarkasi (hari)</label><input type="number" id="sb_debark" value="1"></div>
+      <div class="field"><label>Instalasi (hari)</label><input type="number" id="sb_inst" value="1"></div>
+      <div class="field"><label>Pembongkaran (hari)</label><input type="number" id="sb_bongkar" value="1"></div>
+    </div>
+    <button class="btn primary wide" onclick="sbesRun()">Hitung Lajur SBES</button>
+  </div>
+  <div id="sbesResult"></div>
+</div>
+
+<!-- 4 SSS -->
+<div class="qc-screen" id="qc-4">
+  <div class="card">
+    <h2>Lajur Survei SSS</h2>
+    <p class="sub">Side-scan Sonar: range scale, swath, altitude fish, overlap.</p>
+    <div class="grid2">
+      <div class="field"><label>Panjang area (m)</label><input type="number" id="ss_panjang" value="5000"></div>
+      <div class="field"><label>Lebar area (m)</label><input type="number" id="ss_lebar" value="2000"></div>
+      <div class="field"><label>Range scale (m)</label><input type="number" id="ss_range" value="25"></div>
+      <div class="field"><label>Overlap (%)</label><input type="number" id="ss_overlap" value="5"></div>
+      <div class="field"><label>Kedalaman (m)</label><input type="number" id="ss_depth" value="20"></div>
+      <div class="field"><label>Altitude fish (% kedalaman)</label><input type="number" id="ss_alt" value="20"></div>
+      <div class="field"><label>Kecepatan (knot)</label><input type="number" id="ss_speed" value="5"></div>
+      <div class="field"><label>Jam kerja/hari</label><input type="number" id="ss_jam" value="8"></div>
+      <div class="field"><label>Faktor cuaca (%)</label><input type="number" id="ss_cuaca" value="10"></div>
+      <div class="field"><label>Embarkasi (hari)</label><input type="number" id="ss_embark" value="1"></div>
+      <div class="field"><label>Debarkasi (hari)</label><input type="number" id="ss_debark" value="1"></div>
+      <div class="field"><label>Instalasi (hari)</label><input type="number" id="ss_inst" value="1"></div>
+      <div class="field"><label>Pembongkaran (hari)</label><input type="number" id="ss_bongkar" value="1"></div>
+      <div class="field"><label>Validasi SSS (hari)</label><input type="number" id="ss_valid" value="1"></div>
+      <div class="field"><label>Investigasi target (hari)</label><input type="number" id="ss_invest" value="1"></div>
+    </div>
+    <button class="btn primary wide" onclick="sssRun()">Hitung Lajur SSS</button>
+  </div>
+  <div id="sssResult"></div>
+</div>
+
+<!-- 5 GNSS -->
+<div class="qc-screen" id="qc-5">
+  <div class="card">
+    <h2>Validasi GNSS</h2>
+    <p class="sub">Validasi posisi GNSS terhadap titik referensi & toleransi jarak vektor.</p>
+    <div class="grid2">
+      <div class="field"><label>Ref Latitude (°)</label><input type="number" id="gnss_reflat" step="0.0000001" placeholder="kosong = mean"></div>
+      <div class="field"><label>Ref Longitude (°)</label><input type="number" id="gnss_reflon" step="0.0000001" placeholder="kosong = mean"></div>
+      <div class="field"><label>Toleransi jarak</label><input type="number" id="gnss_tol" value="50"></div>
+      <div class="field"><label>Satuan toleransi</label><select id="gnss_unit"><option value="cm">cm</option><option value="m">meter</option></select></div>
+    </div>
+    <div class="field"><label>Tempel data (Time Lat Lon — per baris)</label>
+      <textarea id="gnssPaste" placeholder="0.4415625 3.4722096 117.5736210&#10;..."></textarea>
+      <div class="hint">Atau pakai data sampel Excel (527 titik, ditampilkan 60).</div>
+    </div>
+    <div class="nav-row">
+      <button class="btn ghost" onclick="gnssLoadSample()">Muat Sampel</button>
+      <button class="btn primary" onclick="gnssParsePaste()">Hitung dari Tempel</button>
+    </div>
+    <p class="hint" id="gnssStatus">Belum ada data.</p>
+  </div>
+  <div id="gnssResult"></div>
+</div>
+
+<!-- 6 FINAL QC -->
+<div class="qc-screen" id="qc-6">
+  <div class="card"><h2>Final QC Recommendation</h2><p class="sub">Rekomendasi gabungan dari semua modul yang sudah dihitung.</p></div>
+  <div id="finalResult"></div>
+</div>
+
+<!-- 7 EXPORT -->
+<div class="qc-screen" id="qc-7">
+  <div class="card"><h2>Export / Copy Report</h2><p class="sub">Ringkasan status QC untuk disalin atau diunduh.</p></div>
+  <div id="exportResult"></div>
+</div>
+
+<script>/* Sample data dari Excel HydrographicSurveyor */
+const TVU_SAMPLE=[{"x": 469558.0, "y": 9880746.0, "cross": -20.024, "utama": -20.163}, {"x": 469556.0, "y": 9880746.0, "cross": -19.835, "utama": -19.812}, {"x": 469555.0, "y": 9880746.0, "cross": -19.751, "utama": -19.748}, {"x": 469554.0, "y": 9880746.0, "cross": -19.687, "utama": -19.644}, {"x": 469553.0, "y": 9880746.0, "cross": -19.624, "utama": -19.525}, {"x": 469552.0, "y": 9880746.0, "cross": -19.567, "utama": -19.352}, {"x": 469559.0, "y": 9880745.0, "cross": -20.182, "utama": -20.141}, {"x": 469558.0, "y": 9880745.0, "cross": -20.082, "utama": -19.985}, {"x": 469557.0, "y": 9880745.0, "cross": -19.982, "utama": -19.871}, {"x": 469556.0, "y": 9880745.0, "cross": -19.891, "utama": -19.839}, {"x": 469555.0, "y": 9880745.0, "cross": -19.8, "utama": -19.824}, {"x": 469554.0, "y": 9880745.0, "cross": -19.726, "utama": -19.761}, {"x": 469553.0, "y": 9880745.0, "cross": -19.652, "utama": -19.628}, {"x": 469552.0, "y": 9880745.0, "cross": -19.589, "utama": -19.469}, {"x": 469551.0, "y": 9880745.0, "cross": -19.526, "utama": -19.368}, {"x": 469561.0, "y": 9880744.0, "cross": -20.335, "utama": -20.535}, {"x": 469560.0, "y": 9880744.0, "cross": -20.28, "utama": -20.335}, {"x": 469559.0, "y": 9880744.0, "cross": -20.225, "utama": -20.21}, {"x": 469558.0, "y": 9880744.0, "cross": -20.137, "utama": -20.04}, {"x": 469557.0, "y": 9880744.0, "cross": -20.048, "utama": -19.907}, {"x": 469556.0, "y": 9880744.0, "cross": -19.954, "utama": -19.844}, {"x": 469555.0, "y": 9880744.0, "cross": -19.859, "utama": -19.824}, {"x": 469554.0, "y": 9880744.0, "cross": -19.78, "utama": -19.786}, {"x": 469553.0, "y": 9880744.0, "cross": -19.701, "utama": -19.714}, {"x": 469552.0, "y": 9880744.0, "cross": -19.635, "utama": -19.63}, {"x": 469551.0, "y": 9880744.0, "cross": -19.568, "utama": -19.494}, {"x": 469550.0, "y": 9880744.0, "cross": -19.524, "utama": -19.343}, {"x": 469561.0, "y": 9880743.0, "cross": -20.316, "utama": -20.414}, {"x": 469560.0, "y": 9880743.0, "cross": -20.292, "utama": -20.419}, {"x": 469559.0, "y": 9880743.0, "cross": -20.268, "utama": -20.343}, {"x": 469558.0, "y": 9880743.0, "cross": -20.191, "utama": -20.243}, {"x": 469557.0, "y": 9880743.0, "cross": -20.114, "utama": -20.091}, {"x": 469556.0, "y": 9880743.0, "cross": -20.016, "utama": -19.934}, {"x": 469555.0, "y": 9880743.0, "cross": -19.918, "utama": -19.835}, {"x": 469554.0, "y": 9880743.0, "cross": -19.834, "utama": -19.766}, {"x": 469553.0, "y": 9880743.0, "cross": -19.749, "utama": -19.732}, {"x": 469552.0, "y": 9880743.0, "cross": -19.68, "utama": -19.721}, {"x": 469551.0, "y": 9880743.0, "cross": -19.611, "utama": -19.589}, {"x": 469550.0, "y": 9880743.0, "cross": -19.567, "utama": -19.458}, {"x": 469549.0, "y": 9880743.0, "cross": -19.522, "utama": -19.413}];
+const GNSS_SAMPLE=[{"t": 0.4415625, "lat": 3.47220956, "lon": 117.57362099}, {"t": 0.44157407, "lat": 3.47221175, "lon": 117.57362106}, {"t": 0.44158565, "lat": 3.4722134, "lon": 117.57362062}, {"t": 0.44159722, "lat": 3.47221085, "lon": 117.57362307}, {"t": 0.4416088, "lat": 3.47221094, "lon": 117.5736178}, {"t": 0.44162037, "lat": 3.47220607, "lon": 117.57361875}, {"t": 0.44163194, "lat": 3.47220978, "lon": 117.57361927}, {"t": 0.44164352, "lat": 3.47221091, "lon": 117.57361629}, {"t": 0.44165509, "lat": 3.47221077, "lon": 117.573615}, {"t": 0.44166667, "lat": 3.47220934, "lon": 117.57361892}, {"t": 0.44167824, "lat": 3.47221239, "lon": 117.57361479}, {"t": 0.44168981, "lat": 3.47221119, "lon": 117.57361383}, {"t": 0.44170139, "lat": 3.47220974, "lon": 117.57361742}, {"t": 0.44171296, "lat": 3.47221083, "lon": 117.57361866}, {"t": 0.44172454, "lat": 3.47220944, "lon": 117.57361944}, {"t": 0.44173611, "lat": 3.47221075, "lon": 117.57361828}, {"t": 0.44174769, "lat": 3.47221101, "lon": 117.57361847}, {"t": 0.44175926, "lat": 3.47221514, "lon": 117.57361893}, {"t": 0.44177083, "lat": 3.47221372, "lon": 117.57361763}, {"t": 0.44178241, "lat": 3.47221188, "lon": 117.57361749}, {"t": 0.44179398, "lat": 3.47220997, "lon": 117.57361261}, {"t": 0.44180556, "lat": 3.47221, "lon": 117.57361288}, {"t": 0.44181713, "lat": 3.47220827, "lon": 117.57361548}, {"t": 0.4418287, "lat": 3.47221176, "lon": 117.57361427}, {"t": 0.44184028, "lat": 3.47221048, "lon": 117.57361729}, {"t": 0.44185185, "lat": 3.47221225, "lon": 117.57361491}, {"t": 0.44186343, "lat": 3.47221157, "lon": 117.57361489}, {"t": 0.441875, "lat": 3.47221188, "lon": 117.57361442}, {"t": 0.44188657, "lat": 3.47221211, "lon": 117.57361584}, {"t": 0.44189815, "lat": 3.47221376, "lon": 117.57361579}, {"t": 0.44190972, "lat": 3.47221171, "lon": 117.57361484}, {"t": 0.4419213, "lat": 3.47221185, "lon": 117.57361664}, {"t": 0.44193287, "lat": 3.47221372, "lon": 117.57361342}, {"t": 0.44194444, "lat": 3.47221088, "lon": 117.57361888}, {"t": 0.44195602, "lat": 3.47221476, "lon": 117.57361759}, {"t": 0.44196759, "lat": 3.47221288, "lon": 117.5736161}, {"t": 0.44197917, "lat": 3.47221157, "lon": 117.57361602}, {"t": 0.44199074, "lat": 3.47221264, "lon": 117.57361507}, {"t": 0.44200231, "lat": 3.47221071, "lon": 117.57361596}, {"t": 0.44201389, "lat": 3.47220687, "lon": 117.57361601}, {"t": 0.44202546, "lat": 3.47220695, "lon": 117.57361452}, {"t": 0.44203704, "lat": 3.47220972, "lon": 117.57361539}, {"t": 0.44204861, "lat": 3.47220856, "lon": 117.5736138}, {"t": 0.44206019, "lat": 3.47221294, "lon": 117.57361813}, {"t": 0.44207176, "lat": 3.47220671, "lon": 117.57361839}, {"t": 0.44208333, "lat": 3.47220907, "lon": 117.57361859}, {"t": 0.44209491, "lat": 3.47220706, "lon": 117.57361739}, {"t": 0.44210648, "lat": 3.47220787, "lon": 117.57361819}, {"t": 0.44211806, "lat": 3.4722105, "lon": 117.57361817}, {"t": 0.44212963, "lat": 3.472211, "lon": 117.57361782}, {"t": 0.4421412, "lat": 3.4722093, "lon": 117.57361632}, {"t": 0.44215278, "lat": 3.47220968, "lon": 117.5736162}, {"t": 0.44216435, "lat": 3.47221157, "lon": 117.57361793}, {"t": 0.44217593, "lat": 3.4722109, "lon": 117.57361514}, {"t": 0.4421875, "lat": 3.47221155, "lon": 117.57361118}, {"t": 0.44219907, "lat": 3.4722119, "lon": 117.57361269}, {"t": 0.44221065, "lat": 3.47221233, "lon": 117.57361629}, {"t": 0.44222222, "lat": 3.47221236, "lon": 117.57361728}, {"t": 0.4422338, "lat": 3.47221426, "lon": 117.57361592}, {"t": 0.44224537, "lat": 3.47221408, "lon": 117.57361521}];
+</script>
+<script>/* ============================================================
+   HYDRO BATHYMETRY QC — Logic
+   TVU (IHO S-44), Lajur Survei (MBES/SBES/SSS), Validasi GNSS.
+   Rumus dari Excel HydrographicSurveyor + standar IHO S-44.
+   ============================================================ */
+
+/* ---------- IHO S-44 TVU parameters ---------- */
+const IHO_ORDERS = {
+  exclusive: {label:'Exclusive Order', a:0.15, b:0.0075},
+  special:   {label:'Special Order / Khusus', a:0.25, b:0.0075},
+  order1:     {label:'Order 1a/1b', a:0.50, b:0.013},
+  order2:     {label:'Order 2', a:1.00, b:0.023},
+};
+function tvuLimit(a,b,depth){ return Math.sqrt(a*a + Math.pow(b*Math.abs(depth),2)); }
+
+/* TVU analisis: data = [{x,y,cross,utama}] */
+function analyzeTVU(data){
+  const orders=Object.keys(IHO_ORDERS);
+  const counts={}; orders.forEach(o=>counts[o]=0);
+  const rows=[];
+  let valid=0;
+  for(const d of data){
+    const cross=parseFloat(d.cross), utama=parseFloat(d.utama);
+    if(isNaN(cross)||isNaN(utama)) continue;
+    valid++;
+    const selisih=Math.abs(cross-utama);
+    const depth=Math.abs(utama);
+    const cls={};
+    for(const o of orders){
+      const {a,b}=IHO_ORDERS[o];
+      const lim=tvuLimit(a,b,depth);
+      const masuk = selisih <= lim;
+      cls[o]=masuk;
+      if(masuk) counts[o]++;
+    }
+    rows.push({x:d.x,y:d.y,cross,utama,selisih,depth,cls});
+  }
+  // tidak masuk order apapun (gagal bahkan di Order 2 yang paling longgar)
+  const failOrder2 = rows.filter(r=>!r.cls.order2).length;
+  const pct={}; orders.forEach(o=>pct[o]= valid? (counts[o]/valid*100):0);
+  // status: berdasarkan Order 1 (umum dipakai survei standar)
+  const passOrder1 = counts.order1;
+  const pctOrder1 = valid? passOrder1/valid*100 : 0;
+  let status, statusClass;
+  if(pctOrder1>=95){ status='PASS'; statusClass='st-ok'; }
+  else if(pctOrder1>=80){ status='WARNING'; statusClass='st-warn'; }
+  else { status='FAIL'; statusClass='st-bad'; }
+  const recs=[];
+  if(failOrder2>0) recs.push(failOrder2+' titik gagal bahkan di Order 2 — cek tide correction, draft transducer, sound velocity.');
+  if(pctOrder1<95){
+    recs.push('Cek koreksi heave/pitch/roll & latency sensor.');
+    recs.push('Cek GNSS vertical (RTK) — posisi & tinggi sounding.');
+    if(pctOrder1<80) recs.push('Banyak data fail — pertimbangkan ulangi lajur survei.');
+  } else recs.push('TVU memenuhi Order 1 (≥95%). Data layak diproses lanjut.');
+  return {valid, counts, pct, failOrder2, status, statusClass, pctOrder1, rows, recs};
+}
+
+/* ---------- LAJUR MBES ---------- */
+function analyzeMBES(p){
+  // p: panjang, lebar, jamKerja, kecepatan(knot), kedalaman, metode('mult'|'angle'),
+  //    multiplier, angle, overlap%, daratan%, cuaca%, embark, debark, instalasi, patch
+  const o={};
+  o.swath = p.metode==='angle' ? 2*p.kedalaman*Math.tan((p.angle/2)*Math.PI/180) : p.multiplier*p.kedalaman;
+  o.lineSpacing = o.swath*(1 - p.overlap/100);
+  o.jumlahUtama = Math.ceil(p.lebar / o.lineSpacing);
+  o.panjangUtama = p.panjang * o.jumlahUtama;
+  o.crosslineSpacing = 15 * o.lineSpacing;
+  o.jumlahSilang = Math.ceil(p.panjang / o.crosslineSpacing);
+  o.panjangSilang = p.lebar * o.jumlahSilang;
+  o.totalMeter = o.panjangUtama + o.panjangSilang;
+  o.totalNM = o.totalMeter / 1852;
+  o.waktuJam = o.totalNM / p.kecepatan;
+  o.waktuKoreksi = o.waktuJam * (1 + p.cuaca/100);
+  o.hariSurvei = Math.ceil(o.waktuKoreksi / p.jamKerja);
+  o.totalHari = o.hariSurvei + (p.embark||0)+(p.debark||0)+(p.instalasi||0)+(p.patch||0);
+  // status
+  let status='Layak', statusClass='st-ok'; const recs=[];
+  if(p.overlap<10){ status='Perlu rapatkan lajur'; statusClass='st-warn'; recs.push('Overlap '+p.overlap+'% terlalu kecil — rapatkan lajur (min 10-20%) untuk hindari gap.'); }
+  if(o.jumlahSilang<2){ recs.push('Crossline sangat sedikit — tambah crossline untuk QC silang yang baik.'); if(statusClass==='st-ok'){status='Perlu tambah crossline';statusClass='st-warn';} }
+  if(p.cuaca>30){ recs.push('Faktor cuaca tinggi ('+p.cuaca+'%) — evaluasi jadwal & cuaca.'); }
+  if(recs.length===0) recs.push('Rencana lajur MBES layak. Overlap & crossline memadai.');
+  o.status=status; o.statusClass=statusClass; o.recs=recs;
+  return o;
+}
+
+/* ---------- LAJUR SBES ---------- */
+function analyzeSBES(p){
+  // p: panjang, lebar, jamKerja, skala, kecepatan, daratan%, cuaca%, embark, debark, instalasi, pembongkaran
+  const o={};
+  o.spasiUtama = 0.01 * p.skala;       // meter
+  o.spasiMM = (o.spasiUtama/p.skala)*1000; // mm pada peta
+  o.warningSkala = o.spasiMM > 10;
+  o.jumlahUtama = Math.ceil(p.lebar / o.spasiUtama);
+  o.panjangUtama = p.panjang * o.jumlahUtama;
+  o.spasiSilang = 15 * o.spasiUtama;
+  o.jumlahSilang = Math.ceil(p.panjang / o.spasiSilang);
+  o.panjangSilang = p.lebar * o.jumlahSilang;
+  o.totalMeter = o.panjangUtama + o.panjangSilang;
+  o.totalNM = o.totalMeter/1852;
+  o.waktuJam = o.totalNM / p.kecepatan;
+  o.waktuKoreksi = o.waktuJam*(1+p.cuaca/100);
+  o.totalHariSurvei = Math.ceil(o.waktuKoreksi / p.jamKerja);
+  o.totalHari = o.totalHariSurvei + (p.embark||0)+(p.debark||0)+(p.instalasi||0)+(p.pembongkaran||0);
+  let status='Layak (partial coverage SBES)', statusClass='st-cond'; const recs=[];
+  recs.push('SBES = partial coverage (tidak full coverage seperti MBES).');
+  if(o.warningSkala) recs.push('⚠ Spasi pada peta '+o.spasiMM.toFixed(1)+' mm > 10 mm — tidak sesuai standar, rapatkan lajur.');
+  recs.push('Untuk area kritis: tambah crossline & rapatkan lajur.');
+  o.status=status; o.statusClass=statusClass; o.recs=recs;
+  return o;
+}
+
+/* ---------- LAJUR SSS ---------- */
+function analyzeSSS(p){
+  // p: panjang, lebar, kecepatan, jamKerja, cuaca%, daratan%, range, overlap%, kedalaman, altitude%, embark,debark,instalasi,pembongkaran,validasi,investigasi
+  const o={};
+  o.altitudeFish = p.kedalaman * p.altitude/100;
+  o.totalSwath = 2 * p.range;
+  o.effectiveSwath = o.totalSwath*(1 - p.overlap/100);
+  o.jumlahLajur = Math.ceil(p.lebar / o.effectiveSwath);
+  o.panjangLajur = p.panjang * o.jumlahLajur;
+  o.totalNM = o.panjangLajur/1852;
+  o.waktuJam = o.totalNM/p.kecepatan;
+  o.waktuKoreksi = o.waktuJam*(1+p.cuaca/100);
+  o.hariKerja = Math.ceil(o.waktuKoreksi/p.jamKerja);
+  o.totalHari = o.hariKerja + (p.embark||0)+(p.debark||0)+(p.instalasi||0)+(p.pembongkaran||0)+(p.validasi||0)+(p.investigasi||0);
+  const recs=[]; let status='Layak', statusClass='st-ok';
+  if(p.range<25){ recs.push('Range '+p.range+' m kecil — resolusi tinggi, cocok target kecil tapi lajur lebih banyak.'); }
+  if(p.range>100){ recs.push('Range besar ('+p.range+' m) — untuk target kecil, gunakan range lebih kecil & resolusi tinggi.'); status='Perlu evaluasi range'; statusClass='st-warn'; }
+  if(p.overlap<10){ recs.push('Overlap '+p.overlap+'% kurang — naikkan agar tidak ada gap (nadir gap SSS).'); status='Perlu tambah overlap'; statusClass='st-warn'; }
+  const altPct=p.altitude;
+  if(altPct<10||altPct>20){ recs.push('Altitude fish '+altPct+'% di luar ideal (10-20% dari range/kedalaman) — sesuaikan tinggi towfish.'); }
+  if(recs.length===0) recs.push('Rencana SSS layak. Range, overlap & altitude memadai.');
+  o.status=status; o.statusClass=statusClass; o.recs=recs;
+  return o;
+}
+
+/* ---------- VALIDASI GNSS ---------- */
+function analyzeGNSS(data, refLat, refLon, tolMeter){
+  // data=[{t,lat,lon}], ref optional (default mean), tolMeter toleransi
+  const pts=data.map(d=>({t:d.t, lat:parseFloat(d.lat), lon:parseFloat(d.lon)})).filter(p=>!isNaN(p.lat)&&!isNaN(p.lon));
+  const n=pts.length;
+  if(n===0) return null;
+  const meanLat=pts.reduce((s,p)=>s+p.lat,0)/n;
+  const meanLon=pts.reduce((s,p)=>s+p.lon,0)/n;
+  const rLat = (refLat!=null && !isNaN(refLat))? refLat : meanLat;
+  const rLon = (refLon!=null && !isNaN(refLon))? refLon : meanLon;
+  const cosLat=Math.cos(rLat*Math.PI/180);
+  let accepted=0, maxV=0, sumV=0;
+  const rows=[];
+  for(const p of pts){
+    const latM=(p.lat-rLat)*111320;
+    const lonM=(p.lon-rLon)*111320*cosLat;
+    const v=Math.sqrt(latM*latM+lonM*lonM);
+    const ok = v<=tolMeter;
+    if(ok) accepted++;
+    maxV=Math.max(maxV,v); sumV+=v;
+    rows.push({t:p.t, lat:p.lat, lon:p.lon, latM, lonM, vMeter:v, vCm:v*100, ok});
+  }
+  // std dev
+  const sdLat=Math.sqrt(pts.reduce((s,p)=>s+Math.pow(p.lat-meanLat,2),0)/n);
+  const sdLon=Math.sqrt(pts.reduce((s,p)=>s+Math.pow(p.lon-meanLon,2),0)/n);
+  const sdHorizM=Math.sqrt(Math.pow(sdLat*111320,2)+Math.pow(sdLon*111320*cosLat,2));
+  const rejected=n-accepted;
+  const pctAcc=accepted/n*100;
+  let status, statusClass;
+  if(pctAcc>=95){ status='PASS'; statusClass='st-ok'; }
+  else if(pctAcc>=80){ status='WARNING'; statusClass='st-warn'; }
+  else { status='FAIL'; statusClass='st-bad'; }
+  return {n, accepted, rejected, pctAcc, meanLat, meanLon, refLat:rLat, refLon:rLon,
+    sdLat, sdLon, sdHorizM, maxV, avgV:sumV/n, status, statusClass, rows};
+}
+
+/* ---------- DASHBOARD GLOBAL ---------- */
+function globalStatus(s){
+  // s: {tvu, mbes, sbes, sss, gnss} status strings (boleh null)
+  const fails=[], warns=[];
+  if(s.tvu==='FAIL') fails.push('TVU');
+  if(s.gnss==='FAIL') fails.push('GNSS');
+  if(s.tvu==='WARNING') warns.push('TVU');
+  if(s.gnss==='WARNING') warns.push('GNSS');
+  let global, cls;
+  if(fails.length>=2){ global='NEED RESURVEY'; cls='st-bad'; }
+  else if(fails.length===1){ global='NEED CHECK'; cls='st-warn'; }
+  else if(warns.length>0){ global='PASS WITH WARNING'; cls='st-cond'; }
+  else if(s.tvu==='PASS'||s.gnss==='PASS'){ global='PASS'; cls='st-ok'; }
+  else { global='NEED CHECK'; cls='st-warn'; }
+  return {global, cls, fails, warns};
+}
+</script>
+<script>/* ===================== HYDRO QC UI ===================== */
+const QC_SECTIONS=['Dashboard','TVU','MBES','SBES','SSS','GNSS','Final QC','Export'];
+let qcCur=0;
+const qcState={tvu:null,mbes:null,sbes:null,sss:null,gnss:null};
+
+function $(id){return document.getElementById(id);}
+function qn(id){const v=parseFloat(($(id)||{}).value);return isNaN(v)?0:v;}
+
+function qcNav(n){
+  if(n<0||n>7)return; qcCur=n;
+  document.querySelectorAll('.qc-screen').forEach((s,i)=>s.classList.toggle('active',i===n));
+  document.querySelectorAll('#qcTabs .qc-tab').forEach((t,i)=>t.classList.toggle('on',i===n));
+  if(n===0) renderDashboard();
+  if(n===6) renderFinalQC();
+  if(n===7) renderExport();
+  window.scrollTo({top:0,behavior:'auto'});
+}
+function qcTabs(){
+  $('qcTabs').innerHTML=QC_SECTIONS.map((s,i)=>'<button class="qc-tab'+(i===0?' on':'')+'" onclick="qcNav('+i+')">'+s+'</button>').join('');
+}
+function badge(status,cls){ return '<span class="qc-badge '+(cls||'')+'">'+status+'</span>'; }
+function fmt(n,d){ return (isFinite(n)?n:0).toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d===0?0:(d||2)}); }
+function kvR(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+function recList(arr){ return arr.map(r=>'<div class="rec-item"><span class="ic">→</span><span>'+r+'</span></div>').join(''); }
+
+/* ============ TVU ============ */
+let tvuData=[];
+function tvuLoadSample(){ tvuData=TVU_SAMPLE.slice(); $('tvuStatus').textContent='✓ '+tvuData.length+' data sampel dimuat'; tvuRun(); }
+function tvuParsePaste(){
+  const txt=$('tvuPaste').value.trim(); if(!txt){alert('Tempel data dulu.');return;}
+  const rows=txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  tvuData=[];
+  for(const r of rows){
+    const p=r.split(/[\t,;\s]+/).map(s=>parseFloat(s.replace(',','.'))).filter(n=>!isNaN(n));
+    if(p.length>=4) tvuData.push({x:p[0],y:p[1],cross:p[2],utama:p[3]});
+    else if(p.length===2) tvuData.push({x:0,y:0,cross:p[0],utama:p[1]});
+  }
+  $('tvuStatus').textContent='✓ '+tvuData.length+' baris diparse';
+  tvuRun();
+}
+function tvuRun(){
+  try{
+    if(!tvuData.length){ alert('Muat sampel atau tempel data.'); return; }
+    const r=analyzeTVU(tvuData); qcState.tvu=r.status;
+    let h='<div class="status-banner '+r.statusClass+'"><div class="big">'+r.status+'</div><div class="small">Order 1: '+fmt(r.pctOrder1,1)+'% masuk ('+r.counts.order1+'/'+r.valid+')</div></div>';
+    h+='<div class="res-card"><h3>📊 Klasifikasi IHO S-44</h3>'+
+      kvR('Total data',r.valid)+
+      kvR('Masuk Exclusive',r.counts.exclusive+' ('+fmt(r.pct.exclusive,1)+'%)')+
+      kvR('Masuk Khusus/Special',r.counts.special+' ('+fmt(r.pct.special,1)+'%)')+
+      kvR('Masuk Order 1a/1b',r.counts.order1+' ('+fmt(r.pct.order1,1)+'%)')+
+      kvR('Masuk Order 2',r.counts.order2+' ('+fmt(r.pct.order2,1)+'%)')+
+      kvR('Gagal semua order',r.failOrder2)+'</div>';
+    // bar chart sederhana
+    h+='<div class="res-card"><h3>📈 Grafik Klasifikasi</h3>'+qcBars([
+      ['Exclusive',r.pct.exclusive,'#16a34a'],['Khusus',r.pct.special,'#2563eb'],
+      ['Order 1a/1b',r.pct.order1,'#0891b2'],['Order 2',r.pct.order2,'#ea580c']])+'</div>';
+    // tabel 10 data pertama
+    h+='<div class="res-card"><h3>📋 Detail (10 data awal)</h3><div style="overflow-x:auto"><table class="qc-tbl"><tr><th>X</th><th>Y</th><th>Cross</th><th>Utama</th><th>Selisih</th><th>O1?</th></tr>';
+    r.rows.slice(0,10).forEach(row=>{ h+='<tr><td>'+fmt(row.x,0)+'</td><td>'+fmt(row.y,0)+'</td><td>'+fmt(row.cross,2)+'</td><td>'+fmt(row.utama,2)+'</td><td>'+fmt(row.selisih,3)+'</td><td>'+(row.cls.order1?'<span style="color:#16a34a">✓</span>':'<span style="color:#dc2626">✗</span>')+'</td></tr>'; });
+    h+='</table></div></div>';
+    h+='<div class="res-card"><h3>💡 Rekomendasi</h3>'+recList(r.recs)+'</div>';
+    $('tvuResult').innerHTML=h;
+  }catch(e){ console.error(e); $('tvuResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+e.message+'</b></div>'; }
+}
+function qcBars(items){
+  return '<div class="qc-bars">'+items.map(([n,v,c])=>
+    '<div class="qc-bar-row"><span class="qc-bar-lbl">'+n+'</span><div class="qc-bar"><i style="width:'+Math.min(100,v)+'%;background:'+c+'"></i></div><span class="qc-bar-val">'+fmt(v,1)+'%</span></div>').join('')+'</div>';
+}
+
+/* ============ MBES ============ */
+function mbesRun(){
+  try{
+    const p={panjang:qn('mb_panjang'),lebar:qn('mb_lebar'),jamKerja:qn('mb_jam')||8,kecepatan:qn('mb_speed')||5,
+      kedalaman:qn('mb_depth'),metode:$('mb_metode').value,multiplier:qn('mb_mult')||5,angle:qn('mb_angle')||60,
+      overlap:qn('mb_overlap'),daratan:qn('mb_darat'),cuaca:qn('mb_cuaca'),embark:qn('mb_embark'),debark:qn('mb_debark'),instalasi:qn('mb_inst'),patch:qn('mb_patch')};
+    if(!p.panjang||!p.lebar||!p.kedalaman){ alert('Isi panjang, lebar, kedalaman.'); return; }
+    const o=analyzeMBES(p); qcState.mbes=o.status==='Layak'?'PASS':'WARNING';
+    let h='<div class="status-banner '+o.statusClass+'"><div class="big">'+o.status+'</div></div>';
+    h+='<div class="res-card"><h3>📐 Hasil Lajur MBES</h3>'+
+      kvR('Swath width',fmt(o.swath,1)+' m')+kvR('Line spacing',fmt(o.lineSpacing,1)+' m')+
+      kvR('Jumlah lajur utama',o.jumlahUtama)+kvR('Panjang lajur utama',fmt(o.panjangUtama,0)+' m')+
+      kvR('Spasi crossline',fmt(o.crosslineSpacing,0)+' m')+kvR('Jumlah crossline',o.jumlahSilang)+
+      kvR('Panjang crossline',fmt(o.panjangSilang,0)+' m')+
+      kvR('Total panjang',fmt(o.totalMeter,0)+' m / '+fmt(o.totalNM,1)+' NM')+
+      kvR('Waktu survei',fmt(o.waktuKoreksi,1)+' jam')+
+      kvR('Hari survei',o.hariSurvei+' hari')+kvR('TOTAL hari',o.totalHari+' hari')+'</div>';
+    h+='<div class="res-card"><h3>🗺️ Diagram Lajur</h3>'+drawLajur(p.panjang,p.lebar,o.jumlahUtama,o.jumlahSilang,'MBES')+'</div>';
+    h+='<div class="res-card"><h3>💡 Rekomendasi</h3>'+recList(o.recs)+'</div>';
+    $('mbesResult').innerHTML=h;
+  }catch(e){ console.error(e); $('mbesResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+e.message+'</b></div>'; }
+}
+
+/* ============ SBES ============ */
+function sbesRun(){
+  try{
+    const p={panjang:qn('sb_panjang'),lebar:qn('sb_lebar'),jamKerja:qn('sb_jam')||8,skala:qn('sb_skala')||10000,
+      kecepatan:qn('sb_speed')||5,daratan:qn('sb_darat'),cuaca:qn('sb_cuaca'),embark:qn('sb_embark'),debark:qn('sb_debark'),instalasi:qn('sb_inst'),pembongkaran:qn('sb_bongkar')};
+    if(!p.panjang||!p.lebar){ alert('Isi panjang & lebar.'); return; }
+    const o=analyzeSBES(p); qcState.sbes='WARNING';
+    let h='<div class="status-banner '+o.statusClass+'"><div class="big">'+o.status+'</div></div>';
+    h+='<div class="res-card"><h3>📐 Hasil Lajur SBES</h3>'+
+      kvR('Spasi lajur utama',fmt(o.spasiUtama,1)+' m ('+fmt(o.spasiMM,1)+' mm di peta)')+
+      kvR('Jumlah lajur utama',o.jumlahUtama)+kvR('Panjang lajur utama',fmt(o.panjangUtama,0)+' m')+
+      kvR('Spasi crossline',fmt(o.spasiSilang,0)+' m')+kvR('Jumlah crossline',o.jumlahSilang)+
+      kvR('Panjang crossline',fmt(o.panjangSilang,0)+' m')+
+      kvR('Total panjang',fmt(o.totalMeter,0)+' m / '+fmt(o.totalNM,1)+' NM')+
+      kvR('Lama pekerjaan',fmt(o.waktuKoreksi,1)+' jam')+kvR('TOTAL hari',o.totalHari+' hari')+'</div>';
+    if(o.warningSkala) h+='<div class="warn-box">⚠ Spasi pada peta '+fmt(o.spasiMM,1)+' mm melebihi 10 mm — tidak sesuai standar kartografi.</div>';
+    h+='<div class="res-card"><h3>🗺️ Diagram Lajur</h3>'+drawLajur(p.panjang,p.lebar,o.jumlahUtama,o.jumlahSilang,'SBES')+'</div>';
+    h+='<div class="res-card"><h3>💡 Rekomendasi</h3>'+recList(o.recs)+'</div>';
+    $('sbesResult').innerHTML=h;
+  }catch(e){ console.error(e); $('sbesResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+e.message+'</b></div>'; }
+}
+
+/* ============ SSS ============ */
+function sssRun(){
+  try{
+    const p={panjang:qn('ss_panjang'),lebar:qn('ss_lebar'),kecepatan:qn('ss_speed')||5,jamKerja:qn('ss_jam')||8,
+      cuaca:qn('ss_cuaca'),daratan:qn('ss_darat'),range:qn('ss_range')||25,overlap:qn('ss_overlap'),
+      kedalaman:qn('ss_depth'),altitude:qn('ss_alt')||20,embark:qn('ss_embark'),debark:qn('ss_debark'),instalasi:qn('ss_inst'),pembongkaran:qn('ss_bongkar'),validasi:qn('ss_valid'),investigasi:qn('ss_invest')};
+    if(!p.panjang||!p.lebar){ alert('Isi panjang & lebar.'); return; }
+    const o=analyzeSSS(p); qcState.sss=o.status==='Layak'?'PASS':'WARNING';
+    let h='<div class="status-banner '+o.statusClass+'"><div class="big">'+o.status+'</div></div>';
+    h+='<div class="res-card"><h3>📐 Hasil Lajur SSS</h3>'+
+      kvR('Altitude fish',fmt(o.altitudeFish,1)+' m')+kvR('Total swath',fmt(o.totalSwath,1)+' m')+
+      kvR('Effective swath',fmt(o.effectiveSwath,1)+' m')+kvR('Jumlah lajur SSS',o.jumlahLajur)+
+      kvR('Panjang seluruh lajur',fmt(o.panjangLajur,0)+' m / '+fmt(o.totalNM,1)+' NM')+
+      kvR('Jumlah hari kerja',o.hariKerja+' hari')+kvR('TOTAL hari SSS',o.totalHari+' hari')+'</div>';
+    h+='<div class="res-card"><h3>🗺️ Ilustrasi SSS Fan</h3>'+drawSSS(o.totalSwath,o.effectiveSwath,p.range)+'</div>';
+    h+='<div class="res-card"><h3>💡 Rekomendasi / Warning</h3>'+recList(o.recs)+'</div>';
+    $('sssResult').innerHTML=h;
+  }catch(e){ console.error(e); $('sssResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+e.message+'</b></div>'; }
+}
+
+/* ============ GNSS ============ */
+let gnssData=[];
+function gnssLoadSample(){ gnssData=GNSS_SAMPLE.slice(); $('gnssStatus').textContent='✓ '+gnssData.length+' data sampel dimuat'; gnssRun(); }
+function gnssParsePaste(){
+  const txt=$('gnssPaste').value.trim(); if(!txt){alert('Tempel data dulu.');return;}
+  const rows=txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  gnssData=[];
+  for(const r of rows){
+    const p=r.split(/[\t,;\s]+/);
+    const nums=p.map(s=>parseFloat(s.replace(',','.'))).filter(n=>!isNaN(n));
+    if(nums.length>=3) gnssData.push({t:nums[0],lat:nums[nums.length-2],lon:nums[nums.length-1]});
+    else if(nums.length===2) gnssData.push({t:0,lat:nums[0],lon:nums[1]});
+  }
+  $('gnssStatus').textContent='✓ '+gnssData.length+' baris diparse';
+  gnssRun();
+}
+function gnssRun(){
+  try{
+    if(!gnssData.length){ alert('Muat sampel atau tempel data.'); return; }
+    const refLat=$('gnss_reflat').value?parseFloat($('gnss_reflat').value):null;
+    const refLon=$('gnss_reflon').value?parseFloat($('gnss_reflon').value):null;
+    const tolInput=qn('gnss_tol')||50;
+    const unit=$('gnss_unit').value;
+    const tolM= unit==='cm'? tolInput/100 : tolInput;
+    const r=analyzeGNSS(gnssData, refLat, refLon, tolM); qcState.gnss=r.status;
+    if($('gnss_reflat')&&!$('gnss_reflat').value) $('gnss_reflat').placeholder='mean: '+r.refLat.toFixed(7);
+    if($('gnss_reflon')&&!$('gnss_reflon').value) $('gnss_reflon').placeholder='mean: '+r.refLon.toFixed(7);
+    let h='<div class="status-banner '+r.statusClass+'"><div class="big">'+r.status+'</div><div class="small">'+fmt(r.pctAcc,1)+'% diterima ('+r.accepted+'/'+r.n+')</div></div>';
+    h+='<div class="res-card"><h3>📊 Statistik GNSS</h3>'+
+      kvR('Total data',r.n)+kvR('Diterima',r.accepted+' ('+fmt(r.pctAcc,1)+'%)')+kvR('Ditolak',r.rejected)+
+      kvR('Latitude rata-rata',fmt(r.meanLat,7)+'°')+kvR('Longitude rata-rata',fmt(r.meanLon,7)+'°')+
+      kvR('Std Dev horizontal',fmt(r.sdHorizM,3)+' m')+
+      kvR('Jarak vektor maks',fmt(r.maxV,3)+' m / '+fmt(r.maxV*100,1)+' cm')+
+      kvR('Jarak vektor rata-rata',fmt(r.avgV,3)+' m')+
+      kvR('Toleransi',fmt(tolM,3)+' m')+'</div>';
+    h+='<div class="res-card"><h3>🎯 Scatter Plot GNSS</h3><canvas id="gnssChart" style="width:100%;height:280px"></canvas><div class="chart-legend"><span class="lg"><i style="background:#dc2626"></i>Diterima</span><span class="lg"><i style="background:#2563eb"></i>Ditolak</span><span class="lg"><i style="background:#16a34a"></i>Referensi</span></div></div>';
+    // tabel ditolak
+    const rej=r.rows.filter(x=>!x.ok).slice(0,10);
+    if(rej.length){
+      h+='<div class="res-card"><h3>📋 Data Ditolak ('+r.rejected+', 10 awal)</h3><div style="overflow-x:auto"><table class="qc-tbl"><tr><th>Lat</th><th>Lon</th><th>Jarak (m)</th><th>cm</th></tr>';
+      rej.forEach(x=>{ h+='<tr><td>'+fmt(x.lat,6)+'</td><td>'+fmt(x.lon,6)+'</td><td>'+fmt(x.vMeter,3)+'</td><td>'+fmt(x.vCm,1)+'</td></tr>'; });
+      h+='</table></div></div>';
+    }
+    $('gnssResult').innerHTML=h;
+    setTimeout(()=>drawGNSS(r,tolM),50);
+  }catch(e){ console.error(e); $('gnssResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+e.message+'</b></div>'; }
+}
+function drawGNSS(r,tolM){
+  const cv=$('gnssChart'); if(!cv) return;
+  const dpr=window.devicePixelRatio||1, W=cv.clientWidth, H=280;
+  cv.width=W*dpr; cv.height=H*dpr; const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const cosLat=Math.cos(r.refLat*Math.PI/180);
+  // proyeksi semua titik ke meter relatif ref
+  const P=r.rows.map(x=>({mx:(x.lon-r.refLon)*111320*cosLat, my:(x.lat-r.refLat)*111320, ok:x.ok}));
+  let mx=Math.max(tolM*1.3,...P.map(p=>Math.abs(p.mx)),...P.map(p=>Math.abs(p.my)))||1;
+  const cx=W/2, cy=H/2, sc=(Math.min(W,H)/2-20)/mx;
+  // lingkaran toleransi
+  ctx.strokeStyle='#94a3b8'; ctx.setLineDash([4,3]); ctx.beginPath(); ctx.arc(cx,cy,tolM*sc,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]);
+  // titik
+  P.forEach(p=>{ ctx.beginPath(); ctx.fillStyle=p.ok?'#dc2626':'#2563eb'; ctx.arc(cx+p.mx*sc,cy-p.my*sc,2.5,0,2*Math.PI); ctx.fill(); });
+  // ref
+  ctx.fillStyle='#16a34a'; ctx.beginPath(); ctx.arc(cx,cy,5,0,2*Math.PI); ctx.fill();
+}
+
+/* ============ DIAGRAM LAJUR (SVG) ============ */
+function drawLajur(panjang,lebar,nUtama,nSilang,tipe){
+  const W=300,H=Math.max(120,Math.min(200,300*lebar/panjang));
+  const nU=Math.min(nUtama,40), nS=Math.min(nSilang,15);
+  let s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;background:#f0f9ff;border-radius:10px">';
+  s+='<rect x="2" y="2" width="'+(W-4)+'" height="'+(H-4)+'" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>';
+  for(let i=1;i<nU;i++){ const x=2+(W-4)*i/nU; s+='<line x1="'+x.toFixed(1)+'" y1="2" x2="'+x.toFixed(1)+'" y2="'+(H-2)+'" stroke="#2563eb" stroke-width="0.5" opacity="0.6"/>'; }
+  for(let j=1;j<nS;j++){ const y=2+(H-4)*j/nS; s+='<line x1="2" y1="'+y.toFixed(1)+'" x2="'+(W-2)+'" y2="'+y.toFixed(1)+'" stroke="#ea580c" stroke-width="0.7" opacity="0.7"/>'; }
+  s+='<text x="'+(W/2)+'" y="'+(H-6)+'" font-size="9" fill="#1e3a5f" text-anchor="middle">'+tipe+': '+nUtama+' lajur utama (biru) × '+nSilang+' crossline (oranye)</text>';
+  s+='</svg>';
+  return s;
+}
+function drawSSS(totalSwath,effSwath,range){
+  let s='<svg viewBox="0 0 300 140" style="width:100%;height:auto;background:#f0f9ff;border-radius:10px">';
+  // jalur tengah (towfish)
+  s+='<line x1="150" y1="10" x2="150" y2="130" stroke="#0f172a" stroke-width="1.5" stroke-dasharray="4,3"/>';
+  // fan kiri & kanan
+  s+='<polygon points="150,20 60,70 150,70" fill="#06b6d4" opacity="0.35"/>';
+  s+='<polygon points="150,20 240,70 150,70" fill="#06b6d4" opacity="0.35"/>';
+  s+='<polygon points="150,75 60,125 150,125" fill="#14b8a6" opacity="0.3"/>';
+  s+='<polygon points="150,75 240,125 150,125" fill="#14b8a6" opacity="0.3"/>';
+  s+='<text x="150" y="68" font-size="8" fill="#0f172a" text-anchor="middle">Range '+range+'m kiri | kanan</text>';
+  s+='<text x="150" y="138" font-size="8.5" fill="#1e3a5f" text-anchor="middle">Total swath '+fmt(totalSwath,0)+'m · efektif '+fmt(effSwath,0)+'m</text>';
+  s+='</svg>';
+  return s;
+}
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  const st=qcState;
+  const g=globalStatus(st);
+  const row=(label,val)=>'<div class="kv"><span class="k">'+label+'</span><span class="v">'+(val?badge(val,val==='PASS'?'st-ok':val==='FAIL'?'st-bad':val==='WARNING'?'st-warn':'st-cond'):'<span style="color:#94a3b8">belum dihitung</span>')+'</span></div>';
+  let h='<div class="status-banner '+g.cls+'"><div class="big">'+g.global+'</div><div class="small">Status QC global gabungan</div></div>';
+  h+='<div class="res-card"><h3>📋 Status Tiap Modul</h3>'+
+    row('TVU Bathymetry',st.tvu)+row('Lajur MBES',st.mbes)+row('Lajur SBES',st.sbes)+row('Lajur SSS',st.sss)+row('Validasi GNSS',st.gnss)+'</div>';
+  const risks=[];
+  if(st.gnss==='FAIL'||st.gnss==='WARNING') risks.push('GNSS tidak optimal → posisi & THU sounding berisiko.');
+  if(st.tvu==='FAIL') risks.push('TVU banyak gagal → akurasi vertikal di bawah standar IHO.');
+  if(st.sbes) risks.push('SBES partial coverage → ada celah antar lajur.');
+  if(!risks.length) risks.push('Belum ada risiko terdeteksi / modul belum dihitung.');
+  h+='<div class="res-card"><h3>⚠️ Risiko Utama</h3>'+recList(risks)+'</div>';
+  h+='<div class="res-card"><h3>🚀 Mulai</h3><p style="font-size:13px;color:var(--muted);margin:0 0 10px">Hitung tiap modul lalu kembali ke sini untuk ringkasan global.</p>'+
+    '<div class="qc-quick">'+[['TVU',1],['MBES',2],['SBES',3],['SSS',4],['GNSS',5]].map(([n,i])=>'<button class="btn ghost" onclick="qcNav('+i+')">'+n+'</button>').join('')+'</div></div>';
+  $('dashResult').innerHTML=h;
+}
+
+/* ============ FINAL QC ============ */
+function renderFinalQC(){
+  const st=qcState, g=globalStatus(st);
+  const recs=[];
+  if(g.global==='PASS') recs.push('Data layak diproses lanjut.');
+  if(st.tvu==='WARNING'||st.tvu==='FAIL'){ recs.push('Cek tide correction, draft transducer, sound velocity.'); recs.push('Cek offset sensor & latency.'); }
+  if(st.gnss==='WARNING'||st.gnss==='FAIL') recs.push('Validasi GNSS ulang — posisi sounding berisiko.');
+  if(st.sbes) recs.push('SBES: pertimbangkan tambah crossline & rapatkan line spacing di area kritis.');
+  if(st.mbes==='WARNING') recs.push('MBES: rapatkan line spacing / tambah overlap.');
+  if(st.sss==='WARNING') recs.push('SSS: sesuaikan range & overlap; investigasi target bila perlu.');
+  recs.push('Evaluasi kondisi cuaca bila faktor cuaca tinggi.');
+  let h='<div class="status-banner '+g.cls+'"><div class="big">'+g.global+'</div></div>';
+  h+='<div class="res-card"><h3>✅ Rekomendasi Akhir QC</h3>'+recList(recs)+'</div>';
+  $('finalResult').innerHTML=h;
+}
+
+/* ============ EXPORT ============ */
+function buildReport(){
+  const st=qcState, g=globalStatus(st);
+  let t='=== HYDRO BATHYMETRY QC — RINGKASAN ===\n\n';
+  t+='Status Global: '+g.global+'\n\n';
+  t+='Status Modul:\n';
+  t+='  TVU  : '+(st.tvu||'-')+'\n  MBES : '+(st.mbes||'-')+'\n  SBES : '+(st.sbes||'-')+'\n  SSS  : '+(st.sss||'-')+'\n  GNSS : '+(st.gnss||'-')+'\n\n';
+  t+='Dibuat: '+new Date().toLocaleString('id-ID')+' via SurvAI\n';
+  return t;
+}
+function renderExport(){
+  $('exportResult').innerHTML='<div class="res-card"><h3>📄 Ringkasan Report</h3><pre id="reportText" style="white-space:pre-wrap;font-size:12.5px;background:#f8fafc;padding:12px;border-radius:10px;overflow-x:auto">'+buildReport()+'</pre>'+
+    '<div class="qc-quick"><button class="btn ghost" onclick="qcCopy()">📋 Copy</button><button class="btn primary" onclick="qcDownload()">⬇ Export .txt</button></div></div>';
+}
+function qcCopy(){ const t=buildReport(); if(navigator.clipboard) navigator.clipboard.writeText(t).then(()=>alert('Report disalin.'),()=>fallbackCopy(t)); else fallbackCopy(t); }
+function fallbackCopy(t){ const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');alert('Report disalin.');}catch(e){} document.body.removeChild(ta); }
+function qcDownload(){ const blob=new Blob([buildReport()],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='hydro_qc_report.txt'; a.click(); }
+
+function qcReset(){
+  qcState.tvu=qcState.mbes=qcState.sbes=qcState.sss=qcState.gnss=null;
+  tvuData=[]; gnssData=[];
+  ['tvuResult','mbesResult','sbesResult','sssResult','gnssResult','dashResult','finalResult','exportResult'].forEach(id=>{ if($(id))$(id).innerHTML=''; });
+  if($('tvuStatus'))$('tvuStatus').textContent='Belum ada data.';
+  if($('gnssStatus'))$('gnssStatus').textContent='Belum ada data.';
+  renderDashboard();
+  alert('QC direset.');
+}
+
+/* INIT */
+qcTabs();
+renderDashboard();
+</script>
+<style id="survai-embed-style">html.survai-embed body{background:#f8fafc !important;}</style>
+<script id="survai-embed-script">
+(function(){ try{ var p=new URLSearchParams(location.search); if(p.get('embed')==='1') document.documentElement.classList.add('survai-embed'); }catch(e){} })();
+</script>
+</body>
+</html>

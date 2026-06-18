@@ -1,0 +1,10 @@
+{
+  "name": "tukang-ngukur-survai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tukang Ngukur — SurvAI: aplikasi survey profesional (PWA).",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  }
+}

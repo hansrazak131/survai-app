@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poligon Tertutup — © Egi Nugraha</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff;--bg2:#ffffff;--bg3:#ffffff;
+  --card:#d2e3d9;--card2:#fdfdfd;
+  --border:#182840;--border2:#1f3450;
+  --teal:#3314cd;--teal2:#00b8a0;--teal3:#007a6b;
+  --gold:#4729f0;--gold2:#d49617;
+  --blue:#140b79;--green:#22c55e;--red:#ef4444;
+  --orange:#f97316;--yellow:#eab308;--purple:#a78bfa;
+  --text:#000203;--text2:#0b415b;--text3:#0d1315;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Inter',sans-serif;
+  --head:'Syne',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,229,200,.035) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,229,200,.035) 1px,transparent 1px);
+  background-size:36px 36px}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 70% 50% at 50% -10%,rgba(0,180,160,.08),transparent)}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:300;background:rgba(4,7,12,.97);
+  border-bottom:1px solid var(--border);
+  height:56px;display:flex;align-items:center;padding:0 24px;gap:16px}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-mark{width:36px;height:36px;border-radius:8px;
+  background:linear-gradient(135deg,var(--teal),var(--teal3));
+  display:grid;place-items:center;
+  font-family:var(--mono);font-size:12px;font-weight:700;color:#000}
+.logo-name{font-family:var(--head);font-size:16px;font-weight:800;color:var(--text)}
+.logo-tag{font-family:var(--mono);font-size:9px;color:var(--teal2);letter-spacing:2px;text-transform:uppercase}
+.hdr-space{flex:1}
+.hdr-copy{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.hdr-copy b{color:var(--teal2)}
+
+/* CONTAINER */
+.wrap{max-width:1440px;margin:0 auto;padding:28px 20px 80px;position:relative;z-index:1}
+
+/* SECTION HEADING */
+.sec-head{display:flex;align-items:center;gap:12px;
+  font-family:var(--head);font-size:12px;font-weight:700;
+  letter-spacing:3px;text-transform:uppercase;color:var(--teal);
+  margin-bottom:14px;margin-top:28px}
+.sec-head::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent)}
+.sec-num{width:22px;height:22px;border-radius:4px;
+  background:rgba(0,229,200,.12);border:1px solid var(--teal3);
+  display:grid;place-items:center;
+  font-family:var(--mono);font-size:10px;color:var(--teal)}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:20px;margin-bottom:4px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--teal2),transparent 60%)}
+
+/* SETUP */
+.setup-grid{display:grid;grid-template-columns:1fr 1.8fr 1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.flabel{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase}
+.finput{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;
+  padding:8px 12px;color:var(--text);font-family:var(--mono);font-size:13px;
+  outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+.finput:focus{border-color:var(--teal2);box-shadow:0 0 0 2px rgba(0,229,200,.1)}
+.finput::placeholder{color:var(--text3)}
+.dms-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+
+/* INFO BOX */
+.info-box{background:rgba(0,229,200,.05);border:1px solid rgba(0,229,200,.15);
+  border-radius:8px;padding:10px 14px;
+  font-family:var(--mono);font-size:11px;color:var(--teal2);
+  line-height:1.8;margin-bottom:14px}
+.info-box strong{color:var(--teal)}
+
+/* PATOK BLOCK */
+.patok-block{background:var(--card2);border:1px solid var(--border2);
+  border-radius:10px;margin-bottom:12px;overflow:hidden}
+.patok-hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:rgba(0,229,200,.05);border-bottom:1px solid var(--border2);flex-wrap:wrap}
+.patok-name-in{background:transparent;border:none;border-bottom:1px solid var(--border2);
+  color:var(--teal);font-family:var(--head);font-size:15px;font-weight:700;
+  outline:none;width:130px;padding:2px 4px;transition:border-color .2s}
+.patok-name-in:focus{border-color:var(--teal2)}
+.patok-note-in{background:transparent;border:1px solid var(--border2);border-radius:5px;
+  color:var(--text2);font-family:var(--mono);font-size:11px;
+  outline:none;padding:4px 8px;flex:1;min-width:120px;transition:border-color .2s}
+.patok-note-in:focus{border-color:var(--teal3)}
+.del-btn{margin-left:auto;background:none;border:1px solid rgba(239,68,68,.25);
+  color:var(--text3);cursor:pointer;font-size:12px;padding:4px 9px;
+  border-radius:5px;transition:all .15s;font-family:var(--mono)}
+.del-btn:hover{color:var(--red);background:rgba(239,68,68,.1)}
+
+/* OBSERVATION TABLE */
+.obs-section{border-bottom:1px solid var(--border);padding:0}
+.obs-section:last-child{border-bottom:none}
+.obs-label{padding:6px 14px;font-family:var(--mono);font-size:10px;
+  color:var(--text3);letter-spacing:1px;background:var(--bg2);
+  border-bottom:1px solid var(--border)}
+.obs-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.obs-tbl th{background:var(--bg2);color:var(--text3);font-family:var(--mono);
+  font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  padding:6px 6px;border:1px solid var(--border);text-align:center;white-space:nowrap}
+.obs-tbl td{border:1px solid var(--border);padding:2px 2px;text-align:center;vertical-align:middle}
+.face-cell{font-family:var(--mono);font-size:10px;font-weight:700;
+  width:26px;background:rgba(0,229,200,.04);color:var(--teal2)}
+.face-cell.lb{color:var(--purple);background:rgba(167,139,250,.05)}
+.tgt-cell{text-align:left!important;padding-left:6px!important;width:68px}
+input.c{background:transparent;border:none;outline:none;
+  color:var(--text);font-family:var(--mono);font-size:12px;
+  width:100%;text-align:center;padding:4px 3px}
+input.c:focus{background:rgba(0,229,200,.07);border-radius:3px}
+input.c.g{color:var(--gold)}   /* HD — gold */
+input.c.b{color:var(--blue)}   /* SD — blue */
+input.c.t{color:var(--text2);text-align:left}  /* target */
+
+/* BUTTONS */
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;
+  border-radius:8px;border:none;cursor:pointer;
+  font-family:var(--mono);font-size:12px;font-weight:700;transition:all .18s}
+.btn-add{background:rgba(0,229,200,.1);border:1px solid var(--teal2);color:var(--teal)}
+.btn-add:hover{background:rgba(0,229,200,.2)}
+.btn-calc{background:var(--teal);color:#000}
+.btn-calc:hover{background:var(--teal2);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,229,200,.3)}
+.btn-reset{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+.btn-reset:hover{background:rgba(239,68,68,.2)}
+.btn-exp{background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);color:var(--gold)}
+.btn-exp:hover{background:rgba(240,180,41,.2)}
+
+/* RESULTS */
+#results{display:none}
+.syarat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.scard{border-radius:9px;padding:14px 16px;border:1px solid var(--border2);background:var(--card2)}
+.scard-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);
+  letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.scard-val{font-family:var(--mono);font-size:18px;font-weight:700}
+.scard-note{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px;line-height:1.6}
+.c-green{color:var(--green)!important}.c-yellow{color:var(--yellow)!important}
+.c-orange{color:var(--orange)!important}.c-teal{color:var(--teal)!important}
+.c-red{color:var(--red)!important}.c-gold{color:var(--gold)!important}
+.c-blue{color:var(--blue)!important}.c-purple{color:var(--purple)!important}
+.bg-green{background:rgba(34,197,94,.1)!important;border-color:rgba(34,197,94,.25)!important}
+.bg-yellow{background:rgba(234,179,8,.1)!important;border-color:rgba(234,179,8,.25)!important}
+.bg-orange{background:rgba(249,115,22,.1)!important;border-color:rgba(249,115,22,.25)!important}
+.bg-red{background:rgba(239,68,68,.1)!important;border-color:rgba(239,68,68,.25)!important}
+.bg-teal{background:rgba(0,229,200,.07)!important;border-color:rgba(0,229,200,.2)!important}
+.bg-gold{background:rgba(240,180,41,.08)!important;border-color:rgba(240,180,41,.2)!important}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;
+  font-family:var(--mono);font-size:10px;font-weight:700}
+.badge-ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:var(--green)}
+.badge-fail{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:var(--red)}
+.badge-warn{background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.4);color:var(--orange)}
+
+.tbl-wrap{overflow-x:auto;margin-top:4px}
+.otbl{width:100%;border-collapse:collapse;font-size:12px;min-width:800px}
+.otbl th{background:var(--bg2);color:var(--text3);font-family:var(--mono);
+  font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  padding:7px 8px;border:1px solid var(--border);text-align:center;white-space:nowrap}
+.otbl th.grp{background:rgba(0,229,200,.06);color:var(--teal2)}
+.otbl td{border:1px solid var(--border);padding:6px 8px;font-family:var(--mono);font-size:12px;text-align:center}
+.otbl td.pk{color:var(--teal);font-weight:700;text-align:left;background:rgba(0,229,200,.03)}
+.ok-c{background:rgba(34,197,94,.1);color:var(--green);font-weight:700}
+.err-c{background:rgba(239,68,68,.12);color:var(--red);font-weight:700}
+.warn-c{background:rgba(249,115,22,.1);color:var(--orange);font-weight:700}
+.pos{color:#7dd3fc}.neg{color:#fda4af}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px}
+.tab{background:none;border:none;padding:9px 18px;color:var(--text3);
+  font-family:var(--mono);font-size:11px;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab.on{color:var(--teal);border-bottom-color:var(--teal)}
+.tab:hover:not(.on){color:var(--text2)}
+.pane{display:none}.pane.on{display:block}
+
+.tol-wrap{display:flex;align-items:center;gap:12px;margin-top:10px}
+.tol-bg{flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden}
+.tol-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,0,1)}
+
+.alert{display:none;padding:10px 14px;border-radius:7px;font-family:var(--mono);font-size:12px;margin-bottom:14px}
+.alert.on{display:block}
+.alert-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:var(--red)}
+
+/* FOOTER */
+footer{position:relative;z-index:1;border-top:1px solid var(--border);
+  padding:20px 24px;display:flex;align-items:center;justify-content:center}
+.foot-inner{text-align:center;font-family:var(--mono);font-size:11px;color:var(--text3);line-height:2}
+.foot-inner .name{color:var(--teal);font-weight:700}
+.foot-inner .ver{color:var(--teal2)}
+.foot-inner a{color:var(--text2);text-decoration:none}
+.foot-inner a:hover{color:var(--teal)}
+
+@media(max-width:1100px){.setup-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.setup-grid,.syarat-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:460px){.setup-grid,.syarat-grid{grid-template-columns:1fr}}
+</style>
+<link rel="stylesheet" href="../shared-home-theme.css" />
+
+<style id="remove-header-footer-final">
+  body > header, body > footer { display: none !important; }
+  .wrap { padding-top: 20px !important; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- ── STEP 1 ── -->
+  <div class="sec-head"><div class="sec-num">1</div>Konfigurasi Poligon</div>
+  <div class="card">
+    <div class="setup-grid">
+      <div class="field">
+        <span class="flabel">Patok Awal</span>
+        <input class="finput" id="patokAwal" value="AN 1" placeholder="misal: AN1">
+      </div>
+      <div class="field">
+        <span class="flabel">Azimuth Awal &nbsp;( °&nbsp;&nbsp;'&nbsp;&nbsp;" )</span>
+        <div class="dms-row">
+          <input class="finput" id="azD" value="10" placeholder="°" type="number">
+          <input class="finput" id="azM" value="0"  placeholder="'" type="number">
+          <input class="finput" id="azS" value="0"  placeholder='"' type="number" step="0.001">
+        </div>
+      </div>
+      <div class="field">
+        <span class="flabel">X₀ Awal (m)</span>
+        <input class="finput" id="xAwal" value="100" type="number" step="any">
+      </div>
+      <div class="field">
+        <span class="flabel">Y₀ Awal (m)</span>
+        <input class="finput" id="yAwal" value="100" type="number" step="any">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2 ── -->
+  <div class="sec-head"><div class="sec-num">2</div>Input Data Pengukuran per Patok</div>
+  <div class="card">
+    <div class="info-box">
+      <strong>Panduan input:</strong>
+      Setiap patok memiliki <strong>2 pengukuran</strong> (ke patok sebelum &amp; ke patok berikut),
+      masing-masing dengan pembacaan <strong>Biasa (B)</strong> dan <strong>Luar Biasa (LB)</strong>.<br>
+      Kolom <strong style="color:var(--gold)">HD (m)</strong> = Horizontal Distance yang terbaca langsung di alat Total Station.<br>
+      Kolom <strong style="color:var(--blue)">SD (m)</strong> = Slope Distance (opsional, untuk validasi).<br>
+      Sudut <strong>H</strong> (horizontal) dan <strong>V</strong> (vertikal) dalam format <strong>Derajat · Menit · Detik</strong>.
+    </div>
+    <div class="alert alert-err" id="errAlert"></div>
+    <div id="patokList"></div>
+    <div class="btn-row">
+      <button class="btn btn-add" onclick="addPatok()">＋ Tambah Patok</button>
+      <button class="btn btn-calc" onclick="calculate()">▶ Hitung Otomatis</button>
+      <button class="btn btn-reset" onclick="resetAll()">✕ Reset</button>
+      <button class="btn btn-exp" onclick="exportCSV()">⬇ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- ── RESULTS ── -->
+  <div id="results">
+    <div class="sec-head"><div class="sec-num">3</div>Syarat &amp; Toleransi</div>
+    <div class="card">
+      <div class="syarat-grid" id="syaratGrid"></div>
+    </div>
+
+    <div class="sec-head"><div class="sec-num">4</div>Hasil Pengolahan</div>
+    <div class="card">
+      <div class="tabs">
+        <button class="tab on" onclick="swTab('tAz',this)">Sudut &amp; Azimuth</button>
+        <button class="tab"   onclick="swTab('tJarak',this)">HD &amp; Koreksi Linear</button>
+        <button class="tab"   onclick="swTab('tCoord',this)">Koordinat Akhir</button>
+        <button class="tab"   onclick="swTab('tSum',this)">Ringkasan</button>
+      </div>
+      <div class="pane on" id="tAz"><div class="tbl-wrap" id="outAz"></div></div>
+      <div class="pane"    id="tJarak"><div class="tbl-wrap" id="outJarak"></div></div>
+      <div class="pane"    id="tCoord">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;
+          font-family:var(--mono);font-size:11px;color:var(--text2)">
+          <span>Legenda:</span>
+          <span style="color:var(--green)">● Koreksi ≤ 2 mm (OK)</span>
+          <span style="color:var(--red)">● Koreksi &gt; 2 mm (Blunder)</span>
+          <span style="color:var(--orange)">● Penutup ≠ Koordinat Awal</span>
+        </div>
+        <div class="tbl-wrap" id="outCoord"></div>
+      </div>
+      <div class="pane"    id="tSum"><div id="outSum"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════ */
+const dms2dec=(d,m,s)=>+d+(+m/60)+(+s/3600);
+const mod360=a=>((a%360)+360)%360;
+const rad=d=>d*Math.PI/180;
+const fmt=(v,d=4)=>(isNaN(v)||v==null)?'—':v.toFixed(d);
+const $=(id)=>document.getElementById(id);
+
+function fmtDMS(dec){
+  if(isNaN(dec)||dec==null)return'—';
+  let neg=dec<0;dec=Math.abs(dec);
+  let d=Math.floor(dec),r=(dec-d)*60;
+  let m=Math.floor(r),s=(r-m)*60;
+  return `${neg?'-':''}${d}°&thinsp;${String(m).padStart(2,'0')}'&thinsp;${s.toFixed(1)}"`;
+}
+function cn(v){
+  if(isNaN(v)||v==null)return'—';
+  return`<span class="${v<0?'neg':'pos'}">${fmt(v)}</span>`;
+}
+
+/* ══════════════════════════════════════════════════
+   DEFAULT DATA — contoh AN1..AN6 dari KDH_test.xlsx
+══════════════════════════════════════════════════ */
+const DEFAULTS=[
+  {patok:'AN 1',obs:[
+    {tgt:'AN 6', hbD:238,hbM:15,hbS:25, hlbD:58, hlbM:15,hlbS:18,
+     vbD:88,vbM:48,vbS:51,  vlbD:271,vlbM:11,vlbS:29, hdB:37.124,hdLB:37.124,sdB:37.132,sdLB:37.132},
+    {tgt:'AN 2', hbD:324,hbM:6, hbS:59, hlbD:144,hlbM:6, hlbS:53,
+     vbD:89,vbM:3, vbS:20,  vlbD:270,vlbM:56,vlbS:56, hdB:33.547,hdLB:33.547,sdB:33.552,sdLB:33.552},
+  ]},
+  {patok:'AN 2',obs:[
+    {tgt:'AN 1', hbD:5,  hbM:56,hbS:57, hlbD:185,hlbM:56,hlbS:53,
+     vbD:90,vbM:50,vbS:17, vlbD:269,vlbM:10,vlbS:10, hdB:33.549,hdLB:33.549,sdB:33.553,sdLB:33.553},
+    {tgt:'AN 3', hbD:167,hbM:11,hbS:53, hlbD:347,hlbM:11,hlbS:46,
+     vbD:89,vbM:3, vbS:17, vlbD:270,vlbM:57,vlbS:8,  hdB:27.660,hdLB:27.660,sdB:27.665,sdLB:27.664},
+  ]},
+  {patok:'AN 3',obs:[
+    {tgt:'AN 2', hbD:205,hbM:8, hbS:32, hlbD:25, hlbM:8, hlbS:19,
+     vbD:90,vbM:41,vbS:1,  vlbD:269,vlbM:19,vlbS:25, hdB:27.663,hdLB:27.663,sdB:27.665,sdLB:27.665},
+    {tgt:'AN 4', hbD:300,hbM:41,hbS:46, hlbD:120,hlbM:41,hlbS:36,
+     vbD:89,vbM:40,vbS:16, vlbD:270,vlbM:20,vlbS:1,  hdB:36.565,hdLB:36.565,sdB:36.566,sdLB:36.566},
+  ]},
+  {patok:'AN 4',obs:[
+    {tgt:'AN 3', hbD:289,hbM:26,hbS:0,  hlbD:109,hlbM:25,hlbS:52,
+     vbD:89,vbM:56,vbS:48, vlbD:270,vlbM:3, vlbS:35, hdB:36.569,hdLB:36.568,sdB:36.569,sdLB:36.568},
+    {tgt:'AN 5', hbD:31, hbM:11,hbS:0,  hlbD:211,hlbM:10,hlbS:57,
+     vbD:89,vbM:35,vbS:7,  vlbD:270,vlbM:25,vlbS:4,  hdB:24.870,hdLB:24.870,sdB:24.871,sdLB:24.871},
+  ]},
+  {patok:'AN 5',obs:[
+    {tgt:'AN 4', hbD:213,hbM:4, hbS:35, hlbD:33, hlbM:4, hlbS:29,
+     vbD:90,vbM:15,vbS:23, vlbD:269,vlbM:44,vlbS:58, hdB:24.873,hdLB:24.872,sdB:24.873,sdLB:24.872},
+    {tgt:'AN 6', hbD:18, hbM:32,hbS:5,  hlbD:198,hlbM:31,hlbS:57,
+     vbD:90,vbM:31,vbS:53, vlbD:269,vlbM:28,vlbS:27, hdB:24.807,hdLB:24.807,sdB:24.808,sdLB:24.808},
+  ]},
+  {patok:'AN 6',obs:[
+    {tgt:'AN 5', hbD:194,hbM:56,hbS:5,  hlbD:14, hlbM:56,hlbS:1,
+     vbD:89,vbM:16,vbS:31, vlbD:270,vlbM:43,vlbS:37, hdB:24.809,hdLB:24.809,sdB:24.811,sdLB:24.811},
+    {tgt:'AN 1', hbD:305,hbM:4, hbS:24, hlbD:125,hlbM:4, hlbS:20,
+     vbD:90,vbM:58,vbS:42, vlbD:269,vlbM:1, vlbS:33, hdB:37.122,hdLB:37.123,sdB:37.127,sdLB:37.127},
+  ]},
+];
+
+/* ══════════════════════════════════════════════════
+   RENDER INPUT
+══════════════════════════════════════════════════ */
+let pid=0;
+function makeObs(pid,oi,o){
+  const b=o||{};
+  const f=(k,fb)=>b[k]!==undefined&&b[k]!==''?b[k]:(fb!==undefined?fb:'');
+  const bID=`${pid}_o${oi}_b`;
+  const lID=`${pid}_o${oi}_lb`;
+  return`
+  <div class="obs-section">
+    <div class="obs-label">Pengukuran ${oi+1} — ke patok ${oi===0?'sebelumnya (Obs 1)':'berikutnya (Obs 2)'}</div>
+    <div style="overflow-x:auto">
+    <table class="obs-tbl">
+      <thead><tr>
+        <th>Face</th><th>Target</th>
+        <th>H °</th><th>H '</th><th>H "</th>
+        <th>V °</th><th>V '</th><th>V "</th>
+        <th style="color:var(--gold);min-width:72px">HD-B (m)</th>
+        <th style="color:var(--gold);min-width:72px">HD-LB (m)</th>
+        <th style="color:var(--blue);min-width:72px">SD-B (m)</th>
+        <th style="color:var(--blue);min-width:72px">SD-LB (m)</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td class="face-cell">B</td>
+          <td class="tgt-cell"><input class="c t" id="${bID}_tgt" value="${f('tgt')}" placeholder="Patok"></td>
+          <td><input class="c" id="${bID}_hd" value="${f('hbD')}" placeholder="°" type="number" step="any"></td>
+          <td><input class="c" id="${bID}_hm" value="${f('hbM')}" placeholder="'" type="number" step="any"></td>
+          <td><input class="c" id="${bID}_hs" value="${f('hbS')}" placeholder='"' type="number" step="any"></td>
+          <td><input class="c" id="${bID}_vd" value="${f('vbD')}" placeholder="°" type="number" step="any"></td>
+          <td><input class="c" id="${bID}_vm" value="${f('vbM')}" placeholder="'" type="number" step="any"></td>
+          <td><input class="c" id="${bID}_vs" value="${f('vbS')}" placeholder='"' type="number" step="any"></td>
+          <td><input class="c g" id="${bID}_hd_m" value="${f('hdB')}" placeholder="m" type="number" step="any"></td>
+          <td style="background:rgba(0,0,0,.2)"></td>
+          <td><input class="c b" id="${bID}_sd_m" value="${f('sdB')}" placeholder="m" type="number" step="any"></td>
+          <td style="background:rgba(0,0,0,.2)"></td>
+        </tr>
+        <tr>
+          <td class="face-cell lb">LB</td>
+          <td class="tgt-cell"><input class="c t" id="${lID}_tgt" value="${f('tgt')}" placeholder="↑" style="color:var(--text3)"></td>
+          <td><input class="c" id="${lID}_hd" value="${f('hlbD')}" placeholder="°" type="number" step="any"></td>
+          <td><input class="c" id="${lID}_hm" value="${f('hlbM')}" placeholder="'" type="number" step="any"></td>
+          <td><input class="c" id="${lID}_hs" value="${f('hlbS')}" placeholder='"' type="number" step="any"></td>
+          <td><input class="c" id="${lID}_vd" value="${f('vlbD')}" placeholder="°" type="number" step="any"></td>
+          <td><input class="c" id="${lID}_vm" value="${f('vlbM')}" placeholder="'" type="number" step="any"></td>
+          <td><input class="c" id="${lID}_vs" value="${f('vlbS')}" placeholder='"' type="number" step="any"></td>
+          <td style="background:rgba(0,0,0,.2)"></td>
+          <td><input class="c g" id="${lID}_hd_m" value="${f('hdLB')}" placeholder="m" type="number" step="any"></td>
+          <td style="background:rgba(0,0,0,.2)"></td>
+          <td><input class="c b" id="${lID}_sd_m" value="${f('sdLB')}" placeholder="m" type="number" step="any"></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+function addPatok(data=null){
+  const cont=$('patokList');
+  const id=`p${pid++}`;
+  const obs=data?data.obs:[null,null];
+  const pName=data?data.patok:'';
+  const block=document.createElement('div');
+  block.className='patok-block';
+  block.id=`blk_${id}`;
+  block.innerHTML=`
+    <div class="patok-hdr">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px">PATOK</span>
+      <input class="patok-name-in" id="${id}_name" value="${pName}" placeholder="Nama">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">Catatan:</span>
+      <input class="patok-note-in" id="${id}_note" value="" placeholder="Catatan lapangan (opsional)...">
+      <button class="del-btn" onclick="$('blk_${id}').remove()">✕ Hapus</button>
+    </div>
+    ${makeObs(id,0,obs[0])}
+    ${makeObs(id,1,obs[1])}
+  `;
+  cont.appendChild(block);
+}
+
+function resetAll(){
+  $('patokList').innerHTML='';pid=0;
+  $('results').style.display='none';
+  $('errAlert').classList.remove('on');
+}
+
+/* ══════════════════════════════════════════════════
+   READ DATA
+══════════════════════════════════════════════════ */
+function gv(id){const el=$(id);return el?parseFloat(el.value)||0:0;}
+function gs(id){const el=$(id);return el?el.value.trim():'';}
+
+function readData(){
+  const rows=[];
+  document.querySelectorAll('.patok-block').forEach(blk=>{
+    const id=blk.id.replace('blk_','');
+    const patok=gs(`${id}_name`);
+    if(!patok)return;
+    const obs=[];
+    for(let i=0;i<2;i++){
+      const bID=`${id}_o${i}_b`, lID=`${id}_o${i}_lb`;
+      obs.push({
+        tgt:     gs(`${bID}_tgt`)||gs(`${lID}_tgt`)||'',
+        hb:  dms2dec(gv(`${bID}_hd`),gv(`${bID}_hm`),gv(`${bID}_hs`)),
+        hlb: dms2dec(gv(`${lID}_hd`),gv(`${lID}_hm`),gv(`${lID}_hs`)),
+        vb:  dms2dec(gv(`${bID}_vd`),gv(`${bID}_vm`),gv(`${bID}_vs`)),
+        vlb: dms2dec(gv(`${lID}_vd`),gv(`${lID}_vm`),gv(`${lID}_vs`)),
+        hdB:  gv(`${bID}_hd_m`),
+        hdLB: gv(`${lID}_hd_m`),
+        sdB:  gv(`${bID}_sd_m`),
+        sdLB: gv(`${lID}_sd_m`),
+      });
+    }
+    rows.push({patok,obs});
+  });
+  return rows;
+}
+
+/* ══════════════════════════════════════════════════
+   CALCULATE
+══════════════════════════════════════════════════ */
+let lastPts=null;
+
+function calculate(){
+  const errEl=$('errAlert');
+  errEl.classList.remove('on');
+  const raw=readData();
+  if(raw.length<3){errEl.textContent='⚠ Minimal 3 patok untuk poligon tertutup.';errEl.classList.add('on');return;}
+
+  const n=raw.length;
+  const az0=dms2dec(parseFloat($('azD').value)||0,parseFloat($('azM').value)||0,parseFloat($('azS').value)||0);
+  const X0=parseFloat($('xAwal').value)||0;
+  const Y0=parseFloat($('yAwal').value)||0;
+
+  // ── Per patok: sudut dalam dari 2 arah pembacaan
+  const pts=raw.map(d=>{
+    const o0=d.obs[0], o1=d.obs[1];
+    // Rata-rata H face B dan LB masing-masing arah
+    const h0b=o0.hb, h0lb=mod360(o0.hlb-180);
+    const h1b=o1.hb, h1lb=mod360(o1.hlb-180);
+    const h0avg=(h0b+h0lb)/2;
+    const h1avg=(h1b+h1lb)/2;
+    // Sudut dalam patok = h1avg - h0avg (maju - mundur)
+    let hDalam=mod360(h1avg-h0avg);
+    if(hDalam<2)hDalam+=360; // pastikan sudut masuk akal
+
+    // V rata-rata
+    const vAvg1=(o1.vb+(360-o1.vlb))/2;
+
+    // HD rata-rata ke target berikut (obs[1])
+    const hdVals=[o1.hdB,o1.hdLB].filter(v=>v>0);
+    let hdNext=hdVals.length>0?hdVals.reduce((a,b)=>a+b,0)/hdVals.length:0;
+    // Fallback: hitung dari SD dan sudut V
+    if(hdNext<=0){
+      const sdVals=[o1.sdB,o1.sdLB].filter(v=>v>0);
+      const sdMean=sdVals.length>0?sdVals.reduce((a,b)=>a+b,0)/sdVals.length:0;
+      hdNext=sdMean*Math.abs(Math.sin(rad(vAvg1)));
+    }
+
+    return{patok:d.patok,obs:d.obs,h0avg,h1avg,hDalam,vAvg1,hd:hdNext,
+      hdB_val:o1.hdB,hdLB_val:o1.hdLB,sdB_val:o1.sdB,sdLB_val:o1.sdLB,tgt:o1.tgt};
+  });
+
+  // ── Syarat sudut
+  const fb=(n-2)*180;
+  const sumH=pts.reduce((a,p)=>a+p.hDalam,0);
+  const fSudut=sumH-fb;
+  const fSudutDet=fSudut*3600;
+  const kb=10*Math.sqrt(n);
+  const sudutOK=Math.abs(fSudutDet)<=kb;
+  const kor=-fSudut/n;
+
+  pts.forEach(p=>{p.hKor=p.hDalam+kor;});
+
+  // ── Azimuth berantai
+  pts[0].az=az0;
+  for(let i=1;i<n;i++) pts[i].az=mod360(pts[i-1].az+pts[i-1].hKor-180);
+
+  // ── ΔX ΔY kasar
+  pts.forEach(p=>{p.dX=p.hd*Math.sin(rad(p.az));p.dY=p.hd*Math.cos(rad(p.az));});
+
+  // ── Bowditch
+  const sumHD=pts.reduce((a,p)=>a+p.hd,0);
+  const fdX=pts.reduce((a,p)=>a+p.dX,0);
+  const fdY=pts.reduce((a,p)=>a+p.dY,0);
+  const fd=Math.sqrt(fdX*fdX+fdY*fdY);
+  const salLin=sumHD>0?fd/sumHD:0;
+  const spec=1/6000;
+  const ksl=spec-salLin;
+  const fdR=salLin>0?Math.round(1/salLin):999999;
+
+  pts.forEach(p=>{
+    p.kx=(-fdX/sumHD)*p.hd;
+    p.ky=(-fdY/sumHD)*p.hd;
+    p.dXa=p.dX+p.kx;
+    p.dYa=p.dY+p.ky;
+  });
+
+  // ── Koordinat
+  let X=X0,Y=Y0;
+  pts.forEach(p=>{p.X=X;p.Y=Y;X+=p.dXa;Y+=p.dYa;});
+  const Xc=X,Yc=Y;
+  const dXmm=Math.abs(Xc-X0)*1000;
+  const dYmm=Math.abs(Yc-Y0)*1000;
+  const closeOK=dXmm<0.5&&dYmm<0.5;
+  lastPts=pts;
+
+  // ═══════════ RENDER ═══════════
+
+  // ── Syarat
+  $('syaratGrid').innerHTML=`
+    <div class="scard bg-green">
+      <div class="scard-lbl">fb — Syarat Sudut Dalam</div>
+      <div class="scard-val c-green">${fmt(fb,4)}°</div>
+      <div class="scard-note">(${n}−2)×180° &nbsp;|&nbsp; Teoritis</div>
+    </div>
+    <div class="scard bg-yellow">
+      <div class="scard-lbl">kb — Toleransi Penutup Sudut</div>
+      <div class="scard-val c-yellow">${fmt(kb,4)}"</div>
+      <div class="scard-note">10×√${n} detik maks &nbsp; <span class="badge badge-warn">Ambang</span></div>
+    </div>
+    <div class="scard ${sudutOK?'bg-green':'bg-red'}">
+      <div class="scard-lbl">Salah Penutup Sudut Aktual</div>
+      <div class="scard-val ${sudutOK?'c-green':'c-red'}">${fmt(Math.abs(fSudutDet),4)}"</div>
+      <div class="scard-note">${fmt(fSudut,7)}° &nbsp; <span class="badge ${sudutOK?'badge-ok':'badge-fail'}">${sudutOK?'✓ LULUS':'✗ BLUNDER'}</span></div>
+    </div>
+    <div class="scard bg-teal">
+      <div class="scard-lbl">Koreksi Per Sudut</div>
+      <div class="scard-val c-teal">${fmt(kor*3600,4)}"</div>
+      <div class="scard-note">${fmt(kor,7)}° per patok &nbsp;|&nbsp; ${n} patok</div>
+    </div>
+    <div class="scard ${ksl>=0?'bg-green':'bg-red'}">
+      <div class="scard-lbl">Salah Jarak Linier</div>
+      <div class="scard-val ${ksl>=0?'c-green':'c-red'}">1 / ${fdR.toLocaleString('id-ID')}</div>
+      <div class="scard-note">fd=${fmt(fd*1000,3)}mm &nbsp;|&nbsp; ΣHD=${fmt(sumHD,3)}m</div>
+    </div>
+    <div class="scard bg-gold">
+      <div class="scard-lbl">Spesifikasi Alat</div>
+      <div class="scard-val c-gold">1 / 6000</div>
+      <div class="scard-note">Standar toleransi minimum</div>
+    </div>
+    <div class="scard ${ksl>=0?'bg-green':'bg-red'}">
+      <div class="scard-lbl">KSL — Ketersediaan Sal. Linier</div>
+      <div class="scard-val ${ksl>=0?'c-green':'c-red'}" style="font-size:14px">${fmt(ksl,6)}</div>
+      <div class="scard-note">Spek − Sal.linier &nbsp; <span class="badge ${ksl>=0?'badge-ok':'badge-fail'}">${ksl>=0?'✓ LULUS':'✗ GAGAL'}</span></div>
+    </div>
+    <div class="scard ${closeOK?'bg-green':'bg-orange'}">
+      <div class="scard-lbl">Koordinat Penutup</div>
+      <div class="scard-val ${closeOK?'c-green':'c-orange'}" style="font-size:13px">ΔX=${fmt(dXmm,3)}mm<br>ΔY=${fmt(dYmm,3)}mm</div>
+      <div class="scard-note">${closeOK?'✓ Sama dengan X₀Y₀':'⚠ Koreksi Bowditch diterapkan'}</div>
+    </div>
+  `;
+
+  // ── Tab Azimuth
+  let hAz=`<table class="otbl"><thead><tr>
+    <th>Patok</th>
+    <th colspan="2" class="grp">H Obs1-B</th><th colspan="2" class="grp">H Obs1-LB</th>
+    <th class="grp">Rata2 Obs1</th>
+    <th colspan="2" class="grp">H Obs2-B</th><th colspan="2" class="grp">H Obs2-LB</th>
+    <th class="grp">Rata2 Obs2</th>
+    <th>H Dalam</th><th>Koreksi</th><th>H Terkoreksi</th><th>Azimuth</th>
+  </tr></thead><tbody>`;
+  pts.forEach(p=>{
+    const o=p.obs;
+    hAz+=`<tr>
+      <td class="pk">${p.patok}</td>
+      <td>${fmt(o[0].hb,4)}</td><td>${fmtDMS(o[0].hb)}</td>
+      <td>${fmt(o[0].hlb,4)}</td><td>${fmtDMS(o[0].hlb)}</td>
+      <td class="c-teal">${fmtDMS(p.h0avg)}</td>
+      <td>${fmt(o[1].hb,4)}</td><td>${fmtDMS(o[1].hb)}</td>
+      <td>${fmt(o[1].hlb,4)}</td><td>${fmtDMS(o[1].hlb)}</td>
+      <td class="c-blue">${fmtDMS(p.h1avg)}</td>
+      <td class="c-gold">${fmtDMS(p.hDalam)}</td>
+      <td style="color:var(--text3)">${fmt(kor*3600,4)}"</td>
+      <td class="c-green">${fmtDMS(p.hKor)}</td>
+      <td class="c-teal">${fmtDMS(p.az)}</td>
+    </tr>`;
+  });
+  hAz+=`</tbody></table>`;
+  $('outAz').innerHTML=hAz;
+
+  // ── Tab Jarak
+  let hJ=`<table class="otbl"><thead><tr>
+    <th>Patok</th><th>Target Obs2</th>
+    <th style="color:var(--gold)">HD-B (m)</th>
+    <th style="color:var(--gold)">HD-LB (m)</th>
+    <th style="color:var(--gold)">HD Rata2 (m)</th>
+    <th style="color:var(--blue)">SD-B (m)</th>
+    <th style="color:var(--blue)">SD-LB (m)</th>
+    <th>HD dipakai</th>
+    <th>ΔX kasar</th><th>ΔY kasar</th>
+    <th>Kx</th><th>Ky</th>
+    <th>ΔX adj</th><th>ΔY adj</th>
+  </tr></thead><tbody>`;
+  pts.forEach(p=>{
+    const hdM=[p.hdB_val,p.hdLB_val].filter(v=>v>0);
+    const hdAvg=hdM.length?hdM.reduce((a,b)=>a+b,0)/hdM.length:0;
+    const eMM=Math.max(Math.abs(p.kx),Math.abs(p.ky))*1000;
+    const ec=eMM<=2?'ok-c':'err-c';
+    hJ+=`<tr>
+      <td class="pk">${p.patok}</td>
+      <td style="color:var(--text2);font-family:var(--mono);font-size:11px">${p.tgt||'—'}</td>
+      <td class="c-gold">${fmt(p.hdB_val,4)}</td>
+      <td class="c-gold">${fmt(p.hdLB_val,4)}</td>
+      <td class="c-gold" style="font-weight:700">${fmt(hdAvg,4)}</td>
+      <td class="c-blue">${fmt(p.sdB_val,4)}</td>
+      <td class="c-blue">${fmt(p.sdLB_val,4)}</td>
+      <td style="font-weight:700;color:var(--text)">${fmt(p.hd,4)}</td>
+      <td>${cn(p.dX)}</td><td>${cn(p.dY)}</td>
+      <td style="color:var(--text3)">${fmt(p.kx,6)}</td>
+      <td style="color:var(--text3)">${fmt(p.ky,6)}</td>
+      <td class="${ec}">${fmt(p.dXa,4)}</td>
+      <td class="${ec}">${fmt(p.dYa,4)}</td>
+    </tr>`;
+  });
+  // Total
+  hJ+=`<tr style="background:rgba(0,229,200,.04)">
+    <td colspan="7" style="text-align:right;font-family:var(--mono);font-size:11px;color:var(--text3)">JUMLAH →</td>
+    <td style="font-weight:700">${fmt(sumHD,4)}</td>
+    <td>${cn(fdX)}</td><td>${cn(fdY)}</td>
+    <td></td><td></td>
+    <td class="c-green">${fmt(pts.reduce((a,p)=>a+p.dXa,0),6)}</td>
+    <td class="c-green">${fmt(pts.reduce((a,p)=>a+p.dYa,0),6)}</td>
+  </tr>`;
+  hJ+=`</tbody></table>`;
+  $('outJarak').innerHTML=hJ;
+
+  // ── Tab Koordinat
+  let hC=`<table class="otbl"><thead><tr>
+    <th>Patok</th><th>Azimuth</th><th>HD (m)</th>
+    <th>ΔX adj</th><th>ΔY adj</th>
+    <th>X (m)</th><th>Y (m)</th>
+    <th>Kor. Max (mm)</th><th>Status</th>
+  </tr></thead><tbody>`;
+  pts.forEach(p=>{
+    const em=Math.max(Math.abs(p.kx),Math.abs(p.ky))*1000;
+    const ec=em<=2?'ok-c':'err-c';
+    hC+=`<tr>
+      <td class="pk">${p.patok}</td>
+      <td>${fmtDMS(p.az)}</td>
+      <td>${fmt(p.hd,4)}</td>
+      <td>${cn(p.dXa)}</td>
+      <td>${cn(p.dYa)}</td>
+      <td class="c-teal">${fmt(p.X,4)}</td>
+      <td class="c-gold">${fmt(p.Y,4)}</td>
+      <td class="${ec}">${fmt(em,3)}</td>
+      <td class="${ec}">${em<=2?'✓ Baik':'✗ Blunder'}</td>
+    </tr>`;
+  });
+  const cc=closeOK?'ok-c':'warn-c';
+  hC+=`<tr style="background:rgba(0,229,200,.06)">
+    <td class="pk">⟳ PENUTUP</td>
+    <td colspan="3" style="font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right">
+      ΣΔX=${fmt(fdX,6)} &nbsp; ΣΔY=${fmt(fdY,6)}</td>
+    <td></td>
+    <td class="${cc}">${fmt(Xc,4)}</td>
+    <td class="${cc}">${fmt(Yc,4)}</td>
+    <td class="${cc}">ΔX=${fmt(dXmm,3)}mm</td>
+    <td class="${cc}">${closeOK?'= X₀Y₀ ✓':'≠ X₀Y₀ ⚠'}</td>
+  </tr>`;
+  hC+=`</tbody></table>`;
+  $('outCoord').innerHTML=hC;
+
+  // ── Tab Ringkasan
+  const tolPct=Math.min(100,Math.max(0,(ksl/spec)*100));
+  $('outSum').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px">
+      <div>
+        <h3 style="font-family:var(--head);font-size:13px;color:var(--teal);letter-spacing:2px;margin-bottom:12px">REKAPITULASI SUDUT</h3>
+        <table style="width:100%;border-collapse:collapse">
+          ${sr('Jumlah patok (n)',n,'')}
+          ${sr('Syarat sudut dalam (fb)',fmt(fb,4)+'°','green')}
+          ${sr('Σ H rata-rata',fmt(sumH,6)+'°','teal')}
+          ${sr('Salah penutup sudut',fmt(Math.abs(fSudutDet),4)+'"',sudutOK?'green':'red')}
+          ${sr('Toleransi kb',fmt(kb,4)+'"','yellow')}
+          ${sr('Koreksi per sudut',fmt(kor*3600,4)+'"','teal')}
+          ${sr('fb × 6.75',fmt(Math.abs(fSudutDet)*6.75,4),'gold')}
+        </table>
+      </div>
+      <div>
+        <h3 style="font-family:var(--head);font-size:13px;color:var(--teal);letter-spacing:2px;margin-bottom:12px">REKAPITULASI LINEAR</h3>
+        <table style="width:100%;border-collapse:collapse">
+          ${sr('ΣHD total',fmt(sumHD,4)+' m')}
+          ${sr('fd kesalahan penutup',fmt(fd*1000,4)+' mm','teal')}
+          ${sr('Salah linier didapat','1/'+fdR.toLocaleString('id-ID'),ksl>=0?'green':'red')}
+          ${sr('Spesifikasi alat','1/6000','yellow')}
+          ${sr('KSL',fmt(ksl,6),ksl>=0?'green':'red')}
+          ${sr('X penutup',fmt(Xc,4)+' m',closeOK?'green':'orange')}
+          ${sr('Y penutup',fmt(Yc,4)+' m',closeOK?'green':'orange')}
+        </table>
+        <div class="tol-wrap" style="margin-top:14px">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3);min-width:120px">Sisa toleransi KSL</span>
+          <div class="tol-bg"><div class="tol-fill" style="width:${fmt(Math.max(0,Math.min(100,tolPct)),1)}%;background:${ksl>=0?'var(--green)':'var(--red)'}"></div></div>
+          <span style="font-family:var(--mono);font-size:11px;color:${ksl>=0?'var(--green)':'var(--red)'};min-width:48px">${fmt(tolPct,1)}%</span>
+        </div>
+      </div>
+    </div>
+    <div style="background:rgba(0,229,200,.05);border:1px solid rgba(0,229,200,.15);
+      border-radius:8px;padding:14px 18px;font-family:var(--mono);font-size:11px;
+      color:var(--text2);line-height:2.2">
+      <span style="color:var(--teal);font-weight:700">KESIMPULAN &nbsp;|</span>&nbsp;
+      <strong style="color:var(--text)">${n} Patok</strong> &nbsp;—&nbsp;
+      Syarat Sudut: <span class="badge ${sudutOK?'badge-ok':'badge-fail'}">${sudutOK?'✓ LULUS':'✗ GAGAL'}</span> &nbsp;
+      Syarat Linear: <span class="badge ${ksl>=0?'badge-ok':'badge-fail'}">${ksl>=0?'✓ LULUS':'✗ GAGAL'}</span> &nbsp;
+      Penutup: <span class="badge ${closeOK?'badge-ok':'badge-warn'}">${closeOK?'✓ SESUAI':'⚠ ADA SELISIH'}</span>
+    </div>
+    <div style="margin-top:10px;text-align:right;font-family:var(--mono);font-size:10px;color:var(--text3)">
+      © Egi Nugraha — Poligon Tertutup v2.0 &nbsp;|&nbsp; Dicetak: ${new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})}
+    </div>
+  `;
+
+  $('results').style.display='block';
+  $('results').scrollIntoView({behavior:'auto',block:'start'});
+}
+
+function sr(label,val,color){
+  const cc=color?`color:var(--${color})`:'color:var(--text)';
+  return`<tr>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text3);padding:5px 8px;border:1px solid var(--border)">${label}</td>
+    <td style="font-family:var(--mono);font-size:12px;font-weight:700;padding:5px 8px;border:1px solid var(--border);text-align:right;${cc}">${val}</td>
+  </tr>`;
+}
+
+/* ══════════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════════ */
+function swTab(id,btn){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  $(id).classList.add('on');btn.classList.add('on');
+}
+
+/* ══════════════════════════════════════════════════
+   EXPORT CSV
+══════════════════════════════════════════════════ */
+function exportCSV(){
+  if(!lastPts){alert('Klik "Hitung Otomatis" terlebih dahulu.');return;}
+  let csv='Patok,Target,H Dalam (deg),HD (m),Azimuth (deg),dX_adj (m),dY_adj (m),X (m),Y (m),Koreksi_mm,Status\n';
+  lastPts.forEach(p=>{
+    const em=Math.max(Math.abs(p.kx),Math.abs(p.ky))*1000;
+    csv+=`${p.patok},${p.tgt||''},${fmt(p.hDalam,6)},${fmt(p.hd,4)},${fmt(p.az,6)},${fmt(p.dXa,6)},${fmt(p.dYa,6)},${fmt(p.X,4)},${fmt(p.Y,4)},${fmt(em,3)},${em<=2?'OK':'Blunder'}\n`;
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='poligon_tertutup_egi.csv';a.click();
+}
+
+/* ══════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════ */
+DEFAULTS.forEach(d=>addPatok(d));
+</script>
+<!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
+<style id="survai-embed-style">
+@media all{
+  html.survai-embed body{background:#f8fafc !important;}
+  /* Sembunyikan chrome bawaan file lama saat di-embed dalam shell baru */
+  html.survai-embed .status,
+  html.survai-embed .statusbar,
+  html.survai-embed .status-bar,
+  html.survai-embed .phone .status,
+  html.survai-embed .notch,
+  html.survai-embed .home-indicator{display:none !important;}
+  /* Header/hero/topbar internal: disembunyikan karena shell sudah punya header */
+  html.survai-embed > body header.header,
+  html.survai-embed > body .topbar,
+  html.survai-embed > body header.topbar,
+  html.survai-embed > body .app-header,
+  html.survai-embed .hero-row .back,
+  html.survai-embed .top-mini .back,
+  html.survai-embed .mf-head .back,
+  html.survai-embed .wl-head .back,
+  html.survai-embed .ct-top .ct-back{ }
+  /* Lepas frame "HP" agar konten full-width di Android */
+  html.survai-embed .phone,
+  html.survai-embed .mobile-frame{max-width:100% !important;width:100% !important;margin:0 !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;min-height:auto !important;}
+  html.survai-embed .app{max-width:100% !important;padding-bottom:24px !important;}
+  /* Anti horizontal-overflow di Android */
+  html.survai-embed,html.survai-embed body{overflow-x:hidden !important;}
+  html.survai-embed table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Target sentuh & tinggi input minimal */
+  html.survai-embed input,html.survai-embed select,html.survai-embed button{min-height:44px;}
+  /* Error box global untuk safeRun */
+  .survai-error-box{margin-top:12px;padding:12px 14px;border-radius:14px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:14px;line-height:1.5;}
+}
+</style>
+<script id="survai-embed-script">
+(function(){
+  try{
+    var p = new URLSearchParams(location.search);
+    if(p.get('embed')==='1'){ document.documentElement.classList.add('survai-embed'); }
+  }catch(e){}
+  // Wrapper aman untuk tombol hitung (opsional dipakai shell); TIDAK mengganti function asli
+  window.safeRun = window.safeRun || function(fn, targetId){
+    try{
+      if(typeof fn==='function'){ return fn(); }
+      if(typeof fn==='string' && typeof window[fn]==='function'){ return window[fn](); }
+      throw new Error('Function tidak ditemukan.');
+    }catch(error){
+      console.error(error);
+      var t = (targetId&&document.getElementById(targetId)) || document.querySelector('.result') || document.querySelector('.panel') || document.body;
+      var box=document.createElement('div'); box.className='survai-error-box';
+      box.innerHTML='<b>Perhitungan gagal diproses.</b><br>'+(error&&error.message?error.message:error);
+      t.appendChild(box);
+    }
+  };
+  // Beritahu shell bahwa submenu sudah siap (untuk hideLoading yang lebih akurat)
+  window.addEventListener('load',function(){
+    try{ if(parent && parent!==window){ parent.postMessage({survai:'ready'}, '*'); } }catch(e){}
+  });
+})();
+</script>
+<!-- ==== END SURVAI EMBED MODE ==== -->
+
+</body>
+</html>

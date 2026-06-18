@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Basic Survei — v7 Clean Sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..950&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --body:#e2e8f0;--frame:#f8fafc;--ink:#020617;--navy:#0f172a;--muted:#64748b;--soft:#94a3b8;--line:#e2e8f0;--field:#f8fafc;--white:#fff;--gold:#d6a94a;--gold-2:#f2cf7b;--blue:#2563eb;--green:#16a34a;--red:#dc2626;
+  --card-shadow:0 18px 45px rgba(15,23,42,.12),0 3px 12px rgba(15,23,42,.08);
+  --soft-shadow:0 10px 30px rgba(15,23,42,.10);
+  --glass:rgba(255,255,255,.74);--glass-border:rgba(255,255,255,.80);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;min-width:0}
+html,body{height:100%;width:100%;overflow:hidden}
+body{margin:0;background:var(--body);font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--ink);display:grid;place-items:center}
+button,input,select{font:inherit}button{cursor:pointer}.tap{transition:transform .12s ease,filter .12s ease}.tap:active{transform:scale(.96)}
+.phone{width:390px;height:844px;border:8px solid #0b1220;border-radius:40px;background:var(--frame);overflow:hidden;box-shadow:0 30px 100px rgba(2,6,23,.38), inset 0 0 0 1px rgba(255,255,255,.12);position:relative;isolation:isolate}.app{height:100%;display:flex;flex-direction:column;background:linear-gradient(180deg,#f8fafc 0%,#f1f5f9 100%);overflow:hidden}.status{height:36px;flex:0 0 36px;padding:10px 22px 0;display:flex;justify-content:space-between;align-items:flex-start;font-size:13px;font-weight:760;color:#111827}.status-icons{display:flex;gap:7px;align-items:center}.signal{width:17px;height:12px;display:flex;gap:2px;align-items:flex-end}.signal i{width:3px;background:#111827;border-radius:2px}.signal i:nth-child(1){height:4px}.signal i:nth-child(2){height:7px}.signal i:nth-child(3){height:10px}.signal i:nth-child(4){height:12px}.battery{width:24px;height:12px;border:1.8px solid #111827;border-radius:3px;position:relative}.battery:after{content:"";position:absolute;right:-4px;top:3px;width:2px;height:5px;background:#111827;border-radius:0 2px 2px 0}.battery:before{content:"";position:absolute;left:2px;top:2px;width:15px;height:6px;background:#111827;border-radius:2px}
+.header{flex:0 0 auto;padding:10px 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}.brand{display:flex;gap:10px;align-items:center}.logo{width:42px;height:42px;border-radius:16px;background:radial-gradient(circle at 30% 25%,#fff7d6,#d6a94a 45%,#0f172a 46%);box-shadow:var(--soft-shadow);display:grid;place-items:center;color:white;font-weight:950}.brand h1{font-size:17px;margin:0;line-height:1.05;letter-spacing:-.045em}.brand p{font-size:11px;margin:3px 0 0;color:var(--muted);font-weight:650}.glass-btn{border:1px solid var(--glass-border);background:var(--glass);box-shadow:var(--soft-shadow);border-radius:16px;min-width:44px;height:44px;padding:0 12px;font-weight:850;color:var(--ink);display:inline-flex;align-items:center;gap:7px;justify-content:center}.top-card{margin:0 18px 10px;background:#fff;border:1px solid rgba(226,232,240,.9);box-shadow:var(--card-shadow);border-radius:24px;padding:10px;flex:0 0 auto}.search{height:46px;border:1.5px solid rgba(214,169,74,.55);border-radius:18px;background:#fff9ec;display:flex;align-items:center;gap:9px;padding:0 13px;color:#8a6a24;font-size:13px;font-weight:750}.search input{border:0;outline:0;background:transparent;flex:1;font-weight:750;color:#334155;width:100%}.tabs{display:flex;gap:8px;margin-top:0}.tab{flex:1;border:0;border-radius:16px;background:#f1f5f9;color:#64748b;font-weight:900;font-size:12px;padding:11px 8px}.tab.active{background:#0f172a;color:#fff;box-shadow:0 12px 24px rgba(15,23,42,.2)}
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 18px 92px;scrollbar-width:none}.content::-webkit-scrollbar{display:none}.section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:13px 1px 9px}.section-title h2{font-size:13px;letter-spacing:-.02em;margin:0;color:#475569}.section-title.compact{justify-content:flex-start}.select-head.clean{justify-content:flex-start}.section-tools{display:flex;align-items:center;gap:8px}.qa-pill{font-size:10.5px;color:#64748b;background:#fff;border:1px solid #e2e8f0;border-radius:999px;padding:6px 9px;font-weight:850}.select-shell{display:block;margin:0 0 10px;background:linear-gradient(180deg,#ffffff,#f8fafc);border:1px solid #e2e8f0;border-radius:22px;padding:11px;box-shadow:var(--card-shadow);overflow:hidden}.select-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.select-head b{font-size:12px;letter-spacing:-.02em}.select-head small{font-size:10px;color:#0f172a;font-weight:900;background:#f2cf7b;border-radius:999px;padding:6px 9px;white-space:nowrap}.select-wrap{position:relative}.select-wrap select{width:100%;height:50px;border:1.5px solid rgba(214,169,74,.62);border-radius:18px;background:#fff9ec;color:#0f172a;font-size:13px;font-weight:900;padding:0 44px 0 13px;outline:0;appearance:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}.select-wrap:after{content:'⌄';position:absolute;right:14px;top:50%;transform:translateY(-54%);font-size:18px;font-weight:950;color:#8a6a24;pointer-events:none}.select-desc{margin:9px 2px 0;color:#64748b;font-size:10.8px;line-height:1.45;font-weight:780}.select-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:9px}.active-chip{min-width:0;border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:9px 10px}.active-chip b{display:block;font-size:12px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.active-chip small{display:block;margin-top:3px;color:#64748b;font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.quick-btn{height:42px;border:0;background:#0f172a;color:#fff;border-radius:16px;padding:0 12px;font-size:11px;font-weight:950;box-shadow:0 10px 22px rgba(15,23,42,.18)}.panel{width:100%;max-width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:28px;padding:15px;box-shadow:var(--card-shadow);margin-top:12px;overflow:hidden}.panel-head{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:12px}.panel-head.clean{justify-content:flex-start}.panel-head h3{margin:0;font-size:15px;letter-spacing:-.04em;line-height:1.15}.badge{font-size:10.5px;font-weight:900;background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 9px;white-space:nowrap}.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;width:100%}.field{display:flex;flex-direction:column;gap:5px;width:100%}.field.full{grid-column:1/-1}.field label{font-size:10.5px;color:#64748b;font-weight:900;letter-spacing:-.01em;line-height:1.2}.field input,.field select{width:100%;height:43px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:15px;padding:0 12px;font-size:13px;font-weight:760;color:#0f172a;outline:0}.field input:focus,.field select:focus{border-color:#d6a94a;box-shadow:0 0 0 4px rgba(214,169,74,.16)}.actions{display:flex;gap:9px;margin-top:12px;width:100%}.primary,.secondary{height:44px;border:0;border-radius:16px;font-weight:950;letter-spacing:-.02em}.primary{flex:1;background:#0f172a;color:white;box-shadow:0 12px 26px rgba(15,23,42,.22)}.secondary{width:88px;flex:0 0 88px;background:#f1f5f9;color:#334155}.mini-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}.sample-actions{grid-template-columns:1fr 1fr 1fr}.mini-actions button{height:36px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;color:#475569;font-size:11px;font-weight:900}.result{margin-top:12px;background:linear-gradient(180deg,#0f172a,#020617);color:white;border-radius:24px;padding:14px;box-shadow:0 16px 34px rgba(15,23,42,.25);overflow:hidden}.result h4{margin:0 0 8px;font-size:13px}.rows{display:grid;gap:7px}.kv{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed rgba(255,255,255,.13);padding-bottom:7px;font-size:12px}.kv:last-child{border:0;padding-bottom:0}.kv span{color:#cbd5e1}.kv b{text-align:right;color:#fff;word-break:break-word}.formula{margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:20px;padding:12px;display:none}.formula.open{display:block}.formula h4{margin:0 0 7px;font-size:12px;letter-spacing:-.02em;color:#334155}.formula code{display:block;font-family:'Inter',sans-serif;font-size:11.2px;line-height:1.55;color:#475569;white-space:pre-wrap;overflow-wrap:anywhere}.hint{margin-top:10px;font-size:11px;line-height:1.5;color:#64748b;font-weight:700}.map-card{height:220px;border-radius:26px;overflow:hidden;margin-top:12px;border:1px solid #e2e8f0;box-shadow:var(--card-shadow);background:#e2e8f0}.map-card #map{width:100%;height:100%}.refs{display:grid;gap:8px}.ref{border:1px solid #e2e8f0;background:#fff;border-radius:18px;padding:11px}.ref b{font-size:12px}.ref p{margin:4px 0 0;color:#64748b;font-size:11px;line-height:1.45;font-weight:700}.bottom-nav{position:absolute;left:18px;right:18px;bottom:16px;height:62px;background:rgba(15,23,42,.92);border-radius:26px;display:flex;justify-content:space-around;align-items:center;box-shadow:0 18px 40px rgba(15,23,42,.33);border:1px solid rgba(255,255,255,.12);z-index:10}.nav-item{border:0;background:transparent;color:#94a3b8;font-weight:850;font-size:10px;display:grid;gap:4px;place-items:center}.nav-item.active{color:#f2cf7b}.nav-item i{font-style:normal;font-size:18px}.toast{position:absolute;left:22px;right:22px;bottom:88px;background:#0f172a;color:white;border-radius:18px;padding:12px;font-size:12px;font-weight:800;box-shadow:var(--card-shadow);opacity:0;pointer-events:none;transform:translateY(10px);transition:.22s;z-index:20}.toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:430px){body{display:block;background:var(--frame)}.phone{width:100vw;height:100dvh;border:0;border-radius:0;box-shadow:none}.bottom-nav{bottom:12px}.content{padding-left:16px;padding-right:16px}.top-card{margin-left:16px;margin-right:16px}.header{padding-left:16px;padding-right:16px}.grid{gap:8px}.field input{padding-left:11px;padding-right:8px}}
+@media(max-width:355px){.grid{grid-template-columns:1fr}.secondary{width:78px;flex-basis:78px}.brand h1{font-size:15px}.select-meta{grid-template-columns:1fr}.quick-btn{width:100%}}
+
+
+/* ===== RESPONSIVE ANDROID / TABLET FULLSCREEN FIX =====
+   Menghapus frame/mockup HP, status bar simulasi, dan membuat ukuran fleksibel
+   agar aman dibuka di Android maupun tablet tanpa overlap/outlier. */
+html, body{
+  width:100%;
+  height:100%;
+  min-height:100%;
+  overflow:hidden;
+}
+body{
+  display:block;
+  place-items:unset;
+  background:var(--frame);
+}
+.phone{
+  width:100vw !important;
+  height:100dvh !important;
+  min-height:100vh;
+  max-width:none !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  background:var(--frame);
+  overflow:hidden;
+}
+.app{
+  width:100%;
+  height:100%;
+  min-height:100dvh;
+}
+.status{
+  display:none !important;
+}
+.header{
+  padding:14px clamp(16px,2.6vw,32px) 12px;
+}
+.top-card{
+  margin-left:clamp(16px,2.6vw,32px);
+  margin-right:clamp(16px,2.6vw,32px);
+  padding:clamp(10px,1.3vw,14px);
+}
+.content{
+  padding-left:clamp(16px,2.6vw,32px);
+  padding-right:clamp(16px,2.6vw,32px);
+  padding-bottom:calc(96px + env(safe-area-inset-bottom));
+}
+#page-calc,
+#page-mapview,
+#page-refs{
+  width:100%;
+  max-width:1180px;
+  margin:0 auto;
+}
+.select-shell,
+.panel,
+.map-card,
+.ref{
+  max-width:100%;
+}
+.bottom-nav{
+  left:clamp(16px,2.6vw,32px);
+  right:clamp(16px,2.6vw,32px);
+  bottom:calc(14px + env(safe-area-inset-bottom));
+  max-width:1180px;
+  margin:0 auto;
+}
+.toast{
+  left:clamp(16px,2.6vw,32px);
+  right:clamp(16px,2.6vw,32px);
+  bottom:calc(86px + env(safe-area-inset-bottom));
+  max-width:1180px;
+  margin:0 auto;
+}
+.field input,
+.field select,
+.search input,
+.select-wrap select{
+  min-width:0;
+  max-width:100%;
+}
+.kv{
+  align-items:flex-start;
+}
+.kv span,
+.kv b{
+  min-width:0;
+}
+
+@media (min-width:768px){
+  .header,
+  .top-card{
+    max-width:1180px;
+    margin-left:auto;
+    margin-right:auto;
+    width:calc(100% - 64px);
+  }
+  .header{
+    padding-left:0;
+    padding-right:0;
+  }
+  .content{
+    padding-top:4px;
+  }
+  .grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+  }
+  .panel{
+    padding:18px;
+  }
+  .map-card{
+    height:min(420px,45dvh);
+  }
+}
+@media (min-width:1024px){
+  .grid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .field.full{
+    grid-column:1/-1;
+  }
+  .sample-actions{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+@media (max-width:430px){
+  .phone{
+    width:100vw !important;
+    height:100dvh !important;
+  }
+}
+@media (max-width:355px){
+  .grid{
+    grid-template-columns:1fr;
+  }
+  .actions{
+    flex-wrap:wrap;
+  }
+  .primary,.secondary{
+    width:100%;
+    flex:1 1 100%;
+  }
+  .sample-actions{
+    grid-template-columns:1fr;
+  }
+}
+
+</style>
+<link rel="stylesheet" href="../shared-home-theme.css" />
+</head>
+<body>
+<div class="phone">
+  <div class="app">
+    <div class="status"><span>9:41</span><div class="status-icons"><div class="signal"><i></i><i></i><i></i><i></i></div><span style="font-size:12px;font-weight:900">5G</span><div class="battery"></div></div></div>
+    <header class="header">
+      <div class="brand"><div class="logo">Σ</div><div><h1>Basic Survei<br></h1><p>QA/QC Field</p></div></div>
+      <button class="glass-btn tap" onclick="openGPS()">GPS</button>
+    </header>
+
+    <div class="top-card">
+      <div class="tabs"><button class="tab active tap" onclick="showPage('calc')">Kalkulasi</button><button class="tab tap" onclick="showPage('mapview')">Map</button><button class="tab tap" onclick="showPage('refs')">QA Ref</button></div>
+    </div>
+
+    <main class="content">
+      <section id="page-calc">
+        <div class="section-title compact">
+          <h2>Sub menu kalkulasi</h2>
+        </div>
+        <div id="selectShell" class="select-shell">
+          <div class="select-head clean"><b>Pilih sub menu kalkulasi</b></div>
+          <div class="select-wrap"><select id="modeSelect" class="tap" onchange="setModeFromSelect(this.value)"></select></div>
+        </div>
+        <div id="calcPanel" class="panel"></div>
+      </section>
+
+      <section id="page-mapview" style="display:none">
+        <div class="section-title compact"><h2>Map preview</h2></div>
+        <div class="panel"><div class="panel-head"><h3>GPS / Target Map</h3><span class="badge">High accuracy</span></div><p class="hint">Map aktif untuk mode Navigasi GPS. Untuk koordinat lokal N/E, plot harus memakai transformasi ke sistem proyeksi/lat-lon dahulu.</p><div class="map-card"><div id="map"></div></div><div class="mini-actions"><button class="tap" onclick="openGPS()">Locate GPS</button><button class="tap" onclick="clearMap()">Clear layer</button></div></div>
+      </section>
+
+      <section id="page-refs" style="display:none">
+        <div class="section-title compact"><h2>Referensi rumus</h2></div>
+        <div class="refs">
+          <div class="ref"><b>Coordinate geometry / COGO</b><p>Jarak, azimuth, dan REC memakai trigonometri bidang datar: ΔE, ΔN, D, dan atan2 untuk arah kuadran penuh.</p></div>
+          <div class="ref"><b>Stake out konstruksi</b><p>Selisih koordinat titik desain terhadap posisi lapangan dihitung menjadi arah, jarak, dan koreksi cut/fill elevasi.</p></div>
+          <div class="ref"><b>Leveling sipat datar</b><p>Metode Height of Instrument: HI = RL BM + BS, RL titik = HI − FS, dan target rambu = HI − RL desain.</p></div>
+          <div class="ref"><b>Crossfall / slope jalan</b><p>Turun tepi dihitung ΔH = lebar dari as × grade. Untuk crown road, hitung kiri dan kanan masing-masing dari centerline.</p></div>
+          <div class="ref"><b>GPS navigation</b><p>Jarak lat/lon memakai haversine dan initial bearing memakai formula great-circle pendek.</p></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast"></div>
+  </div>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);let currentMode='jarak',map,userMarker,targetMarker,lineLayer,compassHeading=0,formulaOpen=false;
+const val=id=>{const el=$(id);if(!el||el.value==='')return NaN;return Number(el.value)};const fmt=(n,d=3)=>Number.isFinite(n)?Number(n).toFixed(d):'-';const rad=d=>d*Math.PI/180;const deg=r=>r*180/Math.PI;const norm=a=>((a%360)+360)%360;const azimuth=(dE,dN)=>norm(deg(Math.atan2(dE,dN)));const dist2=(dE,dN)=>Math.hypot(dE,dN);
+function dms(dec){if(!Number.isFinite(dec))return '-';const sign=dec<0?'-':'';dec=Math.abs(dec);const D=Math.floor(dec),M=Math.floor((dec-D)*60),S=(((dec-D)*60-M)*60);return `${sign}${D}°${M}'${S.toFixed(2)}"`}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
+const modes=[
+ {id:'jarak',ico:'↗',title:'Jarak & Azimuth',sub:'ΔE, ΔN, D, AZ',formula:'ΔE = E2 − E1\nΔN = N2 − N1\nD = √(ΔE² + ΔN²)\nAZ = atan2(ΔE, ΔN)',fields:[['N1','N titik 1'],['E1','E titik 1'],['N2','N titik 2'],['E2','E titik 2']]},
+ {id:'rec',ico:'＋',title:'REC / Polar',sub:'jarak + azimuth → titik',formula:'E2 = E1 + D·sin(AZ)\nN2 = N1 + D·cos(AZ)',fields:[['N1','N awal'],['E1','E awal'],['D','Jarak D'],['AZ','Azimuth derajat']]},
+ {id:'segitiga',ico:'△',title:'Sudut Segitiga',sub:'hukum cosinus',formula:'C = arccos((a² + b² − c²) / (2ab))',fields:[['A','Sisi a'],['B','Sisi b'],['C','Sisi c']]},
+ {id:'resection',ico:'◎',title:'Resection 2 Jarak',sub:'dua known point + jarak',formula:'a=(r1²-r2²+d²)/(2d)\nh=√(r1²-a²)\nP=A+a·u ± h·n',fields:[['N1','N titik A'],['E1','E titik A'],['N2','N titik B'],['E2','E titik B'],['R1','Jarak ke A'],['R2','Jarak ke B']]},
+ {id:'offset',ico:'⊣',title:'Offset / Offside',sub:'station + offset kiri/kanan',formula:'u = (ΔE/D, ΔN/D)\nleft = (−uN, uE)\nP = A + station·u + offset·left',fields:[['N1','N awal garis'],['E1','E awal garis'],['N2','N akhir garis'],['E2','E akhir garis'],['STA','Station dari awal'],['OFF','Offset +kiri / -kanan']]},
+ {id:'pancang',ico:'⌖',title:'Pancang / Stake Out',sub:'selisih titik desain',formula:'ΔE = Edesain − Eposisi\nΔN = Ndesain − Nposisi\nD = √(ΔE²+ΔN²)\nCut/Fill = RL desain − RL existing',fields:[['N1','N posisi'],['E1','E posisi'],['N2','N desain'],['E2','E desain'],['RLX','RL existing'],['RLD','RL desain']]},
+ {id:'level',ico:'▰',title:'Leveling / Rambu',sub:'HI, RL, target bacaan',formula:'HI = RL BM + BS\nRL titik = HI − FS\nTarget bacaan = HI − RL desain\nCut/Fill = RL desain − RL existing',fields:[['BM','RL BM'],['BS','Backsight'],['FS','Foresight'],['RLD','RL desain']]},
+ {id:'slope',ico:'▱',title:'Slope Jalan',sub:'crossfall / crown',formula:'ΔH = Lebar × Grade\nRL tepi = RL as − ΔH',fields:[['RLC','RL as / centerline'],['W','Lebar ke tepi (m)'],['G','Grade (%)']]},
+ {id:'nav',ico:'➤',title:'Navigasi GPS',sub:'lat/lon haversine',formula:'a = sin²(Δφ/2)+cosφ1·cosφ2·sin²(Δλ/2)\nD = R·2 atan2(√a,√(1−a))\nθ = atan2(sinΔλ cosφ2, cosφ1 sinφ2 − sinφ1 cosφ2 cosΔλ)',fields:[['LAT1','Lat posisi'],['LON1','Lon posisi'],['LAT2','Lat target'],['LON2','Lon target']]}
+];
+function renderModeSelect(){const sel=$('modeSelect');if(!sel)return;sel.innerHTML=modes.map(m=>`<option value="${m.id}">${m.title} — ${m.sub}</option>`).join('');sel.value=currentMode}
+function updateDropdownInfo(){renderModeSelect()}
+function setMode(id){currentMode=id;renderPanel();updateDropdownInfo();toast('Mode aktif: '+modes.find(x=>x.id===id).title)}
+function setModeFromSelect(id){setMode(id);showPage('calc')}
+function inputGrid(m){return `<div class="grid">${m.fields.map(f=>`<div class="field"><label>${f[1]}</label><input id="${f[0]}" type="number" inputmode="decimal" placeholder="0.000"></div>`).join('')}</div>`}
+function renderPanel(){const m=modes.find(x=>x.id===currentMode);$('calcPanel').innerHTML=`<div class="panel-head clean"><h3>${m.title}</h3></div>${inputGrid(m)}<div class="actions"><button class="primary tap" onclick="calc()">HITUNG</button></div><div class="mini-actions sample-actions"><button class="tap" onclick="sampleInputs()">Sampel</button><button class="tap" onclick="toggleFormula(true)">Rumus</button><button class="tap" onclick="clearInputs()">Clear</button></div><div class="formula ${formulaOpen?'open':''}" id="formulaBox"><h4>Rumus</h4><code>${m.formula}</code></div><div class="result" id="result"><h4>Hasil</h4><div class="rows"><div class="kv"><span>Status</span><b>Input data lalu hitung</b></div></div></div>`}
+function toggleFormula(open){formulaOpen=typeof open==='boolean'?open:!formulaOpen;const box=$('formulaBox');if(box)box.classList.toggle('open',formulaOpen);if(formulaOpen)showPage('calc')}
+
+function sampleInputs(){
+ const samples={
+  jarak:{N1:1000,E1:1000,N2:1125.35,E2:1088.72},
+  rec:{N1:1000,E1:1000,D:150,AZ:35},
+  segitiga:{A:30,B:40,C:50},
+  resection:{N1:1000,E1:1000,N2:1000,E2:1200,R1:156.205,R2:128.062},
+  offset:{N1:1000,E1:1000,N2:1000,E2:1200,STA:75,OFF:10},
+  pancang:{N1:998.5,E1:1002.25,N2:1000,E2:1000,RLX:18.72,RLD:18.9},
+  level:{BM:18.710,BS:1.130,FS:0.770,RLD:18.900},
+  slope:{RLC:18.900,W:13.5,G:2},
+  nav:{LAT1:-6.120000,LON1:106.150000,LAT2:-6.118900,LON2:106.153200}
+ };
+ const data=samples[currentMode]||{};
+ Object.entries(data).forEach(([id,value])=>{const el=$(id);if(el)el.value=value});
+ showResult([['Status','Sampel terisi'],['Mode',modes.find(x=>x.id===currentMode).title]]);
+}
+function clearInputs(){document.querySelectorAll('#calcPanel input').forEach(i=>i.value='');showResult([['Status','Input dibersihkan']])}
+function showResult(rows){$('result').innerHTML=`<h4>Hasil</h4><div class="rows">${rows.map(r=>`<div class="kv"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}</div>`}
+function need(...ids){for(const id of ids){if(!Number.isFinite(val(id)))throw new Error('Input '+id+' belum valid')}}
+function calc(){let rows=[];try{
+ if(currentMode==='jarak'){need('E1','N1','E2','N2');let dE=val('E2')-val('E1'),dN=val('N2')-val('N1'),D=dist2(dE,dN),AZ=azimuth(dE,dN);rows=[['ΔE',fmt(dE)],['ΔN',fmt(dN)],['Jarak D',fmt(D)+' m'],['Azimuth',fmt(AZ,6)+'° / '+dms(AZ)]]}
+ if(currentMode==='rec'){need('N1','E1','D','AZ');let N=val('N1'),E=val('E1'),D=val('D'),AZ=val('AZ');let E2=E+D*Math.sin(rad(AZ)),N2=N+D*Math.cos(rad(AZ));rows=[['E2',fmt(E2)],['N2',fmt(N2)],['ΔE',fmt(E2-E)],['ΔN',fmt(N2-N)]]}
+ if(currentMode==='segitiga'){need('A','B','C');let a=val('A'),b=val('B'),c=val('C'),cosC=(a*a+b*b-c*c)/(2*a*b),C=Math.acos(cosC);rows=[['Sudut C',fmt(deg(C),6)+'° / '+dms(deg(C))],['Check',Number.isFinite(C)&&cosC<=1&&cosC>=-1?'Valid':'Tidak valid']]}
+ if(currentMode==='resection'){need('N1','E1','N2','E2','R1','R2');let N1=val('N1'),E1=val('E1'),N2=val('N2'),E2=val('E2'),r1=val('R1'),r2=val('R2');let dx=E2-E1,dy=N2-N1,d=Math.hypot(dx,dy);if(d===0)throw new Error('Titik A dan B tidak boleh sama');let a=(r1*r1-r2*r2+d*d)/(2*d),h2=r1*r1-a*a,h=Math.sqrt(Math.max(0,h2)),uE=dx/d,uN=dy/d,nE=-uN,nN=uE;let p1={E:E1+a*uE+h*nE,N:N1+a*uN+h*nN},p2={E:E1+a*uE-h*nE,N:N1+a*uN-h*nN};rows=[['Kandidat P1',`E ${fmt(p1.E)} / N ${fmt(p1.N)}`],['Kandidat P2',`E ${fmt(p2.E)} / N ${fmt(p2.N)}`],['Status',h2<0?'Lingkaran tidak berpotongan':'Pilih kandidat sesuai posisi lapangan']]}
+ if(currentMode==='offset'){need('N1','E1','N2','E2','STA','OFF');let N1=val('N1'),E1=val('E1'),N2=val('N2'),E2=val('E2'),sta=val('STA'),off=val('OFF');let dE=E2-E1,dN=N2-N1,D=Math.hypot(dE,dN);if(D===0)throw new Error('Garis awal-akhir tidak boleh nol');let uE=dE/D,uN=dN/D;let E=E1+sta*uE+off*(-uN),N=N1+sta*uN+off*(uE);rows=[['E offset',fmt(E)],['N offset',fmt(N)],['Az garis',fmt(azimuth(dE,dN),6)+'°'],['Interpretasi',off>=0?'Offset kiri garis':'Offset kanan garis']]}
+ if(currentMode==='pancang'){need('N1','E1','N2','E2');let dE=val('E2')-val('E1'),dN=val('N2')-val('N1'),D=Math.hypot(dE,dN),AZ=azimuth(dE,dN),cf=val('RLD')-val('RLX');rows=[['Geser Easting',fmt(dE)+' m'],['Geser Northing',fmt(dN)+' m'],['Jarak ke titik',fmt(D)+' m'],['Azimuth target',fmt(AZ,6)+'° / '+dms(AZ)],['Cut/Fill',Number.isFinite(cf)?(cf>0?'Fill +':'Cut ')+fmt(Math.abs(cf))+' m':'-']]}
+ if(currentMode==='level'){need('BM','BS','FS','RLD');let HI=val('BM')+val('BS'),RL=HI-val('FS'),target=HI-val('RLD'),cf=val('RLD')-RL;rows=[['HI alat',fmt(HI)+' m'],['RL existing',fmt(RL)+' m'],['Target bacaan rambu',fmt(target)+' m'],['Cut/Fill',cf>0?'Fill +'+fmt(cf)+' m':'Cut '+fmt(Math.abs(cf))+' m']]}
+ if(currentMode==='slope'){need('RLC','W','G');let drop=val('W')*(val('G')/100),edge=val('RLC')-drop;rows=[['Turun dari as',fmt(drop)+' m'],['RL tepi',fmt(edge)+' m'],['Grade',fmt(val('G'),2)+' %'],['QA',val('G')<0?'Grade negatif: tepi naik':'Tepi turun dari as']]}
+ if(currentMode==='nav'){need('LAT1','LON1','LAT2','LON2');let lat1=val('LAT1'),lon1=val('LON1'),lat2=val('LAT2'),lon2=val('LON2'),rD=rad(lat2-lat1),rL=rad(lon2-lon1),p1=rad(lat1),p2=rad(lat2);let a=Math.sin(rD/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(rL/2)**2;let D=6371000*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));let y=Math.sin(rL)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(rL);let AZ=norm(deg(Math.atan2(y,x)));rows=[['Jarak geodesik pendek',fmt(D)+' m'],['Initial bearing',fmt(AZ,6)+'° / '+dms(AZ)],['Heading browser',fmt(compassHeading,1)+'°'],['Arah relatif',relative(AZ,compassHeading)]];plotLatLon(lat1,lon1,lat2,lon2)}
+ showResult(rows)}catch(e){showResult([['Error',e.message||'Input tidak valid']])}}
+function relative(az,head){let diff=((az-head+540)%360)-180;if(Math.abs(diff)<10)return 'MAJU';return diff>0?'KANAN '+fmt(diff,1)+'°':'KIRI '+fmt(Math.abs(diff),1)+'°'}
+function showPage(p){['calc','mapview','refs'].forEach(x=>{$('page-'+x).style.display=x===p?'block':'none'});document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['calc','mapview','refs'][i]===p));document.querySelectorAll('.nav-item').forEach((b,i)=>b.classList.toggle('active',[p==='calc',p==='mapview',false,p==='refs'][i]));if(p==='mapview')setTimeout(initMap,80)}
+function initMap(){if(map){setTimeout(()=>map.invalidateSize(),80);return}map=L.map('map',{zoomControl:false}).setView([-6.120,106.150],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:21,attribution:'© OSM'}).addTo(map);setTimeout(()=>map.invalidateSize(),120)}
+function plotLatLon(lat1,lon1,lat2,lon2){showPage('mapview');initMap();if(userMarker)map.removeLayer(userMarker);if(targetMarker)map.removeLayer(targetMarker);if(lineLayer)map.removeLayer(lineLayer);userMarker=L.marker([lat1,lon1]).addTo(map).bindPopup('Posisi');targetMarker=L.marker([lat2,lon2]).addTo(map).bindPopup('Target');lineLayer=L.polyline([[lat1,lon1],[lat2,lon2]],{weight:4}).addTo(map);map.fitBounds(lineLayer.getBounds(),{padding:[30,30]})}
+function clearMap(){if(!map)return;[userMarker,targetMarker,lineLayer].forEach(l=>{if(l)map.removeLayer(l)});userMarker=targetMarker=lineLayer=null;toast('Layer map dibersihkan')}
+function openGPS(){showPage('mapview');initMap();if(!navigator.geolocation){toast('GPS browser tidak tersedia');return}navigator.geolocation.getCurrentPosition(pos=>{const {latitude,longitude,accuracy}=pos.coords;plotLatLon(latitude,longitude,latitude,longitude);toast('GPS aktif ±'+fmt(accuracy,1)+' m')},err=>toast('GPS gagal: '+err.message),{enableHighAccuracy:true,timeout:10000,maximumAge:0})}
+window.addEventListener('deviceorientationabsolute',e=>{if(e.alpha!=null)compassHeading=norm(360-e.alpha)});window.addEventListener('deviceorientation',e=>{if(e.alpha!=null)compassHeading=norm(360-e.alpha)});
+renderModeSelect();renderPanel();updateDropdownInfo();
+</script>
+<!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
+<style id="survai-embed-style">
+@media all{
+  html.survai-embed body{background:#f8fafc !important;}
+  /* Sembunyikan chrome bawaan file lama saat di-embed dalam shell baru */
+  html.survai-embed .status,
+  html.survai-embed .statusbar,
+  html.survai-embed .status-bar,
+  html.survai-embed .phone .status,
+  html.survai-embed .notch,
+  html.survai-embed .home-indicator{display:none !important;}
+  /* Header/hero/topbar internal: disembunyikan karena shell sudah punya header */
+  html.survai-embed > body header.header,
+  html.survai-embed > body .topbar,
+  html.survai-embed > body header.topbar,
+  html.survai-embed > body .app-header,
+  html.survai-embed .hero-row .back,
+  html.survai-embed .top-mini .back,
+  html.survai-embed .mf-head .back,
+  html.survai-embed .wl-head .back,
+  html.survai-embed .ct-top .ct-back{ }
+  /* Lepas frame "HP" agar konten full-width di Android */
+  html.survai-embed .phone,
+  html.survai-embed .mobile-frame{max-width:100% !important;width:100% !important;margin:0 !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;min-height:auto !important;}
+  html.survai-embed .app{max-width:100% !important;padding-bottom:24px !important;}
+  /* Anti horizontal-overflow di Android */
+  html.survai-embed,html.survai-embed body{overflow-x:hidden !important;}
+  html.survai-embed table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Target sentuh & tinggi input minimal */
+  html.survai-embed input,html.survai-embed select,html.survai-embed button{min-height:44px;}
+  /* Error box global untuk safeRun */
+  .survai-error-box{margin-top:12px;padding:12px 14px;border-radius:14px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:14px;line-height:1.5;}
+}
+</style>
+<script id="survai-embed-script">
+(function(){
+  try{
+    var p = new URLSearchParams(location.search);
+    if(p.get('embed')==='1'){ document.documentElement.classList.add('survai-embed'); }
+  }catch(e){}
+  // Wrapper aman untuk tombol hitung (opsional dipakai shell); TIDAK mengganti function asli
+  window.safeRun = window.safeRun || function(fn, targetId){
+    try{
+      if(typeof fn==='function'){ return fn(); }
+      if(typeof fn==='string' && typeof window[fn]==='function'){ return window[fn](); }
+      throw new Error('Function tidak ditemukan.');
+    }catch(error){
+      console.error(error);
+      var t = (targetId&&document.getElementById(targetId)) || document.querySelector('.result') || document.querySelector('.panel') || document.body;
+      var box=document.createElement('div'); box.className='survai-error-box';
+      box.innerHTML='<b>Perhitungan gagal diproses.</b><br>'+(error&&error.message?error.message:error);
+      t.appendChild(box);
+    }
+  };
+  // Beritahu shell bahwa submenu sudah siap (untuk hideLoading yang lebih akurat)
+  window.addEventListener('load',function(){
+    try{ if(parent && parent!==window){ parent.postMessage({survai:'ready'}, '*'); } }catch(e){}
+  });
+})();
+</script>
+<!-- ==== END SURVAI EMBED MODE ==== -->
+
+</body>
+</html>

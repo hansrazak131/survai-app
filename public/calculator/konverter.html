@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Survey Coordinate Converter</title>
+
+  <!-- CDN Libraries: aktif saat online di GitHub Pages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+  <script src="https://unpkg.com/mgrs@1.0.0/dist/mgrs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    :root{
+      --purple:#0916abf0;
+      --purple-dark:#091d82;
+      --green:#11c52f;
+      --green-soft:#ffffff;
+      --bg:#f8f3fb;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#1e3c78;
+      --line:#e5e7eb;
+      --danger:#ef4444;
+      --warning:#f59e0b;
+      --shadow:0 18px 45px rgba(17,24,39,.08);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      line-height:1.5;
+    }
+    .topbar{
+      background:var(--purple);
+      color:white;
+      padding:26px 18px 34px;
+      position:sticky;
+      top:0;
+      z-index:20;
+      box-shadow:0 8px 24px rgba(0,0,0,.12);
+    }
+    .topbar-inner{max-width:1180px;margin:auto;display:flex;gap:14px;align-items:center}
+    .back{font-size:34px;font-weight:800;line-height:1}
+    h1{margin:0;font-size:28px;line-height:1.15;letter-spacing:-.6px}
+    .subtitle{margin:7px 0 0;color:rgba(255,255,255,.82);font-size:15px}
+    .wrap{max-width:1180px;margin:0 auto;padding:20px 14px 70px}
+    .hero{
+      border-radius:28px;
+      padding:28px;
+      background:linear-gradient(135deg,#16bfa5,#21c4a6);
+      color:white;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
+    .badge{display:inline-block;background:rgba(255,255,255,.18);padding:10px 18px;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}
+    .hero h2{font-size:34px;margin:24px 0 4px;letter-spacing:-.7px}
+    .hero p{margin:0;color:rgba(255,255,255,.86);font-size:17px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
+    .stat{background:rgba(255,255,255,.18);border-radius:18px;padding:17px;text-align:center;font-weight:800}
+    .stat small{display:block;margin-top:6px;color:rgba(255,255,255,.85)}
+    .tabs{display:flex;gap:10px;overflow-x:auto;padding:2px 0 14px;margin-bottom:6px}
+    .tab{
+      border:0;border-radius:16px;background:#f7eefb;color:var(--purple-dark);font-weight:800;
+      padding:15px 18px;white-space:nowrap;font-size:15px;cursor:pointer;
+    }
+    .tab.active{background:var(--purple);color:white;box-shadow:0 12px 20px rgba(155,89,182,.25)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;margin-bottom:18px}
+    .card h3{margin:0 0 16px;font-size:22px;display:flex;align-items:center;gap:10px}
+    .icon{width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#f2e8f8;color:var(--purple);font-weight:900}
+    label{display:block;font-size:13px;font-weight:800;color:var(--muted);margin:12px 0 7px}
+    input,select,textarea{
+      width:100%;padding:15px 14px;border:1.5px solid var(--line);border-radius:14px;background:white;font-size:15px;color:var(--text);outline:none;
+    }
+    textarea{min-height:90px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:var(--purple);box-shadow:0 0 0 4px rgba(155,89,182,.1)}
+    .row{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    button{border:0;border-radius:14px;padding:14px 18px;font-size:15px;font-weight:800;cursor:pointer}
+    .btn-primary{background:var(--purple);color:white}
+    .btn-green{background:var(--green);color:white}
+    .btn-ghost{background:#f5edf9;color:var(--purple-dark)}
+    .btn-danger{background:#fee2e2;color:#b91c1c}
+    .btn-warning{background:#fff7ed;color:#c2410c}
+    .notice{padding:14px 16px;border-radius:16px;background:#fbf5ff;color:#374151;border:1px solid #f1defb;margin:12px 0;font-weight:600}
+    .notice.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+    .hidden{display:none!important}
+    .point-card{background:#fbf8fd;border:1px solid #f0e9f4;border-radius:18px;padding:16px;margin:14px 0}
+    .point-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+    .point-no{background:#ead7f4;color:var(--purple);border-radius:10px;font-weight:900;padding:10px 13px}
+    .delete-point{margin-left:auto;background:#fee2e2;color:#dc2626;padding:10px 13px}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:16px;background:white}
+    table{border-collapse:collapse;width:100%;min-width:960px}
+    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:top}
+    th{background:#fbf8fd;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+    td b{color:#111827}
+    .result-box{background:var(--green-soft);border:1.5px solid #8be0cf;border-radius:16px;padding:15px;margin:8px 0}
+    .result-box small{display:block;color:#0f9f88;font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    .result-box strong{font-size:20px}
+    .footer-tools{position:sticky;bottom:0;background:rgba(248,243,251,.94);padding:12px;border-top:1px solid #eadff0;z-index:10}
+    .footer-tools-inner{max-width:1180px;margin:auto;display:flex;gap:10px;flex-wrap:wrap}
+    .small{font-size:12px;color:var(--muted)}
+    .segment{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 16px}
+    .segment button{background:#fbf5ff;color:var(--purple-dark);border-radius:16px}
+    .segment button.active{background:var(--purple);color:white;box-shadow:0 12px 20px rgba(155,89,182,.22)}
+    .geo-alert{background:#fff1e7;border:1px solid #fed7aa;color:#9a3412;border-radius:18px;padding:16px;margin:12px 0;font-weight:700;display:flex;gap:12px;align-items:flex-start}
+    .geo-alert b{display:block;color:#f59e0b;margin-bottom:4px}
+    .location-title{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .locate-btn{width:62px;height:62px;border-radius:50%;background:var(--green);color:white;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 24px rgba(32,191,163,.25)}
+    .pill{display:inline-flex;align-items:center;gap:7px;padding:10px 12px;border-radius:10px;font-size:12px;font-weight:900;margin:10px 8px 0 0}
+    .pill.green{background:#dcfce7;color:#0f9f88}.pill.orange{background:#fff7ed;color:#d97706}.pill.grey{background:#eef2f7;color:#6b7280}
+    .model-card{border-radius:20px;background:white;padding:18px;border:1px solid #f0e9f4;margin-top:12px}
+    .model-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.model-status{border-radius:999px;background:#eef2f7;color:#6b7280;padding:10px 14px;font-size:12px;font-weight:900}.model-status.ready{background:#dcfce7;color:#0f9f88}
+    .ok{color:#0f9f88;font-weight:800}.bad{color:#dc2626;font-weight:800}.orange{color:#f59e0b;font-weight:800}
+    @media(max-width:850px){
+      .grid,.row,.row3,.row4{grid-template-columns:1fr}
+      .stats{grid-template-columns:repeat(2,1fr)}
+      h1{font-size:25px}.hero h2{font-size:29px}.card{padding:18px}.wrap{padding:14px 12px 80px}
+    }
+  
+    /* Mobile-app clean mode: tampilan dibuat lebih ringkas untuk penggunaan lapangan */
+    .hero{display:none!important}
+    .topbar{padding:18px 16px 20px}
+    .topbar-inner{gap:10px}
+    .back{font-size:28px}
+    h1{font-size:23px}
+    .subtitle{font-size:13px;margin-top:3px;line-height:1.35}
+    .wrap{padding:12px 10px 32px}
+    .card{border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 8px 26px rgba(17,24,39,.06)}
+    .card h3{font-size:18px;line-height:1.25;margin-bottom:12px}
+    .icon{width:36px;height:36px;min-width:36px}
+    .tabs{padding:0 0 10px;margin-bottom:4px}
+    .tab{padding:12px 14px;border-radius:14px;font-size:13px}
+    #tool-latlon .notice{display:none}
+    #singleResult{display:none!important}
+    .table-wrap{border-radius:14px;margin-top:10px}
+    th,td{padding:9px;font-size:12px}
+    .footer-tools{display:none!important}
+    @media(max-width:850px){
+      input,select,textarea{padding:14px 13px;border-radius:14px;font-size:16px}
+      button{width:auto;flex:1;padding:14px 12px}
+      .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      .btns button:nth-child(3){grid-column:1/-1}
+    }
+  
+    /* Tombol GPS lokasi terkini - ringkas seperti aplikasi mobile */
+    .gps-mini{
+      margin-left:auto;
+      width:48px!important;
+      height:48px;
+      min-width:48px;
+      border-radius:50%;
+      padding:0!important;
+      background:var(--green);
+      color:#fff;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 12px 24px rgba(32,191,163,.25);
+      font-size:22px;
+      line-height:1;
+    }
+    .gps-title-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+    .gps-title-row h3{margin:0!important;flex:1}
+    @media(max-width:850px){.gps-mini{width:46px!important;height:46px;min-width:46px}.gps-title-row{align-items:flex-start}}
+  </style>
+<link rel="stylesheet" href="../shared-home-theme.css" />
+</head>
+<body>
+
+
+  <main class="wrap">
+    <section class="hero">
+      <span class="badge">Coordinate Tools</span>
+      <h2>Konverter Sistem Koordinat Surveyor</h2>
+      <p>Input manual add point atau import CSV, hasil langsung tampil dan bisa export TXT, Excel, PDF.</p>
+      <div class="stats">
+        <div class="stat"><span id="statPoints">0</span><small>Points</small></div>
+        <div class="stat">9<small>Tools</small></div>
+        <div class="stat" id="statCrs">WGS84<small>Active CRS</small></div>
+        <div class="stat" id="statStatus">Ready<small>Status</small></div>
+      </div>
+    </section>
+
+    <nav class="tabs" id="tabs"></nav>
+
+    <!-- 1. DECIMAL LAT LON -->
+    <section class="tool card" id="tool-latlon">
+      <h3><span class="icon">🌐</span>1. Lintang Bujur Decimal WGS84 → UTM, MGRS, Active CRS, Geocoding</h3>
+      <div class="notice">Gunakan titik desimal. Contoh Indonesia: Latitude -6.200000, Longitude 106.816666.</div>
+      <div class="row4">
+        <div><label>Point ID</label><input id="ll_id" placeholder="P1"></div>
+        <div><label>Latitude</label><input id="ll_lat" type="number" step="any" placeholder="-6.200000"></div>
+        <div><label>Longitude</label><input id="ll_lon" type="number" step="any" placeholder="106.816666"></div>
+        <div><label>Active CRS EPSG</label><input id="ll_epsg" value="32748" placeholder="32748"></div>
+      </div>
+      <div class="btns">
+        <button class="btn-primary" onclick="convertLatLon()">Convert</button>
+        <button class="btn-green" onclick="addLatLonPoint()">+ Add Point</button>
+        <button class="btn-ghost" onclick="reverseGeocodeCurrent()">Refresh</button>
+      </div>
+    </section>
+
+    <!-- 2. DMS -->
+    <section class="tool card hidden" id="tool-dms">
+      <h3><span class="icon">🧭</span>2. DMS WGS84 → Decimal, UTM, MGRS, Active CRS, Geocoding</h3>
+      <div class="row3">
+        <div><label>Point ID</label><input id="dms_id" placeholder="DMS-01"></div>
+        <div><label>Latitude DMS</label><input id="dms_lat" placeholder="6°12'0\"S atau -6 12 0"></div>
+        <div><label>Longitude DMS</label><input id="dms_lon" placeholder="106°49'0\"E atau 106 49 0"></div>
+      </div>
+      <div class="row">
+        <div><label>Active CRS EPSG</label><input id="dms_epsg" value="32748"></div>
+        <div><label>Format output DMS</label><select id="dms_format"><option value="symbol">Derajat ° Menit ' Detik "</option><option value="space">D M S</option></select></div>
+      </div>
+      <div class="btns">
+        <button class="btn-primary" onclick="convertDMS()">Convert</button>
+        <button class="btn-green" onclick="addDmsPoint()">+ Add Point</button>
+      </div>
+    </section>
+
+    <!-- 3. UTM -->
+    <section class="tool card hidden" id="tool-utm">
+      <h3><span class="icon">📍</span>3. UTM → Latitude Longitude, MGRS, Active CRS, Geocoding</h3>
+      <div class="row4">
+        <div><label>Point ID</label><input id="utm_id" placeholder="UTM-01"></div>
+        <div><label>Easting</label><input id="utm_e" type="number" step="any" placeholder="699375"></div>
+        <div><label>Northing</label><input id="utm_n" type="number" step="any" placeholder="9315926"></div>
+        <div><label>Zone</label><input id="utm_zone" type="number" value="48"></div>
+      </div>
+      <div class="row">
+        <div><label>Hemisphere</label><select id="utm_hemi"><option value="S">S</option><option value="N">N</option></select></div>
+        <div><label>Active CRS EPSG</label><input id="utm_epsg" value="32748"></div>
+      </div>
+      <div class="btns">
+        <button class="btn-primary" onclick="convertUTM()">Convert</button>
+        <button class="btn-green" onclick="addUtmPoint()">+ Add Point</button>
+      </div>
+    </section>
+
+    <!-- 4. MGRS -->
+    <section class="tool card hidden" id="tool-mgrs">
+      <h3><span class="icon">🗺️</span>4. MGRS → UTM, Latitude Longitude</h3>
+      <div class="row">
+        <div><label>Point ID</label><input id="mgrs_id" placeholder="MGRS-01"></div>
+        <div><label>MGRS</label><input id="mgrs_text" placeholder="48M ZU 99375 15926"></div>
+      </div>
+      <div class="btns">
+        <button class="btn-primary" onclick="convertMGRS()">Convert</button>
+        <button class="btn-green" onclick="addMgrsPoint()">+ Add Point</button>
+      </div>
+    </section>
+
+    <!-- 5. DECIMAL DMS -->
+    <section class="tool card hidden" id="tool-decimal-dms">
+      <h3><span class="icon">🔁</span>5. Decimal ↔ DMS</h3>
+      <div class="grid">
+        <div>
+          <h3 style="font-size:17px"><span class="icon">D</span>Decimal ke DMS</h3>
+          <div class="row"><div><label>Decimal Degree</label><input id="dec_value" type="number" step="any" placeholder="-6.2"></div><div><label>Tipe</label><select id="dec_type"><option value="lat">Latitude</option><option value="lon">Longitude</option><option value="ang">Angle</option></select></div></div>
+          <button class="btn-primary" onclick="decimalToDmsTool()">Convert</button>
+        </div>
+        <div>
+          <h3 style="font-size:17px"><span class="icon">°</span>DMS ke Decimal</h3>
+          <label>DMS</label><input id="dms_single" placeholder="6°12'0\"S">
+          <button class="btn-primary" onclick="dmsToDecimalTool()">Convert</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. CRS -->
+    <section class="tool card hidden" id="tool-crs">
+      <h3><span class="icon">⚙️</span>6. CRS WGS84 EPSG:64326 ↔ DGN95 / Indonesia EPSG:23834</h3>
+      <div class="notice warn">Catatan: definisi EPSG:64326 dan EPSG:23834 dimuat melalui epsg.io saat online. Jika gagal, isi Proj4 manual.</div>
+      <div class="row">
+        <div><label>From EPSG</label><input id="crs_from" value="64326"></div>
+        <div><label>To EPSG</label><input id="crs_to" value="23834"></div>
+      </div>
+      <div class="row">
+        <div><label>X / Easting / Longitude</label><input id="crs_x" type="number" step="any" placeholder=""></div>
+        <div><label>Y / Northing / Latitude</label><input id="crs_y" type="number" step="any" placeholder=""></div>
+      </div>
+      <div class="row">
+        <div><label>Proj4 From manual optional</label><textarea id="proj_from" placeholder="+proj=... +datum=... +units=m +no_defs"></textarea></div>
+        <div><label>Proj4 To manual optional</label><textarea id="proj_to" placeholder="+proj=... +datum=... +units=m +no_defs"></textarea></div>
+      </div>
+      <div class="btns">
+        <button class="btn-primary" onclick="convertCRS()">Convert CRS</button>
+        <button class="btn-ghost" onclick="swapCRS()">Swap</button>
+      </div>
+    </section>
+
+    <!-- 7. UTM ZONE -->
+    <section class="tool card hidden" id="tool-zone">
+      <h3><span class="icon">↔️</span>7. UTM Zone Converter between UTM Zones WGS84</h3>
+      <div class="row3">
+        <div><label>Input Easting</label><input id="zone_e" type="number" step="any"></div>
+        <div><label>Input Northing</label><input id="zone_n" type="number" step="any"></div>
+        <div><label>Hemisphere</label><select id="zone_hemi"><option value="S">S</option><option value="N">N</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>From Zone</label><input id="zone_from" type="number" value="48"></div>
+        <div><label>To Zone</label><input id="zone_to" type="number" value="49"></div>
+      </div>
+      <button class="btn-primary" onclick="convertUTMZone()">Convert Zone</button>
+    </section>
+
+    <!-- 8A. HELMERT -->
+    <section class="tool card hidden" id="tool-helmert">
+      <h3><span class="icon">↔️</span>8A. Global Coordinate Transformation - 2D Helmert 4 Parameter</h3>
+      <div class="notice">Input minimal 2 point. 3 point atau lebih direkomendasikan untuk residual dan RMSE.</div>
+      <div class="btns"><button class="btn-green" onclick="addHelmertPoint()">+ Add Point</button><button class="btn-primary" onclick="solveHelmert()">Hitung Helmert</button></div>
+      <div id="helmertPoints"></div>
+      <h3 style="font-size:18px;margin-top:20px">Test Transformation Source → Target</h3>
+      <div class="row"><div><label>Source X</label><input id="helm_test_x" type="number" step="any" value="0"></div><div><label>Source Y</label><input id="helm_test_y" type="number" step="any" value="0"></div></div>
+      <button class="btn-primary" onclick="testHelmert()">Convert to Target</button>
+    </section>
+
+    <!-- 8B. BURSA WOLF -->
+    <section class="tool card hidden" id="tool-bursa">
+      <h3><span class="icon">🌍</span>8B. Global Coordinate Transformation - 3D Bursa-Wolf 7 Parameter</h3>
+      <div class="notice">Input minimal 3 point. 4 point atau lebih direkomendasikan untuk residual, DOF, RMSE.</div>
+      <div class="btns"><button class="btn-green" onclick="addBursaPoint()">+ Add Point</button><button class="btn-primary" onclick="solveBursa()">Hitung Bursa-Wolf</button></div>
+      <div id="bursaPoints"></div>
+      <h3 style="font-size:18px;margin-top:20px">Test Transformation Source → Target</h3>
+      <div class="row3"><div><label>X</label><input id="bursa_test_x" type="number" step="any" value="0"></div><div><label>Y</label><input id="bursa_test_y" type="number" step="any" value="0"></div><div><label>Z</label><input id="bursa_test_z" type="number" step="any" value="0"></div></div>
+      <button class="btn-primary" onclick="testBursa()">Convert to Target</button>
+    </section>
+
+    <!-- 9. HEIGHT -->
+    <section class="tool card hidden" id="tool-height">
+      <h3><span class="icon">⇅</span>9. Height & Undulation</h3>
+      <div class="segment">
+        <button id="heightCalcTab" class="active" onclick="heightTab('calc')">▣ Calculate</button>
+        <button id="heightModelTab" onclick="heightTab('model')">🌐 Geoid Model <span id="heightModelDot">●</span></button>
+      </div>
+
+      <div id="heightCalcPanel">
+        <div id="heightInstallAlert" class="geo-alert">
+          <span>ⓘ</span>
+          <div><b>Geoid model belum terpasang</b>Download model geoid melalui internet atau restore/import dari file backup. Jika sudah tahu nilai N, tetap bisa isi manual.</div>
+        </div>
+
+        <div class="row">
+          <div><label>Project</label><input id="h_project" placeholder="e.g. Benchmark survey"></div>
+          <div><label>Point ID</label><input id="h_id" placeholder="e.g. BM-01"></div>
+        </div>
+
+        <div class="card" style="box-shadow:none;border:1px solid #f0e9f4;margin-top:18px;padding:18px">
+          <div class="location-title">
+            <h3 style="margin:0"><span class="icon">⌖</span>Position</h3>
+            <button class="locate-btn" onclick="usePhoneLocation()" title="Ambil lokasi HP otomatis">⌾</button>
+          </div>
+          <div class="row">
+            <div><label>Latitude (deg)</label><input id="h_lat" type="number" step="any" placeholder="-6.0053411"></div>
+            <div><label>Longitude (deg)</label><input id="h_lon" type="number" step="any" placeholder="106.2830197"></div>
+          </div>
+          <div class="small" id="gpsStatus">Lokasi bisa diisi manual atau klik tombol target untuk mengambil GPS HP.</div>
+        </div>
+
+        <div class="card" style="box-shadow:none;border:1px solid #f0e9f4;margin-top:18px;padding:18px">
+          <h3 style="margin:0 0 8px">GNSS Ellipsoidal Height (h)</h3>
+          <div class="small">Raw GPS altitude above WGS84 ellipsoid — bukan MSL.</div>
+          <input id="h_ell" type="number" step="any" placeholder="0.000">
+          <span class="pill green" id="gpsHeightBadge" style="display:none">FROM GNSS</span>
+          <span class="pill orange" id="gpsAccBadge" style="display:none">Vertical ±0 m</span>
+          <div class="small" style="margin-top:12px">Orthometric height (H) dihitung dari rumus <b>H = h - N</b>, memakai geoid model yang sudah di-download/import atau nilai N manual.</div>
+        </div>
+
+        <div class="row">
+          <div><label>Manual Geoid Undulation N (m)</label><input id="h_n" type="number" step="any" placeholder="optional jika model belum ada"></div>
+          <div><label>Manual Orthometric Height H (m)</label><input id="h_H" type="number" step="any" placeholder="optional jika sudah diketahui"></div>
+        </div>
+        <div class="btns">
+          <button class="btn-primary" onclick="heightCompare()">Calculate</button>
+          <button class="btn-danger" onclick="resetHeightInput()">Reset</button>
+          <button class="btn-green" onclick="addHeightPoint()">+ Add Point</button>
+        </div>
+      </div>
+
+      <div id="heightModelPanel" class="hidden">
+        <div class="model-card">
+          <div class="model-head">
+            <h3 style="margin:0"><span class="icon">🌐</span>EGM2008 / Local Geoid Model</h3>
+            <span id="geoidInstallStatus" class="model-status">NOT INSTALLED</span>
+          </div>
+          <p class="small" style="font-size:15px;line-height:1.7;color:#374151">Download model geoid melalui internet, atau restore/import file backup dari device. Untuk versi HTML GitHub, format yang paling aman adalah CSV/JSON lokal berisi grid <b>lat, lon, N</b>. File besar sebaiknya dipakai setelah aplikasi Android native dibuat.</p>
+          <label>URL model geoid online / backup server</label>
+          <input id="geoid_url" placeholder="contoh: https://domain-anda.com/egm2008-indonesia.csv">
+          <div class="btns">
+            <button class="btn-primary" onclick="downloadGeoidModel()">☁ Download Geoid Model</button>
+            <button class="btn-green" onclick="document.getElementById('geoid_import_file').click()">↺ Restore / Import Backup</button>
+            <button class="btn-ghost" onclick="exportGeoidBackup()">Export Backup</button>
+            <button class="btn-danger" onclick="clearGeoidModel()">Hapus Model</button>
+          </div>
+          <input id="geoid_import_file" type="file" accept=".csv,.json,.txt" style="display:none" onchange="restoreGeoidModel(event)">
+          <div class="small" id="geoidStatus">Geoid model: belum ada file.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- IMPORT CSV -->
+    <section class="card hidden" id="globalImportCsvRemoved"></section>
+
+    <!-- OUTPUT -->
+    <section class="card">
+      <h3><span class="icon">✅</span>Hasil Output</h3>
+      <div class="notice" style="margin-top:0">Hasil ditampilkan langsung pada tabel di bawah. Gunakan tombol export untuk menyimpan data lapangan.</div>
+      <div id="singleResult"></div>
+      <div class="table-wrap"><table id="resultTable"><thead></thead><tbody></tbody></table></div>
+      <div class="btns" style="margin-top:14px">
+        <button class="btn-ghost" onclick="exportTXT()">Export TXT</button>
+        <button class="btn-green" onclick="exportExcel()">Export Excel</button>
+        <button class="btn-primary" onclick="exportPDF()">Export PDF</button>
+        <button class="btn-danger" onclick="resetAll()">Reset Output</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="footer-tools">
+    <div class="footer-tools-inner">
+      <button class="btn-ghost" onclick="exportTXT()">Export TXT</button>
+      <button class="btn-green" onclick="exportExcel()">Export Excel</button>
+      <button class="btn-primary" onclick="exportPDF()">Export PDF</button>
+      <button class="btn-danger" onclick="resetAll()">Reset Semua</button>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+const tools = [
+  ['latlon','1 LatLon Decimal'], ['dms','2 DMS'], ['utm','3 UTM'], ['mgrs','4 MGRS'],
+  ['decimal-dms','5 Decimal ↔ DMS'], ['crs','6 CRS'], ['zone','7 UTM Zone'],
+  ['helmert','8A Helmert 2D'], ['bursa','8B Bursa-Wolf 3D'], ['height','9 Height']
+];
+let results = [];
+let helmertSolution = null;
+let bursaSolution = null;
+let geoidGrid = [];
+let geoidModelText = '';
+let geoidModelName = '';
+
+function getActiveToolId(){
+  const active = [...document.querySelectorAll('.tool')].find(t => !t.classList.contains('hidden'));
+  if(!active) return 'latlon';
+  return active.id.replace('tool-','');
+}
+function fillIfExists(id, value){ const el=document.getElementById(id); if(el) el.value=value; }
+function addGpsButtons(){
+  const allow = ['latlon','dms','utm','mgrs','crs','zone','height','1','2','3','4','6','7','9'];
+  document.querySelectorAll('.tool').forEach(sec=>{
+    const id = sec.id.replace('tool-','');
+    if(!allow.includes(id) || sec.querySelector('.gps-mini')) return;
+    const h = sec.querySelector('h3');
+    if(!h) return;
+    const row = document.createElement('div');
+    row.className = 'gps-title-row';
+    h.parentNode.insertBefore(row,h);
+    row.appendChild(h);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'gps-mini';
+    btn.title = 'Gunakan lokasi terkini';
+    btn.innerHTML = '◎';
+    btn.onclick = useCurrentLocation;
+    row.appendChild(btn);
+  });
+}
+function useCurrentLocation(){
+  if(!navigator.geolocation){ alert('GPS/lokasi tidak didukung browser ini. Jalankan di GitHub Pages HTTPS dan gunakan Chrome.'); return; }
+  const status = document.getElementById('statStatus'); if(status) status.textContent = 'GPS...';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    const active = getActiveToolId();
+    const u = latlonToUTM(lat, lon);
+    const mg = toMgrs(lat, lon);
+
+    if(active==='latlon' || active==='1'){
+      fillIfExists('ll_lat', rawFmt(lat,8)); fillIfExists('ll_lon', rawFmt(lon,8)); fillIfExists('ll_epsg', u.epsg); convertLatLon();
+    }else if(active==='dms' || active==='2'){
+      fillIfExists('dms_lat', decimalToDMS(lat,'lat')); fillIfExists('dms_lon', decimalToDMS(lon,'lon')); if(document.getElementById('dms_epsg')) document.getElementById('dms_epsg').value = u.epsg; convertDMS();
+    }else if(active==='utm' || active==='3'){
+      fillIfExists('utm_e', rawFmt(u.easting,3)); fillIfExists('utm_n', rawFmt(u.northing,3)); fillIfExists('utm_zone', u.zone); fillIfExists('utm_hemi', u.hemisphere); fillIfExists('utm_epsg', u.epsg); convertUTM();
+    }else if(active==='mgrs' || active==='4'){
+      fillIfExists('mgrs_text', mg); convertMGRS();
+    }else if(active==='crs' || active==='6'){
+      fillIfExists('crs_x', rawFmt(lon,8)); fillIfExists('crs_y', rawFmt(lat,8)); fillIfExists('crs_from','4326');
+      showSingle('Lokasi GPS', [['Longitude',rawFmt(lon,8)],['Latitude',rawFmt(lat,8)],['Akurasi','± '+fmt(pos.coords.accuracy,2)+' m'],['Info','From EPSG 4326']]);
+    }else if(active==='zone' || active==='7'){
+      fillIfExists('zone_e', rawFmt(u.easting,3)); fillIfExists('zone_n', rawFmt(u.northing,3)); fillIfExists('zone_from', u.zone); fillIfExists('zone_hemi', u.hemisphere); convertUTMZone();
+    }else if(active==='height' || active==='9'){
+      fillIfExists('h_lat', rawFmt(lat,8)); fillIfExists('h_lon', rawFmt(lon,8));
+      showSingle('Lokasi GPS', [['Latitude',rawFmt(lat,8)],['Longitude',rawFmt(lon,8)],['Akurasi','± '+fmt(pos.coords.accuracy,2)+' m'],['Status','Lokasi terisi']]);
+    }
+    if(status) status.textContent = 'OK';
+  }, function(error){
+    let msg='GPS gagal. Aktifkan izin lokasi browser.';
+    if(error.code===1) msg='Izin lokasi ditolak. Aktifkan permission Location untuk browser.';
+    if(error.code===2) msg='Lokasi tidak tersedia. Aktifkan GPS / High Accuracy.';
+    if(error.code===3) msg='GPS timeout. Coba di area terbuka.';
+    alert(msg);
+    const status = document.getElementById('statStatus'); if(status) status.textContent = 'Error';
+  }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+}
+
+function init(){
+  setTimeout(addGpsButtons, 0);
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = tools.map((t,i)=>`<button class="tab ${i===0?'active':''}" onclick="showTool('${t[0]}', this)">${t[1]}</button>`).join('');
+  addHelmertPoint({name:'PF1',sx:287.852,sy:142.714,tx:749366.622,ty:2855425.224});
+  addHelmertPoint({name:'PF2',sx:287.852,sy:163.754,tx:749348.606,ty:2855436.099});
+  addHelmertPoint({name:'PF3',sx:287.852,sy:164.414,tx:749348.051,ty:2855436.450});
+  addBursaPoint({name:'CP1',sx:3907728.1,sy:295474.5,sz:5026059.1,tx:3907815.2,ty:295552.3,tz:5026121.9});
+  addBursaPoint({name:'CP2',sx:3917650.2,sy:310112.98,sz:5018342.1,tx:3917737.8,ty:310190.81,tz:5018404.318});
+  addBursaPoint({name:'CP3',sx:3895214.7,sy:281902.46,sz:5034876.1,tx:3895302.0,ty:281980.22,tz:5034938.0});
+  addBursaPoint({name:'CP4',sx:3922987.1,sy:320778.12,sz:5012445.8,tx:3923075.0,ty:320855.9,tz:5012508.0});
+  renderResults();
+  loadSavedGeoidModel();
+  updateGeoidUi();
+}
+function showTool(id, btn){
+  document.querySelectorAll('.tool').forEach(x=>x.classList.add('hidden'));
+  document.getElementById('tool-'+id).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+}
+function n(v){ const x = Number(String(v).replace(',','.')); return Number.isFinite(x)?x:NaN; }
+function fmt(v,d=6){ return Number.isFinite(v)? Number(v).toFixed(d).replace('.',',') : ''; }
+function rawFmt(v,d=6){ return Number.isFinite(v)? Number(v).toFixed(d) : ''; }
+function toast(msg, ok=true){ document.getElementById('statStatus').textContent = ok?'OK':'Error'; if(!ok) alert(msg); }
+function addResult(obj){ results.push(obj); renderResults(); }
+function renderResults(){
+  document.getElementById('statPoints').textContent = results.length;
+  const table = document.getElementById('resultTable');
+  if(!results.length){
+    table.querySelector('thead').innerHTML = '<tr><th>Status</th></tr>';
+    table.querySelector('tbody').innerHTML = '<tr><td>Belum ada output. Isi data lalu tekan Convert / Calculate.</td></tr>';
+    return;
+  }
+  const preferred = ['tool','id','point','lat','lon','easting','northing','zone','hemisphere','epsg','mgrs','address','x_out','y_out','target_x','target_y','target_z','orthometric_H','geoid_N'];
+  const allKeysRaw = [...new Set(results.flatMap(o=>Object.keys(o)))];
+  const allKeys = [...preferred.filter(k=>allKeysRaw.includes(k)), ...allKeysRaw.filter(k=>!preferred.includes(k))];
+  table.querySelector('thead').innerHTML = '<tr>'+allKeys.map(k=>`<th>${k}</th>`).join('')+'</tr>';
+  table.querySelector('tbody').innerHTML = results.map(o=>'<tr>'+allKeys.map(k=>`<td>${o[k]??''}</td>`).join('')+'</tr>').join('');
+}
+function showSingle(title, rows){
+  // Tampilan kartu hijau dinonaktifkan agar layar HP lebih ringkas.
+  // Output utama tetap tersimpan dan tampil pada tabel Hasil Output.
+  document.getElementById('singleResult').innerHTML = '';
+}
+
+function getUtmProj(zone, hemi){ return `+proj=utm +zone=${zone} ${hemi==='S'?'+south':''} +datum=WGS84 +units=m +no_defs`; }
+function lonToZone(lon){ return Math.floor((lon + 180) / 6) + 1; }
+function latToHem(lat){ return lat < 0 ? 'S' : 'N'; }
+function latlonToUTM(lat, lon){
+  const zone = lonToZone(lon); const hemi = latToHem(lat);
+  const p = proj4('EPSG:4326', getUtmProj(zone, hemi), [lon, lat]);
+  return {easting:p[0], northing:p[1], zone, hemisphere:hemi, epsg:(hemi==='S'?32700:32600)+zone};
+}
+function utmToLatlon(e,north,zone,hemi){
+  const p = proj4(getUtmProj(zone, hemi), 'EPSG:4326', [e, north]);
+  return {lon:p[0], lat:p[1]};
+}
+function toMgrs(lat, lon){
+  try {
+    if(window.mgrs && typeof mgrs.forward === 'function') return mgrs.forward([lon,lat], 5);
+    return '-';
+  } catch(e){ return '-'; }
+}
+function fromMgrs(txt){
+  const bbox = mgrs.toPoint(txt.trim());
+  return {lon:bbox[0], lat:bbox[1]};
+}
+async function epsgDef(code){
+  const key='EPSG:'+code;
+  if(proj4.defs[key]) return key;
+  const manual = code === document.getElementById('crs_from')?.value ? document.getElementById('proj_from')?.value.trim() : document.getElementById('proj_to')?.value.trim();
+  if(manual){ proj4.defs(key, manual); return key; }
+  const url = `https://epsg.io/${code}.proj4`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Tidak bisa load definisi EPSG:'+code);
+  const def = await res.text();
+  if(!def || def.includes('404')) throw new Error('Definisi EPSG kosong:'+code);
+  proj4.defs(key, def.trim());
+  return key;
+}
+
+async function geocodeAddress(lat, lon){
+  try{
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+    const res = await fetch(url,{headers:{'Accept':'application/json'}});
+    const data = await res.json();
+    return data.display_name || '';
+  }catch(e){
+    return '';
+  }
+}
+
+async function convertLatLon(){
+  const id = document.getElementById('ll_id').value || 'P';
+  const lat=n(document.getElementById('ll_lat').value), lon=n(document.getElementById('ll_lon').value);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)) return toast('Latitude/Longitude belum valid', false);
+
+  document.getElementById('statStatus').textContent = 'Geocoding...';
+  const utm=latlonToUTM(lat,lon);
+  const mg=toMgrs(lat,lon);
+  const address = await geocodeAddress(lat,lon);
+
+  showSingle('LatLon', [
+    ['UTM',`${fmt(utm.easting,3)} E, ${fmt(utm.northing,3)} N`],
+    ['Zone',`${utm.zone}${utm.hemisphere}`],
+    ['MGRS',mg],
+    ['EPSG',utm.epsg],
+    ['Alamat', address || 'Alamat belum ditemukan']
+  ]);
+
+  addResult({
+    tool:'LatLon Decimal WGS84 to UTM/MGRS/Geocoding',
+    id,
+    lat:rawFmt(lat,8),
+    lon:rawFmt(lon,8),
+    easting:rawFmt(utm.easting,3),
+    northing:rawFmt(utm.northing,3),
+    zone:utm.zone,
+    hemisphere:utm.hemisphere,
+    epsg:utm.epsg,
+    mgrs:mg,
+    address:address || ''
+  });
+  document.getElementById('statStatus').textContent = 'OK';
+}
+function addLatLonPoint(){ convertLatLon(); }
+async function reverseGeocodeCurrent(){
+  const lat=n(document.getElementById('ll_lat').value), lon=n(document.getElementById('ll_lon').value);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)) return toast('Latitude/Longitude belum valid', false);
+  const address = await geocodeAddress(lat,lon);
+  showSingle('Alamat',[['Alamat',address || 'Alamat belum ditemukan / koneksi geocoding gagal']]);
+}
+function parseDMS(str){
+  if(!str) return NaN;
+  let s=String(str).trim().toUpperCase();
+  const neg = /[SW-]/.test(s);
+  s=s.replace(/[NSEW]/g,'').replace(/-/g,' ').replace(/[°ºD]/g,' ').replace(/[′']/g,' ').replace(/[″"]/g,' ').replace(/,/g,'.');
+  const parts=s.split(/\s+/).filter(Boolean).map(Number);
+  if(parts.length===1) return neg ? -Math.abs(parts[0]) : parts[0];
+  const deg=Math.abs(parts[0]||0), min=parts[1]||0, sec=parts[2]||0;
+  const val=deg+min/60+sec/3600;
+  return neg?-val:val;
+}
+function decimalToDMS(value,type='ang'){
+  const sign = value<0 ? -1 : 1; let v=Math.abs(value);
+  const d=Math.floor(v); v=(v-d)*60; const m=Math.floor(v); const s=(v-m)*60;
+  let suf=''; if(type==='lat') suf=sign<0?'S':'N'; if(type==='lon') suf=sign<0?'W':'E'; if(type==='ang'&&sign<0) suf='-';
+  return `${type==='ang'&&sign<0?'-':''}${d}° ${m}' ${s.toFixed(4)}"${suf}`;
+}
+function convertDMS(){
+  const id=document.getElementById('dms_id').value||'DMS'; const lat=parseDMS(document.getElementById('dms_lat').value); const lon=parseDMS(document.getElementById('dms_lon').value);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)) return toast('Format DMS belum valid', false);
+  const utm=latlonToUTM(lat,lon), mg=toMgrs(lat,lon);
+  showSingle('DMS',[['Decimal',`${rawFmt(lat,8)}, ${rawFmt(lon,8)}`],['UTM',`${fmt(utm.easting,3)} E, ${fmt(utm.northing,3)} N`],['Zone',`${utm.zone}${utm.hemisphere}`],['MGRS',mg]]);
+  addResult({tool:'DMS to UTM/MGRS',id,lat:rawFmt(lat,8),lon:rawFmt(lon,8),easting:rawFmt(utm.easting,3),northing:rawFmt(utm.northing,3),zone:utm.zone,hemisphere:utm.hemisphere,mgrs:mg});
+}
+function addDmsPoint(){ convertDMS(); }
+function convertUTM(){
+  const id=document.getElementById('utm_id').value||'UTM'; const e=n(document.getElementById('utm_e').value), no=n(document.getElementById('utm_n').value), zone=Number(document.getElementById('utm_zone').value), hemi=document.getElementById('utm_hemi').value;
+  if(!Number.isFinite(e)||!Number.isFinite(no)||!zone) return toast('Input UTM belum valid', false);
+  const ll=utmToLatlon(e,no,zone,hemi); const mg=toMgrs(ll.lat,ll.lon);
+  showSingle('UTM',[['Lat Lon',`${rawFmt(ll.lat,8)}, ${rawFmt(ll.lon,8)}`],['DMS',`${decimalToDMS(ll.lat,'lat')} / ${decimalToDMS(ll.lon,'lon')}`],['MGRS',mg]]);
+  addResult({tool:'UTM to LatLon/MGRS',id,easting:rawFmt(e,3),northing:rawFmt(no,3),zone,hemisphere:hemi,lat:rawFmt(ll.lat,8),lon:rawFmt(ll.lon,8),mgrs:mg});
+}
+function addUtmPoint(){ convertUTM(); }
+function convertMGRS(){
+  const id=document.getElementById('mgrs_id').value||'MGRS'; const txt=document.getElementById('mgrs_text').value;
+  try{
+    const ll=fromMgrs(txt); const utm=latlonToUTM(ll.lat,ll.lon);
+    showSingle('MGRS',[['Lat Lon',`${rawFmt(ll.lat,8)}, ${rawFmt(ll.lon,8)}`],['UTM',`${fmt(utm.easting,3)} E, ${fmt(utm.northing,3)} N`],['Zone',`${utm.zone}${utm.hemisphere}`]]);
+    addResult({tool:'MGRS to UTM/LatLon',id,mgrs:txt,lat:rawFmt(ll.lat,8),lon:rawFmt(ll.lon,8),easting:rawFmt(utm.easting,3),northing:rawFmt(utm.northing,3),zone:utm.zone,hemisphere:utm.hemisphere});
+  }catch(e){ toast('MGRS tidak valid', false); }
+}
+function addMgrsPoint(){ convertMGRS(); }
+function decimalToDmsTool(){
+  const v=n(document.getElementById('dec_value').value), type=document.getElementById('dec_type').value;
+  if(!Number.isFinite(v)) return toast('Decimal belum valid', false);
+  const out=decimalToDMS(v,type); showSingle('Decimal ke DMS', [['DMS',out]]); addResult({tool:'Decimal to DMS',decimal:v,dms:out});
+}
+function dmsToDecimalTool(){
+  const v=parseDMS(document.getElementById('dms_single').value);
+  if(!Number.isFinite(v)) return toast('DMS belum valid', false);
+  showSingle('DMS ke Decimal', [['Decimal',rawFmt(v,10)]]); addResult({tool:'DMS to Decimal',dms:document.getElementById('dms_single').value,decimal:rawFmt(v,10)});
+}
+async function convertCRS(){
+  try{
+    const from=document.getElementById('crs_from').value.trim(), to=document.getElementById('crs_to').value.trim();
+    const x=n(document.getElementById('crs_x').value), y=n(document.getElementById('crs_y').value);
+    if(!Number.isFinite(x)||!Number.isFinite(y)) return toast('X/Y belum valid', false);
+    const f=await epsgDef(from), t=await epsgDef(to); const out=proj4(f,t,[x,y]);
+    showSingle('CRS Transform', [['X',rawFmt(out[0],4)],['Y',rawFmt(out[1],4)],['From',from],['To',to]]);
+    addResult({tool:'CRS Transform',from_epsg:from,to_epsg:to,x_in:x,y_in:y,x_out:rawFmt(out[0],4),y_out:rawFmt(out[1],4)});
+  }catch(e){ toast(e.message, false); }
+}
+function swapCRS(){ const a=document.getElementById('crs_from'), b=document.getElementById('crs_to'); [a.value,b.value]=[b.value,a.value]; }
+function convertUTMZone(){
+  const e=n(document.getElementById('zone_e').value), no=n(document.getElementById('zone_n').value), from=Number(document.getElementById('zone_from').value), to=Number(document.getElementById('zone_to').value), hemi=document.getElementById('zone_hemi').value;
+  if(!Number.isFinite(e)||!Number.isFinite(no)||!from||!to) return toast('Input zone belum valid', false);
+  const ll=utmToLatlon(e,no,from,hemi); const out=proj4('EPSG:4326', getUtmProj(to,hemi), [ll.lon,ll.lat]);
+  showSingle('UTM Zone Converter', [['Lat Lon',`${rawFmt(ll.lat,8)}, ${rawFmt(ll.lon,8)}`],['Target UTM',`${fmt(out[0],3)} E, ${fmt(out[1],3)} N`],['Zone',`${to}${hemi}`]]);
+  addResult({tool:'UTM Zone Converter',from_zone:from,to_zone:to,hemisphere:hemi,easting_in:e,northing_in:no,lat:rawFmt(ll.lat,8),lon:rawFmt(ll.lon,8),easting_out:rawFmt(out[0],3),northing_out:rawFmt(out[1],3)});
+}
+
+function addHelmertPoint(val={}){
+  const box=document.getElementById('helmertPoints'); const i=box.children.length+1;
+  const html=`<div class="point-card helmert-point"><div class="point-head"><span class="point-no">#${i}</span><input class="hp-name" value="${val.name||'PF'+i}" placeholder="Name"><button class="delete-point" onclick="this.closest('.point-card').remove()">×</button></div><div class="row4"><div><label>Source X</label><input class="hp-sx" type="number" step="any" value="${val.sx??''}"></div><div><label>Source Y</label><input class="hp-sy" type="number" step="any" value="${val.sy??''}"></div><div><label>Target X</label><input class="hp-tx" type="number" step="any" value="${val.tx??''}"></div><div><label>Target Y</label><input class="hp-ty" type="number" step="any" value="${val.ty??''}"></div></div></div>`;
+  box.insertAdjacentHTML('beforeend',html);
+}
+function getHelmertData(){ return [...document.querySelectorAll('.helmert-point')].map(p=>({name:p.querySelector('.hp-name').value,sx:n(p.querySelector('.hp-sx').value),sy:n(p.querySelector('.hp-sy').value),tx:n(p.querySelector('.hp-tx').value),ty:n(p.querySelector('.hp-ty').value)})).filter(p=>[p.sx,p.sy,p.tx,p.ty].every(Number.isFinite)); }
+function solveLinear(A,b){
+  const n=A[0].length; let M=A.map((r,i)=>[...r,b[i]]);
+  for(let i=0;i<n;i++){
+    let max=i; for(let k=i+1;k<n;k++) if(Math.abs(M[k][i])>Math.abs(M[max][i])) max=k;
+    [M[i],M[max]]=[M[max],M[i]]; const pivot=M[i][i]; if(Math.abs(pivot)<1e-15) throw new Error('Matrix singular');
+    for(let j=i;j<=n;j++) M[i][j]/=pivot;
+    for(let k=0;k<n;k++) if(k!==i){ const f=M[k][i]; for(let j=i;j<=n;j++) M[k][j]-=f*M[i][j]; }
+  }
+  return M.map(r=>r[n]);
+}
+function leastSquares(A,L){
+  const m=A.length,nc=A[0].length; const N=Array.from({length:nc},()=>Array(nc).fill(0)); const U=Array(nc).fill(0);
+  for(let i=0;i<m;i++){ for(let j=0;j<nc;j++){ U[j]+=A[i][j]*L[i]; for(let k=0;k<nc;k++) N[j][k]+=A[i][j]*A[i][k]; } }
+  return solveLinear(N,U);
+}
+function solveHelmert(){
+  const data=getHelmertData(); if(data.length<2) return toast('Minimal 2 control point', false);
+  const A=[], L=[]; data.forEach(p=>{ A.push([1,0,p.sx,-p.sy]); L.push(p.tx); A.push([0,1,p.sy,p.sx]); L.push(p.ty); });
+  let x; try{x=leastSquares(A,L);}catch(e){return toast('Helmert gagal: '+e.message,false)}
+  const [Tx,Ty,a,b]=x; const scale=Math.sqrt(a*a+b*b); const rot=Math.atan2(b,a); const residuals=data.map(p=>{const X=Tx+a*p.sx-b*p.sy; const Y=Ty+b*p.sx+a*p.sy; const vx=X-p.tx, vy=Y-p.ty; return {...p,vx,vy,total:Math.sqrt(vx*vx+vy*vy)};});
+  const dof=2*data.length-4; const ss=residuals.reduce((s,r)=>s+r.vx*r.vx+r.vy*r.vy,0); const rmse=Math.sqrt(ss/(2*data.length)); const stdev=dof>0?Math.sqrt(ss/dof):0;
+  helmertSolution={Tx,Ty,a,b,scale,rot,residuals,rmse,stdev,dof};
+  showSingle('Helmert Parameters', [['TX',fmt(Tx,3)],['TY',fmt(Ty,3)],['Scale',rawFmt(scale,9)],['Rotation',rawFmt(rot*180/Math.PI,6)+'°'],['A (s cosθ)',rawFmt(a,9)],['B (s sinθ)',rawFmt(b,9)],['RMSE',fmt(rmse,6)+' m'],['DOF',dof]]);
+  residuals.forEach(r=>addResult({tool:'Helmert Residual',point:r.name,Vx:rawFmt(r.vx,6),Vy:rawFmt(r.vy,6),total:rawFmt(r.total,6)}));
+}
+function testHelmert(){
+  if(!helmertSolution) solveHelmert(); if(!helmertSolution) return;
+  const sx=n(document.getElementById('helm_test_x').value), sy=n(document.getElementById('helm_test_y').value); const h=helmertSolution;
+  const X=h.Tx+h.a*sx-h.b*sy, Y=h.Ty+h.b*sx+h.a*sy;
+  showSingle('Test Helmert', [['Target X',fmt(X,3)],['Target Y',fmt(Y,3)]]); addResult({tool:'Test Helmert',source_x:sx,source_y:sy,target_x:rawFmt(X,3),target_y:rawFmt(Y,3)});
+}
+
+function addBursaPoint(val={}){
+  const box=document.getElementById('bursaPoints'); const i=box.children.length+1;
+  const html=`<div class="point-card bursa-point"><div class="point-head"><span class="point-no">#${i}</span><input class="bp-name" value="${val.name||'CP'+i}" placeholder="Name"><button class="delete-point" onclick="this.closest('.point-card').remove()">×</button></div><h4>Source (X,Y,Z)</h4><div class="row3"><div><label>X</label><input class="bp-sx" type="number" step="any" value="${val.sx??''}"></div><div><label>Y</label><input class="bp-sy" type="number" step="any" value="${val.sy??''}"></div><div><label>Z</label><input class="bp-sz" type="number" step="any" value="${val.sz??''}"></div></div><h4>Target (X,Y,Z)</h4><div class="row3"><div><label>X</label><input class="bp-tx" type="number" step="any" value="${val.tx??''}"></div><div><label>Y</label><input class="bp-ty" type="number" step="any" value="${val.ty??''}"></div><div><label>Z</label><input class="bp-tz" type="number" step="any" value="${val.tz??''}"></div></div></div>`;
+  box.insertAdjacentHTML('beforeend',html);
+}
+function getBursaData(){ return [...document.querySelectorAll('.bursa-point')].map(p=>({name:p.querySelector('.bp-name').value,sx:n(p.querySelector('.bp-sx').value),sy:n(p.querySelector('.bp-sy').value),sz:n(p.querySelector('.bp-sz').value),tx:n(p.querySelector('.bp-tx').value),ty:n(p.querySelector('.bp-ty').value),tz:n(p.querySelector('.bp-tz').value)})).filter(p=>[p.sx,p.sy,p.sz,p.tx,p.ty,p.tz].every(Number.isFinite)); }
+function solveBursa(){
+  const d=getBursaData(); if(d.length<3) return toast('Minimal 3 control point',false);
+  const A=[], L=[];
+  d.forEach(p=>{
+    const dx=p.tx-p.sx, dy=p.ty-p.sy, dz=p.tz-p.sz;
+    A.push([1,0,0,p.sx,0,p.sz,-p.sy]); L.push(dx);
+    A.push([0,1,0,p.sy,-p.sz,0,p.sx]); L.push(dy);
+    A.push([0,0,1,p.sz,p.sy,-p.sx,0]); L.push(dz);
+  });
+  let x; try{x=leastSquares(A,L);}catch(e){return toast('Bursa-Wolf gagal: '+e.message,false)}
+  const [Tx,Ty,Tz,s,rx,ry,rz]=x;
+  const residuals=d.map(p=>{
+    const X=p.sx+Tx+s*p.sx+rz*p.sy-ry*p.sz;
+    const Y=p.sy+Ty+s*p.sy-rz*p.sx+rx*p.sz;
+    const Z=p.sz+Tz+s*p.sz+ry*p.sx-rx*p.sy;
+    const vx=X-p.tx, vy=Y-p.ty, vz=Z-p.tz; return {...p,vx,vy,vz,total:Math.sqrt(vx*vx+vy*vy+vz*vz)};
+  });
+  const dof=3*d.length-7; const ss=residuals.reduce((a,r)=>a+r.vx*r.vx+r.vy*r.vy+r.vz*r.vz,0); const rmse=Math.sqrt(ss/(3*d.length)); const stdev=dof>0?Math.sqrt(ss/dof):0;
+  bursaSolution={Tx,Ty,Tz,s,rx,ry,rz,residuals,dof,rmse,stdev};
+  const arc=206264.80624709636;
+  showSingle('Bursa-Wolf Parameters', [['TX (m)',fmt(Tx,3)],['TY (m)',fmt(Ty,3)],['TZ (m)',fmt(Tz,3)],['Scale',rawFmt(s,9)],['Scale ppm',rawFmt(s*1e6,6)],['RX (")',rawFmt(rx*arc,6)],['RY (")',rawFmt(ry*arc,6)],['RZ (")',rawFmt(rz*arc,6)],['RMSE',fmt(rmse,6)+' m'],['DOF',dof]]);
+  residuals.forEach(r=>addResult({tool:'Bursa Residual',point:r.name,Vx:rawFmt(r.vx,6),Vy:rawFmt(r.vy,6),Vz:rawFmt(r.vz,6),total:rawFmt(r.total,6)}));
+}
+function testBursa(){
+  if(!bursaSolution) solveBursa(); if(!bursaSolution) return;
+  const X=n(document.getElementById('bursa_test_x').value), Y=n(document.getElementById('bursa_test_y').value), Z=n(document.getElementById('bursa_test_z').value); const b=bursaSolution;
+  const xo=X+b.Tx+b.s*X+b.rz*Y-b.ry*Z;
+  const yo=Y+b.Ty+b.s*Y-b.rz*X+b.rx*Z;
+  const zo=Z+b.Tz+b.s*Z+b.ry*X-b.rx*Y;
+  showSingle('Test Bursa-Wolf', [['Target X',fmt(xo,3)],['Target Y',fmt(yo,3)],['Target Z',fmt(zo,3)]]); addResult({tool:'Test Bursa-Wolf',source_x:X,source_y:Y,source_z:Z,target_x:rawFmt(xo,3),target_y:rawFmt(yo,3),target_z:rawFmt(zo,3)});
+}
+
+function heightTab(tab){
+  document.getElementById('heightCalcPanel').classList.toggle('hidden', tab !== 'calc');
+  document.getElementById('heightModelPanel').classList.toggle('hidden', tab !== 'model');
+  document.getElementById('heightCalcTab').classList.toggle('active', tab === 'calc');
+  document.getElementById('heightModelTab').classList.toggle('active', tab === 'model');
+}
+function updateGeoidUi(){
+  const installed = geoidGrid.length > 0;
+  const status = document.getElementById('geoidInstallStatus');
+  const dot = document.getElementById('heightModelDot');
+  const alert = document.getElementById('heightInstallAlert');
+  if(status){ status.textContent = installed ? 'INSTALLED' : 'NOT INSTALLED'; status.classList.toggle('ready', installed); }
+  if(dot){ dot.style.color = installed ? '#22c55e' : '#6b7280'; }
+  if(alert){ alert.classList.toggle('hidden', installed); }
+  const label = installed ? `Geoid model: ${geoidGrid.length} titik terbaca${geoidModelName ? ' dari '+geoidModelName : ''}.` : 'Geoid model: belum ada file.';
+  const gs = document.getElementById('geoidStatus'); if(gs) gs.textContent = label;
+}
+function parseGeoidText(text, name='geoid-model'){
+  let rows = [];
+  try{
+    if(name.toLowerCase().endsWith('.json') || text.trim().startsWith('[')) rows = JSON.parse(text);
+    else rows = parseCSV(text);
+  }catch(e){ throw new Error('Format model geoid tidak terbaca. Gunakan CSV/JSON: lat,lon,N'); }
+  const grid = rows.map(r=>({
+    lat:n(r.lat ?? r.latitude ?? r.Latitude),
+    lon:n(r.lon ?? r.lng ?? r.longitude ?? r.Longitude),
+    N:n(r.N ?? r.n ?? r.geoid ?? r.undulation ?? r.Geoid)
+  })).filter(g=>[g.lat,g.lon,g.N].every(Number.isFinite));
+  if(!grid.length) throw new Error('Tidak ada data valid. Header minimal: lat, lon, N');
+  geoidGrid = grid;
+  geoidModelText = text;
+  geoidModelName = name;
+  try{ localStorage.setItem('geoidModelText', text); localStorage.setItem('geoidModelName', name); }catch(e){}
+  updateGeoidUi();
+}
+function loadSavedGeoidModel(){
+  const saved = localStorage.getItem('geoidModelText');
+  const name = localStorage.getItem('geoidModelName') || 'saved-geoid.csv';
+  if(saved){ try{ parseGeoidText(saved, name); }catch(e){ console.warn(e); } }
+}
+async function downloadGeoidModel(){
+  const url = document.getElementById('geoid_url').value.trim();
+  if(!url) return toast('Masukkan URL model geoid terlebih dahulu. Format disarankan CSV/JSON lat,lon,N.', false);
+  try{
+    document.getElementById('geoidStatus').textContent = 'Mengunduh model geoid...';
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Download gagal. Status HTTP '+res.status);
+    const text = await res.text();
+    parseGeoidText(text, url.split('/').pop() || 'downloaded-geoid.csv');
+    toast('Geoid model berhasil di-download dan dipasang.', true);
+  }catch(e){ toast(e.message || 'Download geoid model gagal.', false); updateGeoidUi(); }
+}
+function restoreGeoidModel(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{ try{ parseGeoidText(reader.result, file.name); toast('Geoid model berhasil di-import.', true); }catch(e){ toast(e.message, false); } };
+  reader.readAsText(file);
+}
+function exportGeoidBackup(){
+  if(!geoidModelText) return toast('Belum ada model geoid untuk dibackup.', false);
+  download(geoidModelName || 'geoid-backup.csv', geoidModelText, 'text/plain');
+}
+function clearGeoidModel(){
+  if(!confirm('Hapus model geoid dari browser?')) return;
+  geoidGrid=[]; geoidModelText=''; geoidModelName='';
+  localStorage.removeItem('geoidModelText'); localStorage.removeItem('geoidModelName');
+  updateGeoidUi();
+}
+function nearestGeoid(lat,lon){
+  if(!geoidGrid.length) return NaN;
+  let best=null, bd=Infinity;
+  for(const g of geoidGrid){ const dd=(g.lat-lat)**2+(g.lon-lon)**2; if(dd<bd){bd=dd;best=g;} }
+  return best?best.N:NaN;
+}
+function usePhoneLocation(){
+  if(!navigator.geolocation) return toast('Browser/perangkat tidak mendukung layanan lokasi.', false);
+  document.getElementById('gpsStatus').textContent = 'Mengambil lokasi HP... izinkan akses lokasi jika muncul notifikasi.';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const c = pos.coords;
+    document.getElementById('h_lat').value = rawFmt(c.latitude,7);
+    document.getElementById('h_lon').value = rawFmt(c.longitude,7);
+    if(Number.isFinite(c.altitude)){
+      document.getElementById('h_ell').value = rawFmt(c.altitude,3);
+      document.getElementById('gpsHeightBadge').style.display='inline-flex';
+    }
+    if(Number.isFinite(c.altitudeAccuracy)){
+      const b=document.getElementById('gpsAccBadge'); b.textContent='Vertical ±'+fmt(c.altitudeAccuracy,1)+' m'; b.style.display='inline-flex';
+    }
+    document.getElementById('gpsStatus').textContent = 'Lokasi otomatis berhasil diisi dari GPS HP. Akurasi horizontal ±'+fmt(c.accuracy,1)+' m.';
+    toast('Lokasi HP berhasil diambil.', true);
+  }, err=>{
+    const msg = err.code===1 ? 'Izin lokasi ditolak. Aktifkan permission location di browser.' : 'Lokasi gagal diambil. Pastikan GPS aktif dan halaman memakai HTTPS/GitHub Pages.';
+    document.getElementById('gpsStatus').textContent = msg;
+    toast(msg, false);
+  }, {enableHighAccuracy:true, timeout:15000, maximumAge:30000});
+}
+function loadGeoidCSV(ev){ restoreGeoidModel(ev); }
+function heightCompare(){
+  const id=document.getElementById('h_id').value||'BM';
+  const lat=n(document.getElementById('h_lat').value), lon=n(document.getElementById('h_lon').value);
+  let h=n(document.getElementById('h_ell').value);
+  let N=n(document.getElementById('h_n').value), H=n(document.getElementById('h_H').value);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)) return toast('Latitude/Longitude belum valid.', false);
+  if(!Number.isFinite(N)) N=nearestGeoid(lat,lon);
+  let sourceN = Number.isFinite(n(document.getElementById('h_n').value)) ? 'Manual N' : (Number.isFinite(N) ? 'Geoid Model' : 'Belum ada');
+  if(Number.isFinite(h)&&Number.isFinite(N)) H=h-N;
+  else if(Number.isFinite(h)&&Number.isFinite(H)) N=h-H;
+  else if(!Number.isFinite(h)&&Number.isFinite(H)&&Number.isFinite(N)){ h=H+N; document.getElementById('h_ell').value=rawFmt(h,3); }
+  if(!Number.isFinite(H) || !Number.isFinite(N)) return toast('Isi h dan N, atau pasang model geoid, atau isi H manual.', false);
+  showSingle('Height Compare', [['Ellipsoidal h',fmt(h,3)+' m'],['Orthometric H',fmt(H,3)+' m'],['Geoid N',fmt(N,3)+' m'],['N Source',sourceN],['Formula','H = h - N']]);
+  addResult({tool:'Height Undulation',id,lat:rawFmt(lat,7),lon:rawFmt(lon,7),ellipsoidal_h:rawFmt(h,3),orthometric_H:rawFmt(H,3),geoid_N:rawFmt(N,3),geoid_source:sourceN,geoid_model:geoidModelName||''});
+}
+function resetHeightInput(){
+  ['h_project','h_id','h_lat','h_lon','h_ell','h_n','h_H'].forEach(id=>document.getElementById(id).value='');
+  ['gpsHeightBadge','gpsAccBadge'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('gpsStatus').textContent='Lokasi bisa diisi manual atau klik tombol target untuk mengambil GPS HP.';
+}
+function addHeightPoint(){ heightCompare(); }
+
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/).filter(Boolean); if(!lines.length) return [];
+  const headers=lines[0].split(',').map(h=>h.trim());
+  return lines.slice(1).map(line=>{ const vals=line.split(',').map(v=>v.trim()); const o={}; headers.forEach((h,i)=>o[h]=vals[i]); return o; });
+}
+function importCSV(ev){
+  const file=ev.target.files[0]; if(!file) return; const mode=document.getElementById('import_mode').value;
+  const reader=new FileReader(); reader.onload=()=>{
+    const rows=parseCSV(reader.result);
+    if(mode==='latlon') rows.forEach(r=>{ document.getElementById('ll_id').value=r.id||''; document.getElementById('ll_lat').value=r.lat||r.latitude||''; document.getElementById('ll_lon').value=r.lon||r.longitude||''; convertLatLon(); });
+    if(mode==='utm') rows.forEach(r=>{ document.getElementById('utm_id').value=r.id||''; document.getElementById('utm_e').value=r.easting||r.E||''; document.getElementById('utm_n').value=r.northing||r.Northing||''; document.getElementById('utm_zone').value=r.zone||''; document.getElementById('utm_hemi').value=(r.hemisphere||'S').toUpperCase(); convertUTM(); });
+    if(mode==='mgrs') rows.forEach(r=>{ document.getElementById('mgrs_id').value=r.id||''; document.getElementById('mgrs_text').value=r.mgrs||''; convertMGRS(); });
+    if(mode==='helmert') rows.forEach(r=>addHelmertPoint({name:r.id||r.name,sx:r.sx,sy:r.sy,tx:r.tx,ty:r.ty}));
+    if(mode==='bursa') rows.forEach(r=>addBursaPoint({name:r.id||r.name,sx:r.sx,sy:r.sy,sz:r.sz,tx:r.tx,ty:r.ty,tz:r.tz}));
+  }; reader.readAsText(file);
+}
+function download(name, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+function exportTXT(){ if(!results.length) return toast('Belum ada data output',false); download('coordinate-output.txt', JSON.stringify(results,null,2),'text/plain'); }
+function exportExcel(){ if(!results.length) return toast('Belum ada data output',false); const ws=XLSX.utils.json_to_sheet(results); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Output'); XLSX.writeFile(wb,'coordinate-output.xlsx'); }
+function exportPDF(){
+  if(!results.length) return toast('Belum ada data output',false);
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape'}); doc.text('Survey Coordinate Converter - Output',14,14);
+  const keys=[...new Set(results.flatMap(o=>Object.keys(o)))]; const body=results.map(o=>keys.map(k=>String(o[k]??'')));
+  doc.autoTable({head:[keys],body,startY:20,styles:{fontSize:7}}); doc.save('coordinate-output.pdf');
+}
+function resetAll(){ if(!confirm('Reset semua output?')) return; results=[]; document.getElementById('singleResult').innerHTML=''; renderResults(); document.getElementById('statStatus').textContent='Ready'; }
+
+init();
+</script>
+<!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
+<style id="survai-embed-style">
+@media all{
+  html.survai-embed body{background:#f8fafc !important;}
+  /* Sembunyikan chrome bawaan file lama saat di-embed dalam shell baru */
+  html.survai-embed .status,
+  html.survai-embed .statusbar,
+  html.survai-embed .status-bar,
+  html.survai-embed .phone .status,
+  html.survai-embed .notch,
+  html.survai-embed .home-indicator{display:none !important;}
+  /* Header/hero/topbar internal: disembunyikan karena shell sudah punya header */
+  html.survai-embed > body header.header,
+  html.survai-embed > body .topbar,
+  html.survai-embed > body header.topbar,
+  html.survai-embed > body .app-header,
+  html.survai-embed .hero-row .back,
+  html.survai-embed .top-mini .back,
+  html.survai-embed .mf-head .back,
+  html.survai-embed .wl-head .back,
+  html.survai-embed .ct-top .ct-back{ }
+  /* Lepas frame "HP" agar konten full-width di Android */
+  html.survai-embed .phone,
+  html.survai-embed .mobile-frame{max-width:100% !important;width:100% !important;margin:0 !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;min-height:auto !important;}
+  html.survai-embed .app{max-width:100% !important;padding-bottom:24px !important;}
+  /* Anti horizontal-overflow di Android */
+  html.survai-embed,html.survai-embed body{overflow-x:hidden !important;}
+  html.survai-embed table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Target sentuh & tinggi input minimal */
+  html.survai-embed input,html.survai-embed select,html.survai-embed button{min-height:44px;}
+  /* Error box global untuk safeRun */
+  .survai-error-box{margin-top:12px;padding:12px 14px;border-radius:14px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:14px;line-height:1.5;}
+}
+</style>
+<script id="survai-embed-script">
+(function(){
+  try{
+    var p = new URLSearchParams(location.search);
+    if(p.get('embed')==='1'){ document.documentElement.classList.add('survai-embed'); }
+  }catch(e){}
+  // Wrapper aman untuk tombol hitung (opsional dipakai shell); TIDAK mengganti function asli
+  window.safeRun = window.safeRun || function(fn, targetId){
+    try{
+      if(typeof fn==='function'){ return fn(); }
+      if(typeof fn==='string' && typeof window[fn]==='function'){ return window[fn](); }
+      throw new Error('Function tidak ditemukan.');
+    }catch(error){
+      console.error(error);
+      var t = (targetId&&document.getElementById(targetId)) || document.querySelector('.result') || document.querySelector('.panel') || document.body;
+      var box=document.createElement('div'); box.className='survai-error-box';
+      box.innerHTML='<b>Perhitungan gagal diproses.</b><br>'+(error&&error.message?error.message:error);
+      t.appendChild(box);
+    }
+  };
+  // Beritahu shell bahwa submenu sudah siap (untuk hideLoading yang lebih akurat)
+  window.addEventListener('load',function(){
+    try{ if(parent && parent!==window){ parent.postMessage({survai:'ready'}, '*'); } }catch(e){}
+  });
+})();
+</script>
+<!-- ==== END SURVAI EMBED MODE ==== -->
+
+</body>
+</html>

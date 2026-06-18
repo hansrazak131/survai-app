@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Drone Spraying — SurvAI</title>
+<style>
+:root{
+  --navy:#17365f; --blue:#2563eb; --blue-ink:#094cb2; --teal:#14b8a6; --cyan:#06b6d4;
+  --bg:#f8fafc; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --ok:#22c55e; --warn:#eab308; --poor:#f97316; --bad:#ef4444;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+body{padding:14px 14px 60px;overflow-x:hidden;}
+h1,h2,h3{margin:0;}
+button{font-family:inherit;cursor:pointer;}
+
+/* Stepper */
+.steps{display:flex;gap:6px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none;margin-bottom:4px;}
+.steps::-webkit-scrollbar{display:none;}
+.step-pill{flex:0 0 auto;font-size:12px;font-weight:700;padding:8px 13px;border-radius:999px;
+  border:1px solid var(--line);background:#fff;color:var(--muted);white-space:nowrap;}
+.step-pill.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.step-pill.done{background:#eef4ff;color:var(--blue-ink);border-color:#dbe6ff;}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;
+  margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+.card h2{font-size:17px;font-weight:800;margin-bottom:4px;}
+.card .sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.4;}
+
+/* Form */
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;letter-spacing:.2px;}
+.field input,.field select,.field textarea{width:100%;height:48px;border:1.5px solid var(--line);
+  border-radius:12px;padding:0 13px;font-size:15px;font-family:inherit;color:var(--ink);
+  outline:none;background:var(--bg);transition:border-color .15s;}
+.field textarea{height:auto;padding:12px 13px;resize:vertical;min-height:70px;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);}
+.field .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.35;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+@media(min-width:560px){.grid2{grid-template-columns:1fr 1fr 1fr;}}
+
+/* Chips select */
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:11px;
+  padding:9px 13px;font-size:13.5px;font-weight:600;transition:all .12s;}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+/* Nav buttons */
+.nav-row{display:flex;gap:10px;margin-top:4px;}
+.btn{flex:1;height:50px;border:0;border-radius:13px;font-size:15px;font-weight:700;transition:opacity .15s;}
+.btn:active{opacity:.85;}
+.btn.primary{background:linear-gradient(135deg,var(--blue),var(--blue-ink));color:#fff;}
+.btn.ghost{background:#fff;color:var(--muted);border:1.5px solid var(--line);}
+.btn.wide{width:100%;flex:none;}
+
+/* Warning banner */
+.warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px;
+  font-size:12.5px;color:#92400e;line-height:1.5;margin-bottom:14px;}
+.warn-box b{color:#78350f;}
+
+/* Result cards */
+.res-card{border-radius:16px;padding:15px;margin-bottom:12px;border:1px solid var(--line);background:#fff;}
+.res-card h3{font-size:15px;font-weight:800;margin-bottom:11px;display:flex;align-items:center;gap:8px;}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed #eef1f5;font-size:13.5px;}
+.kv:last-child{border-bottom:0;}
+.kv .k{color:var(--muted);}
+.kv .v{font-weight:700;text-align:right;}
+
+/* Status badge */
+.status-banner{border-radius:16px;padding:16px;margin-bottom:12px;color:#fff;font-weight:800;text-align:center;}
+.status-banner .big{font-size:20px;margin-bottom:3px;}
+.status-banner .small{font-size:12.5px;font-weight:600;opacity:.95;}
+.st-ok{background:linear-gradient(135deg,#16a34a,#22c55e);}
+.st-cond{background:linear-gradient(135deg,#ca8a04,#eab308);}
+.st-warn{background:linear-gradient(135deg,#ea580c,#f97316);}
+.st-bad{background:linear-gradient(135deg,#dc2626,#ef4444);}
+
+/* Recommendation list */
+.rec-item{display:flex;gap:9px;padding:8px 0;font-size:13.5px;line-height:1.45;border-bottom:1px dashed #eef1f5;}
+.rec-item:last-child{border-bottom:0;}
+.rec-item .ic{flex:0 0 auto;width:20px;height:20px;border-radius:6px;background:#eef4ff;color:var(--blue-ink);
+  display:grid;place-items:center;font-size:12px;font-weight:800;}
+
+.hidden{display:none !important;}
+.section-screen{display:none;}
+.section-screen.active{display:block;}
+</style>
+</head>
+<body>
+
+<!-- STEPPER -->
+<div class="steps" id="stepper"></div>
+
+<!-- ============ SCREEN 1: Drone & Komoditas ============ -->
+<div class="section-screen active" id="screen-0">
+  <div class="warn-box">
+    <b>⚠ Catatan Keamanan:</b> Gunakan dosis sesuai label produk. Jangan mencampur bahan kimia bila label melarang tank mix. Lakukan jar test/uji kompatibilitas sebelum mencampur dalam tangki drone.
+  </div>
+  <div class="card">
+    <h2>1. Pilih Drone & Komoditas</h2>
+    <p class="sub">Pilih model drone dan komoditas. Jika spesifikasi tidak lengkap, gunakan Custom Drone.</p>
+    <div class="field">
+      <label>Model Drone</label>
+      <select id="droneModel" onchange="onDroneChange()"></select>
+      <div class="hint" id="droneSpecHint"></div>
+    </div>
+    <div class="field">
+      <label>Komoditas</label>
+      <div class="chips" id="commodityChips"></div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn primary wide" onclick="goStep(1)">Lanjut</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: Tujuan Penyemprotan ============ -->
+<div class="section-screen" id="screen-1">
+  <div class="card">
+    <h2>2. Tujuan Penyemprotan</h2>
+    <p class="sub">Tentukan tujuan dan jenis bahan. Ini menentukan target droplet & volume.</p>
+    <div class="field">
+      <label>Tujuan Penyemprotan</label>
+      <select id="purpose" onchange="onPurposeChange()"></select>
+    </div>
+    <div class="field">
+      <label>Jenis Bahan</label>
+      <select id="material"></select>
+    </div>
+    <div id="knockdownWarn" class="warn-box hidden">
+      <b>⚠ Mode Knock Down:</b> Berisiko merusak tanaman utama jika drift/salah target. Gunakan droplet sedang-kasar/kasar, tinggi rendah, speed terkendali, swath tidak terlalu lebar, dan jangan semprot saat angin kuat atau hujan akan turun.
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn ghost" onclick="goStep(0)">Kembali</button>
+    <button class="btn primary" onclick="goStep(2)">Lanjut</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: Parameter Lahan ============ -->
+<div class="section-screen" id="screen-2">
+  <div class="card">
+    <h2>3. Parameter Lahan</h2>
+    <p class="sub">Luas lahan, dosis produk (sesuai label), dan adjuvant.</p>
+    <div class="grid2">
+      <div class="field"><label>Luas Lahan (ha)</label><input type="number" id="area" inputmode="decimal" placeholder="cth: 10"></div>
+      <div class="field"><label>Volume Aplikasi (L/ha)</label><input type="number" id="vapp" inputmode="decimal" placeholder="cth: 30"></div>
+      <div class="field"><label>Dosis Produk (L/ha)</label><input type="number" id="dprod" inputmode="decimal" placeholder="sesuai label"></div>
+      <div class="field"><label>Adjuvant (%)</label><input type="number" id="adjPct" inputmode="decimal" placeholder="cth: 0.25"></div>
+    </div>
+    <div class="field">
+      <label>Field Factor (efisiensi lahan)</label>
+      <select id="fieldFactor">
+        <option value="1.2">Lahan rapi/persegi (1.15–1.25)</option>
+        <option value="1.38" selected>Lahan sedang (1.30–1.45)</option>
+        <option value="1.65">Lahan tidak beraturan/banyak obstacle (1.50–1.80)</option>
+      </select>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn ghost" onclick="goStep(1)">Kembali</button>
+    <button class="btn primary" onclick="goStep(3)">Lanjut</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 4: Parameter Terbang ============ -->
+<div class="section-screen" id="screen-3">
+  <div class="card">
+    <h2>4. Parameter Terbang</h2>
+    <p class="sub">Kosongkan untuk pakai rekomendasi otomatis per komoditas/tujuan.</p>
+    <div class="grid2">
+      <div class="field"><label>Speed Drone (m/s)</label><input type="number" id="speed" inputmode="decimal" placeholder="auto"></div>
+      <div class="field"><label>Swath / Lebar (m)</label><input type="number" id="swath" inputmode="decimal" placeholder="auto"></div>
+      <div class="field"><label>Tinggi dari Tajuk (m)</label><input type="number" id="height" inputmode="decimal" placeholder="auto"></div>
+      <div class="field"><label>Jumlah Nozzle</label><input type="number" id="nozzles" inputmode="numeric" placeholder="auto"></div>
+      <div class="field"><label>Debit Total (L/min)</label><input type="number" id="qtotal" inputmode="decimal" placeholder="opsional"></div>
+      <div class="field"><label>Overlap (%)</label><input type="number" id="overlap" inputmode="decimal" placeholder="cth: 20"></div>
+      <div class="field"><label>Tangki Manual (L)</label><input type="number" id="tankManual" inputmode="decimal" placeholder="utk drone custom"></div>
+    </div>
+  </div>
+  <div class="nav-row">
+    <button class="btn ghost" onclick="goStep(2)">Kembali</button>
+    <button class="btn primary" onclick="goStep(4)">Lanjut</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 5: Kondisi Cuaca ============ -->
+<div class="section-screen" id="screen-4">
+  <div class="card">
+    <h2>5. Kondisi Cuaca</h2>
+    <p class="sub">Untuk antisipasi drift, hujan, dan turbulensi angin.</p>
+    <div class="field">
+      <label>Status Hujan</label>
+      <select id="rainStatus">
+        <option value="none">Tidak hujan</option>
+        <option value="drizzle">Gerimis</option>
+        <option value="rain">Hujan</option>
+        <option value="forecast1">Perkiraan hujan &lt; 1 jam</option>
+        <option value="forecast3">Perkiraan hujan 1–3 jam</option>
+        <option value="safe">Aman &gt; 3 jam</option>
+      </select>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Kecepatan Angin (m/s)</label><input type="number" id="wind" inputmode="decimal" placeholder="cth: 2"></div>
+      <div class="field"><label>Suhu (°C)</label><input type="number" id="temp" inputmode="decimal" placeholder="cth: 28"></div>
+      <div class="field"><label>Kelembapan (%)</label><input type="number" id="humidity" inputmode="decimal" placeholder="cth: 70"></div>
+    </div>
+    <div class="field">
+      <label>Arah Angin</label>
+      <select id="windDir"><option>N</option><option>NE</option><option>E</option><option>SE</option><option>S</option><option>SW</option><option>W</option><option>NW</option></select>
+    </div>
+    <div class="field">
+      <label>Kondisi Daun</label>
+      <select id="leafCond"><option value="dry">Kering</option><option value="dew">Basah embun</option><option value="wet">Basah hujan</option></select>
+    </div>
+    <div class="field">
+      <label>Tanaman Sensitif di Arah Angin?</label>
+      <select id="sensitive"><option value="no">Tidak ada</option><option value="yes">Ada</option></select>
+    </div>
+    <button class="btn ghost wide" style="margin-top:4px" onclick="autofillWeather()">📍 Isi otomatis dari cuaca lokasi saya</button>
+  </div>
+  <div class="nav-row">
+    <button class="btn ghost" onclick="goStep(3)">Kembali</button>
+    <button class="btn primary" onclick="calculateAll()">Hitung Rekomendasi</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 6: Hasil Rekomendasi ============ -->
+<div class="section-screen" id="screen-5">
+  <div id="resultArea"></div>
+  <div class="nav-row">
+    <button class="btn ghost" onclick="goStep(4)">Ubah Input</button>
+    <button class="btn primary" onclick="goStep(6)">Evaluasi WSP →</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 7: Evaluasi WSP/DropLeaf ============ -->
+<div class="section-screen" id="screen-6">
+  <div class="card">
+    <h2>8. Evaluasi WSP / DropLeaf</h2>
+    <p class="sub">Input hasil analisa kertas water-sensitive paper setelah uji semprot.</p>
+    <div class="grid2">
+      <div class="field"><label>Coverage (%)</label><input type="number" id="wspCov" inputmode="decimal" placeholder="cth: 7.68"></div>
+      <div class="field"><label>Density (drops/cm²)</label><input type="number" id="wspDens" inputmode="decimal" placeholder="cth: 8.81"></div>
+      <div class="field"><label>Number of Drops</label><input type="number" id="wspNum" inputmode="numeric" placeholder="opsional"></div>
+      <div class="field"><label>Mean Diameter (µm)</label><input type="number" id="wspMean" inputmode="decimal" placeholder="opsional"></div>
+      <div class="field"><label>Dv0.1 (µm)</label><input type="number" id="wspDv1" inputmode="decimal" placeholder="opsional"></div>
+      <div class="field"><label>Dv0.5 / VMD (µm)</label><input type="number" id="wspDv5" inputmode="decimal" placeholder="cth: 544"></div>
+      <div class="field"><label>Dv0.9 (µm)</label><input type="number" id="wspDv9" inputmode="decimal" placeholder="opsional"></div>
+    </div>
+    <button class="btn primary wide" onclick="evaluateWSP()">Evaluasi Hasil</button>
+  </div>
+  <div id="wspResult"></div>
+  <div class="nav-row">
+    <button class="btn ghost wide" onclick="goStep(5)">← Kembali ke Rekomendasi</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DRONE SPRAYING — Database & Logic (PRD v2)
+   Tidak ada dosis dikarang. Semua dosis dari input label user.
+   ============================================================ */
+
+/* ---- Database drone (spesifikasi resmi; confidence rendah = input manual) ---- */
+const DRONES = [
+  {id:'t50', label:'DJI Agras T50', tank:40, flow:16, flowOpt:24, swMin:4, swMax:11, dMin:50, dMax:500, nz:2, nzOpt:4, conf:'high'},
+  {id:'t25', label:'DJI Agras T25', tank:20, flow:16, flowOpt:24, swMin:4, swMax:7, dMin:50, dMax:500, nz:2, nzOpt:4, conf:'high'},
+  {id:'dji-other', label:'DJI Agras versi lain (T40/T30/T20P/T10)', tank:null, flow:null, swMin:null, swMax:null, dMin:50, dMax:500, nz:2, conf:'manual'},
+  {id:'xp150max', label:'XAG P150 Max', tank:80, flow:32, flowOpt:46, swMin:5, swMax:10, dMin:60, dMax:500, nz:2, nzOpt:4, conf:'high'},
+  {id:'xp-series', label:'XAG P150 / P Series', tank:70, flow:30, swMin:5, swMax:10, dMin:60, dMax:400, nz:2, conf:'medium'},
+  {id:'joy-jt30', label:'Joyance JT30L-606', tank:30, flow:4, swMin:8, swMax:10, dMin:null, dMax:null, nz:4, conf:'medium'},
+  {id:'joy-15', label:'Joyance seri 15L', tank:15, flow:null, swMin:6, swMax:7, dMin:null, dMax:null, nz:2, conf:'low'},
+  {id:'foxa4', label:'FOXTECH A4 Quadcopter', tank:10, flow:null, swMin:null, swMax:null, dMin:null, dMax:null, nz:4, conf:'low'},
+  {id:'foxthea', label:'FOXTECH THEA 210', tank:null, flow:null, swMin:null, swMax:null, dMin:null, dMax:null, nz:null, conf:'low'},
+  {id:'hylio272', label:'Hylio AG-272', tank:68, flow:15, swMin:null, swMax:12.2, dMin:null, dMax:null, nz:4, conf:'high'},
+  {id:'demeter', label:'Demeter EA2021E', tank:20, flow:null, swMin:null, swMax:null, dMin:null, dMax:null, nz:null, conf:'low'},
+  {id:'eagle12', label:'Eagle Brother M12', tank:12, flow:null, swMin:null, swMax:null, dMin:null, dMax:null, nz:null, conf:'low'},
+  {id:'tyx405', label:'TYX AG405', tank:10, flow:null, swMin:null, swMax:null, dMin:null, dMax:null, nz:null, conf:'low'},
+  {id:'custom', label:'Custom Drone Manual Input', tank:null, flow:null, swMin:null, swMax:null, dMin:null, dMax:null, nz:null, conf:'manual'},
+];
+
+const COMMODITIES = ['Tebu','Sawah/Padi','Sawit','Teh','Kopi','Kelapa','Pisang'];
+
+const PURPOSES = [
+  'Pupuk cair / foliar','Pestisida','Insektisida','Fungisida',
+  'Herbisida gulma','Herbisida piringan/gawangan',
+  'Defoliant / perontok daun','Ripener',
+  'Knock down gulma pengganggu','Knock down tanaman tidak produktif',
+  'Sanitasi lahan / pembersihan vegetasi'
+];
+
+const MATERIALS = [
+  'Pupuk cair','Pestisida','Herbisida sistemik','Herbisida kontak',
+  'Fungisida','Insektisida','Defoliant','Ripener',
+  'Adjuvant / perekat / perata','Campuran/tank mix manual'
+];
+
+/* ---- Target droplet & volume per tujuan (starting point, divalidasi via WSP) ---- */
+const PURPOSE_TARGET = {
+  'Pupuk cair / foliar':         {vol:[10,30], dv:[200,350], cov:[10,25], droplet:'Sedang'},
+  'Pestisida':                   {vol:[15,30], dv:[150,300], cov:[10,30], droplet:'Halus-sedang'},
+  'Insektisida':                 {vol:[15,30], dv:[150,300], cov:[10,30], droplet:'Halus-sedang'},
+  'Fungisida':                   {vol:[15,30], dv:[150,300], cov:[10,30], droplet:'Halus-sedang'},
+  'Herbisida gulma':             {vol:[20,50], dv:[300,600], cov:[5,15],  droplet:'Sedang-kasar'},
+  'Herbisida piringan/gawangan': {vol:[25,60], dv:[350,650], cov:[8,20],  droplet:'Sedang-kasar'},
+  'Defoliant / perontok daun':   {vol:[20,40], dv:[250,400], cov:[10,25], droplet:'Sedang'},
+  'Ripener':                     {vol:[20,40], dv:[250,400], cov:[10,25], droplet:'Sedang'},
+  'Knock down gulma pengganggu': {vol:[25,60], dv:[350,650], cov:[8,20],  droplet:'Kasar terkendali'},
+  'Knock down tanaman tidak produktif': {vol:[30,80], dv:[350,700], cov:[10,25], droplet:'Kasar/sedang-kasar'},
+  'Sanitasi lahan / pembersihan vegetasi': {vol:[25,60], dv:[350,650], cov:[8,20], droplet:'Kasar terkendali'},
+};
+
+/* ---- Parameter awal per komoditas (speed, tinggi, swath default) ---- */
+const COMMODITY_PARAM = {
+  'Tebu':      {speed:4,   height:2.5, swath:5},
+  'Sawah/Padi':{speed:4,   height:2,   swath:5},
+  'Sawit':     {speed:3.5, height:2,   swath:4},
+  'Teh':       {speed:3.5, height:2,   swath:4},
+  'Kopi':      {speed:3,   height:2,   swath:4},
+  'Kelapa':    {speed:3,   height:2,   swath:4},
+  'Pisang':    {speed:3,   height:2,   swath:4},
+};
+
+const isKnockdown = p => /knock down|sanitasi/i.test(p);
+const isHerbicide = p => /herbisida|knock down|sanitasi/i.test(p);
+const isFoliarPest = p => /pupuk|pestisida|insektisida|fungisida/i.test(p);
+
+/* ===================== RUMUS PRA-SEMPROT (PRD §11) ===================== */
+function computeSpray(inp){
+  const {area:A, vapp:V, dprod:D, adjPct, tank:T, nozzles:NZ, fieldFactor:FF} = inp;
+  let {speed:S, swath:W, qtotal:Q} = inp;
+
+  const out = {};
+  out.vTotal = A * V;                          // 1. Total larutan
+  out.prodTotal = A * D;                        // 2. Total produk
+  out.aTank = T>0 ? T / V : 0;                  // 3. Luas per tangki
+  out.nTank = T>0 ? out.vTotal / T : 0;         // 4. Jumlah tangki
+  out.prodTank = V>0 ? (D * T) / V : 0;         // 5. Produk per tangki
+  out.adjTank = T * (adjPct/100);               // 6. Adjuvant per tangki
+  out.airTank = T - out.prodTank - out.adjTank; // 7. Air per tangki
+
+  // Debit: jika Q diketahui -> hitung speed; else hitung Q dari speed & swath
+  if(Q>0 && V>0 && W>0){
+    out.qTotal = Q;
+    out.speed = (Q * 600) / (V * W);            // 10. Speed dari debit
+    S = out.speed;
+  } else {
+    out.qTotal = (V * S * W) / 600;             // 8. Debit total
+    out.speed = S;
+  }
+  out.qNozzle = NZ>0 ? out.qTotal / NZ : 0;     // 9. Debit per nozzle
+  out.swath = W;
+
+  out.lTrack = W>0 ? (A * 10000) / W : 0;       // 11. Panjang lintasan
+  out.tMin = (S>0) ? out.lTrack / (S * 60) : 0; // 12. Waktu efektif
+  out.tReal = out.tMin * FF;                    // 13. Waktu real
+  return out;
+}
+
+/* ===================== WEATHER RISK (PRD §10) ===================== */
+function dropletFactor(droplet){
+  if(/halus/i.test(droplet) && !/sedang/i.test(droplet)) return 1.5;
+  if(/kasar/i.test(droplet)) return 0.6;
+  return 1.0; // sedang
+}
+function computeWeather(w, droplet){
+  // Drift Risk (PRD §17 & §10.1)
+  const windFactor = w.wind;
+  const heightFactor = w.height || 2;
+  const dFactor = dropletFactor(droplet);
+  const tempFactor = (w.temp > 32 && w.humidity < 50) ? 1.2 : 1.0;
+  const sensFactor = (w.sensitive === 'yes') ? 1.3 : 1.0;
+  const driftRaw = windFactor * heightFactor * dFactor * tempFactor * sensFactor;
+
+  let driftCat;
+  if(driftRaw < 4) driftCat = 'Rendah';
+  else if(driftRaw < 8) driftCat = 'Sedang';
+  else if(driftRaw < 12) driftCat = 'Tinggi';
+  else driftCat = 'Sangat Tinggi';
+
+  // Rain Risk (PRD §10.3)
+  let rainRisk = 10;
+  const rs = w.rainStatus;
+  if(rs==='rain') rainRisk = 100;
+  else if(rs==='drizzle') rainRisk = 80;
+  else if(rs==='forecast1') rainRisk = 90;
+  else if(rs==='forecast3') rainRisk = 60;
+  else if(rs==='safe') rainRisk = 15;
+  if(w.leafCond==='wet') rainRisk += 20;
+  else if(w.leafCond==='dew') rainRisk += 10;
+  rainRisk = Math.min(100, rainRisk);
+
+  // Heat/Evap risk
+  let heatRisk = 10;
+  if(w.temp > 32 && w.humidity < 50) heatRisk = 60;
+  else if(w.temp > 30 && w.humidity < 60) heatRisk = 35;
+
+  // Drift score 0-100 (skala dari driftRaw)
+  const driftScore = Math.min(100, driftRaw * 8);
+
+  // Feasibility (PRD §10.4)
+  const feasibility = Math.round(100 - (0.45*driftScore + 0.35*rainRisk + 0.20*heatRisk));
+
+  // Status (PRD §19 + §16 hard rules)
+  let status, statusClass, reasons=[];
+  if(rs==='rain'){ status='Jangan Semprot'; statusClass='st-bad'; reasons.push('Sedang hujan — larutan tercuci, WSP tidak valid.'); }
+  else if(rs==='forecast1'){ status='Jangan Semprot'; statusClass='st-bad'; reasons.push('Perkiraan hujan < 1 jam — risiko wash-off tinggi.'); }
+  else if(w.wind > 6){ status='Jangan Semprot'; statusClass='st-bad'; reasons.push('Angin > 6 m/s — operasi tidak direkomendasikan.'); }
+  else if(w.wind > 4.5 && isHerbicide(w.purpose)){ status='Jangan Semprot'; statusClass='st-bad'; reasons.push('Angin > 4.5 m/s untuk herbisida/knockdown — risiko drift sangat tinggi.'); }
+  else if(feasibility >= 80){ status='Layak Semprot'; statusClass='st-ok'; }
+  else if(feasibility >= 65){ status='Layak Bersyarat'; statusClass='st-cond'; }
+  else if(feasibility >= 50){ status='Waspada'; statusClass='st-warn'; }
+  else { status='Jangan Semprot'; statusClass='st-bad'; }
+
+  // Tambahan reasons
+  if(w.wind > 3 && w.wind <= 4.5) reasons.push('Angin sedang — gunakan droplet lebih kasar, turunkan tinggi, beri buffer area.');
+  if(w.sensitive==='yes') reasons.push('⚠ Ada tanaman sensitif di arah angin ('+w.windDir+') — risiko drift ke tanaman produktif.');
+  if(w.leafCond==='wet') reasons.push('Daun basah — risiko run-off, coverage WSP bias.');
+  if(w.temp > 32 && w.humidity < 50) reasons.push('Suhu tinggi & lembap rendah — risiko evaporasi/drift, semprot pagi/sore.');
+  if(w.wind <= 1) reasons.push('Angin sangat kecil — waspada inversi/udara stagnan.');
+  if(reasons.length===0) reasons.push('Kondisi mendukung. Tetap lakukan uji WSP kecil sebelum aplikasi penuh.');
+
+  return {driftRaw, driftCat, rainRisk, heatRisk, feasibility, status, statusClass, reasons};
+}
+
+/* ===================== WSP / DROPLEAF EVALUATOR (PRD §13) ===================== */
+function evaluateWSPLogic(wsp, purpose){
+  const cov = wsp.cov, dens = wsp.dens, dv5 = wsp.dv5;
+  const target = PURPOSE_TARGET[purpose] || PURPOSE_TARGET['Pupuk cair / foliar'];
+
+  // Kategori
+  let covCat = cov < target.cov[0] ? 'Rendah' : cov > target.cov[1] ? 'Tinggi' : 'Sesuai';
+  let densCat = dens < 20 ? 'Rendah' : dens > 70 ? 'Tinggi' : 'Sedang';
+  let dropCat = dv5 < 150 ? 'Sangat halus' : dv5 < 250 ? 'Halus' : dv5 < 400 ? 'Sedang' : dv5 < 600 ? 'Kasar' : 'Sangat kasar';
+
+  // Skor efektivitas (PRD §13.4): SE = 0.30C+0.25D+0.20U+0.15V+0.10R
+  const cScore = Math.min(100, (cov/target.cov[1])*100);
+  const dScore = Math.min(100, (dens/40)*100);
+  const uScore = 70; // uniformity default jika tidak ada CV
+  const vFit = (dv5 >= target.dv[0] && dv5 <= target.dv[1]) ? 100 : Math.max(0, 100 - Math.abs(dv5-(target.dv[0]+target.dv[1])/2)/5);
+  const rScore = dv5 > 250 ? 80 : 50; // reverse drift: droplet lebih besar = drift rendah
+  const SE = Math.round(0.30*cScore + 0.25*dScore + 0.20*uScore + 0.15*vFit + 0.10*rScore);
+
+  let status, statusClass;
+  if(SE >= 80){ status='Efektif'; statusClass='st-ok'; }
+  else if(SE >= 65){ status='Cukup Efektif'; statusClass='st-cond'; }
+  else if(SE >= 50){ status='Kurang Efektif'; statusClass='st-warn'; }
+  else { status='Tidak Efektif'; statusClass='st-bad'; }
+
+  // Rekomendasi koreksi (PRD §13.3 & §14)
+  const recs = [];
+  if(isFoliarPest(purpose)){
+    if(covCat==='Rendah' && densCat==='Rendah' && dv5 > 400){
+      recs.push('Naikkan volume L/ha (maks +20–40% per uji).');
+      recs.push('Turunkan speed 10–20%.');
+      recs.push('Ganti nozzle ke lebih halus/sedang.');
+      recs.push('Rapatkan swath (maks 10–20% per uji).');
+    } else if(covCat==='Tinggi' && dv5 > 400){
+      recs.push('Coverage tinggi + droplet besar → risiko run-off/boros. Kurangi volume atau ubah droplet lebih sedang.');
+    }
+  }
+  if(isHerbicide(purpose)){
+    if(dv5 >= 300 && dv5 <= 600 && cov >= 5 && cov <= 15){
+      recs.push('Droplet & coverage sudah sesuai herbisida sistemik. Pertahankan.');
+    } else if(dv5 < 250){
+      recs.push('Droplet terlalu halus untuk herbisida → risiko drift. Ubah ke kasar/sedang-kasar.');
+    }
+    if(densCat==='Rendah'){
+      recs.push('Density rendah → naikkan volume bertahap atau turunkan speed sedikit.');
+    }
+  }
+  // Koreksi volume otomatis (PRD §14.1)
+  if(covCat==='Rendah' && target.cov[1]>0){
+    const factor = Math.min(1.4, target.cov[1]/Math.max(0.1,cov));
+    recs.push('Koreksi volume otomatis: ×'+factor.toFixed(2)+' (dibatasi maks +40%).');
+  }
+  if(recs.length===0) recs.push('Hasil sudah memadai untuk tujuan ini. Lanjutkan dengan monitoring berkala.');
+
+  return {covCat, densCat, dropCat, SE, status, statusClass, recs, target};
+}
+
+
+/* ===================== UI CONTROLLER ===================== */
+const STEP_LABELS = ['Drone & Komoditas','Tujuan','Lahan','Terbang','Cuaca','Hasil','WSP'];
+let curStep = 0;
+let selCommodity = 'Tebu';
+let lastSpray = null;
+
+function $(id){ return document.getElementById(id); }
+function num(id){ const v=parseFloat(($(id)||{}).value); return isNaN(v)?0:v; }
+
+function renderStepper(){
+  $('stepper').innerHTML = STEP_LABELS.map((l,i)=>
+    '<div class="step-pill '+(i===curStep?'active':i<curStep?'done':'')+'" onclick="goStep('+i+')">'+(i+1)+'. '+l+'</div>'
+  ).join('');
+}
+function goStep(n){
+  if(n<0||n>6) return;
+  curStep = n;
+  document.querySelectorAll('.section-screen').forEach((s,i)=>s.classList.toggle('active', i===n));
+  renderStepper();
+  window.scrollTo({top:0,behavior:'auto'});
+}
+
+function initDropdowns(){
+  $('droneModel').innerHTML = DRONES.map(d=>'<option value="'+d.id+'">'+d.label+(d.conf==='low'||d.conf==='manual'?' ⚠':'')+'</option>').join('');
+  $('purpose').innerHTML = PURPOSES.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+  $('material').innerHTML = MATERIALS.map(m=>'<option value="'+m+'">'+m+'</option>').join('');
+  $('commodityChips').innerHTML = COMMODITIES.map(c=>'<button class="chip'+(c===selCommodity?' on':'')+'" onclick="selectCommodity(\''+c+'\')">'+c+'</button>').join('');
+  onDroneChange();
+  onPurposeChange();
+}
+function selectCommodity(c){
+  selCommodity = c;
+  document.querySelectorAll('#commodityChips .chip').forEach(b=>b.classList.toggle('on', b.textContent===c));
+}
+function onDroneChange(){
+  const d = DRONES.find(x=>x.id===$('droneModel').value);
+  const hint = $('droneSpecHint');
+  if(!d){ hint.textContent=''; return; }
+  if(d.conf==='manual' || d.conf==='low'){
+    hint.innerHTML = '⚠ Data spesifikasi belum lengkap. Masukkan tangki, flow, nozzle, swath secara manual dari brosur/manual drone di langkah berikutnya.';
+    hint.style.color = '#b45309';
+  } else {
+    const parts=[];
+    if(d.tank) parts.push('Tangki '+d.tank+' L');
+    if(d.flow) parts.push('Flow '+d.flow+(d.flowOpt?'/'+d.flowOpt:'')+' L/min');
+    if(d.swMin) parts.push('Swath '+d.swMin+'–'+d.swMax+' m');
+    if(d.nz) parts.push(d.nz+(d.nzOpt?'/'+d.nzOpt:'')+' nozzle');
+    hint.textContent = parts.join(' · ') + ' (confidence: '+d.conf+')';
+    hint.style.color = 'var(--muted)';
+  }
+  // Auto-fill tangki ke field jika ada
+  if(d.tank && $('vapp')){ /* tank dipakai saat hitung */ }
+}
+function onPurposeChange(){
+  const p = $('purpose').value;
+  $('knockdownWarn').classList.toggle('hidden', !isKnockdown(p));
+}
+
+/* Auto-fill cuaca dari Open-Meteo (lewat GPS) */
+function autofillWeather(){
+  if(!navigator.geolocation){ alert('GPS tidak tersedia'); return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const url='https://api.open-meteo.com/v1/forecast?latitude='+pos.coords.latitude.toFixed(3)+
+        '&longitude='+pos.coords.longitude.toFixed(3)+
+        '&current=temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,wind_direction_10m'+
+        '&wind_speed_unit=ms&timezone=auto';
+      const r=await fetch(url,{cache:'no-store'}); const d=await r.json(); const c=d.current;
+      if($('wind')) $('wind').value = c.wind_speed_10m.toFixed(1);
+      if($('temp')) $('temp').value = Math.round(c.temperature_2m);
+      if($('humidity')) $('humidity').value = Math.round(c.relative_humidity_2m);
+      if($('rainStatus')) $('rainStatus').value = c.precipitation>=0.5?'rain':'none';
+      const dirs=['N','NE','E','SE','S','SW','W','NW'];
+      if($('windDir')) $('windDir').value = dirs[Math.round(c.wind_direction_10m/45)%8];
+      alert('Cuaca lokasi terisi otomatis.');
+    }catch(e){ alert('Gagal ambil cuaca: perlu internet.'); }
+  }, ()=>alert('Izinkan akses lokasi untuk isi cuaca otomatis.'), {timeout:15000});
+}
+
+/* ===================== HITUNG SEMUA ===================== */
+function calculateAll(){
+  try{
+    const drone = DRONES.find(x=>x.id===$('droneModel').value) || {};
+    const purpose = $('purpose').value;
+    const cp = COMMODITY_PARAM[selCommodity] || {speed:3.5,height:2,swath:4};
+    const pt = PURPOSE_TARGET[purpose] || PURPOSE_TARGET['Pupuk cair / foliar'];
+
+    // Tangki: manual override > spec drone
+    let tank = num('tankManual') || drone.tank || 0;
+    // Parameter terbang: input user > rekomendasi komoditas
+    const speed = num('speed') || cp.speed;
+    const swath = num('swath') || (drone.swMin? (drone.swMin+drone.swMax)/2 : cp.swath);
+    const height = num('height') || cp.height;
+    const nozzles = num('nozzles') || drone.nz || 2;
+
+    if(!num('area')){ alert('Isi Luas Lahan dulu.'); goStep(2); return; }
+    if(!num('vapp')){ alert('Isi Volume Aplikasi (L/ha) dulu.'); goStep(2); return; }
+    if(!tank){ alert('Tangki drone tidak diketahui. Isi manual di Parameter Terbang (drone custom).'); goStep(3); return; }
+
+    const inp = {
+      area:num('area'), vapp:num('vapp'), dprod:num('dprod'),
+      adjPct:num('adjPct'), tank:tank, nozzles:nozzles,
+      speed:speed, swath:swath, qtotal:num('qtotal'),
+      fieldFactor:parseFloat($('fieldFactor').value)||1.38,
+    };
+    const spray = computeSpray(inp);
+    spray.height = height;
+
+    const w = {
+      wind:num('wind'), temp:num('temp'), humidity:num('humidity'),
+      rainStatus:$('rainStatus').value, windDir:$('windDir').value,
+      leafCond:$('leafCond').value, sensitive:$('sensitive').value,
+      purpose:purpose, height:height,
+    };
+    const weather = computeWeather(w, pt.droplet);
+
+    lastSpray = {spray, weather, purpose, pt, drone, cp, selCommodity, height, swath, speed, nozzles, inp, w};
+    renderResults();
+    goStep(5);
+  }catch(err){
+    console.error(err);
+    $('resultArea').innerHTML = '<div class="card"><b style="color:#dc2626">Perhitungan gagal:</b><br>'+err.message+'</div>';
+    goStep(5);
+  }
+}
+
+function fmt(n,d){ return (isFinite(n)?n:0).toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d||2}); }
+
+function renderResults(){
+  const {spray,weather,purpose,pt,height,swath,speed,nozzles,inp,selCommodity} = lastSpray;
+  const overlap = num('overlap') || 20;
+  const trackSpacing = swath * (1 - overlap/100);
+
+  let html = '';
+  // Status banner
+  html += '<div class="status-banner '+weather.statusClass+'">'+
+    '<div class="big">'+weather.status+'</div>'+
+    '<div class="small">Feasibility Score: '+weather.feasibility+'/100 · Drift: '+weather.driftCat+'</div></div>';
+
+  // 1. Parameter Terbang
+  html += '<div class="res-card"><h3>🚁 Rekomendasi Parameter Terbang</h3>'+
+    kv('Speed drone', fmt(speed,1)+' m/s')+
+    kv('Tinggi semprot', fmt(height,1)+' m dari tajuk')+
+    kv('Swath / lebar lintasan', fmt(swath,1)+' m')+
+    kv('Jarak antar lintasan', fmt(trackSpacing,1)+' m')+
+    kv('Overlap', fmt(overlap,0)+' %')+
+    kv('Volume aplikasi', fmt(inp.vapp,0)+' L/ha')+
+    kv('Debit total nozzle', fmt(spray.qTotal,3)+' L/min')+
+    kv('Debit per nozzle ('+nozzles+')', fmt(spray.qNozzle,3)+' L/min')+
+    kv('Ukuran droplet target', pt.dv[0]+'–'+pt.dv[1]+' µm')+
+    kv('Rekomendasi droplet', pt.droplet)+
+    '</div>';
+
+  // 2. Campuran
+  html += '<div class="res-card"><h3>🧪 Rekomendasi Campuran</h3>'+
+    kv('Total larutan', fmt(spray.vTotal,1)+' L')+
+    kv('Total produk', fmt(spray.prodTotal,2)+' L')+
+    kv('Jumlah tangki', fmt(spray.nTank,1)+' kali isi')+
+    kv('Luas per tangki', fmt(spray.aTank,2)+' ha')+
+    kv('Produk per tangki', fmt(spray.prodTank,2)+' L')+
+    kv('Adjuvant per tangki', fmt(spray.adjTank*1000,0)+' ml')+
+    kv('Air per tangki', fmt(spray.airTank,1)+' L')+
+    kv('Estimasi waktu efektif', fmt(spray.tMin,0)+' menit')+
+    kv('Estimasi waktu real', fmt(spray.tReal,0)+' menit')+
+    '</div>';
+
+  // 3. Cuaca
+  html += '<div class="res-card"><h3>🌦️ Rekomendasi Cuaca</h3>'+
+    kv('Status', weather.status)+
+    kv('Risiko drift', weather.driftCat+' (raw '+fmt(weather.driftRaw,1)+')')+
+    kv('Risiko hujan', weather.rainRisk+'/100')+
+    '<div style="margin-top:10px">'+
+    weather.reasons.map(r=>'<div class="rec-item"><span class="ic">!</span><span>'+r+'</span></div>').join('')+
+    '</div></div>';
+
+  // 4. Status efektivitas awal
+  let effNote = weather.status==='Layak Semprot'
+    ? 'Siap uji WSP kecil sebelum aplikasi penuh.'
+    : weather.status==='Layak Bersyarat'
+    ? 'Lakukan dengan penyesuaian (droplet/tinggi/buffer) lalu uji WSP.'
+    : 'Tunda atau perbaiki kondisi sebelum aplikasi.';
+  html += '<div class="res-card"><h3>✅ Status Efektivitas Awal</h3>'+
+    '<div class="rec-item"><span class="ic">i</span><span>'+effNote+'</span></div>'+
+    '<div class="rec-item"><span class="ic">i</span><span>Komoditas: '+selCommodity+' · Tujuan: '+purpose+'</span></div>'+
+    '</div>';
+
+  // 5. Rekomendasi koreksi (pra-WSP)
+  const corr = [];
+  if(weather.status!=='Layak Semprot'){
+    if(weather.driftCat==='Tinggi'||weather.driftCat==='Sangat Tinggi'){
+      corr.push('Gunakan droplet lebih kasar & turunkan tinggi 0.3–0.5 m.');
+      corr.push('Rapatkan swath dan tambah buffer area di sisi tanaman sensitif.');
+    }
+    if(weather.rainRisk>=60) corr.push('Tunda hingga risiko hujan turun (daun kering, tidak ada hujan 3–6 jam).');
+  }
+  corr.push('Setelah semprot percobaan, isi data WSP/DropLeaf untuk koreksi presisi.');
+  html += '<div class="res-card"><h3>🔧 Rekomendasi Koreksi</h3>'+
+    corr.map(c=>'<div class="rec-item"><span class="ic">→</span><span>'+c+'</span></div>').join('')+
+    '</div>';
+
+  $('resultArea').innerHTML = html;
+}
+function kv(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+
+/* ===================== WSP EVALUATION ===================== */
+function evaluateWSP(){
+  try{
+    const wsp = {cov:num('wspCov'), dens:num('wspDens'), dv5:num('wspDv5')};
+    if(!wsp.cov && !wsp.dens && !wsp.dv5){ alert('Isi minimal Coverage, Density, dan Dv0.5.'); return; }
+    const purpose = lastSpray ? lastSpray.purpose : $('purpose').value;
+    const ev = evaluateWSPLogic(wsp, purpose);
+
+    let html = '<div class="status-banner '+ev.statusClass+'">'+
+      '<div class="big">'+ev.status+'</div><div class="small">Skor Efektivitas: '+ev.SE+'/100</div></div>';
+    html += '<div class="res-card"><h3>📋 Interpretasi WSP</h3>'+
+      kv('Coverage', fmt(wsp.cov,2)+'% ('+ev.covCat+')')+
+      kv('Density', fmt(wsp.dens,2)+' drops/cm² ('+ev.densCat+')')+
+      kv('Dv0.5 / VMD', fmt(wsp.dv5,0)+' µm ('+ev.dropCat+')')+
+      kv('Target coverage', ev.target.cov[0]+'–'+ev.target.cov[1]+'%')+
+      kv('Target Dv0.5', ev.target.dv[0]+'–'+ev.target.dv[1]+' µm')+
+      '</div>';
+    html += '<div class="res-card"><h3>🔧 Rekomendasi Koreksi</h3>'+
+      ev.recs.map(r=>'<div class="rec-item"><span class="ic">→</span><span>'+r+'</span></div>').join('')+
+      '</div>';
+    $('wspResult').innerHTML = html;
+    try{ if($('wspResult').scrollIntoView) $('wspResult').scrollIntoView({behavior:'auto',block:'start'}); }catch(e){}
+  }catch(err){
+    console.error(err);
+    $('wspResult').innerHTML = '<div class="card"><b style="color:#dc2626">Evaluasi gagal:</b><br>'+err.message+'</div>';
+  }
+}
+
+/* INIT */
+renderStepper();
+initDropdowns();
+
+</script>
+<!-- ==== SURVAI EMBED MODE ==== -->
+<style id="survai-embed-style">
+html.survai-embed body{background:#f8fafc !important;}
+</style>
+<script id="survai-embed-script">
+(function(){
+  try{ var p=new URLSearchParams(location.search); if(p.get('embed')==='1') document.documentElement.classList.add('survai-embed'); }catch(e){}
+})();
+</script>
+</body>
+</html>
