@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "id.tukangngukur.app",
+    "sha256_cert_fingerprints": [
+      "50:DF:5E:39:1D:D3:AF:BA:F8:3D:02:48:17:93:B0:28:9C:41:8C:9F:45:0C:A2:E0:23:17:1C:1B:D8:9C:7A:23"
+    ]
+  }
+}]
