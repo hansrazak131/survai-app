@@ -60,6 +60,14 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
 .qc-bar{flex:1;height:14px;background:#eef1f5;border-radius:7px;overflow:hidden;}
 .qc-bar>i{display:block;height:100%;border-radius:7px;}
 .qc-bar-val{flex:0 0 48px;text-align:right;font-weight:700;}
+.file-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+.file-row input[type=file]{flex:1;min-width:190px;border:1.5px dashed var(--inborder);border-radius:11px;padding:9px;background:#f8fbff;color:var(--muted);font-size:12px;}
+.mini-note{font-size:11.5px;color:var(--muted);line-height:1.45;margin:8px 0 0;}
+.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:11px;}
+.metric{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:11px;}
+.metric b{display:block;font-size:18px;color:var(--ink);line-height:1.1;}
+.metric span{display:block;font-size:11px;color:var(--muted);margin-top:4px;}
+@media(max-width:420px){.metric-grid{grid-template-columns:1fr;}}
 .chart-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-size:11px;color:var(--muted);}
 .chart-legend .lg{display:flex;align-items:center;gap:4px;}
 .chart-legend .lg i{width:11px;height:11px;border-radius:50%;display:inline-block;}
@@ -89,6 +97,8 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
     <div class="field"><label>Tempel data (X Y Cross Utama — per baris)</label>
       <textarea id="tvuPaste" placeholder="469558 9880746 -20.024 -20.163&#10;469556 9880746 -19.835 -19.812&#10;..."></textarea>
       <div class="hint">Pisahkan kolom dengan spasi/tab/koma. Atau pakai data sampel Excel.</div>
+      <div class="file-row"><input type="file" id="tvuFile" accept=".txt,.csv,.tsv" onchange="handleQCFile(event,'tvu')"></div>
+      <div class="mini-note">Import otomatis membaca header seperti x, y, cross, utama/main. Jika tanpa header, gunakan urutan X Y Cross Utama.</div>
     </div>
     <div class="nav-row">
       <button class="btn ghost" onclick="tvuLoadSample()">Muat Sampel (40 data)</button>
@@ -99,8 +109,31 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
   <div id="tvuResult"></div>
 </div>
 
-<!-- 2 MBES -->
+<!-- 2 THU -->
 <div class="qc-screen" id="qc-2">
+  <div class="card">
+    <h2>THU Position QC</h2>
+    <p class="sub">Total Horizontal Uncertainty berdasarkan IHO S-44: error horizontal, RMSE, confidence 95%, kriteria, dan orde yang tercapai.</p>
+    <div class="grid2">
+      <div class="field"><label>Target orde pelaporan</label><select id="thu_order"><option value="special">Special Order / Khusus</option><option value="exclusive">Exclusive Order</option><option value="order1a">Order 1a</option><option value="order1b">Order 1b</option><option value="order2">Order 2</option></select></div>
+      <div class="field"><label>Default depth (m, jika kolom kosong)</label><input type="number" id="thu_depth" value="20" step="any"></div>
+    </div>
+    <div class="field"><label>Tempel data THU</label>
+      <textarea id="thuPaste" placeholder="x,y,ref_x,ref_y,depth&#10;469558,9880746,469557.8,9880746.2,20&#10;469556,9880746,469555.9,9880745.7,19.8"></textarea>
+      <div class="hint">Format didukung: X Y RefX RefY Depth, Lat Lon RefLat RefLon Depth, atau DX DY Depth. Header CSV/TXT akan dipetakan otomatis.</div>
+      <div class="file-row"><input type="file" id="thuFile" accept=".txt,.csv,.tsv" onchange="handleQCFile(event,'thu')"></div>
+    </div>
+    <div class="nav-row">
+      <button class="btn ghost" onclick="thuLoadSample()">Muat Sampel THU</button>
+      <button class="btn primary" onclick="thuParsePaste()">Hitung THU</button>
+    </div>
+    <p class="hint" id="thuStatus">Belum ada data.</p>
+  </div>
+  <div id="thuResult"></div>
+</div>
+
+<!-- 3 MBES -->
+<div class="qc-screen" id="qc-3">
   <div class="card">
     <h2>Lajur Survei MBES</h2>
     <p class="sub">Rencana lajur Multibeam: swath, overlap, crossline, durasi, total hari.</p>
@@ -125,8 +158,8 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
   <div id="mbesResult"></div>
 </div>
 
-<!-- 3 SBES -->
-<div class="qc-screen" id="qc-3">
+<!-- 4 SBES -->
+<div class="qc-screen" id="qc-4">
   <div class="card">
     <h2>Lajur Survei SBES</h2>
     <p class="sub">Single Beam: spasi lajur dari skala peta, crossline, durasi.</p>
@@ -148,8 +181,8 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
   <div id="sbesResult"></div>
 </div>
 
-<!-- 4 SSS -->
-<div class="qc-screen" id="qc-4">
+<!-- 5 SSS -->
+<div class="qc-screen" id="qc-5">
   <div class="card">
     <h2>Lajur Survei SSS</h2>
     <p class="sub">Side-scan Sonar: range scale, swath, altitude fish, overlap.</p>
@@ -175,8 +208,8 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
   <div id="sssResult"></div>
 </div>
 
-<!-- 5 GNSS -->
-<div class="qc-screen" id="qc-5">
+<!-- 6 GNSS -->
+<div class="qc-screen" id="qc-6">
   <div class="card">
     <h2>Validasi GNSS</h2>
     <p class="sub">Validasi posisi GNSS terhadap titik referensi & toleransi jarak vektor.</p>
@@ -189,6 +222,8 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
     <div class="field"><label>Tempel data (Time Lat Lon — per baris)</label>
       <textarea id="gnssPaste" placeholder="0.4415625 3.4722096 117.5736210&#10;..."></textarea>
       <div class="hint">Atau pakai data sampel Excel (527 titik, ditampilkan 60).</div>
+      <div class="file-row"><input type="file" id="gnssFile" accept=".txt,.csv,.tsv" onchange="handleQCFile(event,'gnss')"></div>
+      <div class="mini-note">Import otomatis membaca header time/t, lat/latitude, lon/longitude. Jika tanpa header, gunakan Time Lat Lon atau Lat Lon.</div>
     </div>
     <div class="nav-row">
       <button class="btn ghost" onclick="gnssLoadSample()">Muat Sampel</button>
@@ -199,14 +234,14 @@ h1,h2,h3{margin:0;}button{font-family:inherit;cursor:pointer;}
   <div id="gnssResult"></div>
 </div>
 
-<!-- 6 FINAL QC -->
-<div class="qc-screen" id="qc-6">
+<!-- 7 FINAL QC -->
+<div class="qc-screen" id="qc-7">
   <div class="card"><h2>Final QC Recommendation</h2><p class="sub">Rekomendasi gabungan dari semua modul yang sudah dihitung.</p></div>
   <div id="finalResult"></div>
 </div>
 
-<!-- 7 EXPORT -->
-<div class="qc-screen" id="qc-7">
+<!-- 8 EXPORT -->
+<div class="qc-screen" id="qc-8">
   <div class="card"><h2>Export / Copy Report</h2><p class="sub">Ringkasan status QC untuk disalin atau diunduh.</p></div>
   <div id="exportResult"></div>
 </div>
@@ -228,7 +263,15 @@ const IHO_ORDERS = {
   order1:     {label:'Order 1a/1b', a:0.50, b:0.013},
   order2:     {label:'Order 2', a:1.00, b:0.023},
 };
+const IHO_THU_ORDERS = {
+  exclusive:{label:'Exclusive Order', c:1.0, d:0},
+  special:{label:'Special Order / Khusus', c:2.0, d:0},
+  order1a:{label:'Order 1a', c:5.0, d:0.05},
+  order1b:{label:'Order 1b', c:5.0, d:0.05},
+  order2:{label:'Order 2', c:20.0, d:0.10},
+};
 function tvuLimit(a,b,depth){ return Math.sqrt(a*a + Math.pow(b*Math.abs(depth),2)); }
+function thuLimit(c,d,depth){ return c + d*Math.abs(depth); }
 
 /* TVU analisis: data = [{x,y,cross,utama}] */
 function analyzeTVU(data){
@@ -270,6 +313,50 @@ function analyzeTVU(data){
     if(pctOrder1<80) recs.push('Banyak data fail — pertimbangkan ulangi lajur survei.');
   } else recs.push('TVU memenuhi Order 1 (≥95%). Data layak diproses lanjut.');
   return {valid, counts, pct, failOrder2, status, statusClass, pctOrder1, rows, recs};
+}
+
+/* ---------- IHO S-44 THU parameters ---------- */
+function analyzeTHU(data, targetOrder, defaultDepth){
+  const orders=Object.keys(IHO_THU_ORDERS);
+  const target=targetOrder||'special';
+  const counts={}; orders.forEach(o=>counts[o]=0);
+  const rows=[];
+  let valid=0,sumSq=0,sumErr=0,maxErr=0,sumDx=0,sumDy=0;
+  for(const d of data){
+    const dx=parseFloat(d.dx), dy=parseFloat(d.dy);
+    const depth=parseFloat(d.depth!=null?d.depth:defaultDepth)||defaultDepth||0;
+    if(isNaN(dx)||isNaN(dy)) continue;
+    const err=Math.sqrt(dx*dx+dy*dy);
+    valid++; sumSq+=err*err; sumErr+=err; maxErr=Math.max(maxErr,err); sumDx+=dx; sumDy+=dy;
+    const cls={}, lims={};
+    for(const o of orders){
+      const lim=thuLimit(IHO_THU_ORDERS[o].c,IHO_THU_ORDERS[o].d,depth);
+      lims[o]=lim; cls[o]=err<=lim; if(cls[o]) counts[o]++;
+    }
+    rows.push({...d,dx,dy,depth,err,cls,lims});
+  }
+  const pct={}; orders.forEach(o=>pct[o]=valid?counts[o]/valid*100:0);
+  const rmse=valid?Math.sqrt(sumSq/valid):0;
+  const meanErr=valid?sumErr/valid:0;
+  const meanDx=valid?sumDx/valid:0;
+  const meanDy=valid?sumDy/valid:0;
+  const ce95=rmse*1.7308;
+  const targetPass=pct[target]||0;
+  let status,statusClass;
+  if(targetPass>=95){status='PASS';statusClass='st-ok';}
+  else if(targetPass>=80){status='WARNING';statusClass='st-warn';}
+  else {status='FAIL';statusClass='st-bad';}
+  const achieved=orders.find(o=>pct[o]>=95);
+  const recs=[];
+  const targetLabel=(IHO_THU_ORDERS[target]||{}).label||target;
+  if(status==='PASS') recs.push('THU memenuhi '+targetLabel+' pada ambang 95% data. Nilai ini siap dicantumkan dalam ringkasan QC horizontal.');
+  else {
+    recs.push('THU belum memenuhi '+targetLabel+' 95%. Validasi ulang offset antena GNSS, lever-arm, latency, georeferencing, dan datum/proyeksi.');
+    if(Math.abs(meanDx)>rmse*0.35||Math.abs(meanDy)>rmse*0.35) recs.push('Terdapat indikasi bias horizontal. Cek transformasi koordinat dan offset sensor sebelum menerima data.');
+    if(targetPass<80) recs.push('Sebaran error cukup besar. Pertimbangkan re-observasi/checkline posisi atau ulang proses matching referensi.');
+  }
+  recs.push('Gunakan CE95/RMSE sebagai angka presentasi ketelitian posisi; klasifikasi orde tetap mengacu pada batas THU IHO S-44 per titik.');
+  return {valid,counts,pct,rows,rmse,ce95,meanErr,maxErr,meanDx,meanDy,target,status,statusClass,achieved,recs};
 }
 
 /* ---------- LAJUR MBES ---------- */
@@ -392,33 +479,35 @@ function globalStatus(s){
   // s: {tvu, mbes, sbes, sss, gnss} status strings (boleh null)
   const fails=[], warns=[];
   if(s.tvu==='FAIL') fails.push('TVU');
+  if(s.thu==='FAIL') fails.push('THU');
   if(s.gnss==='FAIL') fails.push('GNSS');
   if(s.tvu==='WARNING') warns.push('TVU');
+  if(s.thu==='WARNING') warns.push('THU');
   if(s.gnss==='WARNING') warns.push('GNSS');
   let global, cls;
   if(fails.length>=2){ global='NEED RESURVEY'; cls='st-bad'; }
   else if(fails.length===1){ global='NEED CHECK'; cls='st-warn'; }
   else if(warns.length>0){ global='PASS WITH WARNING'; cls='st-cond'; }
-  else if(s.tvu==='PASS'||s.gnss==='PASS'){ global='PASS'; cls='st-ok'; }
+  else if(s.tvu==='PASS'||s.thu==='PASS'||s.gnss==='PASS'){ global='PASS'; cls='st-ok'; }
   else { global='NEED CHECK'; cls='st-warn'; }
   return {global, cls, fails, warns};
 }
 </script>
 <script>/* ===================== HYDRO QC UI ===================== */
-const QC_SECTIONS=['Dashboard','TVU','MBES','SBES','SSS','GNSS','Final QC','Export'];
+const QC_SECTIONS=['Dashboard','TVU','THU','MBES','SBES','SSS','GNSS','Final QC','Export'];
 let qcCur=0;
-const qcState={tvu:null,mbes:null,sbes:null,sss:null,gnss:null};
+const qcState={tvu:null,thu:null,mbes:null,sbes:null,sss:null,gnss:null};
 
 function $(id){return document.getElementById(id);}
 function qn(id){const v=parseFloat(($(id)||{}).value);return isNaN(v)?0:v;}
 
 function qcNav(n){
-  if(n<0||n>7)return; qcCur=n;
+  if(n<0||n>8)return; qcCur=n;
   document.querySelectorAll('.qc-screen').forEach((s,i)=>s.classList.toggle('active',i===n));
   document.querySelectorAll('#qcTabs .qc-tab').forEach((t,i)=>t.classList.toggle('on',i===n));
   if(n===0) renderDashboard();
-  if(n===6) renderFinalQC();
-  if(n===7) renderExport();
+  if(n===7) renderFinalQC();
+  if(n===8) renderExport();
   window.scrollTo({top:0,behavior:'auto'});
 }
 function qcTabs(){
@@ -428,19 +517,60 @@ function badge(status,cls){ return '<span class="qc-badge '+(cls||'')+'">'+statu
 function fmt(n,d){ return (isFinite(n)?n:0).toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d===0?0:(d||2)}); }
 function kvR(k,v){ return '<div class="kv"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
 function recList(arr){ return arr.map(r=>'<div class="rec-item"><span class="ic">→</span><span>'+r+'</span></div>').join(''); }
+function normKey(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'');}
+function splitDataLine(line){const s=String(line||'').trim(); if(!s)return[]; if(s.includes('\t'))return s.split('\t').map(x=>x.trim()); if(s.includes(';'))return s.split(';').map(x=>x.trim()); if(s.includes(','))return s.split(',').map(x=>x.trim()); return s.split(/\s+/).map(x=>x.trim());}
+function toNum(v){const n=parseFloat(String(v??'').trim().replace(',','.'));return isNaN(n)?null:n;}
+function parseDelimited(txt){
+  const lines=String(txt||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length)return{headers:null,records:[],numeric:[]};
+  const first=splitDataLine(lines[0]), hasHeader=first.some(v=>/[a-zA-Z]/.test(v));
+  const headers=hasHeader?first.map(normKey):null, body=hasHeader?lines.slice(1):lines;
+  const records=[], numeric=[];
+  body.forEach(line=>{const cells=splitDataLine(line); if(headers){const rec={}; headers.forEach((h,i)=>rec[h]=cells[i]); records.push(rec);} numeric.push(cells.map(toNum).filter(v=>v!=null));});
+  return{headers,records,numeric};
+}
+function pick(rec,names){for(const n of names){const k=normKey(n); if(rec[k]!=null&&rec[k]!=='')return toNum(rec[k]);} return null;}
+function mapTVUText(txt){
+  const p=parseDelimited(txt), out=[];
+  if(p.headers) p.records.forEach(r=>{const x=pick(r,['x','e','east','easting']), y=pick(r,['y','n','north','northing']), cross=pick(r,['cross','crossline','check','checkline','ref','reference']), utama=pick(r,['utama','main','mainline','primary','depth','z']); if(cross!=null&&utama!=null)out.push({x:x??0,y:y??0,cross,utama});});
+  else p.numeric.forEach(a=>{if(a.length>=4)out.push({x:a[0],y:a[1],cross:a[2],utama:a[3]}); else if(a.length===2)out.push({x:0,y:0,cross:a[0],utama:a[1]});});
+  return out;
+}
+function mapGNSSText(txt){
+  const p=parseDelimited(txt), out=[];
+  if(p.headers) p.records.forEach(r=>{const t=pick(r,['time','t','epoch','second','sec'])??0, lat=pick(r,['lat','latitude']), lon=pick(r,['lon','lng','long','longitude']); if(lat!=null&&lon!=null)out.push({t,lat,lon});});
+  else p.numeric.forEach(a=>{if(a.length>=3)out.push({t:a[0],lat:a[a.length-2],lon:a[a.length-1]}); else if(a.length===2)out.push({t:0,lat:a[0],lon:a[1]});});
+  return out;
+}
+function mapTHUText(txt,defaultDepth){
+  const p=parseDelimited(txt), out=[];
+  if(p.headers) p.records.forEach(r=>{
+    let dx=pick(r,['dx','de','deltax','deltae','errx','eastdiff']), dy=pick(r,['dy','dn','deltay','deltan','erry','northdiff']);
+    const depth=pick(r,['depth','z','d','waterdepth'])??defaultDepth;
+    if(dx==null||dy==null){const x=pick(r,['x','e','east','easting']), y=pick(r,['y','n','north','northing']), rx=pick(r,['refx','refe','refeast','refeasting','xref']), ry=pick(r,['refy','refn','refnorth','refnorthing','yref']); if(x!=null&&y!=null&&rx!=null&&ry!=null){dx=x-rx;dy=y-ry;}}
+    if(dx==null||dy==null){const lat=pick(r,['lat','latitude']), lon=pick(r,['lon','lng','long','longitude']), rlat=pick(r,['reflat','reflatitude','latref']), rlon=pick(r,['reflon','reflongitude','lonref']); if(lat!=null&&lon!=null&&rlat!=null&&rlon!=null){dx=(lon-rlon)*111320*Math.cos(rlat*Math.PI/180);dy=(lat-rlat)*111320;}}
+    if(dx!=null&&dy!=null)out.push({dx,dy,depth});
+  });
+  else p.numeric.forEach(a=>{if(a.length>=5)out.push({dx:a[0]-a[2],dy:a[1]-a[3],depth:a[4]}); else if(a.length>=3)out.push({dx:a[0],dy:a[1],depth:a[2]}); else if(a.length===2)out.push({dx:a[0],dy:a[1],depth:defaultDepth});});
+  return out;
+}
+function handleQCFile(ev,type){
+  const file=ev.target.files&&ev.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{const txt=String(reader.result||'');
+    if(type==='tvu'){ $('tvuPaste').value=txt; tvuData=mapTVUText(txt); $('tvuStatus').textContent='✓ '+tvuData.length+' baris dari '+file.name; tvuRun(); }
+    if(type==='gnss'){ $('gnssPaste').value=txt; gnssData=mapGNSSText(txt); $('gnssStatus').textContent='✓ '+gnssData.length+' baris dari '+file.name; gnssRun(); }
+    if(type==='thu'){ $('thuPaste').value=txt; thuData=mapTHUText(txt,qn('thu_depth')||0); $('thuStatus').textContent='✓ '+thuData.length+' baris dari '+file.name; thuRun(); }
+  };
+  reader.readAsText(file);
+}
 
 /* ============ TVU ============ */
 let tvuData=[];
 function tvuLoadSample(){ tvuData=TVU_SAMPLE.slice(); $('tvuStatus').textContent='✓ '+tvuData.length+' data sampel dimuat'; tvuRun(); }
 function tvuParsePaste(){
   const txt=$('tvuPaste').value.trim(); if(!txt){alert('Tempel data dulu.');return;}
-  const rows=txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  tvuData=[];
-  for(const r of rows){
-    const p=r.split(/[\t,;\s]+/).map(s=>parseFloat(s.replace(',','.'))).filter(n=>!isNaN(n));
-    if(p.length>=4) tvuData.push({x:p[0],y:p[1],cross:p[2],utama:p[3]});
-    else if(p.length===2) tvuData.push({x:0,y:0,cross:p[0],utama:p[1]});
-  }
+  tvuData=mapTVUText(txt);
   $('tvuStatus').textContent='✓ '+tvuData.length+' baris diparse';
   tvuRun();
 }
@@ -471,6 +601,53 @@ function tvuRun(){
 function qcBars(items){
   return '<div class="qc-bars">'+items.map(([n,v,c])=>
     '<div class="qc-bar-row"><span class="qc-bar-lbl">'+n+'</span><div class="qc-bar"><i style="width:'+Math.min(100,v)+'%;background:'+c+'"></i></div><span class="qc-bar-val">'+fmt(v,1)+'%</span></div>').join('')+'</div>';
+}
+
+/* ============ THU ============ */
+let thuData=[];
+function thuLoadSample(){
+  thuData=[];
+  for(let i=0;i<48;i++){
+    const a=i*0.73, depth=14+(i%12)*1.7;
+    thuData.push({dx:Math.sin(a)*0.72+Math.cos(i*.31)*0.18,dy:Math.cos(a)*0.58+Math.sin(i*.23)*0.16,depth});
+  }
+  $('thuStatus').textContent='✓ '+thuData.length+' data sampel dimuat';
+  thuRun();
+}
+function thuParsePaste(){
+  const txt=$('thuPaste').value.trim(); if(!txt){alert('Tempel data THU dulu.');return;}
+  thuData=mapTHUText(txt,qn('thu_depth')||0);
+  $('thuStatus').textContent='✓ '+thuData.length+' baris diparse';
+  thuRun();
+}
+function thuRun(){
+  try{
+    if(!thuData.length){alert('Muat sampel, import, atau tempel data THU.');return;}
+    const target=$('thu_order').value, defDepth=qn('thu_depth')||0;
+    const r=analyzeTHU(thuData,target,defDepth); qcState.thu=r.status;
+    const targetLabel=IHO_THU_ORDERS[target].label;
+    let h='<div class="status-banner '+r.statusClass+'"><div class="big">'+r.status+'</div><div class="small">'+fmt(r.pct[target],1)+'% memenuhi '+targetLabel+' ('+r.counts[target]+'/'+r.valid+')</div></div>';
+    h+='<div class="metric-grid">'+
+      '<div class="metric"><b>'+fmt(r.rmse,3)+' m</b><span>RMSE horizontal</span></div>'+
+      '<div class="metric"><b>'+fmt(r.ce95,3)+' m</b><span>Estimasi confidence 95% / CE95</span></div>'+
+      '<div class="metric"><b>'+fmt(r.maxErr,3)+' m</b><span>Error maksimum</span></div>'+
+      '<div class="metric"><b>'+(r.achieved?IHO_THU_ORDERS[r.achieved].label:'Belum 95%')+'</b><span>Orde tertinggi tercapai</span></div>'+
+    '</div>';
+    h+='<div class="res-card"><h3>📊 Kriteria THU IHO S-44</h3>'+
+      kvR('Target orde',targetLabel)+kvR('Rumus limit',target==='exclusive'||target==='special'?'c':'c + d × depth')+
+      kvR('Mean bias East/North',fmt(r.meanDx,3)+' m / '+fmt(r.meanDy,3)+' m')+
+      kvR('Rata-rata error horizontal',fmt(r.meanErr,3)+' m')+'</div>';
+    h+='<div class="res-card"><h3>📈 Persentase Lulus per Orde</h3>'+qcBars([
+      ['Exclusive',r.pct.exclusive,'#16a34a'],['Khusus',r.pct.special,'#2563eb'],['Order 1a',r.pct.order1a,'#0891b2'],['Order 1b',r.pct.order1b,'#7c3aed'],['Order 2',r.pct.order2,'#ea580c']])+'</div>';
+    h+='<div class="res-card"><h3>🎯 Grafik THU</h3><canvas id="thuScatter" style="width:100%;height:260px"></canvas><div class="chart-legend"><span class="lg"><i style="background:#16a34a"></i>Lulus target</span><span class="lg"><i style="background:#dc2626"></i>Gagal target</span><span class="lg"><i style="background:#64748b"></i>Limit target</span></div></div>';
+    h+='<div class="res-card"><h3>📉 Distribusi Error</h3><canvas id="thuHist" style="width:100%;height:210px"></canvas></div>';
+    h+='<div class="res-card"><h3>📋 Detail (10 data awal)</h3><div style="overflow-x:auto"><table class="qc-tbl"><tr><th>dE</th><th>dN</th><th>Depth</th><th>Error</th><th>Limit</th><th>Status</th></tr>';
+    r.rows.slice(0,10).forEach(row=>{const lim=row.lims[target]; h+='<tr><td>'+fmt(row.dx,3)+'</td><td>'+fmt(row.dy,3)+'</td><td>'+fmt(row.depth,2)+'</td><td>'+fmt(row.err,3)+'</td><td>'+fmt(lim,3)+'</td><td>'+(row.cls[target]?'<span style="color:#16a34a">PASS</span>':'<span style="color:#dc2626">FAIL</span>')+'</td></tr>';});
+    h+='</table></div></div>';
+    h+='<div class="res-card"><h3>📝 Interpretasi untuk Laporan</h3>'+recList(r.recs)+'</div>';
+    $('thuResult').innerHTML=h;
+    setTimeout(()=>{drawTHUScatter(r,target);drawTHUHist(r);},50);
+  }catch(e){console.error(e); $('thuResult').innerHTML='<div class="card"><b style="color:#dc2626">Gagal: '+e.message+'</b></div>';}
 }
 
 /* ============ MBES ============ */
@@ -543,14 +720,7 @@ let gnssData=[];
 function gnssLoadSample(){ gnssData=GNSS_SAMPLE.slice(); $('gnssStatus').textContent='✓ '+gnssData.length+' data sampel dimuat'; gnssRun(); }
 function gnssParsePaste(){
   const txt=$('gnssPaste').value.trim(); if(!txt){alert('Tempel data dulu.');return;}
-  const rows=txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  gnssData=[];
-  for(const r of rows){
-    const p=r.split(/[\t,;\s]+/);
-    const nums=p.map(s=>parseFloat(s.replace(',','.'))).filter(n=>!isNaN(n));
-    if(nums.length>=3) gnssData.push({t:nums[0],lat:nums[nums.length-2],lon:nums[nums.length-1]});
-    else if(nums.length===2) gnssData.push({t:0,lat:nums[0],lon:nums[1]});
-  }
+  gnssData=mapGNSSText(txt);
   $('gnssStatus').textContent='✓ '+gnssData.length+' baris diparse';
   gnssRun();
 }
@@ -601,6 +771,29 @@ function drawGNSS(r,tolM){
   // ref
   ctx.fillStyle='#16a34a'; ctx.beginPath(); ctx.arc(cx,cy,5,0,2*Math.PI); ctx.fill();
 }
+function drawTHUScatter(r,target){
+  const cv=$('thuScatter'); if(!cv)return;
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=260; cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const maxLim=Math.max(...r.rows.map(x=>x.lims[target]),1);
+  const maxErr=Math.max(maxLim,...r.rows.map(x=>Math.abs(x.dx)),...r.rows.map(x=>Math.abs(x.dy)),1);
+  const cx=W/2,cy=H/2,sc=(Math.min(W,H)/2-22)/(maxErr*1.12);
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(16,cy); ctx.lineTo(W-16,cy); ctx.moveTo(cx,12); ctx.lineTo(cx,H-16); ctx.stroke();
+  ctx.strokeStyle='#64748b'; ctx.setLineDash([4,3]); ctx.beginPath(); ctx.arc(cx,cy,maxLim*sc,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]);
+  r.rows.forEach(p=>{ctx.beginPath(); ctx.fillStyle=p.cls[target]?'#16a34a':'#dc2626'; ctx.arc(cx+p.dx*sc,cy-p.dy*sc,3,0,2*Math.PI); ctx.fill();});
+  ctx.fillStyle='#0f172a'; ctx.font='11px system-ui'; ctx.fillText('Limit target: '+fmt(maxLim,2)+' m',12,16);
+}
+function drawTHUHist(r){
+  const cv=$('thuHist'); if(!cv)return;
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=210; cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const vals=r.rows.map(x=>x.err), max=Math.max(...vals,1), bins=8, counts=Array(bins).fill(0);
+  vals.forEach(v=>counts[Math.min(bins-1,Math.floor(v/max*bins))]++);
+  const maxC=Math.max(...counts,1), pad=28, bw=(W-pad*2)/bins;
+  ctx.strokeStyle='#e2e8f0'; ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-pad,H-pad); ctx.stroke();
+  counts.forEach((c,i)=>{const h=(H-pad*2)*c/maxC; ctx.fillStyle='#2563eb'; ctx.fillRect(pad+i*bw+4,H-pad-h,bw-8,h);});
+  ctx.fillStyle='#64748b'; ctx.font='11px system-ui'; ctx.fillText('0',pad,H-9); ctx.fillText(fmt(max,2)+' m',W-pad-42,H-9); ctx.fillText('Distribusi error horizontal',pad,15);
+}
 
 /* ============ DIAGRAM LAJUR (SVG) ============ */
 function drawLajur(panjang,lebar,nUtama,nSilang,tipe){
@@ -636,15 +829,16 @@ function renderDashboard(){
   const row=(label,val)=>'<div class="kv"><span class="k">'+label+'</span><span class="v">'+(val?badge(val,val==='PASS'?'st-ok':val==='FAIL'?'st-bad':val==='WARNING'?'st-warn':'st-cond'):'<span style="color:#94a3b8">belum dihitung</span>')+'</span></div>';
   let h='<div class="status-banner '+g.cls+'"><div class="big">'+g.global+'</div><div class="small">Status QC global gabungan</div></div>';
   h+='<div class="res-card"><h3>📋 Status Tiap Modul</h3>'+
-    row('TVU Bathymetry',st.tvu)+row('Lajur MBES',st.mbes)+row('Lajur SBES',st.sbes)+row('Lajur SSS',st.sss)+row('Validasi GNSS',st.gnss)+'</div>';
+    row('TVU Bathymetry',st.tvu)+row('THU Position QC',st.thu)+row('Lajur MBES',st.mbes)+row('Lajur SBES',st.sbes)+row('Lajur SSS',st.sss)+row('Validasi GNSS',st.gnss)+'</div>';
   const risks=[];
   if(st.gnss==='FAIL'||st.gnss==='WARNING') risks.push('GNSS tidak optimal → posisi & THU sounding berisiko.');
   if(st.tvu==='FAIL') risks.push('TVU banyak gagal → akurasi vertikal di bawah standar IHO.');
+  if(st.thu==='FAIL'||st.thu==='WARNING') risks.push('THU tidak memenuhi target → posisi sounding berisiko untuk orde pelaporan.');
   if(st.sbes) risks.push('SBES partial coverage → ada celah antar lajur.');
   if(!risks.length) risks.push('Belum ada risiko terdeteksi / modul belum dihitung.');
   h+='<div class="res-card"><h3>⚠️ Risiko Utama</h3>'+recList(risks)+'</div>';
   h+='<div class="res-card"><h3>🚀 Mulai</h3><p style="font-size:13px;color:var(--muted);margin:0 0 10px">Hitung tiap modul lalu kembali ke sini untuk ringkasan global.</p>'+
-    '<div class="qc-quick">'+[['TVU',1],['MBES',2],['SBES',3],['SSS',4],['GNSS',5]].map(([n,i])=>'<button class="btn ghost" onclick="qcNav('+i+')">'+n+'</button>').join('')+'</div></div>';
+    '<div class="qc-quick">'+[['TVU',1],['THU',2],['MBES',3],['SBES',4],['SSS',5],['GNSS',6]].map(([n,i])=>'<button class="btn ghost" onclick="qcNav('+i+')">'+n+'</button>').join('')+'</div></div>';
   $('dashResult').innerHTML=h;
 }
 
@@ -654,6 +848,7 @@ function renderFinalQC(){
   const recs=[];
   if(g.global==='PASS') recs.push('Data layak diproses lanjut.');
   if(st.tvu==='WARNING'||st.tvu==='FAIL'){ recs.push('Cek tide correction, draft transducer, sound velocity.'); recs.push('Cek offset sensor & latency.'); }
+  if(st.thu==='WARNING'||st.thu==='FAIL') recs.push('THU: validasi offset antena, lever-arm, datum/proyeksi, dan latency posisi sebelum finalisasi chart.');
   if(st.gnss==='WARNING'||st.gnss==='FAIL') recs.push('Validasi GNSS ulang — posisi sounding berisiko.');
   if(st.sbes) recs.push('SBES: pertimbangkan tambah crossline & rapatkan line spacing di area kritis.');
   if(st.mbes==='WARNING') recs.push('MBES: rapatkan line spacing / tambah overlap.');
@@ -670,7 +865,7 @@ function buildReport(){
   let t='=== HYDRO BATHYMETRY QC — RINGKASAN ===\n\n';
   t+='Status Global: '+g.global+'\n\n';
   t+='Status Modul:\n';
-  t+='  TVU  : '+(st.tvu||'-')+'\n  MBES : '+(st.mbes||'-')+'\n  SBES : '+(st.sbes||'-')+'\n  SSS  : '+(st.sss||'-')+'\n  GNSS : '+(st.gnss||'-')+'\n\n';
+  t+='  TVU  : '+(st.tvu||'-')+'\n  THU  : '+(st.thu||'-')+'\n  MBES : '+(st.mbes||'-')+'\n  SBES : '+(st.sbes||'-')+'\n  SSS  : '+(st.sss||'-')+'\n  GNSS : '+(st.gnss||'-')+'\n\n';
   t+='Dibuat: '+new Date().toLocaleString('id-ID')+' via SurvAI\n';
   return t;
 }
@@ -683,10 +878,11 @@ function fallbackCopy(t){ const ta=document.createElement('textarea'); ta.value=
 function qcDownload(){ const blob=new Blob([buildReport()],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='hydro_qc_report.txt'; a.click(); }
 
 function qcReset(){
-  qcState.tvu=qcState.mbes=qcState.sbes=qcState.sss=qcState.gnss=null;
-  tvuData=[]; gnssData=[];
-  ['tvuResult','mbesResult','sbesResult','sssResult','gnssResult','dashResult','finalResult','exportResult'].forEach(id=>{ if($(id))$(id).innerHTML=''; });
+  qcState.tvu=qcState.thu=qcState.mbes=qcState.sbes=qcState.sss=qcState.gnss=null;
+  tvuData=[]; thuData=[]; gnssData=[];
+  ['tvuResult','thuResult','mbesResult','sbesResult','sssResult','gnssResult','dashResult','finalResult','exportResult'].forEach(id=>{ if($(id))$(id).innerHTML=''; });
   if($('tvuStatus'))$('tvuStatus').textContent='Belum ada data.';
+  if($('thuStatus'))$('thuStatus').textContent='Belum ada data.';
   if($('gnssStatus'))$('gnssStatus').textContent='Belum ada data.';
   renderDashboard();
   alert('QC direset.');

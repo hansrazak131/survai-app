@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Sondir & SPT Foundation Planner</title>
+<!--
+  ============================================================================
+  INTEGRASI KE APLIKASI UTAMA:
+  1. File ini berdiri sendiri (single-file, offline, tanpa dependency eksternal).
+  2. Semua CSS diberi prefix kelas ".sspt-" dan semua JS dibungkus dalam IIFE
+     bernama SSPT, sehingga aman ditempel ke aplikasi lain tanpa bentrok
+     dengan style/variable/fungsi yang sudah ada di aplikasi Anda.
+  3. Untuk integrasi sebagai submenu Tools:
+       a. Salin seluruh isi <body> (div#sspt-root) ke dalam container
+          submenu "Sondir & SPT Foundation Planner" pada aplikasi Anda.
+       b. Salin seluruh isi <style> ke file CSS aplikasi Anda (atau biarkan
+          sebagai <style> terpisah, karena sudah ter-scope oleh prefix sspt-).
+       c. Salin seluruh isi <script> ke file JS aplikasi Anda, letakkan
+          setelah DOM submenu ter-render.
+  4. Modul TIDAK mengakses internet/server. Semua kalkulasi & parsing
+     berjalan di browser (offline-safe).
+  ============================================================================
+-->
+<style>
+  /* ============================================================
+     DESIGN TOKENS — selaras dengan style Home/Tools aplikasi:
+     card putih, border soft, radius besar, input aktif biru.
+     ============================================================ */
+  .sspt-root{
+    --sspt-bg:#F5F7FA;
+    --sspt-card:#FFFFFF;
+    --sspt-border:#E3E7EE;
+    --sspt-border-soft:#EDF0F5;
+    --sspt-text:#101828;
+    --sspt-text-muted:#667085;
+    --sspt-text-faint:#98A2B3;
+    --sspt-blue:#2563EB;
+    --sspt-blue-dark:#1D4ED8;
+    --sspt-blue-light:#EFF6FF;
+    --sspt-blue-ring:rgba(37,99,235,.15);
+    --sspt-green:#0F9D58;
+    --sspt-green-light:#E9F9F0;
+    --sspt-amber:#B7791F;
+    --sspt-amber-light:#FEF6E7;
+    --sspt-red:#D92D20;
+    --sspt-red-light:#FEF1F0;
+    --sspt-radius-lg:20px;
+    --sspt-radius-md:14px;
+    --sspt-radius-sm:10px;
+    --sspt-shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    --sspt-shadow-md:0 4px 14px rgba(16,24,40,.07);
+    --sspt-font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --sspt-mono:'SFMono-Regular','Roboto Mono','Consolas',monospace;
+
+    font-family:var(--sspt-font);
+    color:var(--sspt-text);
+    background:var(--sspt-bg);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+    font-size:14px;
+  }
+  .sspt-root *{ box-sizing:border-box; }
+  .sspt-root button, .sspt-root input, .sspt-root select, .sspt-root textarea{
+    font-family:inherit; font-size:inherit; color:inherit;
+  }
+  .sspt-root table{ border-collapse:collapse; }
+  .sspt-root a{ color:var(--sspt-blue); }
+  .sspt-hidden{ display:none !important; }
+
+  /* ---------- shell layout ---------- */
+  .sspt-shell{ max-width:1280px; margin:0 auto; padding:14px 14px 64px; }
+  .sspt-breadcrumb{
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+    font-size:12.5px; color:var(--sspt-text-muted); margin-bottom:10px;
+  }
+  .sspt-breadcrumb b{ color:var(--sspt-text); font-weight:600; }
+  .sspt-breadcrumb .sspt-sep{ color:var(--sspt-text-faint); }
+
+  .sspt-titlebar{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:12px; margin-bottom:16px; flex-wrap:wrap;
+  }
+  .sspt-titlebar h1{
+    font-size:21px; font-weight:700; margin:0 0 2px; letter-spacing:-0.01em;
+  }
+  .sspt-titlebar p{ margin:0; color:var(--sspt-text-muted); font-size:13px; }
+  .sspt-status-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:7px 14px; border-radius:999px; font-weight:600; font-size:12.5px;
+    border:1px solid transparent; white-space:nowrap;
+  }
+  .sspt-status-pass{ background:var(--sspt-green-light); color:var(--sspt-green); }
+  .sspt-status-warn{ background:var(--sspt-amber-light); color:var(--sspt-amber); }
+  .sspt-status-fail{ background:var(--sspt-red-light); color:var(--sspt-red); }
+  .sspt-status-check{ background:var(--sspt-blue-light); color:var(--sspt-blue-dark); }
+  .sspt-status-pill .sspt-dot{ width:7px; height:7px; border-radius:50%; background:currentColor; }
+
+  /* ---------- tab nav ---------- */
+  .sspt-tabs{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; margin-bottom:16px;
+    -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+  }
+  .sspt-tabs::-webkit-scrollbar{ height:5px; }
+  .sspt-tabs::-webkit-scrollbar-thumb{ background:var(--sspt-border); border-radius:4px; }
+  .sspt-tab-btn{
+    flex:0 0 auto; display:flex; align-items:center; gap:7px;
+    padding:10px 15px; border-radius:999px; border:1px solid var(--sspt-border);
+    background:var(--sspt-card); cursor:pointer; font-weight:600; font-size:13px;
+    color:var(--sspt-text-muted); white-space:nowrap; transition:all .15s ease;
+  }
+  .sspt-tab-btn:hover{ border-color:var(--sspt-blue); color:var(--sspt-blue-dark); }
+  .sspt-tab-btn.active{
+    background:var(--sspt-blue); border-color:var(--sspt-blue); color:#fff;
+    box-shadow:var(--sspt-shadow-sm);
+  }
+  .sspt-tab-btn .sspt-tab-num{
+    width:18px; height:18px; border-radius:50%; background:rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center; font-size:10.5px;
+  }
+  .sspt-tab-btn:not(.active) .sspt-tab-num{ background:var(--sspt-blue-light); color:var(--sspt-blue-dark); }
+
+  .sspt-panel{ display:none; flex-direction:column; gap:14px; }
+  .sspt-panel.active{ display:flex; }
+
+  /* ---------- card ---------- */
+  .sspt-card{
+    background:var(--sspt-card); border:1px solid var(--sspt-border);
+    border-radius:var(--sspt-radius-lg); padding:18px; box-shadow:var(--sspt-shadow-sm);
+  }
+  .sspt-card + .sspt-card{ margin-top:0; }
+  .sspt-card-head{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:14px; flex-wrap:wrap;
+  }
+  .sspt-card-head h2{ font-size:15.5px; font-weight:700; margin:0; }
+  .sspt-card-head .sspt-sub{ font-size:12.5px; color:var(--sspt-text-muted); margin-top:2px; }
+  .sspt-card-grid{ display:grid; gap:14px; }
+  .sspt-grid-2{ grid-template-columns:repeat(2,1fr); }
+  .sspt-grid-3{ grid-template-columns:repeat(3,1fr); }
+  .sspt-grid-4{ grid-template-columns:repeat(4,1fr); }
+  @media (max-width:760px){
+    .sspt-grid-2,.sspt-grid-3,.sspt-grid-4{ grid-template-columns:repeat(2,1fr); }
+  }
+  @media (max-width:480px){
+    .sspt-grid-2,.sspt-grid-3,.sspt-grid-4{ grid-template-columns:1fr; }
+  }
+
+  /* ---------- form controls ---------- */
+  .sspt-field{ display:flex; flex-direction:column; gap:6px; }
+  .sspt-field label{ font-size:12.5px; font-weight:600; color:var(--sspt-text-muted); }
+  .sspt-field .sspt-hint{ font-size:11.5px; color:var(--sspt-text-faint); }
+  .sspt-input, .sspt-select, .sspt-textarea{
+    border:1.5px solid var(--sspt-border); border-radius:var(--sspt-radius-sm);
+    padding:10px 12px; background:#fff; outline:none; transition:border-color .15s, box-shadow .15s;
+    width:100%;
+  }
+  .sspt-input:focus, .sspt-select:focus, .sspt-textarea:focus{
+    border-color:var(--sspt-blue); box-shadow:0 0 0 4px var(--sspt-blue-ring);
+  }
+  .sspt-textarea{ resize:vertical; min-height:90px; font-family:var(--sspt-mono); font-size:12.5px; }
+  .sspt-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .sspt-checkrow{ display:flex; align-items:center; gap:8px; font-size:13px; }
+  .sspt-checkrow input[type=checkbox], .sspt-checkrow input[type=radio]{ width:16px; height:16px; accent-color:var(--sspt-blue); }
+
+  /* ---------- buttons ---------- */
+  .sspt-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    padding:10px 16px; border-radius:var(--sspt-radius-sm); border:1.5px solid var(--sspt-border);
+    background:#fff; color:var(--sspt-text); font-weight:600; font-size:13px; cursor:pointer;
+    transition:all .15s ease; min-height:40px;
+  }
+  .sspt-btn:hover{ border-color:var(--sspt-blue); color:var(--sspt-blue-dark); }
+  .sspt-btn:active{ transform:translateY(1px); }
+  .sspt-btn-primary{ background:var(--sspt-blue); border-color:var(--sspt-blue); color:#fff; }
+  .sspt-btn-primary:hover{ background:var(--sspt-blue-dark); border-color:var(--sspt-blue-dark); color:#fff; }
+  .sspt-btn-ghost{ border-color:transparent; background:var(--sspt-blue-light); color:var(--sspt-blue-dark); }
+  .sspt-btn-sm{ padding:7px 12px; font-size:12px; min-height:32px; }
+  .sspt-btn-danger{ color:var(--sspt-red); }
+  .sspt-btn-danger:hover{ border-color:var(--sspt-red); }
+  .sspt-btn[disabled]{ opacity:.45; cursor:not-allowed; }
+  .sspt-btn-icon{ padding:8px; min-width:36px; }
+
+  /* ---------- KPI ---------- */
+  .sspt-kpi{
+    background:var(--sspt-card); border:1px solid var(--sspt-border); border-radius:var(--sspt-radius-md);
+    padding:14px; display:flex; flex-direction:column; gap:4px;
+  }
+  .sspt-kpi .sspt-kpi-label{ font-size:11.5px; color:var(--sspt-text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .sspt-kpi .sspt-kpi-value{ font-size:21px; font-weight:700; font-family:var(--sspt-mono); }
+  .sspt-kpi .sspt-kpi-unit{ font-size:12px; color:var(--sspt-text-faint); font-weight:500; }
+  .sspt-kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  @media (max-width:760px){ .sspt-kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+
+  /* ---------- table ---------- */
+  .sspt-table-wrap{ overflow-x:auto; border:1px solid var(--sspt-border-soft); border-radius:var(--sspt-radius-md); }
+  .sspt-table{ width:100%; min-width:560px; font-size:12.5px; }
+  .sspt-table th{
+    background:#FAFBFD; text-align:left; padding:9px 10px; font-weight:700;
+    color:var(--sspt-text-muted); border-bottom:1px solid var(--sspt-border); white-space:nowrap;
+    position:sticky; top:0;
+  }
+  .sspt-table td{ padding:7px 10px; border-bottom:1px solid var(--sspt-border-soft); font-family:var(--sspt-mono); white-space:nowrap; }
+  .sspt-table tr:last-child td{ border-bottom:none; }
+  .sspt-table tr:hover td{ background:#FBFCFE; }
+  .sspt-table td.sspt-txt{ font-family:var(--sspt-font); white-space:normal; }
+  .sspt-cell-input{
+    border:1px solid transparent; background:transparent; width:64px; padding:4px 5px;
+    border-radius:6px; font-family:var(--sspt-mono); font-size:12.5px;
+  }
+  .sspt-cell-input:hover{ border-color:var(--sspt-border); }
+  .sspt-cell-input:focus{ border-color:var(--sspt-blue); outline:none; background:#fff; box-shadow:0 0 0 3px var(--sspt-blue-ring); }
+  .sspt-interp{ color:var(--sspt-red); font-weight:700; }
+  .sspt-extrap{ color:var(--sspt-amber); font-weight:700; font-style:italic; }
+  .sspt-swatch{ width:14px; height:14px; border-radius:4px; display:inline-block; border:1px solid rgba(0,0,0,.12); vertical-align:-2px; margin-right:6px; }
+  .sspt-rowdel{ color:var(--sspt-text-faint); cursor:pointer; background:none; border:none; padding:2px 6px; border-radius:6px; }
+  .sspt-rowdel:hover{ color:var(--sspt-red); background:var(--sspt-red-light); }
+
+  /* ---------- badges / tags ---------- */
+  .sspt-badge{
+    display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:999px;
+    font-size:11px; font-weight:700;
+  }
+  .sspt-badge-blue{ background:var(--sspt-blue-light); color:var(--sspt-blue-dark); }
+  .sspt-badge-green{ background:var(--sspt-green-light); color:var(--sspt-green); }
+  .sspt-badge-amber{ background:var(--sspt-amber-light); color:var(--sspt-amber); }
+  .sspt-badge-red{ background:var(--sspt-red-light); color:var(--sspt-red); }
+  .sspt-badge-gray{ background:#F2F4F7; color:var(--sspt-text-muted); }
+
+  /* ---------- warnings list ---------- */
+  .sspt-warnlist{ display:flex; flex-direction:column; gap:8px; }
+  .sspt-warn{
+    display:flex; gap:10px; padding:11px 13px; border-radius:var(--sspt-radius-md);
+    border:1px solid var(--sspt-border-soft); font-size:12.5px; align-items:flex-start;
+  }
+  .sspt-warn-amber{ background:var(--sspt-amber-light); border-color:#F3E2BC; }
+  .sspt-warn-red{ background:var(--sspt-red-light); border-color:#F6CFCB; }
+  .sspt-warn-blue{ background:var(--sspt-blue-light); border-color:#D6E4FB; }
+  .sspt-warn-green{ background:var(--sspt-green-light); border-color:#CDEFDC; }
+  .sspt-warn b{ display:block; margin-bottom:1px; }
+
+  /* ---------- empty state ---------- */
+  .sspt-empty{
+    text-align:center; padding:34px 18px; color:var(--sspt-text-muted);
+    border:1.5px dashed var(--sspt-border); border-radius:var(--sspt-radius-md);
+  }
+  .sspt-empty .sspt-empty-icon{ font-size:26px; margin-bottom:8px; }
+
+  /* ---------- import dropzone ---------- */
+  .sspt-dropzone{
+    border:2px dashed var(--sspt-border); border-radius:var(--sspt-radius-lg);
+    padding:28px 18px; text-align:center; cursor:pointer; transition:all .15s;
+    background:#FAFBFE;
+  }
+  .sspt-dropzone:hover, .sspt-dropzone.sspt-drag{ border-color:var(--sspt-blue); background:var(--sspt-blue-light); }
+  .sspt-dropzone .sspt-dz-icon{ font-size:26px; margin-bottom:6px; }
+  .sspt-dropzone .sspt-dz-title{ font-weight:700; font-size:13.5px; }
+  .sspt-dropzone .sspt-dz-sub{ font-size:12px; color:var(--sspt-text-muted); margin-top:3px; }
+
+  /* ---------- mapping grid ---------- */
+  .sspt-maprow{
+    display:grid; grid-template-columns:1fr 16px 1fr; gap:10px; align-items:center;
+    padding:8px 0; border-bottom:1px solid var(--sspt-border-soft);
+  }
+  .sspt-maprow:last-child{ border-bottom:none; }
+  .sspt-maprow .sspt-mapsrc{ font-family:var(--sspt-mono); font-size:12.5px; color:var(--sspt-text-muted); }
+  .sspt-maprow .sspt-arrow{ color:var(--sspt-text-faint); text-align:center; }
+
+  /* ---------- borelog / chart svg ---------- */
+  .sspt-borelog-wrap{ overflow-x:auto; }
+  .sspt-svg-card{ background:#fff; border:1px solid var(--sspt-border-soft); border-radius:var(--sspt-radius-md); padding:10px; }
+  .sspt-legend{ display:flex; flex-wrap:wrap; gap:10px 16px; font-size:12px; color:var(--sspt-text-muted); margin-top:8px; }
+  .sspt-legend span{ display:inline-flex; align-items:center; }
+
+  /* ---------- tab-section subnav (pill toggle) ---------- */
+  .sspt-subtoggle{ display:inline-flex; background:#F2F4F7; border-radius:999px; padding:3px; gap:2px; }
+  .sspt-subtoggle button{
+    border:none; background:transparent; padding:7px 14px; border-radius:999px; font-weight:600;
+    font-size:12.5px; color:var(--sspt-text-muted); cursor:pointer;
+  }
+  .sspt-subtoggle button.active{ background:#fff; color:var(--sspt-blue-dark); box-shadow:var(--sspt-shadow-sm); }
+
+  /* ---------- report preview ---------- */
+  .sspt-report-pre{
+    white-space:pre-wrap; font-family:var(--sspt-mono); font-size:12px; line-height:1.6;
+    background:#FAFBFD; border:1px solid var(--sspt-border-soft); border-radius:var(--sspt-radius-md);
+    padding:16px; max-height:480px; overflow:auto;
+  }
+  .sspt-toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:#101828; color:#fff; padding:11px 20px; border-radius:999px; font-size:13px;
+    font-weight:600; opacity:0; pointer-events:none; transition:all .25s ease; z-index:9999;
+    box-shadow:0 8px 24px rgba(0,0,0,.2);
+  }
+  .sspt-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .sspt-disclaimer{
+    font-size:11.5px; color:var(--sspt-text-faint); border-top:1px dashed var(--sspt-border);
+    margin-top:6px; padding-top:10px;
+  }
+  .sspt-section-divider{ height:1px; background:var(--sspt-border-soft); margin:4px 0; }
+  .sspt-h3{ font-size:13.5px; font-weight:700; margin:0 0 8px; }
+  .sspt-muted{ color:var(--sspt-text-muted); }
+  .sspt-small{ font-size:12px; }
+  .sspt-mono{ font-family:var(--sspt-mono); }
+</style>
+</head>
+<body>
+<div class="sspt-root">
+<div class="sspt-shell">
+
+  <div class="sspt-titlebar">
+    <div>
+      <h1>Sondir &amp; SPT Foundation Planner</h1>
+      <p>Interpretasi tanah, kapasitas tiang (Qb/Qs/Qult/Qizin), borelog, dan rekomendasi pondasi awal.</p>
+    </div>
+    <div id="sspt-status-pill" class="sspt-status-pill sspt-status-check"><span class="sspt-dot"></span><span id="sspt-status-text">Belum ada data</span></div>
+  </div>
+
+  <div class="sspt-tabs" id="sspt-tabs"></div>
+
+  <!-- ======================= TAB 1: DASHBOARD ======================= -->
+  <div class="sspt-panel" data-panel="dashboard">
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Ringkasan Proyek</h2><div class="sspt-sub" id="sspt-dash-projectline">Belum ada data proyek</div></div>
+        <button class="sspt-btn sspt-btn-sm" data-go="project">Edit Data Proyek</button>
+      </div>
+      <div class="sspt-kpi-grid" id="sspt-kpi-grid"></div>
+    </div>
+
+    <div class="sspt-card-grid sspt-grid-2">
+      <div class="sspt-card">
+        <div class="sspt-card-head"><h2>Kapasitas Tiang — SPT</h2></div>
+        <div id="sspt-dash-spt-capacity"></div>
+      </div>
+      <div class="sspt-card">
+        <div class="sspt-card-head"><h2>Kapasitas Tiang — Sondir/CPT</h2></div>
+        <div id="sspt-dash-cpt-capacity"></div>
+      </div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Rekomendasi Pondasi</h2></div>
+        <button class="sspt-btn sspt-btn-sm" data-go="recommendation">Lihat Detail</button>
+      </div>
+      <div id="sspt-dash-recommendation"></div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Status QC &amp; Peringatan</h2></div>
+        <button class="sspt-btn sspt-btn-sm" data-go="compare">Lihat Compare QC</button>
+      </div>
+      <div id="sspt-dash-warnings" class="sspt-warnlist"></div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 2: PROJECT & PILE SETTINGS ======================= -->
+  <div class="sspt-panel" data-panel="project">
+    <div class="sspt-card">
+      <div class="sspt-card-head"><h2>Metadata Proyek</h2></div>
+      <div class="sspt-card-grid sspt-grid-3" id="sspt-project-form"></div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Parameter Tiang &amp; Faktor Aman</h2><div class="sspt-sub">Digunakan pada perhitungan Qb/Qs/Qult/Qizin SPT &amp; Sondir</div></div>
+      </div>
+      <div class="sspt-card-grid sspt-grid-4" id="sspt-pile-form"></div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Mode Koreksi N-SPT</h2><div class="sspt-sub">Mode Excel = rumus workbook acuan (utama). Mode Standar = validasi tambahan energy correction.</div></div>
+      </div>
+      <div class="sspt-row" style="margin-bottom:12px;">
+        <div class="sspt-subtoggle" id="sspt-correction-toggle">
+          <button data-mode="excel" class="active">Mode Excel (utama)</button>
+          <button data-mode="n60">Mode Standar (N60 / N1,60)</button>
+        </div>
+      </div>
+      <div id="sspt-n60-settings" class="sspt-card-grid sspt-grid-3 sspt-hidden"></div>
+      <div class="sspt-small sspt-muted" style="margin-top:8px;">Mode Standar ditampilkan sebagai kolom validasi tambahan pada tabel SPT QC; perhitungan Qs/Qb utama tetap memakai N* Mode Excel sesuai workbook acuan, kecuali Mode Standar dipilih sebagai mode aktif.</div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head"><h2>Koefisien μs (tahanan selimut) per Jenis Tanah</h2></div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-mus-table"></table></div>
+      <button class="sspt-btn sspt-btn-sm" id="sspt-mus-add" style="margin-top:10px;">+ Tambah Jenis Tanah</button>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head"><h2>Warna Jenis Tanah (borelog)</h2></div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-color-table"></table></div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 3: IMPORT DATA ======================= -->
+  <div class="sspt-panel" data-panel="import">
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Import Data</h2><div class="sspt-sub">CSV / TXT / TSV / paste dari Excel / drag &amp; drop — auto-detect delimiter &amp; kolom</div></div>
+      </div>
+      <div class="sspt-row" style="margin-bottom:14px;">
+        <div class="sspt-subtoggle" id="sspt-import-type-toggle">
+          <button data-type="spt" class="active">Data SPT</button>
+          <button data-type="cpt">Data Sondir / CPT</button>
+        </div>
+      </div>
+
+      <div class="sspt-dropzone" id="sspt-dropzone">
+        <div class="sspt-dz-icon">⬆</div>
+        <div class="sspt-dz-title">Drag &amp; drop file CSV / TXT / TSV di sini, atau klik untuk pilih file</div>
+        <div class="sspt-dz-sub">Atau tempel (paste) data langsung dari Excel pada kotak di bawah</div>
+        <input type="file" id="sspt-file-input" accept=".csv,.txt,.tsv" class="sspt-hidden">
+      </div>
+
+      <div class="sspt-field" style="margin-top:14px;">
+        <label>Paste data dari Excel / CSV</label>
+        <textarea class="sspt-textarea" id="sspt-paste-area" placeholder="Tempel data di sini (tab/koma/titik-koma/pipe terdeteksi otomatis)…"></textarea>
+      </div>
+      <div class="sspt-row" style="margin-top:10px;">
+        <button class="sspt-btn sspt-btn-primary" id="sspt-parse-btn">Proses Data</button>
+        <button class="sspt-btn" id="sspt-load-sample-btn">Muat Data Contoh (dari workbook)</button>
+        <button class="sspt-btn sspt-btn-ghost" id="sspt-manual-add-btn">+ Input Manual (baris kosong)</button>
+      </div>
+    </div>
+
+    <div class="sspt-card sspt-hidden" id="sspt-mapping-card">
+      <div class="sspt-card-head"><h2>Pemetaan Kolom (Column Mapping)</h2><div class="sspt-sub" id="sspt-mapping-sub"></div></div>
+      <div id="sspt-mapping-rows"></div>
+      <div class="sspt-row" style="margin-top:14px;">
+        <button class="sspt-btn sspt-btn-primary" id="sspt-apply-mapping-btn">Terapkan &amp; Pratinjau</button>
+        <button class="sspt-btn" id="sspt-cancel-mapping-btn">Batal</button>
+      </div>
+    </div>
+
+    <div class="sspt-card sspt-hidden" id="sspt-preview-card">
+      <div class="sspt-card-head"><h2>Pratinjau Data</h2><div class="sspt-sub" id="sspt-preview-sub"></div></div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-preview-table"></table></div>
+      <div class="sspt-row" style="margin-top:14px;">
+        <button class="sspt-btn sspt-btn-primary" id="sspt-commit-import-btn">Gunakan Data Ini</button>
+        <button class="sspt-btn" id="sspt-discard-preview-btn">Buang</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 4: SPT DATA ======================= -->
+  <div class="sspt-panel" data-panel="spt">
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Lapisan Tanah (Soil Layers)</h2><div class="sspt-sub">Batas kedalaman lapisan untuk perata-rataan N* dan perhitungan Qs per layer</div></div>
+        <button class="sspt-btn sspt-btn-sm" id="sspt-layer-add-btn">+ Tambah Layer</button>
+      </div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-layer-table"></table></div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>SPT Original (data uji lapangan)</h2><div class="sspt-sub">Sesuai Gambar 1 — data N1, N2, N, dan N* hanya pada kedalaman dengan pengujian langsung</div></div>
+        <button class="sspt-btn sspt-btn-sm" id="sspt-row-add-btn">+ Tambah Baris</button>
+      </div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-original-table"></table></div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>SPT QC &amp; Correction</h2><div class="sspt-sub">Sesuai Gambar 2 — N* terinterpolasi (merah), N* rerata layer, μs, dan Qs per layer</div></div>
+      </div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-qc-table"></table></div>
+      <div class="sspt-legend"><span><span class="sspt-interp">●</span>&nbsp;N* hasil interpolasi</span><span><span class="sspt-extrap">●</span>&nbsp;N* hasil ekstrapolasi (di luar rentang data)</span></div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 5: SONDIR/CPT DATA ======================= -->
+  <div class="sspt-panel" data-panel="cpt">
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Data Sondir / CPT</h2><div class="sspt-sub">z, qc, local friction, Kc, jenis tanah</div></div>
+        <button class="sspt-btn sspt-btn-sm" id="sspt-cpt-row-add-btn">+ Tambah Baris</button>
+      </div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-cpt-input-table"></table></div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Sondir QC &amp; Calculation</h2><div class="sspt-sub">fs, z-pur, z/8D, Qs per interval, Rf (friction ratio), interpretasi awal jenis tanah</div></div>
+      </div>
+      <div class="sspt-table-wrap"><table class="sspt-table" id="sspt-cpt-qc-table"></table></div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 6: BORELOG & CHARTS ======================= -->
+  <div class="sspt-panel" data-panel="borelog">
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Borelog &amp; Soil Stratigraphy</h2><div class="sspt-sub">Kedalaman dari elevasi awal sampai akhir bor/sondir, dengan posisi pur, ujung tiang, dan muka air tanah</div></div>
+      </div>
+      <div class="sspt-borelog-wrap"><div class="sspt-svg-card" id="sspt-borelog-svg"></div></div>
+    </div>
+
+    <div class="sspt-card-grid sspt-grid-2">
+      <div class="sspt-card"><div class="sspt-card-head"><h2>N-SPT &amp; N* vs Kedalaman</h2></div><div class="sspt-svg-card" id="sspt-chart-nspt"></div></div>
+      <div class="sspt-card"><div class="sspt-card-head"><h2>qc &amp; fs vs Kedalaman</h2></div><div class="sspt-svg-card" id="sspt-chart-cpt"></div></div>
+    </div>
+    <div class="sspt-card-grid sspt-grid-2">
+      <div class="sspt-card"><div class="sspt-card-head"><h2>Qs per Layer (SPT)</h2></div><div class="sspt-svg-card" id="sspt-chart-qslayer"></div></div>
+      <div class="sspt-card"><div class="sspt-card-head"><h2>Q Cumulative vs Depth</h2></div><div class="sspt-svg-card" id="sspt-chart-qcum"></div></div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 7: CAPACITY & RECOMMENDATION ======================= -->
+  <div class="sspt-panel" data-panel="capacity">
+    <div class="sspt-card-grid sspt-grid-2">
+      <div class="sspt-card">
+        <div class="sspt-card-head"><h2>Kapasitas Tiang — Metode SPT</h2></div>
+        <div id="sspt-capacity-spt"></div>
+      </div>
+      <div class="sspt-card">
+        <div class="sspt-card-head"><h2>Kapasitas Tiang — Metode Sondir/CPT</h2></div>
+        <div id="sspt-capacity-cpt"></div>
+      </div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head"><h2>Peringatan Desain</h2></div>
+      <div id="sspt-capacity-warnings" class="sspt-warnlist"></div>
+    </div>
+
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Rekomendasi Jenis Pondasi</h2><div class="sspt-sub">Hasil bersifat preliminary — bukan pengganti desain final engineer geoteknik tersertifikasi</div></div>
+      </div>
+      <div id="sspt-recommendation-detail"></div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 8: COMPARE ORIGINAL VS QC ======================= -->
+  <div class="sspt-panel" data-panel="compare">
+    <div class="sspt-card">
+      <div class="sspt-card-head"><h2>SPT Original vs SPT QC</h2></div>
+      <div class="sspt-kpi-grid" id="sspt-compare-kpi"></div>
+    </div>
+    <div class="sspt-card-grid sspt-grid-2">
+      <div class="sspt-card">
+        <div class="sspt-card-head"><h2>Tabel Original (Gambar 1)</h2></div>
+        <div class="sspt-table-wrap" id="sspt-compare-original"></div>
+      </div>
+      <div class="sspt-card">
+        <div class="sspt-card-head"><h2>Tabel QC (Gambar 2)</h2></div>
+        <div class="sspt-table-wrap" id="sspt-compare-qc"></div>
+      </div>
+    </div>
+    <div class="sspt-card">
+      <div class="sspt-card-head"><h2>Narasi Perbandingan Otomatis</h2></div>
+      <div id="sspt-compare-narrative" class="sspt-small"></div>
+    </div>
+  </div>
+
+  <!-- ======================= TAB 9: REPORT & EXPORT ======================= -->
+  <div class="sspt-panel" data-panel="report">
+    <div class="sspt-card">
+      <div class="sspt-card-head">
+        <div><h2>Report Summary</h2><div class="sspt-sub">Ringkasan otomatis untuk laporan &amp; meeting</div></div>
+      </div>
+      <div class="sspt-row" style="margin-bottom:12px;">
+        <button class="sspt-btn sspt-btn-primary" id="sspt-copy-summary-btn">Copy Summary</button>
+        <button class="sspt-btn" id="sspt-export-txt-btn">Export TXT</button>
+        <button class="sspt-btn" id="sspt-export-csv-btn">Export CSV</button>
+        <button class="sspt-btn" id="sspt-export-json-btn">Export JSON</button>
+        <button class="sspt-btn" id="sspt-export-html-btn">Export HTML Report</button>
+      </div>
+      <div class="sspt-report-pre" id="sspt-report-preview"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div class="sspt-toast" id="sspt-toast"></div>
+<script>
+(function(){
+"use strict";
+/* ============================================================
+   SONDIR & SPT FOUNDATION PLANNER — APPLICATION LOGIC
+   Wrapped in IIFE (namespace: SSPT) — aman ditempel ke aplikasi lain.
+   ============================================================ */
+
+const PI = Math.PI;
+function isNum(v){ return typeof v === 'number' && isFinite(v); }
+function round(v,d=2){ if(!isNum(v)) return v; const f=Math.pow(10,d); return Math.round((v+Number.EPSILON)*f)/f; }
+function uid(prefix){ return prefix+'_'+Math.random().toString(36).slice(2,9); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(v,d=2,unit){
+  if(v===null || v===undefined || !isNum(v)) return '<span class="sspt-muted">—</span>';
+  return v.toFixed(d) + (unit?(' '+unit):'');
+}
+function fmtPlain(v,d=2){ if(!isNum(v)) return '—'; return v.toFixed(d); }
+function toast(msg){
+  const t = document.getElementById('sspt-toast');
+  if(!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function safe(fn, fallback){
+  try{ return fn(); }catch(e){ console.error('[SSPT] safe() caught:', e); return fallback; }
+}
+
+/* ============================================================
+   CALCULATION ENGINE (validated against Sondir_SPT.xlsx)
+   ============================================================ */
+const Engine = {};
+
+Engine.calcN = function(N1,N2){
+  if(!isNum(N1) && !isNum(N2)) return null;
+  return (isNum(N1)?N1:0) + (isNum(N2)?N2:0);
+};
+Engine.calcNStarExcel = function(N){
+  if(!isNum(N)) return null;
+  if(N <= 0) return 0;
+  return 15 + ((N - 15) / 2);
+};
+Engine.calcN60 = function(Nfield, ER){
+  if(!isNum(Nfield)) return null;
+  return Nfield * ((isNum(ER)?ER:60)/60);
+};
+Engine.calcN160 = function(N60, CN){
+  if(!isNum(N60)) return null;
+  return (isNum(CN)?CN:1) * N60;
+};
+
+// Continuous 1m-step profile with linear interpolation between measured N* points.
+Engine.buildSptProfile = function(points, maxDepth, step){
+  step = step || 1;
+  const measured = points.filter(p=>isNum(p.Nstar)).sort((a,b)=>a.z-b.z);
+  if(measured.length===0) return [];
+  const top = Math.min(...measured.map(p=>p.z));
+  const bottom = Math.max(isNum(maxDepth)?maxDepth:0, Math.max(...measured.map(p=>p.z)));
+  const profile = [];
+  for(let z = Math.round(top); z <= Math.round(bottom)+1e-9; z += step){
+    z = round(z,4);
+    const exact = measured.find(p=>Math.abs(p.z-z)<1e-6);
+    if(exact){ profile.push({z, Nstar: exact.Nstar, isInterpolated:false, isExtrapolated:false}); continue; }
+    let lower=null, upper=null;
+    for(const p of measured){ if(p.z < z) lower = p; if(p.z > z && upper===null) upper = p; }
+    if(lower && upper){
+      const v = lower.Nstar + ((z - lower.z)/(upper.z - lower.z)) * (upper.Nstar - lower.Nstar);
+      profile.push({z, Nstar: round(v,4), isInterpolated:true, isExtrapolated:false});
+    } else if(lower && !upper){
+      profile.push({z, Nstar: lower.Nstar, isInterpolated:false, isExtrapolated:true});
+    } else if(upper && !lower){
+      profile.push({z, Nstar: upper.Nstar, isInterpolated:false, isExtrapolated:true});
+    } else {
+      profile.push({z, Nstar:null, isInterpolated:false, isExtrapolated:false});
+    }
+  }
+  return profile;
+};
+
+function interpAt(sortedPts, z, key){
+  if(sortedPts.length===0) return null;
+  if(z<=sortedPts[0].z) return sortedPts[0][key];
+  if(z>=sortedPts[sortedPts.length-1].z) return sortedPts[sortedPts.length-1][key];
+  for(let i=0;i<sortedPts.length-1;i++){
+    const a=sortedPts[i], b=sortedPts[i+1];
+    if(z>=a.z && z<=b.z){ if(b.z===a.z) return a[key]; return a[key] + ((z-a.z)/(b.z-a.z))*(b[key]-a[key]); }
+  }
+  return null;
+}
+// Area-weighted (trapezoidal) average over [zFrom,zTo]; clips to available data range.
+Engine.zoneAverage = function(points, zFrom, zTo, key){
+  key = key || 'val';
+  const sorted = [...points].filter(p=>isNum(p[key])).sort((a,b)=>a.z-b.z);
+  if(sorted.length===0) return {avg:null, clipped:false};
+  const dataMin = sorted[0].z, dataMax = sorted[sorted.length-1].z;
+  let lo=zFrom, hi=zTo, clipped=false;
+  if(lo<dataMin){ lo=dataMin; clipped=true; }
+  if(hi>dataMax){ hi=dataMax; clipped=true; }
+  if(hi<=lo) return {avg: interpAt(sorted,lo,key), clipped:true};
+  const xs = new Set([lo,hi]);
+  for(const p of sorted){ if(p.z>lo && p.z<hi) xs.add(p.z); }
+  const pts = [...xs].sort((a,b)=>a-b).map(z=>({z, v:interpAt(sorted,z,key)}));
+  let area=0;
+  for(let i=0;i<pts.length-1;i++){ const a=pts[i],b=pts[i+1]; if(isNum(a.v)&&isNum(b.v)) area += (a.v+b.v)/2*(b.z-a.z); }
+  const len = hi-lo;
+  return {avg: round(len>0?area/len:pts[0].v,4), clipped};
+};
+
+// Assign continuous profile to layers and compute Qs per layer + Qsult (excludes layers fully at/after pile tip)
+Engine.calcLayerQs = function(layers, profile, D_m, muSMap, pileTip){
+  const Asm = PI * D_m * 1;
+  let total = 0;
+  const enriched = layers.map(layer=>{
+    const pts = profile.filter(p=> p.z >= layer.zTop && p.z <= layer.zBottom && isNum(p.Nstar));
+    const thickness = pts.length;
+    const NstarRerata = pts.length ? round(pts.reduce((s,p)=>s+p.Nstar,0)/pts.length,4) : null;
+    const muS = isNum(layer.muS) ? layer.muS : (muSMap && isNum(muSMap[layer.jenis]) ? muSMap[layer.jenis] : 0.30);
+    const includeInQsult = isNum(pileTip) ? layer.zTop < pileTip : true;
+    let Qs = isNum(NstarRerata) ? round(NstarRerata*muS*Asm*thickness,4) : null;
+    if(includeInQsult && isNum(Qs)) total += Qs;
+    return {...layer, points:pts, thickness, NstarRerata, muS, Qs, includeInQsult};
+  });
+  return {layers: enriched, Qsult: round(total,4)};
+};
+
+Engine.calcQbSpt = function(profile, pileTip, D_cm, muB, zoneFactor){
+  zoneFactor = zoneFactor || 4;
+  if(!isNum(pileTip) || !isNum(D_cm) || !isNum(muB)) return {Ab:null,Nb:null,Qb:null};
+  const D_m = D_cm/100;
+  const Ab = 0.25*PI*D_m*D_m;
+  const zoneFrom = pileTip - zoneFactor*D_m;
+  const zonePts = profile.map(p=>({z:p.z, val:p.Nstar}));
+  const {avg:Nb, clipped} = Engine.zoneAverage(zonePts, zoneFrom, pileTip, 'val');
+  const Qb = isNum(Nb) ? round(muB*Nb*Ab,4) : null;
+  return {Ab: round(Ab,6), Nb, Qb, zoneFrom: round(zoneFrom,3), zoneTo: pileTip, clipped};
+};
+
+Engine.calcSptCapacity = function(opts){
+  const {profile, layers, D_cm, muSMap, pileTip, muB, FS} = opts;
+  const {layers: layerResults, Qsult} = Engine.calcLayerQs(layers, profile, (D_cm||0)/100, muSMap, pileTip);
+  const qb = Engine.calcQbSpt(profile, pileTip, D_cm, muB);
+  const Qult = (isNum(qb.Qb)&&isNum(Qsult)) ? round(qb.Qb+Qsult,4) : null;
+  const Qizin = (isNum(Qult)&&FS) ? round(Qult/FS,4) : null;
+  return {layerResults, Qsult, Qb: qb.Qb, QbDetail: qb, Qult, Qizin};
+};
+
+Engine.calcFsTonM2 = function(lf){ return isNum(lf) ? lf*10 : null; };
+Engine.calcZPur = function(z, pur){ return isNum(z) ? Math.max(0, z-(isNum(pur)?pur:0)) : null; };
+Engine.calcZ8D = function(zPur, D_m){ const e=8*D_m; return (isNum(zPur)&&e>0) ? Math.min(1, zPur/e) : null; };
+Engine.calcRf = function(fs_tonm2, qc_kgcm2){
+  if(!isNum(fs_tonm2) || !isNum(qc_kgcm2) || qc_kgcm2===0) return null;
+  return round(((fs_tonm2*0.1)/qc_kgcm2)*100, 3);
+};
+Engine.calcCptQs = function(points, D_m, pur, defaultKc){
+  const sorted = [...points].sort((a,b)=>a.z-b.z);
+  let cumulative = 0;
+  const rows = sorted.map((p,i)=>{
+    const fs = Engine.calcFsTonM2(p.localFriction);
+    const zPur = Engine.calcZPur(p.z, pur);
+    const z8D = Engine.calcZ8D(zPur, D_m);
+    const Kc = isNum(p.Kc) ? p.Kc : (isNum(defaultKc)?defaultKc:1);
+    const intervalDepth = i===0 ? p.z : (p.z - sorted[i-1].z);
+    const As = PI*D_m*intervalDepth;
+    let Qs = null;
+    if(isNum(z8D)&&isNum(Kc)&&isNum(fs)){ Qs = round(z8D*Kc*fs*As,5); cumulative += Qs; }
+    return {...p, fs: isNum(fs)?round(fs,3):null, zPur, eightD: round(8*D_m,3),
+      z8D: isNum(z8D)?round(z8D,4):null, Kc, intervalDepth: round(intervalDepth,3),
+      As: round(As,4), Qs, cumulative: round(cumulative,4), Rf: Engine.calcRf(fs,p.qc)};
+  });
+  return {rows, Qsult: round(cumulative,4)};
+};
+Engine.calcQbCpt = function(points, pileTip, D_cm, zone1, zone2){
+  zone1 = zone1 || [0.7,4]; zone2 = isNum(zone2)?zone2:8;
+  if(!isNum(pileTip) || !isNum(D_cm)) return {qc1:null,qc2:null,Qbult_ton:null};
+  const D_m = D_cm/100;
+  const Ab_cm2 = D_cm*D_cm; // pile persegi (sesuai contoh workbook); jika tiang bulat, set shape=circle pada parameter
+  const profForZone = points.map(p=>({z:p.z, val:p.qc})).sort((a,b)=>a.z-b.z);
+  const z1f = pileTip+zone1[0]*D_m, z1t = pileTip+zone1[1]*D_m;
+  const z2f = pileTip-zone2*D_m, z2t = pileTip;
+  const r1 = Engine.zoneAverage(profForZone, z1f, z1t, 'val');
+  const r2 = Engine.zoneAverage(profForZone, z2f, z2t, 'val');
+  let Qbult_ton = null;
+  if(isNum(r1.avg) && isNum(r2.avg)) Qbult_ton = round((((r1.avg+r2.avg)/2)*Ab_cm2)/1000, 4);
+  return {qc1: round(r1.avg,3), qc2: round(r2.avg,3), Ab_cm2, Qbult_ton,
+    zone1:[round(z1f,3),round(z1t,3)], zone2:[round(z2f,3),round(z2t,3)], clipped: r1.clipped||r2.clipped};
+};
+Engine.calcCptCapacity = function(opts){
+  const {points, D_cm, pur, pileTip, FS, defaultKc, zone1, zone2} = opts;
+  const D_m = (D_cm||0)/100;
+  const qsRes = Engine.calcCptQs(points, D_m, pur, defaultKc);
+  const qbRes = Engine.calcQbCpt(points, pileTip, D_cm, zone1, zone2);
+  const Qult = (isNum(qbRes.Qbult_ton)&&isNum(qsRes.Qsult)) ? round(qbRes.Qbult_ton+qsRes.Qsult,4) : null;
+  const Qizin = (isNum(Qult)&&FS) ? round(Qult/FS,4) : null;
+  return {rows: qsRes.rows, Qsult: qsRes.Qsult, Qb: qbRes.Qbult_ton, QbDetail: qbRes, Qult, Qizin};
+};
+
+/* ============================================================
+   DEFAULTS & SAMPLE DATA (sumber: Sondir_SPT.xlsx)
+   ============================================================ */
+const SOIL_COLORS_DEFAULT = {
+  'Lempung':'#E07B39',
+  'Pasir Lempungan':'#9CA3AF',
+  'Lempung Lunak':'#1F2330',
+  'Pasir Berbatu':'#8B5A2B',
+  'Pasir Kerikil':'#6B3F1D',
+  'Tanah Keras':'#7A1F1F',
+  'Fill / Urugan':'#F2C94C',
+  'Unknown':'#EEF0F3'
+};
+const MUS_DEFAULT = {
+  'Lempung':0.50, 'Pasir Lempungan':0.35, 'Lempung Lunak':0.50,
+  'Pasir Berbatu':0.20, 'Pasir Kerikil':0.20, 'Tanah Keras':0.15, 'Fill / Urugan':0.25, 'Unknown':0.30
+};
+
+// z, N1, N2
+const SAMPLE_SPT_RAW = [[0,0,0],[2,8,16],[4,10,12],[6,4,4],[8,3,3],[10,4,4],[12,8,8],
+  [14,10,13],[16,10,13],[18,13,18],[20,21,25],[22,30,30],[24,30,30]];
+
+const SAMPLE_SPT_LAYERS = [
+  {zTop:0, zBottom:2, jenis:'Lempung', warna:'#E07B39'},
+  {zTop:3, zBottom:6, jenis:'Pasir Lempungan', warna:'#9CA3AF'},
+  {zTop:7, zBottom:12, jenis:'Lempung', warna:'#1F2330'},
+  {zTop:13, zBottom:16, jenis:'Lempung', warna:'#E07B39'},
+  {zTop:17, zBottom:18, jenis:'Pasir Lempungan', warna:'#9CA3AF'},
+  {zTop:19, zBottom:24, jenis:'Pasir Berbatu', warna:'#8B5A2B'},
+  {zTop:25, zBottom:25, jenis:'Pasir Kerikil', warna:'#6B3F1D'}
+];
+
+// z, qc(kg/cm2), local friction(kg/cm2)
+const SAMPLE_CPT_RAW = [[0,0,0],[0.2,5,0.1],[0.4,6,0.2],[0.6,10,0.3],[0.8,9,0.4],[1,8,0.45],[1.2,7,0.55],[1.4,8,0.6],[1.6,10,0.7],[1.8,6,0.8],[2,10,0.9],[2.2,12,1],[2.4,14,1.2],[2.6,18,1.24],[2.8,30,1.28],[3,26,1.3],[3.2,24,1.35],[3.4,18,1.4],[3.6,24,1.6],[3.8,28,1.8],[4,40,2],[4.2,48,2.1],[4.4,45,2.2],[4.6,50,2.4],[4.8,40,2.45],[5,38,2.5],[5.2,35,2.55],[5.4,37,2.6],[5.6,35,2.7],[5.8,38,2.8],[6,40,3],[6.2,33,3.3],[6.4,28,3.4],[6.6,26,3.5],[6.8,38,3.7],[7,35,3.74],[7.2,37,3.75],[7.4,40,3.78],[7.6,45,3.8],[7.8,48,3.8],[8,50,3.9],[8.2,37,4],[8.4,30,4.2],[8.6,26,4.4],[8.8,33,4.6],[9,28,4.8],[9.2,30,4.85],[9.4,33,4.9],[9.6,35,5],[9.8,37,5.05],[10,38,5.1],[10.2,37,5.2],[10.4,35,5.2],[10.6,33,5.3],[10.8,30,5.4],[11,36,5.5],[11.2,37,5.6],[11.4,40,5.7],[11.6,38,5.8],[11.8,35,5.9],[12,37,6],[12.2,38,6.1],[12.4,40,6.2],[12.6,42,6.25],[12.8,40,6.3],[13,38,6.35],[13.2,40,6.4],[13.4,44,6.5],[13.6,48,6.6],[13.8,50,6.8],[14,52,7],[14.2,62,7.1],[14.4,64,7.2],[14.6,75,7.3],[14.8,80,7.4],[15,100,7.5],[15.2,123,7.55],[15.4,125,7.6],[15.6,188,7.65],[15.8,212,7.7],[16,238,7.8],[16.2,240,8.2],[16.4,260,8.4],[16.6,265,8.6],[16.8,290,8]];
+
+const SAMPLE_PROJECT = {
+  name:'Contoh Proyek — Gedung 4 Lantai', location:'', client:'', engineer:'',
+  date:'', boreholeId:'BH-01 / S-01', groundElevation:0, waterTable:null, loadRencana:null
+};
+const SAMPLE_PILE = { D_cm:45, D_cm_cpt:40, shape:'circle', shapeCpt:'square', pur:2, ujungTiang:22, ujungTiangCpt:16,
+  panjang:20, FS:3, muB:40 };
+
+/* ============================================================
+   APPLICATION STATE
+   ============================================================ */
+const S = {
+  project: {name:'', location:'', client:'', engineer:'', date:'', boreholeId:'', groundElevation:0, waterTable:null, loadRencana:null},
+  pile: {D_cm:45, D_cm_cpt:40, shape:'circle', shapeCpt:'square', pur:2, ujungTiang:22, ujungTiangCpt:16, panjang:20, FS:3, muB:40},
+  correctionMode: 'excel', // 'excel' | 'n60'
+  n60: {ER:60, useCN:false, CN:1},
+  muS: {...MUS_DEFAULT},
+  soilColors: {...SOIL_COLORS_DEFAULT},
+  spt: { raw: [], layers: [] },
+  cpt: { raw: [] },
+  activeTab: 'dashboard',
+  importType: 'spt',
+  importStaging: null // {headers, rows(raw 2d array), mapping, type}
+};
+
+const SPT_FIELDS = [
+  {key:'z', label:'z / Depth (m)', required:true},
+  {key:'N1', label:'N1'},
+  {key:'N2', label:'N2'},
+  {key:'N', label:'N (total)'},
+  {key:'Nstar', label:'N* koreksi'},
+  {key:'jenis', label:'Jenis Tanah'},
+  {key:'warna', label:'Warna Tanah'},
+  {key:'elevasi', label:'Elevasi'}
+];
+const CPT_FIELDS = [
+  {key:'z', label:'z / Depth (m)', required:true},
+  {key:'qc', label:'qc (kg/cm2)', required:true},
+  {key:'localFriction', label:'Local Friction (kg/cm2)'},
+  {key:'fs', label:'fs (t/m2)'},
+  {key:'Kc', label:'Kc'},
+  {key:'jenis', label:'Jenis Tanah'}
+];
+const FIELD_ALIASES = {
+  z: ['z','depth','kedalaman','kedalaman_m','kedalaman(m)','z(m)'],
+  N1: ['n1','blow1','pukulan1'],
+  N2: ['n2','blow2','pukulan2'],
+  N: ['n','nspt','n-spt','ntotal'],
+  Nstar: ['n*','nkoreksi','n_koreksi','correctedn','n*koreksi','ncorrected'],
+  jenis: ['jenistanah','soiltype','layer','lithology','jenis'],
+  warna: ['warnatanah','color','warna'],
+  elevasi: ['elevasi','elevation','rl'],
+  qc: ['qc','coneresistance','tahanankonus'],
+  localFriction: ['localfriction','lf','sleevefriction','hambatansetempat'],
+  fs: ['fs','totalfriction','jf','jumlahhambatanlekat'],
+  Kc: ['kc'],
+};
+function normHeader(h){ return String(h||'').toLowerCase().replace(/[^a-z0-9*]/g,''); }
+function guessField(header, fieldDefs){
+  const n = normHeader(header);
+  for(const f of fieldDefs){
+    const aliases = FIELD_ALIASES[f.key]||[f.key];
+    if(aliases.some(a=>normHeader(a)===n)) return f.key;
+  }
+  for(const f of fieldDefs){
+    const aliases = FIELD_ALIASES[f.key]||[f.key];
+    if(aliases.some(a=>n.includes(normHeader(a)) || normHeader(a).includes(n))) return f.key;
+  }
+  return '';
+}
+
+/* ============================================================
+   IMPORT / PARSING ENGINE
+   ============================================================ */
+function detectDelimiter(text){
+  const lines = text.split(/\r\n|\n/).filter(l=>l.trim().length>0).slice(0,8);
+  if(lines.length===0) return ',';
+  const candidates = [',',';','\t','|'];
+  let best = ',', bestScore=-1;
+  for(const d of candidates){
+    const counts = lines.map(l=>l.split(d).length-1);
+    const min = Math.min(...counts);
+    const consistent = counts.every(c=>c===counts[0]) && counts[0]>0;
+    const score = (consistent?1000:0) + min;
+    if(score>bestScore){ bestScore=score; best=d; }
+  }
+  if(bestScore<=0){
+    // fallback: multiple spaces
+    return /\s{2,}/.test(lines[0]) ? /\s{2,}/ : ',';
+  }
+  return best;
+}
+function parseDelimited(text, delim){
+  const lines = text.split(/\r\n|\n/).filter(l=>l.trim().length>0);
+  const splitLine = (l)=> (delim instanceof RegExp) ? l.trim().split(delim) : l.split(delim);
+  const rows = lines.map(l=>splitLine(l).map(c=>c.trim().replace(/^["']|["']$/g,'')));
+  return rows;
+}
+function parseNumber(v){
+  if(v===undefined || v===null) return null;
+  const s = String(v).trim().replace(/\./g,(m,off,str)=>{
+    // handle thousands separators like 1.234,56 -> keep simple: if has comma decimal
+    return m;
+  });
+  let str = String(v).trim();
+  if(str==='' || str==='-' ) return null;
+  // normalize comma decimal to dot if no dot present
+  if(str.includes(',') && !str.includes('.')) str = str.replace(',','.');
+  str = str.replace(/[^0-9.\-]/g,'');
+  const n = parseFloat(str);
+  return isFinite(n) ? n : null;
+}
+
+function startImportFromText(text, type){
+  if(!text || !text.trim()){ toast('Tidak ada data untuk diproses'); return; }
+  const delim = detectDelimiter(text);
+  const rows = parseDelimited(text, delim);
+  if(rows.length<2){ toast('Data terlalu sedikit (perlu header + minimal 1 baris)'); return; }
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+  const fieldDefs = type==='spt' ? SPT_FIELDS : CPT_FIELDS;
+  const mapping = headers.map(h=>guessField(h, fieldDefs));
+  S.importStaging = {headers, rows: dataRows, mapping, type};
+  renderMappingCard();
+}
+
+function renderMappingCard(){
+  const card = document.getElementById('sspt-mapping-card');
+  const sub = document.getElementById('sspt-mapping-sub');
+  const wrap = document.getElementById('sspt-mapping-rows');
+  if(!S.importStaging){ card.classList.add('sspt-hidden'); return; }
+  const {headers, type} = S.importStaging;
+  const fieldDefs = type==='spt' ? SPT_FIELDS : CPT_FIELDS;
+  sub.textContent = `${headers.length} kolom terdeteksi, ${S.importStaging.rows.length} baris data — periksa/atur pemetaan kolom di bawah`;
+  wrap.innerHTML = headers.map((h,i)=>{
+    const opts = ['<option value="">(abaikan)</option>'].concat(
+      fieldDefs.map(f=>`<option value="${f.key}" ${S.importStaging.mapping[i]===f.key?'selected':''}>${esc(f.label)}</option>`)
+    ).join('');
+    return `<div class="sspt-maprow">
+      <div class="sspt-mapsrc">Kolom: <b>${esc(h||'(tanpa nama)')}</b></div>
+      <div class="sspt-arrow">→</div>
+      <select class="sspt-select" data-mapidx="${i}">${opts}</select>
+    </div>`;
+  }).join('');
+  card.classList.remove('sspt-hidden');
+  document.getElementById('sspt-preview-card').classList.add('sspt-hidden');
+  wrap.querySelectorAll('select[data-mapidx]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{ S.importStaging.mapping[+sel.dataset.mapidx] = sel.value; });
+  });
+}
+
+function applyMappingAndPreview(){
+  if(!S.importStaging) return;
+  const {headers, rows, mapping, type} = S.importStaging;
+  const out = rows.map(r=>{
+    const obj = {};
+    mapping.forEach((field,i)=>{ if(field) obj[field] = r[i]; });
+    return obj;
+  }).filter(o=>Object.keys(o).length>0);
+  S.importStaging.preview = out;
+  const fieldDefs = type==='spt' ? SPT_FIELDS : CPT_FIELDS;
+  const usedFields = fieldDefs.filter(f=>mapping.includes(f.key));
+  const sub = document.getElementById('sspt-preview-sub');
+  sub.textContent = `${out.length} baris siap diimpor sebagai data ${type==='spt'?'SPT':'Sondir/CPT'}`;
+  const table = document.getElementById('sspt-preview-table');
+  table.innerHTML = `<thead><tr>${usedFields.map(f=>`<th>${esc(f.label)}</th>`).join('')}</tr></thead>
+    <tbody>${out.slice(0,200).map(o=>`<tr>${usedFields.map(f=>`<td>${esc(o[f.key]??'')}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  document.getElementById('sspt-mapping-card').classList.add('sspt-hidden');
+  document.getElementById('sspt-preview-card').classList.remove('sspt-hidden');
+}
+
+function commitImport(){
+  if(!S.importStaging || !S.importStaging.preview) return;
+  const {type, preview} = S.importStaging;
+  try{
+    if(type==='spt'){
+      const rows = preview.map(o=>{
+        const N1 = parseNumber(o.N1), N2 = parseNumber(o.N2);
+        let N = parseNumber(o.N); if(N===null) N = Engine.calcN(N1,N2);
+        let Nstar = parseNumber(o.Nstar);
+        return {id:uid('spt'), z:parseNumber(o.z), N1, N2, N, NstarManual: Nstar,
+          jenis: (o.jenis||'').trim()||null, warna: (o.warna||'').trim()||null, elevasi: parseNumber(o.elevasi)};
+      }).filter(r=>isNum(r.z));
+      S.spt.raw = rows.sort((a,b)=>a.z-b.z);
+      toast(`Berhasil impor ${rows.length} baris data SPT`);
+    } else {
+      const rows = preview.map(o=>({
+        id:uid('cpt'), z:parseNumber(o.z), qc:parseNumber(o.qc), localFriction:parseNumber(o.localFriction),
+        fsManual:parseNumber(o.fs), Kc:parseNumber(o.Kc), jenis:(o.jenis||'').trim()||null
+      })).filter(r=>isNum(r.z));
+      S.cpt.raw = rows.sort((a,b)=>a.z-b.z);
+      toast(`Berhasil impor ${rows.length} baris data Sondir/CPT`);
+    }
+  }catch(e){
+    console.error(e);
+    toast('Gagal memproses data — periksa format dan pemetaan kolom');
+    return;
+  }
+  S.importStaging = null;
+  document.getElementById('sspt-preview-card').classList.add('sspt-hidden');
+  document.getElementById('sspt-mapping-card').classList.add('sspt-hidden');
+  document.getElementById('sspt-paste-area').value='';
+  recalcAndRenderAll();
+  setActiveTab(S.importType==='spt'?'spt':'cpt');
+}
+
+/* ============================================================
+   DERIVED DATA: compute all calculations from current state
+   ============================================================ */
+let D = {}; // derived results cache
+
+function computeAll(){
+  D = {};
+  try{
+    // ---- SPT rows: N, Nstar (excel + standar) ----
+    const sptRows = S.spt.raw.map(r=>{
+      const N = isNum(r.N) ? r.N : Engine.calcN(r.N1, r.N2);
+      const NstarExcel = isNum(r.NstarManual) ? r.NstarManual : Engine.calcNStarExcel(N);
+      const N60 = Engine.calcN60(N, S.n60.ER);
+      const N160 = Engine.calcN160(N60, S.n60.useCN ? S.n60.CN : 1);
+      const NstarActive = S.correctionMode==='n60' ? N160 : NstarExcel;
+      return {...r, N, NstarExcel, N60, N160, NstarActive};
+    }).sort((a,b)=>a.z-b.z);
+    D.sptRows = sptRows;
+
+    // soil layers, sorted
+    const layers = [...S.spt.layers].sort((a,b)=>a.zTop-b.zTop);
+    D.sptLayers = layers;
+    const maxDepth = layers.length ? Math.max(...layers.map(l=>l.zBottom)) : (sptRows.length?Math.max(...sptRows.map(r=>r.z)):0);
+    D.sptMaxDepth = maxDepth;
+
+    const profileSrc = sptRows.map(r=>({z:r.z, Nstar:r.NstarActive}));
+    const profile = Engine.buildSptProfile(profileSrc, maxDepth, 1);
+    D.sptProfile = profile;
+
+    if(profile.length && layers.length){
+      D.sptCapacity = Engine.calcSptCapacity({
+        profile, layers, D_cm:S.pile.D_cm, muSMap:S.muS, pileTip:S.pile.ujungTiang, muB:S.pile.muB, FS:S.pile.FS
+      });
+    } else {
+      D.sptCapacity = {layerResults:[], Qsult:null, Qb:null, QbDetail:{}, Qult:null, Qizin:null};
+    }
+
+    // ---- CPT rows ----
+    const cptRows = S.cpt.raw.map(r=>({...r})).sort((a,b)=>a.z-b.z);
+    D.cptRows = cptRows;
+    if(cptRows.length){
+      D.cptCapacity = Engine.calcCptCapacity({
+        points: cptRows, D_cm:S.pile.D_cm_cpt, pur:S.pile.pur, pileTip:S.pile.ujungTiangCpt,
+        FS:S.pile.FS, defaultKc:1
+      });
+    } else {
+      D.cptCapacity = {rows:[], Qsult:null, Qb:null, QbDetail:{}, Qult:null, Qizin:null};
+    }
+
+    D.qcWarnings = computeQcWarnings();
+    D.recommendation = computeRecommendation();
+    D.dashboard = computeDashboard();
+  }catch(e){
+    console.error('[SSPT] computeAll error:', e);
+    toast('Terjadi kendala saat menghitung — sebagian hasil mungkin tidak lengkap');
+  }
+}
+
+/* ============================================================
+   QC WARNINGS ENGINE (PRD §11)
+   ============================================================ */
+function computeQcWarnings(){
+  const warns = [];
+  const add = (sev,title,detail)=>warns.push({sev,title,detail});
+
+  // --- SPT checks ---
+  if(S.spt.raw.length===0){
+    add('blue','Belum ada data SPT','Import atau input data SPT untuk mulai analisis.');
+  } else {
+    const emptyPairs = S.spt.raw.filter(r=>!isNum(r.N1) && !isNum(r.N2) && !isNum(r.NstarManual));
+    if(emptyPairs.length) add('amber','N1/N2 kosong', `${emptyPairs.length} baris tidak memiliki N1/N2 maupun N* manual — nilai akan diinterpolasi.`);
+    const zeroMid = S.spt.raw.filter(r=> r.z>0 && Engine.calcN(r.N1,r.N2)===0);
+    if(zeroMid.length) add('amber','N = 0 pada kedalaman > 0', `${zeroMid.length} titik menunjukkan N=0 bukan di permukaan — periksa kembali data lapangan.`);
+    const missingJenis = S.spt.layers.filter(l=>!l.jenis || !l.jenis.trim());
+    if(missingJenis.length) add('amber','Jenis tanah kosong', `${missingJenis.length} layer belum memiliki jenis tanah.`);
+    const refusal = S.spt.raw.filter(r=>isNum(r.N) && r.N>=60);
+    if(refusal.length) add('blue','Indikasi refusal', `${refusal.length} titik dengan N ≥ 60 (kemungkinan refusal / lapisan sangat keras) — perlu ditandai pada laporan.`);
+    if(D.sptProfile && D.sptProfile.length){
+      const nInterp = D.sptProfile.filter(p=>p.isInterpolated).length;
+      const nExtrap = D.sptProfile.filter(p=>p.isExtrapolated).length;
+      const nTotal = D.sptProfile.length;
+      const pct = nTotal ? round((nInterp+nExtrap)/nTotal*100,1) : 0;
+      if(pct>50) add('amber','Banyak nilai hasil interpolasi/ekstrapolasi', `${pct}% titik profil N* berasal dari interpolasi/ekstrapolasi (bukan pengujian langsung). Pertimbangkan data SPT tambahan.`);
+      if(nExtrap>0) add('blue','Ekstrapolasi di luar rentang data', `${nExtrap} titik kedalaman berada di luar rentang pengujian SPT terakhir dan diasumsikan sama dengan nilai terdekat.`);
+    }
+    const thickGap = (()=>{ // layer too thick without internal SPT test
+      let found=[];
+      for(const l of S.spt.layers){
+        const testsInLayer = S.spt.raw.filter(r=>r.z>=l.zTop && r.z<=l.zBottom && (isNum(r.N1)||isNum(r.N2)||isNum(r.NstarManual)));
+        if((l.zBottom-l.zTop)>=5 && testsInLayer.length<=1) found.push(l);
+      }
+      return found;
+    })();
+    if(thickGap.length) add('amber','Layer tebal tanpa cukup data SPT', `${thickGap.length} lapisan tebal (≥5 m) hanya memiliki ≤1 titik uji langsung.`);
+  }
+
+  // --- SPT capacity-derived ---
+  if(D.sptCapacity && isNum(D.sptCapacity.Qb)){
+    const qbd = D.sptCapacity.QbDetail||{};
+    if(isNum(qbd.Nb) && qbd.Nb<15) add('red','N* rendah pada zona ujung tiang (SPT)', `N* desain di zona ujung tiang ≈ ${fmtPlain(qbd.Nb)} — tergolong rendah untuk daya dukung ujung yang baik.`);
+    if(qbd.clipped) add('amber','Zona ujung tiang melebihi data tersedia (SPT)', 'Zona perhitungan Nb terpotong (clipped) karena melebihi rentang data SPT yang tersedia.');
+  }
+  if(isNum(S.pile.ujungTiang) && S.spt.layers.length){
+    const tipLayer = S.spt.layers.find(l=>S.pile.ujungTiang>=l.zTop && S.pile.ujungTiang<=l.zBottom);
+    if(tipLayer && /lempung|lunak|clay/i.test(tipLayer.jenis||'') && !/berbatu|kerikil|keras/i.test(tipLayer.jenis||'')){
+      add('red','Ujung tiang berada pada tanah lunak', `Ujung tiang (${S.pile.ujungTiang} m) berada pada lapisan "${tipLayer.jenis}" — pertimbangkan menambah kedalaman tiang hingga mencapai lapisan lebih keras.`);
+    }
+  }
+
+  // --- CPT checks ---
+  if(S.cpt.raw.length===0){
+    add('blue','Belum ada data Sondir/CPT','Import atau input data Sondir/CPT untuk mulai analisis.');
+  } else {
+    const emptyQc = S.cpt.raw.filter(r=>!isNum(r.qc));
+    if(emptyQc.length) add('amber','qc kosong', `${emptyQc.length} baris data Sondir tidak memiliki nilai qc.`);
+    const emptyFs = S.cpt.raw.filter(r=>!isNum(r.localFriction) && !isNum(r.fsManual));
+    if(emptyFs.length) add('amber','fs / local friction kosong', `${emptyFs.length} baris tidak memiliki local friction.`);
+    const negFs = (D.cptRows||[]).filter(r=>isNum(r.localFriction) && r.localFriction<0);
+    if(negFs.length) add('red','fs negatif', `${negFs.length} titik memiliki local friction bernilai negatif — periksa data lapangan.`);
+    if(D.cptRows && D.cptRows.length>1){
+      const sorted=[...D.cptRows].sort((a,b)=>a.z-b.z);
+      let drops=0;
+      for(let i=1;i<sorted.length;i++){
+        if(isNum(sorted[i].qc)&&isNum(sorted[i-1].qc)&&sorted[i-1].qc>0 && sorted[i].qc < sorted[i-1].qc*0.3) drops++;
+      }
+      if(drops>0) add('amber','qc turun drastis mendadak', `${drops} titik menunjukkan penurunan qc tajam (>70%) dibanding titik sebelumnya.`);
+      const extremeQc = sorted.filter(r=>isNum(r.qc) && r.qc>150);
+      if(extremeQc.length) add('blue','qc tinggi ekstrem', `${extremeQc.length} titik dengan qc > 150 kg/cm² — kemungkinan lapisan keras / refusal, perlu diverifikasi.`);
+      const lastZ = sorted[sorted.length-1].z;
+      if(isNum(S.pile.ujungTiangCpt) && lastZ < S.pile.ujungTiangCpt){
+        add('amber','Data Sondir berhenti sebelum kedalaman rencana', `Data terakhir pada z=${lastZ} m, sedangkan ujung tiang rencana di ${S.pile.ujungTiangCpt} m.`);
+      }
+    }
+  }
+  if(D.cptCapacity){
+    const qbd = D.cptCapacity.QbDetail||{};
+    if(qbd.clipped) add('amber','Zona qc1/qc2 melebihi data tersedia (CPT)', 'Zona perhitungan qc1 dan/atau qc2 terpotong (clipped) karena melebihi rentang data Sondir yang tersedia — pertimbangkan investigasi/sondir lanjutan.');
+    const rows = D.cptCapacity.rows||[];
+    const negQs = rows.filter(r=>isNum(r.Qs)&&r.Qs<0);
+    if(negQs.length) add('red','Qs negatif', `${negQs.length} interval menghasilkan Qs negatif — periksa data Kc/fs pada interval terkait.`);
+  }
+
+  // --- Design-level checks ---
+  const QizinSpt = D.sptCapacity?D.sptCapacity.Qizin:null;
+  const QizinCpt = D.cptCapacity?D.cptCapacity.Qizin:null;
+  if(isNum(S.project.loadRencana)){
+    if(isNum(QizinSpt) && QizinSpt < S.project.loadRencana) add('red','Kapasitas SPT tidak mencukupi', `Qizin SPT (${fmtPlain(QizinSpt)} ton) lebih kecil dari beban rencana (${fmtPlain(S.project.loadRencana)} ton).`);
+    if(isNum(QizinCpt) && QizinCpt < S.project.loadRencana) add('red','Kapasitas Sondir tidak mencukupi', `Qizin Sondir (${fmtPlain(QizinCpt)} ton) lebih kecil dari beban rencana (${fmtPlain(S.project.loadRencana)} ton).`);
+  }
+  if(isNum(S.pile.FS) && S.pile.FS<2) add('amber','Faktor aman rendah', `Faktor aman yang digunakan (${S.pile.FS}) di bawah 2 — umumnya FS≥2.5–3 digunakan untuk pondasi tiang preliminary.`);
+
+  return warns;
+}
+
+function severityRank(sev){ return {red:0, amber:1, blue:2, green:3}[sev] ?? 4; }
+function warnIcon(sev){ return {red:'⛔', amber:'⚠', blue:'ℹ', green:'✓'}[sev] || '•'; }
+function warnClass(sev){ return 'sspt-warn-'+sev; }
+
+function overallStatus(){
+  const warns = D.qcWarnings||[];
+  if(S.spt.raw.length===0 && S.cpt.raw.length===0) return {cls:'sspt-status-check', label:'Belum ada data'};
+  if(warns.some(w=>w.sev==='red')) return {cls:'sspt-status-fail', label:'NEED CHECK'};
+  if(warns.some(w=>w.sev==='amber')) return {cls:'sspt-status-warn', label:'PASS WITH WARNING'};
+  return {cls:'sspt-status-pass', label:'PASS'};
+}
+
+/* ============================================================
+   FOUNDATION RECOMMENDATION ENGINE (PRD §9)
+   ============================================================ */
+function computeRecommendation(){
+  const layers = S.spt.layers||[];
+  const hasSpt = S.spt.raw.length>0 && layers.length>0;
+  const hasCpt = S.cpt.raw.length>0;
+  if(!hasSpt && !hasCpt){
+    return {primary:null, alternatives:[], reasons:['Belum cukup data SPT/Sondir untuk memberi rekomendasi.'], warnings:[]};
+  }
+
+  // surface strength: average N* in top ~3m (or qc near surface)
+  const profile = D.sptProfile||[];
+  const surfacePts = profile.filter(p=>p.z<=3);
+  const surfaceNstar = surfacePts.length ? surfacePts.reduce((s,p)=>s+(p.Nstar||0),0)/surfacePts.length : null;
+  const cptRows = D.cptRows||[];
+  const surfaceQc = cptRows.filter(r=>r.z<=3 && isNum(r.qc));
+  const surfaceQcAvg = surfaceQc.length ? surfaceQc.reduce((s,r)=>s+r.qc,0)/surfaceQc.length : null;
+
+  // depth to a "hard" layer (N* >= 25 sustained, or qc >= 100)
+  let hardDepth = null;
+  for(const p of profile){ if(isNum(p.Nstar) && p.Nstar>=25){ hardDepth = p.z; break; } }
+  let hardDepthCpt = null;
+  for(const r of [...cptRows].sort((a,b)=>a.z-b.z)){ if(isNum(r.qc) && r.qc>=100){ hardDepthCpt = r.z; break; } }
+  const effHardDepth = hardDepth!=null ? hardDepth : hardDepthCpt;
+
+  // soft soil thickness above hard layer
+  const softThickness = effHardDepth!=null ? effHardDepth : (D.sptMaxDepth || (cptRows.length?Math.max(...cptRows.map(r=>r.z)):0));
+
+  const Qizin = Math.max(D.sptCapacity?.Qizin||0, D.cptCapacity?.Qizin||0) || null;
+  const loadRencana = S.project.loadRencana;
+  const capacitySufficient = isNum(Qizin) && isNum(loadRencana) ? Qizin>=loadRencana : null;
+
+  const reasons = []; const warnings = []; const alternatives = [];
+  let primary = null;
+
+  const surfaceGood = (isNum(surfaceNstar) && surfaceNstar>=15) || (isNum(surfaceQcAvg) && surfaceQcAvg>=40);
+  const shallowHard = effHardDepth!=null && effHardDepth<=4;
+  const deepHard = effHardDepth!=null && effHardDepth>=10;
+  const thickSoft = softThickness>=8;
+
+  if(surfaceGood && (shallowHard || effHardDepth==null)){
+    primary = 'Pondasi Dangkal (Shallow Foundation)';
+    reasons.push('Lapisan dengan N*/qc relatif baik ditemukan dekat permukaan (≤ 4 m), sehingga settlement diperkirakan dapat dikendalikan dengan pondasi dangkal.');
+    alternatives.push('Pondasi Sumuran (sebagai cadangan bila beban titik tinggi/lokal)');
+  } else if(thickSoft && deepHard){
+    primary = 'Bored Pile / Tiang Pancang';
+    reasons.push(`Tanah lunak cukup tebal (≈${fmtPlain(softThickness,1)} m) dengan lapisan keras baru ditemukan pada kedalaman lebih dari 10 m, sehingga pondasi dalam (tiang/bored pile) lebih sesuai dibanding pondasi dangkal.`);
+    alternatives.push('Mini Pile (jika akses alat berat terbatas dan beban sedang)');
+    alternatives.push('Perbaikan Tanah + Pondasi Dangkal (jika beban ringan-menengah dan biaya tiang dalam tidak ekonomis)');
+  } else if(effHardDepth!=null && effHardDepth>4 && effHardDepth<10){
+    primary = 'Mini Pile / Tiang Pancang Sedang';
+    reasons.push(`Lapisan keras berada pada kedalaman menengah (≈${fmtPlain(effHardDepth,1)} m) — mini pile/tiang pancang ukuran sedang umumnya ekonomis untuk kondisi ini, terutama bila akses alat berat terbatas.`);
+    alternatives.push('Pondasi Sumuran (alternatif bila kedalaman galian terbuka memungkinkan)');
+    alternatives.push('Bored Pile (bila beban struktur besar)');
+  } else if(!surfaceGood && effHardDepth==null){
+    primary = 'Perlu Investigasi Tambahan';
+    reasons.push('Data belum cukup untuk menentukan kedalaman lapisan keras / daya dukung yang representatif — disarankan menambah titik uji SPT/Sondir dan kedalaman investigasi.');
+    warnings.push('Kedalaman lapisan keras belum teridentifikasi pada rentang data yang tersedia.');
+  } else {
+    primary = 'Perbaikan Tanah (Soil Improvement) + Pondasi Dangkal';
+    reasons.push('Tanah permukaan tergolong lunak namun ketebalannya relatif terbatas — perbaikan tanah dapat menjadi opsi ekonomis dibanding pondasi dalam, tergantung beban struktur.');
+    alternatives.push('Pondasi Sumuran / Mini Pile (jika perbaikan tanah tidak memungkinkan)');
+  }
+
+  if(capacitySufficient===false){
+    warnings.push(`Qizin terhitung (${fmtPlain(Qizin)} ton) lebih kecil dari beban rencana (${fmtPlain(loadRencana)} ton) — kapasitas tiang saat ini TIDAK MENCUKUPI. Pertimbangkan menambah diameter, kedalaman, atau jumlah tiang.`);
+  }
+  const tipLayer = layers.find(l=>isNum(S.pile.ujungTiang) && S.pile.ujungTiang>=l.zTop && S.pile.ujungTiang<=l.zBottom);
+  if(tipLayer && /lempung|lunak|clay/i.test(tipLayer.jenis||'') && !/berbatu|kerikil|keras/i.test(tipLayer.jenis||'')){
+    warnings.push(`Ujung tiang rencana (${S.pile.ujungTiang} m) masih berada pada lapisan "${tipLayer.jenis}" yang relatif lunak — pertimbangkan menambah kedalaman tiang.`);
+  }
+
+  return {primary, alternatives, reasons, warnings,
+    context:{surfaceNstar:round(surfaceNstar,2), surfaceQcAvg:round(surfaceQcAvg,2), hardDepth: effHardDepth, softThickness: round(softThickness,2), Qizin, capacitySufficient}};
+}
+
+/* ============================================================
+   DASHBOARD KPI
+   ============================================================ */
+function computeDashboard(){
+  const sptN = (S.spt.raw||[]).map(r=>Engine.calcN(r.N1,r.N2)).filter(isNum);
+  const sptNstar = (D.sptRows||[]).map(r=>r.NstarActive).filter(isNum);
+  const cptQc = (S.cpt.raw||[]).map(r=>r.qc).filter(isNum);
+  const cptFs = (S.cpt.raw||[]).map(r=>r.localFriction).filter(isNum);
+  const status = overallStatus();
+  return {
+    totalSpt: S.spt.raw.length,
+    totalCpt: S.cpt.raw.length,
+    kedalamanAkhirSpt: S.spt.raw.length ? Math.max(...S.spt.raw.map(r=>r.z)) : null,
+    kedalamanAkhirCpt: S.cpt.raw.length ? Math.max(...S.cpt.raw.map(r=>r.z)) : null,
+    Nmax: sptN.length ? Math.max(...sptN) : null,
+    NstarMax: sptNstar.length ? Math.max(...sptNstar) : null,
+    NstarMin: sptNstar.length ? Math.min(...sptNstar) : null,
+    qcMax: cptQc.length ? Math.max(...cptQc) : null,
+    qcAvg: cptQc.length ? cptQc.reduce((a,b)=>a+b,0)/cptQc.length : null,
+    fsMax: cptFs.length ? Math.max(...cptFs) : null,
+    status
+  };
+}
+
+/* ============================================================
+   TAB NAVIGATION
+   ============================================================ */
+const TABS = [
+  {key:'dashboard', label:'Dashboard', icon:'1'},
+  {key:'project', label:'Proyek & Tiang', icon:'2'},
+  {key:'import', label:'Import Data', icon:'3'},
+  {key:'spt', label:'Data SPT', icon:'4'},
+  {key:'cpt', label:'Data Sondir/CPT', icon:'5'},
+  {key:'borelog', label:'Borelog & Chart', icon:'6'},
+  {key:'capacity', label:'Kapasitas & Rekomendasi', icon:'7'},
+  {key:'compare', label:'Compare QC', icon:'8'},
+  {key:'report', label:'Report & Export', icon:'9'}
+];
+function renderTabs(){
+  const wrap = document.getElementById('sspt-tabs');
+  wrap.innerHTML = TABS.map(t=>`<button class="sspt-tab-btn ${S.activeTab===t.key?'active':''}" data-tab="${t.key}">
+      <span class="sspt-tab-num">${t.icon}</span>${esc(t.label)}</button>`).join('');
+  wrap.querySelectorAll('[data-tab]').forEach(btn=>{
+    btn.addEventListener('click', ()=>setActiveTab(btn.dataset.tab));
+  });
+}
+function setActiveTab(key){
+  S.activeTab = key;
+  document.querySelectorAll('.sspt-tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===key));
+  document.querySelectorAll('.sspt-panel').forEach(p=>p.classList.toggle('active', p.dataset.panel===key));
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ============================================================
+   RENDER: PROJECT & PILE SETTINGS
+   ============================================================ */
+const PROJECT_FIELDS = [
+  {key:'name', label:'Nama Proyek', type:'text'},
+  {key:'location', label:'Lokasi', type:'text'},
+  {key:'client', label:'Klien', type:'text'},
+  {key:'engineer', label:'Engineer / PIC', type:'text'},
+  {key:'date', label:'Tanggal', type:'date'},
+  {key:'boreholeId', label:'ID Titik Bor/Sondir', type:'text'},
+  {key:'groundElevation', label:'Elevasi Permukaan Tanah (m)', type:'number'},
+  {key:'waterTable', label:'Muka Air Tanah (m, opsional)', type:'number'},
+  {key:'loadRencana', label:'Beban Rencana per Tiang (ton, opsional)', type:'number'}
+];
+function renderProjectForm(){
+  const wrap = document.getElementById('sspt-project-form');
+  wrap.innerHTML = PROJECT_FIELDS.map(f=>`
+    <div class="sspt-field">
+      <label>${esc(f.label)}</label>
+      <input class="sspt-input" data-proj="${f.key}" type="${f.type}" value="${esc(S.project[f.key]??'')}">
+    </div>`).join('');
+  wrap.querySelectorAll('[data-proj]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const v = inp.type==='number' ? (inp.value===''?null:parseFloat(inp.value)) : inp.value;
+      S.project[inp.dataset.proj] = v;
+      recalcAndRenderAll(['dashboard','report','capacity']);
+    });
+  });
+}
+
+const PILE_FIELDS = [
+  {key:'D_cm', label:'Diameter Tiang — SPT (cm)', type:'number'},
+  {key:'pur', label:'Kedalaman Pur / Cut-off (m)', type:'number'},
+  {key:'ujungTiang', label:'Ujung Tiang — metode SPT (m)', type:'number'},
+  {key:'panjang', label:'Panjang Tiang (m, opsional)', type:'number'},
+  {key:'D_cm_cpt', label:'Sisi/Diameter Tiang — Sondir (cm)', type:'number'},
+  {key:'ujungTiangCpt', label:'Ujung Tiang — metode Sondir (m)', type:'number'},
+  {key:'FS', label:'Faktor Aman (FS)', type:'number'},
+  {key:'muB', label:'μb (koefisien tahanan ujung)', type:'number'}
+];
+function renderPileForm(){
+  const wrap = document.getElementById('sspt-pile-form');
+  wrap.innerHTML = PILE_FIELDS.map(f=>`
+    <div class="sspt-field">
+      <label>${esc(f.label)}</label>
+      <input class="sspt-input" data-pile="${f.key}" type="number" step="any" value="${esc(S.pile[f.key]??'')}">
+    </div>`).join('');
+  wrap.querySelectorAll('[data-pile]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      S.pile[inp.dataset.pile] = inp.value===''?null:parseFloat(inp.value);
+      recalcAndRenderAll();
+    });
+  });
+}
+
+function renderCorrectionToggle(){
+  const wrap = document.getElementById('sspt-correction-toggle');
+  wrap.querySelectorAll('button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.mode===S.correctionMode);
+    b.onclick = ()=>{ S.correctionMode = b.dataset.mode; renderCorrectionToggle(); renderN60Settings(); recalcAndRenderAll(); };
+  });
+  document.getElementById('sspt-n60-settings').classList.toggle('sspt-hidden', S.correctionMode!=='n60');
+}
+function renderN60Settings(){
+  const wrap = document.getElementById('sspt-n60-settings');
+  wrap.innerHTML = `
+    <div class="sspt-field"><label>Energy Ratio ER (%)</label>
+      <input class="sspt-input" id="sspt-n60-er" type="number" step="any" value="${esc(S.n60.ER)}">
+      <div class="sspt-hint">N60 = N_field × ER / 60</div></div>
+    <div class="sspt-field"><label>Gunakan koreksi overburden CN?</label>
+      <div class="sspt-checkrow"><input type="checkbox" id="sspt-n60-usecn" ${S.n60.useCN?'checked':''}> <span>Aktifkan N1,60 = CN × N60</span></div></div>
+    <div class="sspt-field"><label>Nilai CN (jika diaktifkan)</label>
+      <input class="sspt-input" id="sspt-n60-cn" type="number" step="any" value="${esc(S.n60.CN)}" ${S.n60.useCN?'':'disabled'}></div>`;
+  document.getElementById('sspt-n60-er').addEventListener('input', e=>{ S.n60.ER=parseFloat(e.target.value)||60; recalcAndRenderAll(); });
+  document.getElementById('sspt-n60-usecn').addEventListener('change', e=>{ S.n60.useCN=e.target.checked; renderN60Settings(); recalcAndRenderAll(); });
+  const cnInp = document.getElementById('sspt-n60-cn');
+  if(cnInp) cnInp.addEventListener('input', e=>{ S.n60.CN=parseFloat(e.target.value)||1; recalcAndRenderAll(); });
+}
+
+function renderMusTable(){
+  const wrap = document.getElementById('sspt-mus-table');
+  const keys = Object.keys(S.muS);
+  wrap.innerHTML = `<thead><tr><th>Jenis Tanah</th><th>μs</th><th></th></tr></thead><tbody>
+    ${keys.map(k=>`<tr>
+      <td class="sspt-txt">${esc(k)}</td>
+      <td><input class="sspt-cell-input" data-mus="${esc(k)}" type="number" step="0.01" value="${S.muS[k]}"></td>
+      <td><button class="sspt-rowdel" data-musdel="${esc(k)}">✕</button></td>
+    </tr>`).join('')}</tbody>`;
+  wrap.querySelectorAll('[data-mus]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{ S.muS[inp.dataset.mus]=parseFloat(inp.value)||0; recalcAndRenderAll(); });
+  });
+  wrap.querySelectorAll('[data-musdel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ delete S.muS[btn.dataset.musdel]; renderMusTable(); recalcAndRenderAll(); });
+  });
+}
+function renderColorTable(){
+  const wrap = document.getElementById('sspt-color-table');
+  const keys = Object.keys(S.soilColors);
+  wrap.innerHTML = `<thead><tr><th>Jenis Tanah</th><th>Warna</th></tr></thead><tbody>
+    ${keys.map(k=>`<tr>
+      <td class="sspt-txt"><span class="sspt-swatch" style="background:${S.soilColors[k]}"></span>${esc(k)}</td>
+      <td><input type="color" data-color="${esc(k)}" value="${S.soilColors[k]}" style="width:44px;height:28px;border:none;background:none;cursor:pointer;"></td>
+    </tr>`).join('')}</tbody>`;
+  wrap.querySelectorAll('[data-color]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      S.soilColors[inp.dataset.color]=inp.value;
+      // also sync any layer using this jenis
+      S.spt.layers.forEach(l=>{ if(l.jenis===inp.dataset.color) l.warna=inp.value; });
+      renderColorTable(); recalcAndRenderAll(['spt','borelog']);
+    });
+  });
+}
+
+function soilDatalist(){
+  return `<datalist id="sspt-soil-list">${Object.keys(S.soilColors).map(k=>`<option value="${esc(k)}">`).join('')}</datalist>`;
+}
+
+/* ============================================================
+   RENDER: SOIL LAYERS TABLE
+   ============================================================ */
+function renderLayerTable(){
+  const wrap = document.getElementById('sspt-layer-table');
+  const rows = [...S.spt.layers].sort((a,b)=>a.zTop-b.zTop);
+  const layerRes = (D.sptCapacity && D.sptCapacity.layerResults) || [];
+  wrap.innerHTML = soilDatalist() + `<thead><tr>
+      <th>z Top (m)</th><th>z Bottom (m)</th><th>Jenis Tanah</th><th>Warna</th><th>μs override</th>
+      <th>N* rerata</th><th>Tebal (m)</th><th>Qs (ton)</th><th>Ikut Qsult</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(l=>{
+      const res = layerRes.find(r=>r.zTop===l.zTop && r.zBottom===l.zBottom);
+      return `<tr>
+        <td><input class="sspt-cell-input" data-layer="${l.id}" data-f="zTop" type="number" step="any" value="${l.zTop}"></td>
+        <td><input class="sspt-cell-input" data-layer="${l.id}" data-f="zBottom" type="number" step="any" value="${l.zBottom}"></td>
+        <td><input class="sspt-cell-input sspt-txt" style="width:130px" list="sspt-soil-list" data-layer="${l.id}" data-f="jenis" value="${esc(l.jenis||'')}"></td>
+        <td><input type="color" data-layer="${l.id}" data-f="warna" value="${l.warna||'#EEF0F3'}" style="width:34px;height:24px;border:none;background:none;"></td>
+        <td><input class="sspt-cell-input" data-layer="${l.id}" data-f="muS" type="number" step="0.01" placeholder="auto" value="${l.muS??''}"></td>
+        <td>${fmt(res?res.NstarRerata:null,2)}</td>
+        <td>${res?res.thickness:'—'}</td>
+        <td>${fmt(res?res.Qs:null,2)}</td>
+        <td>${res ? (res.includeInQsult?'<span class="sspt-badge sspt-badge-green">ya</span>':'<span class="sspt-badge sspt-badge-gray">tidak</span>') : '—'}</td>
+        <td><button class="sspt-rowdel" data-layerdel="${l.id}">✕</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody>`;
+  wrap.querySelectorAll('[data-layer]').forEach(inp=>{
+    const ev = inp.type==='color' ? 'input' : 'change';
+    inp.addEventListener(ev, ()=>{
+      const layer = S.spt.layers.find(l=>l.id===inp.dataset.layer);
+      if(!layer) return;
+      const f = inp.dataset.f;
+      if(f==='jenis'){ layer.jenis = inp.value; if(S.soilColors[inp.value]) layer.warna = S.soilColors[inp.value]; }
+      else if(f==='warna'){ layer.warna = inp.value; }
+      else if(f==='muS'){ layer.muS = inp.value===''?null:parseFloat(inp.value); }
+      else { layer[f] = parseFloat(inp.value); }
+      recalcAndRenderAll();
+    });
+  });
+  wrap.querySelectorAll('[data-layerdel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      S.spt.layers = S.spt.layers.filter(l=>l.id!==btn.dataset.layerdel);
+      recalcAndRenderAll();
+    });
+  });
+}
+
+/* ============================================================
+   RENDER: SPT ORIGINAL TABLE (Gambar 1 style)
+   ============================================================ */
+function renderSptOriginalTable(){
+  const wrap = document.getElementById('sspt-original-table');
+  const rows = D.sptRows || [];
+  if(rows.length===0){ wrap.innerHTML = emptyStateHtml('Belum ada data SPT. Gunakan tab Import Data atau tombol "Muat Data Contoh".'); return; }
+  wrap.innerHTML = soilDatalist() + `<thead><tr>
+      <th>z (m)</th><th>N1</th><th>N2</th><th>N</th><th>N* koreksi</th><th>Jenis Tanah</th><th>Elevasi</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td><input class="sspt-cell-input" data-spt="${r.id}" data-f="z" type="number" step="any" value="${r.z}"></td>
+      <td><input class="sspt-cell-input" data-spt="${r.id}" data-f="N1" type="number" step="any" value="${r.N1??''}"></td>
+      <td><input class="sspt-cell-input" data-spt="${r.id}" data-f="N2" type="number" step="any" value="${r.N2??''}"></td>
+      <td>${fmt(r.N,0)}</td>
+      <td>${fmt(r.NstarExcel,2)}</td>
+      <td><input class="sspt-cell-input sspt-txt" style="width:130px" list="sspt-soil-list" data-spt="${r.id}" data-f="jenis" value="${esc(r.jenis||'')}"></td>
+      <td><input class="sspt-cell-input" data-spt="${r.id}" data-f="elevasi" type="number" step="any" value="${r.elevasi??''}"></td>
+      <td><button class="sspt-rowdel" data-sptdel="${r.id}">✕</button></td>
+    </tr>`).join('')}
+  </tbody>`;
+  wrap.querySelectorAll('[data-spt]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const row = S.spt.raw.find(r=>r.id===inp.dataset.spt);
+      if(!row) return;
+      const f = inp.dataset.f;
+      row[f] = (f==='jenis') ? inp.value : (inp.value===''?null:parseFloat(inp.value));
+      recalcAndRenderAll();
+    });
+  });
+  wrap.querySelectorAll('[data-sptdel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ S.spt.raw = S.spt.raw.filter(r=>r.id!==btn.dataset.sptdel); recalcAndRenderAll(); });
+  });
+}
+
+/* ============================================================
+   RENDER: SPT QC TABLE (Gambar 2 style — continuous profile)
+   ============================================================ */
+function renderSptQcTable(){
+  const wrap = document.getElementById('sspt-qc-table');
+  const profile = D.sptProfile || [];
+  if(profile.length===0){ wrap.innerHTML = emptyStateHtml('Belum ada profil SPT untuk ditampilkan. Lengkapi data SPT dan lapisan tanah terlebih dahulu.'); return; }
+  const layers = D.sptLayers || [];
+  const layerOf = (z)=> layers.find(l=>z>=l.zTop && z<=l.zBottom);
+  const layerRes = (D.sptCapacity && D.sptCapacity.layerResults) || [];
+  let lastLayerKey = null;
+  const modeLabel = S.correctionMode==='n60' ? 'N1,60 (Mode Standar)' : 'N* koreksi (Mode Excel)';
+  wrap.innerHTML = `<thead><tr>
+      <th>z (m)</th><th>${esc(modeLabel)}</th><th>Jenis Tanah</th><th>N* rerata layer</th><th>μs</th><th>Qs layer (ton)</th>
+    </tr></thead><tbody>
+    ${profile.map(p=>{
+      const layer = layerOf(p.z);
+      const res = layer ? layerRes.find(r=>r.zTop===layer.zTop && r.zBottom===layer.zBottom) : null;
+      const key = layer ? layer.zTop+'_'+layer.zBottom : null;
+      const showLayerCells = key!==lastLayerKey;
+      lastLayerKey = key;
+      const valCls = p.isInterpolated ? 'sspt-interp' : (p.isExtrapolated ? 'sspt-extrap' : '');
+      const swatch = layer ? `<span class="sspt-swatch" style="background:${layer.warna||'#EEE'}"></span>` : '';
+      return `<tr>
+        <td>${p.z}</td>
+        <td class="${valCls}">${fmt(p.Nstar,2)}</td>
+        <td class="sspt-txt">${swatch}${esc(layer?layer.jenis:'—')}</td>
+        <td>${showLayerCells?fmt(res?res.NstarRerata:null,2):''}</td>
+        <td>${showLayerCells?fmt(res?res.muS:null,2):''}</td>
+        <td>${showLayerCells?fmt(res?res.Qs:null,2):''}</td>
+      </tr>`;
+    }).join('')}
+  </tbody>`;
+}
+
+function emptyStateHtml(msg){
+  return `<div class="sspt-empty"><div class="sspt-empty-icon">◌</div><div>${esc(msg)}</div></div>`;
+}
+
+/* ============================================================
+   RENDER: CPT INPUT TABLE
+   ============================================================ */
+function renderCptInputTable(){
+  const wrap = document.getElementById('sspt-cpt-input-table');
+  const rows = D.cptRows || [];
+  if(rows.length===0){ wrap.innerHTML = emptyStateHtml('Belum ada data Sondir/CPT. Gunakan tab Import Data atau tombol "Muat Data Contoh".'); return; }
+  wrap.innerHTML = soilDatalist() + `<thead><tr>
+      <th>z (m)</th><th>qc (kg/cm²)</th><th>Local Friction (kg/cm²)</th><th>Kc</th><th>Jenis Tanah</th><th></th>
+    </tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td><input class="sspt-cell-input" data-cpt="${r.id}" data-f="z" type="number" step="any" value="${r.z}"></td>
+      <td><input class="sspt-cell-input" data-cpt="${r.id}" data-f="qc" type="number" step="any" value="${r.qc??''}"></td>
+      <td><input class="sspt-cell-input" data-cpt="${r.id}" data-f="localFriction" type="number" step="any" value="${r.localFriction??''}"></td>
+      <td><input class="sspt-cell-input" data-cpt="${r.id}" data-f="Kc" type="number" step="any" placeholder="1" value="${r.Kc??''}"></td>
+      <td><input class="sspt-cell-input sspt-txt" style="width:130px" list="sspt-soil-list" data-cpt="${r.id}" data-f="jenis" value="${esc(r.jenis||'')}"></td>
+      <td><button class="sspt-rowdel" data-cptdel="${r.id}">✕</button></td>
+    </tr>`).join('')}
+  </tbody>`;
+  wrap.querySelectorAll('[data-cpt]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const row = S.cpt.raw.find(r=>r.id===inp.dataset.cpt);
+      if(!row) return;
+      const f = inp.dataset.f;
+      row[f] = (f==='jenis') ? inp.value : (inp.value===''?null:parseFloat(inp.value));
+      recalcAndRenderAll();
+    });
+  });
+  wrap.querySelectorAll('[data-cptdel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ S.cpt.raw = S.cpt.raw.filter(r=>r.id!==btn.dataset.cptdel); recalcAndRenderAll(); });
+  });
+}
+
+/* ============================================================
+   RENDER: CPT QC / CALCULATION TABLE
+   ============================================================ */
+function soilTypeFromRf(rf, qc){
+  if(!isNum(rf) || !isNum(qc)) return '—';
+  if(qc>=100) return 'Tanah keras / dense sand';
+  if(rf<2 && qc>=40) return 'Pasir / pasir padat';
+  if(rf>=4) return 'Lempung / tanah kohesif';
+  if(qc<15) return 'Tanah lunak';
+  return 'Pasir berlanau / campuran';
+}
+function renderCptQcTable(){
+  const wrap = document.getElementById('sspt-cpt-qc-table');
+  const rows = (D.cptCapacity && D.cptCapacity.rows) || [];
+  if(rows.length===0){ wrap.innerHTML = emptyStateHtml('Belum ada data Sondir/CPT untuk dihitung.'); return; }
+  wrap.innerHTML = `<thead><tr>
+      <th>z (m)</th><th>qc</th><th>fs (t/m²)</th><th>z-pur</th><th>Kc</th><th>z/8D</th><th>Rf (%)</th><th>Interpretasi</th><th>Qs interval (ton)</th><th>Q kumulatif (ton)</th>
+    </tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td>${r.z}</td><td>${fmt(r.qc,1)}</td><td>${fmt(r.fs,2)}</td><td>${fmt(r.zPur,2)}</td>
+      <td>${fmt(r.Kc,3)}</td><td>${fmt(r.z8D,3)}</td><td>${fmt(r.Rf,2)}</td>
+      <td class="sspt-txt">${esc(soilTypeFromRf(r.Rf,r.qc))}</td>
+      <td>${fmt(r.Qs,3)}</td><td>${fmt(r.cumulative,2)}</td>
+    </tr>`).join('')}
+  </tbody>`;
+}
+
+/* ============================================================
+   VISUALIZATION: BORELOG (SVG)
+   ============================================================ */
+function generateBorelogSvg(){
+  const layers = D.sptLayers||[];
+  const maxDepth = Math.max(D.sptMaxDepth||0, S.cpt.raw.length?Math.max(...S.cpt.raw.map(r=>r.z)):0, S.pile.ujungTiang||0, S.pile.ujungTiangCpt||0, 1);
+  if(layers.length===0 && S.spt.raw.length===0 && S.cpt.raw.length===0){
+    return emptyStateHtml('Belum ada data untuk menampilkan borelog. Lengkapi data SPT/Sondir dan lapisan tanah.');
+  }
+  const pxPerM = Math.max(14, Math.min(30, 420/maxDepth));
+  const top = 36, colX = 92, colW = 92, axisX = 50;
+  const H = top + maxDepth*pxPerM + 30;
+  const W = 560;
+  const yOf = z => top + z*pxPerM;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${Math.min(H,720)}" style="display:block;font-family:var(--sspt-font, sans-serif)">`;
+  // depth axis ticks
+  const tickStep = maxDepth>40?5:(maxDepth>15?2:1);
+  for(let z=0; z<=maxDepth+1e-6; z+=tickStep){
+    const y = yOf(z);
+    svg += `<line x1="${axisX}" y1="${y}" x2="${colX+colW+200}" y2="${y}" stroke="#EEF0F3" stroke-width="1"/>`;
+    svg += `<text x="${axisX-6}" y="${y+4}" font-size="10" fill="#667085" text-anchor="end">${z}</text>`;
+  }
+  svg += `<line x1="${axisX}" y1="${top}" x2="${axisX}" y2="${yOf(maxDepth)}" stroke="#D0D5DD" stroke-width="1.5"/>`;
+  svg += `<text x="${axisX-6}" y="${top-12}" font-size="10" fill="#98A2B3" text-anchor="end">m</text>`;
+
+  // soil color column
+  layers.forEach(l=>{
+    const y1=yOf(l.zTop), y2=yOf(l.zBottom+1);
+    svg += `<rect x="${colX}" y="${y1}" width="${colW}" height="${Math.max(2,y2-y1)}" fill="${l.warna||'#EEE'}" stroke="#fff" stroke-width="1"/>`;
+    svg += `<text x="${colX+colW+10}" y="${(y1+y2)/2+4}" font-size="11" fill="#101828" font-weight="600">${esc(l.jenis||'')}</text>`;
+    svg += `<text x="${colX+colW+10}" y="${(y1+y2)/2+17}" font-size="9.5" fill="#667085">${l.zTop}–${l.zBottom} m</text>`;
+  });
+  svg += `<rect x="${colX}" y="${top}" width="${colW}" height="${yOf(maxDepth)-top}" fill="none" stroke="#D0D5DD" stroke-width="1"/>`;
+
+  // markers: pur, pile tip(s), water table
+  function marker(z, color, label, dash){
+    if(!isNum(z) || z<0 || z>maxDepth) return '';
+    const y = yOf(z);
+    return `<line x1="${colX-4}" y1="${y}" x2="${colX+colW+4}" y2="${y}" stroke="${color}" stroke-width="2" ${dash?'stroke-dasharray="5,3"':''}/>
+      <text x="${colX+colW+10}" y="${y-3}" font-size="9.5" fill="${color}" font-weight="700">${esc(label)}</text>`;
+  }
+  svg += marker(S.pile.pur, '#2563EB', `Pur (${S.pile.pur} m)`, true);
+  svg += marker(S.pile.ujungTiang, '#D92D20', `Ujung Tiang SPT (${S.pile.ujungTiang} m)`, false);
+  if(isNum(S.pile.ujungTiangCpt) && S.pile.ujungTiangCpt!==S.pile.ujungTiang){
+    svg += marker(S.pile.ujungTiangCpt, '#B7791F', `Ujung Tiang CPT (${S.pile.ujungTiangCpt} m)`, false);
+  }
+  if(isNum(S.project.waterTable)){
+    svg += marker(S.project.waterTable, '#0F9D58', `Muka Air Tanah (${S.project.waterTable} m)`, true);
+  }
+  svg += `</svg>`;
+  return svg;
+}
+
+/* ============================================================
+   VISUALIZATION: generic depth line chart (value on X, depth on Y, downward)
+   series: [{name, color, points:[{z, v}], dotFn:(p)=>color|null}]
+   ============================================================ */
+function depthLineChartSvg(series, opts){
+  opts = opts||{};
+  const allPts = series.flatMap(s=>s.points).filter(p=>isNum(p.v));
+  if(allPts.length===0) return emptyStateHtml('Belum ada data untuk chart ini.');
+  const maxDepth = opts.maxDepth || Math.max(...allPts.map(p=>p.z), 1);
+  const maxVal = Math.max(...allPts.map(p=>p.v), 1) * 1.08;
+  const minVal = Math.min(0, ...allPts.map(p=>p.v));
+  const W=520, top=30, left=46, right=18, plotW=W-left-right;
+  const pxPerM = Math.max(12, Math.min(26, 380/maxDepth));
+  const H = top + maxDepth*pxPerM + 36;
+  const yOf = z => top + z*pxPerM;
+  const xOf = v => left + (plotW * (v-minVal)/((maxVal-minVal)||1));
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${Math.min(H,420)}" style="display:block">`;
+  // gridlines (value)
+  const vTicks = 4;
+  for(let i=0;i<=vTicks;i++){
+    const v = minVal + (maxVal-minVal)*i/vTicks;
+    const x = xOf(v);
+    svg += `<line x1="${x}" y1="${top}" x2="${x}" y2="${yOf(maxDepth)}" stroke="#F2F4F7" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="${top-10}" font-size="9" fill="#98A2B3" text-anchor="middle">${round(v,0)}</text>`;
+  }
+  // depth ticks
+  const tickStep = maxDepth>40?5:(maxDepth>15?2:1);
+  for(let z=0; z<=maxDepth+1e-6; z+=tickStep){
+    const y = yOf(z);
+    svg += `<text x="${left-6}" y="${y+3}" font-size="9" fill="#667085" text-anchor="end">${z}</text>`;
+    svg += `<line x1="${left}" y1="${y}" x2="${left+plotW}" y2="${y}" stroke="#F8F9FB" stroke-width="1"/>`;
+  }
+  svg += `<line x1="${left}" y1="${top}" x2="${left}" y2="${yOf(maxDepth)}" stroke="#D0D5DD"/>`;
+
+  series.forEach(s=>{
+    const pts = s.points.filter(p=>isNum(p.v)).sort((a,b)=>a.z-b.z);
+    if(pts.length===0) return;
+    const path = pts.map((p,i)=> (i===0?'M':'L') + xOf(p.v).toFixed(1)+','+yOf(p.z).toFixed(1)).join(' ');
+    svg += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+    pts.forEach(p=>{
+      const dotColor = (s.dotFn && s.dotFn(p)) || s.color;
+      svg += `<circle cx="${xOf(p.v).toFixed(1)}" cy="${yOf(p.z).toFixed(1)}" r="3" fill="${dotColor}"/>`;
+    });
+  });
+  // legend
+  let lx = left;
+  series.forEach(s=>{
+    svg += `<rect x="${lx}" y="${H-16}" width="9" height="9" fill="${s.color}" rx="2"/><text x="${lx+13}" y="${H-8}" font-size="9.5" fill="#475467">${esc(s.name)}</text>`;
+    lx += 14+ (s.name.length*5.6) + 14;
+  });
+  svg += `</svg>`;
+  return svg;
+}
+
+function barChartSvg(items, opts){
+  opts = opts||{};
+  if(items.length===0) return emptyStateHtml('Belum ada data untuk chart ini.');
+  const maxV = Math.max(...items.map(i=>i.value||0), 1) * 1.15;
+  const W=520, left=130, right=50, top=14, rowH=30, gap=8;
+  const H = top + items.length*(rowH+gap);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" style="display:block">`;
+  items.forEach((it,i)=>{
+    const y = top + i*(rowH+gap);
+    const w = (it.value!=null) ? (W-left-right) * (it.value/maxV) : 0;
+    svg += `<text x="${left-8}" y="${y+rowH/2+4}" font-size="10.5" fill="#344054" text-anchor="end">${esc(it.label)}</text>`;
+    svg += `<rect x="${left}" y="${y}" width="${W-left-right}" height="${rowH}" fill="#F8F9FB" rx="6"/>`;
+    svg += `<rect x="${left}" y="${y}" width="${Math.max(2,w)}" height="${rowH}" fill="${it.color||'#2563EB'}" rx="6"/>`;
+    svg += `<text x="${left+Math.max(2,w)+8}" y="${y+rowH/2+4}" font-size="10.5" fill="#101828" font-weight="700">${fmt(it.value,2)}</text>`;
+  });
+  svg += `</svg>`;
+  return svg;
+}
+
+function renderBorelogAndCharts(){
+  document.getElementById('sspt-borelog-svg').innerHTML = generateBorelogSvg();
+
+  const sptSeries = [
+    {name:'N (field)', color:'#9CA3AF', points:(D.sptRows||[]).map(r=>({z:r.z, v:r.N}))},
+    {name:'N* (active)', color:'#2563EB', points:(D.sptProfile||[]).map(p=>({z:p.z, v:p.Nstar})),
+      dotFn:(p)=>{ const src=(D.sptProfile||[]).find(x=>x.z===p.z); return src&&src.isInterpolated?'#D92D20':(src&&src.isExtrapolated?'#B7791F':null); }}
+  ];
+  document.getElementById('sspt-chart-nspt').innerHTML = depthLineChartSvg(sptSeries, {maxDepth:D.sptMaxDepth});
+
+  const cptSeries = [
+    {name:'qc (kg/cm²)', color:'#8B5A2B', points:(D.cptRows||[]).map(r=>({z:r.z, v:r.qc}))},
+    {name:'fs (t/m²)', color:'#0F9D58', points:(D.cptCapacity&&D.cptCapacity.rows||[]).map(r=>({z:r.z, v:r.fs}))}
+  ];
+  document.getElementById('sspt-chart-cpt').innerHTML = depthLineChartSvg(cptSeries, {});
+
+  const layerRes = (D.sptCapacity && D.sptCapacity.layerResults) || [];
+  document.getElementById('sspt-chart-qslayer').innerHTML = barChartSvg(
+    layerRes.map(l=>({label:`${l.zTop}-${l.zBottom}m ${l.jenis||''}`, value:l.Qs, color: l.includeInQsult?'#2563EB':'#D0D5DD'}))
+  );
+
+  const cumSeries = [];
+  if(D.cptCapacity && D.cptCapacity.rows && D.cptCapacity.rows.length){
+    cumSeries.push({name:'Q kumulatif Sondir (ton)', color:'#0F9D58', points:D.cptCapacity.rows.map(r=>({z:r.z, v:r.cumulative}))});
+  }
+  if(layerRes.length){
+    let cum=0;
+    const pts = layerRes.filter(l=>l.includeInQsult).map(l=>{ cum+=l.Qs||0; return {z:l.zBottom, v:cum}; });
+    cumSeries.push({name:'Q kumulatif SPT (ton)', color:'#2563EB', points:pts});
+  }
+  document.getElementById('sspt-chart-qcum').innerHTML = depthLineChartSvg(cumSeries, {});
+}
+
+/* ============================================================
+   RENDER: DASHBOARD
+   ============================================================ */
+function renderDashboard(){
+  const dash = D.dashboard || {};
+  const pillEl = document.getElementById('sspt-status-pill');
+  const pillText = document.getElementById('sspt-status-text');
+  const st = dash.status || overallStatus();
+  pillEl.className = 'sspt-status-pill '+st.cls;
+  pillText.textContent = st.label;
+
+  const projLine = document.getElementById('sspt-dash-projectline');
+  const p = S.project;
+  projLine.textContent = [p.name, p.location, p.boreholeId].filter(Boolean).join(' • ') || 'Belum ada data proyek — isi pada tab "Proyek & Tiang"';
+
+  const kpis = [
+    {label:'Total Data SPT', value: dash.totalSpt, d:0},
+    {label:'Total Data Sondir', value: dash.totalCpt, d:0},
+    {label:'Kedalaman Akhir SPT', value: dash.kedalamanAkhirSpt, d:1, unit:'m'},
+    {label:'Kedalaman Akhir Sondir', value: dash.kedalamanAkhirCpt, d:1, unit:'m'},
+    {label:'N Maksimum', value: dash.Nmax, d:0},
+    {label:'N* Maksimum', value: dash.NstarMax, d:1},
+    {label:'qc Maksimum', value: dash.qcMax, d:0, unit:'kg/cm²'},
+    {label:'Faktor Aman', value: S.pile.FS, d:1},
+  ];
+  document.getElementById('sspt-kpi-grid').innerHTML = kpis.map(k=>`
+    <div class="sspt-kpi"><div class="sspt-kpi-label">${esc(k.label)}</div>
+      <div class="sspt-kpi-value">${fmt(k.value,k.d)}<span class="sspt-kpi-unit"> ${k.unit||''}</span></div></div>`).join('');
+
+  document.getElementById('sspt-dash-spt-capacity').innerHTML = capacitySummaryHtml(D.sptCapacity, 'SPT');
+  document.getElementById('sspt-dash-cpt-capacity').innerHTML = capacitySummaryHtml(D.cptCapacity, 'Sondir');
+
+  const rec = D.recommendation || {};
+  document.getElementById('sspt-dash-recommendation').innerHTML = rec.primary
+    ? `<div class="sspt-badge sspt-badge-blue" style="font-size:13px;padding:7px 14px;">${esc(rec.primary)}</div>
+       <div class="sspt-small sspt-muted" style="margin-top:8px;">${esc((rec.reasons||[])[0]||'')}</div>`
+    : emptyStateHtml('Belum cukup data untuk rekomendasi pondasi.');
+
+  const warns = (D.qcWarnings||[]).slice().sort((a,b)=>severityRank(a.sev)-severityRank(b.sev)).slice(0,5);
+  document.getElementById('sspt-dash-warnings').innerHTML = warns.length
+    ? warns.map(w=>`<div class="sspt-warn ${warnClass(w.sev)}"><div>${warnIcon(w.sev)}</div><div><b>${esc(w.title)}</b>${esc(w.detail)}</div></div>`).join('')
+    : `<div class="sspt-warn sspt-warn-green">✓<div><b>Tidak ada peringatan signifikan</b>Data terlihat konsisten.</div></div>`;
+}
+
+function capacitySummaryHtml(cap, label){
+  if(!cap) return emptyStateHtml('Belum ada data');
+  return `<div class="sspt-kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="sspt-kpi"><div class="sspt-kpi-label">Qb (tahanan ujung)</div><div class="sspt-kpi-value">${fmt(cap.Qb,2)}<span class="sspt-kpi-unit"> ton</span></div></div>
+    <div class="sspt-kpi"><div class="sspt-kpi-label">Qs ultimit (selimut)</div><div class="sspt-kpi-value">${fmt(cap.Qsult,2)}<span class="sspt-kpi-unit"> ton</span></div></div>
+    <div class="sspt-kpi"><div class="sspt-kpi-label">Qult</div><div class="sspt-kpi-value">${fmt(cap.Qult,2)}<span class="sspt-kpi-unit"> ton</span></div></div>
+    <div class="sspt-kpi"><div class="sspt-kpi-label">Qizin (FS=${esc(S.pile.FS)})</div><div class="sspt-kpi-value">${fmt(cap.Qizin,2)}<span class="sspt-kpi-unit"> ton</span></div></div>
+  </div>`;
+}
+
+/* ============================================================
+   RENDER: CAPACITY & RECOMMENDATION TAB
+   ============================================================ */
+function renderCapacityTab(){
+  const sptCap = D.sptCapacity, cptCap = D.cptCapacity;
+  const qbdS = (sptCap&&sptCap.QbDetail)||{};
+  document.getElementById('sspt-capacity-spt').innerHTML = `
+    ${capacitySummaryHtml(sptCap,'SPT')}
+    <div class="sspt-small sspt-muted" style="margin-top:10px;">
+      Ab = ${fmt(qbdS.Ab,5)} m² &nbsp;•&nbsp; Nb (zona ${fmt(qbdS.zoneFrom,2)}–${fmt(qbdS.zoneTo,2)} m) = ${fmt(qbdS.Nb,2)}
+      ${qbdS.clipped?'<span class="sspt-badge sspt-badge-amber" style="margin-left:6px;">zona terpotong</span>':''}
+    </div>
+    <div class="sspt-disclaimer">Nb dihitung sebagai rata-rata sistematis (area-weighted) N* pada zona 4D di atas ujung tiang — pendekatan disederhanakan dari workbook acuan (hasil mendekati, tidak identik bit-for-bit).</div>`;
+
+  const qbdC = (cptCap&&cptCap.QbDetail)||{};
+  document.getElementById('sspt-capacity-cpt').innerHTML = `
+    ${capacitySummaryHtml(cptCap,'Sondir')}
+    <div class="sspt-small sspt-muted" style="margin-top:10px;">
+      qc1 (zona ${fmt(qbdC.zone1?qbdC.zone1[0]:null,2)}–${fmt(qbdC.zone1?qbdC.zone1[1]:null,2)} m) = ${fmt(qbdC.qc1,2)} kg/cm²<br>
+      qc2 (zona ${fmt(qbdC.zone2?qbdC.zone2[0]:null,2)}–${fmt(qbdC.zone2?qbdC.zone2[1]:null,2)} m) = ${fmt(qbdC.qc2,2)} kg/cm²<br>
+      Ab = ${fmt(qbdC.Ab_cm2,1)} cm²
+      ${qbdC.clipped?'<span class="sspt-badge sspt-badge-amber" style="margin-left:6px;">zona terpotong</span>':''}
+    </div>
+    <div class="sspt-disclaimer">qc1/qc2 dihitung sebagai rata-rata sistematis (area-weighted) pada zona 0.7D–4D di bawah ujung tiang dan 8D di atas ujung tiang.</div>`;
+
+  const warns = (D.qcWarnings||[]).filter(w=>w.sev==='red'||w.sev==='amber').sort((a,b)=>severityRank(a.sev)-severityRank(b.sev));
+  document.getElementById('sspt-capacity-warnings').innerHTML = warns.length
+    ? warns.map(w=>`<div class="sspt-warn ${warnClass(w.sev)}"><div>${warnIcon(w.sev)}</div><div><b>${esc(w.title)}</b>${esc(w.detail)}</div></div>`).join('')
+    : `<div class="sspt-warn sspt-warn-green">✓<div><b>Tidak ada peringatan desain signifikan</b></div></div>`;
+
+  const rec = D.recommendation || {};
+  document.getElementById('sspt-recommendation-detail').innerHTML = renderRecommendationDetail(rec);
+}
+
+function renderRecommendationDetail(rec){
+  if(!rec.primary) return emptyStateHtml('Belum cukup data untuk memberi rekomendasi pondasi.');
+  let html = `<div class="sspt-row" style="margin-bottom:10px;">
+      <span class="sspt-badge sspt-badge-blue" style="font-size:13.5px;padding:8px 16px;">Rekomendasi Utama: ${esc(rec.primary)}</span>
+    </div>`;
+  if((rec.reasons||[]).length){
+    html += `<div class="sspt-h3">Alasan Teknis</div><ul style="margin:0 0 12px 18px;padding:0;font-size:13px;">${rec.reasons.map(r=>`<li style="margin-bottom:4px;">${esc(r)}</li>`).join('')}</ul>`;
+  }
+  if((rec.alternatives||[]).length){
+    html += `<div class="sspt-h3">Alternatif</div><div class="sspt-row" style="margin-bottom:12px;">${rec.alternatives.map(a=>`<span class="sspt-badge sspt-badge-gray">${esc(a)}</span>`).join('')}</div>`;
+  }
+  if((rec.warnings||[]).length){
+    html += `<div class="sspt-h3">Risiko &amp; Catatan</div><div class="sspt-warnlist">${rec.warnings.map(w=>`<div class="sspt-warn sspt-warn-amber">⚠<div>${esc(w)}</div></div>`).join('')}</div>`;
+  }
+  html += `<div class="sspt-disclaimer">Hasil rekomendasi bersifat preliminary berdasarkan data SPT/Sondir yang diinput, bukan pengganti desain final oleh engineer geoteknik tersertifikasi. Data yang perlu diverifikasi: kepadatan data uji, kondisi muka air tanah, beban struktur aktual, dan metode konstruksi yang tersedia.</div>`;
+  return html;
+}
+
+/* ============================================================
+   RENDER: COMPARE SPT ORIGINAL VS QC
+   ============================================================ */
+function computeCompareStats(){
+  const profile = D.sptProfile||[];
+  const nTotal = profile.length;
+  const nInterp = profile.filter(p=>p.isInterpolated).length;
+  const nExtrap = profile.filter(p=>p.isExtrapolated).length;
+  const nAsli = nTotal - nInterp - nExtrap;
+  const pctInterp = nTotal ? round((nInterp+nExtrap)/nTotal*100,1) : null;
+  const layerRes = (D.sptCapacity&&D.sptCapacity.layerResults)||[];
+  let layerKritis = null, layerKontribusi = null;
+  if(layerRes.length){
+    layerKritis = layerRes.reduce((a,b)=> (isNum(b.NstarRerata) && (!a || b.NstarRerata<a.NstarRerata)) ? b : a, null);
+    layerKontribusi = layerRes.reduce((a,b)=> (isNum(b.Qs) && (!a || b.Qs>a.Qs)) ? b : a, null);
+  }
+  return {nTotal, nInterp, nExtrap, nAsli, pctInterp, layerKritis, layerKontribusi};
+}
+
+function renderCompareTab(){
+  const stats = computeCompareStats();
+  document.getElementById('sspt-compare-kpi').innerHTML = [
+    {label:'Jumlah Data Asli', value: stats.nAsli, d:0},
+    {label:'Jumlah Data Interpolasi', value: stats.nInterp, d:0},
+    {label:'Jumlah Data Ekstrapolasi', value: stats.nExtrap, d:0},
+    {label:'% Interpolasi+Ekstrapolasi', value: stats.pctInterp, d:1, unit:'%'},
+  ].map(k=>`<div class="sspt-kpi"><div class="sspt-kpi-label">${esc(k.label)}</div>
+      <div class="sspt-kpi-value">${fmt(k.value,k.d)}<span class="sspt-kpi-unit"> ${k.unit||''}</span></div></div>`).join('');
+
+  // Original table
+  const rows = D.sptRows||[];
+  const origWrap = document.getElementById('sspt-compare-original');
+  origWrap.innerHTML = rows.length===0 ? emptyStateHtml('Belum ada data') : `<table class="sspt-table"><thead><tr>
+      <th>z</th><th>N1</th><th>N2</th><th>N</th><th>N* koreksi</th><th>Jenis Tanah</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${r.z}</td><td>${fmt(r.N1,0)}</td><td>${fmt(r.N2,0)}</td><td>${fmt(r.N,0)}</td><td>${fmt(r.NstarExcel,2)}</td><td class="sspt-txt">${esc(r.jenis||'—')}</td></tr>`).join('')}
+    </tbody></table>`;
+
+  // QC table (reuse same structure as renderSptQcTable but into different container)
+  const qcWrap = document.getElementById('sspt-compare-qc');
+  const profile = D.sptProfile||[];
+  if(profile.length===0){ qcWrap.innerHTML = emptyStateHtml('Belum ada data'); }
+  else {
+    qcWrap.innerHTML = `<table class="sspt-table"><thead><tr><th>z</th><th>N*</th></tr></thead><tbody>
+      ${profile.map(p=>`<tr><td>${p.z}</td><td class="${p.isInterpolated?'sspt-interp':(p.isExtrapolated?'sspt-extrap':'')}">${fmt(p.Nstar,2)}</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+
+  // narrative
+  let narrative = '';
+  if(stats.nTotal===0){
+    narrative = 'Belum ada data SPT untuk dibandingkan.';
+  } else {
+    narrative = `Dari total ${stats.nTotal} titik kedalaman pada profil N*, ${stats.nAsli} titik merupakan data pengujian langsung dan ${stats.nInterp+stats.nExtrap} titik (${fmtPlain(stats.pctInterp,1)}%) merupakan hasil interpolasi/ekstrapolasi linear antar titik uji. `;
+    if(stats.layerKritis) narrative += `Lapisan dengan N* rerata terendah (layer kritis) adalah "${esc(stats.layerKritis.jenis||'-')}" pada kedalaman ${stats.layerKritis.zTop}–${stats.layerKritis.zBottom} m (N* rerata ≈ ${fmtPlain(stats.layerKritis.NstarRerata,2)}). `;
+    if(stats.layerKontribusi) narrative += `Lapisan dengan kontribusi Qs terbesar adalah "${esc(stats.layerKontribusi.jenis||'-')}" pada kedalaman ${stats.layerKontribusi.zTop}–${stats.layerKontribusi.zBottom} m (Qs ≈ ${fmtPlain(stats.layerKontribusi.Qs,2)} ton). `;
+    narrative += 'Nilai N* rerata per lapisan (termasuk titik hasil interpolasi) digunakan untuk menghitung tahanan selimut tiang (Qs); keputusan akhir penempatan ujung tiang tetap perlu mempertimbangkan data Sondir, muka air tanah, dan hasil desain geoteknik secara menyeluruh.';
+  }
+  document.getElementById('sspt-compare-narrative').textContent = narrative;
+}
+
+/* ============================================================
+   REPORT GENERATION & EXPORT
+   ============================================================ */
+function generateReportText(){
+  const p = S.project, pile = S.pile;
+  const sptCap = D.sptCapacity||{}, cptCap = D.cptCapacity||{};
+  const rec = D.recommendation||{};
+  const stats = computeCompareStats();
+  const st = overallStatus();
+  const lines = [];
+  const L = (s='')=>lines.push(s);
+
+  L('========================================================');
+  L('  SONDIR & SPT FOUNDATION PLANNER — REPORT SUMMARY');
+  L('========================================================');
+  L('');
+  L('1. METADATA PROYEK');
+  L('-------------------');
+  L(`Nama Proyek      : ${p.name||'-'}`);
+  L(`Lokasi           : ${p.location||'-'}`);
+  L(`Klien            : ${p.client||'-'}`);
+  L(`Engineer/PIC     : ${p.engineer||'-'}`);
+  L(`Tanggal          : ${p.date||'-'}`);
+  L(`ID Titik Bor     : ${p.boreholeId||'-'}`);
+  L(`Elevasi Tanah    : ${fmtPlain(p.groundElevation,2)} m`);
+  L(`Muka Air Tanah   : ${isNum(p.waterTable)?fmtPlain(p.waterTable,2)+' m':'-'}`);
+  L(`Beban Rencana    : ${isNum(p.loadRencana)?fmtPlain(p.loadRencana,2)+' ton':'-'}`);
+  L(`Status QC        : ${st.label}`);
+  L('');
+  L('2. PARAMETER TIANG');
+  L('-------------------');
+  L(`Diameter (SPT)        : ${fmtPlain(pile.D_cm,1)} cm`);
+  L(`Diameter/Sisi (Sondir): ${fmtPlain(pile.D_cm_cpt,1)} cm`);
+  L(`Pur / Cut-off          : ${fmtPlain(pile.pur,2)} m`);
+  L(`Ujung Tiang (SPT)      : ${fmtPlain(pile.ujungTiang,2)} m`);
+  L(`Ujung Tiang (Sondir)   : ${fmtPlain(pile.ujungTiangCpt,2)} m`);
+  L(`Faktor Aman (FS)       : ${fmtPlain(pile.FS,2)}`);
+  L(`μb (koef. tahanan ujung): ${fmtPlain(pile.muB,2)}`);
+  L(`Mode Koreksi N-SPT     : ${S.correctionMode==='n60'?'Mode Standar (N60/N1,60)':'Mode Excel (workbook acuan)'}`);
+  L('');
+  L('3. RINGKASAN SPT');
+  L('-------------------');
+  L(`Jumlah titik uji      : ${S.spt.raw.length}`);
+  L(`Jumlah lapisan tanah  : ${S.spt.layers.length}`);
+  L(`Data asli / interpolasi / ekstrapolasi: ${stats.nAsli} / ${stats.nInterp} / ${stats.nExtrap} (${fmtPlain(stats.pctInterp,1)}% non-asli)`);
+  L(`N maksimum            : ${fmtPlain(D.dashboard?D.dashboard.Nmax:null,0)}`);
+  L(`N* maksimum / minimum : ${fmtPlain(D.dashboard?D.dashboard.NstarMax:null,2)} / ${fmtPlain(D.dashboard?D.dashboard.NstarMin:null,2)}`);
+  L(`Qb (tahanan ujung)    : ${fmtPlain(sptCap.Qb,2)} ton`);
+  L(`Qs ultimit            : ${fmtPlain(sptCap.Qsult,2)} ton`);
+  L(`Qult                  : ${fmtPlain(sptCap.Qult,2)} ton`);
+  L(`Qizin                 : ${fmtPlain(sptCap.Qizin,2)} ton`);
+  L('');
+  L('4. RINGKASAN SONDIR / CPT');
+  L('-------------------');
+  L(`Jumlah titik data     : ${S.cpt.raw.length}`);
+  L(`qc maksimum / rata-rata: ${fmtPlain(D.dashboard?D.dashboard.qcMax:null,1)} / ${fmtPlain(D.dashboard?D.dashboard.qcAvg:null,1)} kg/cm²`);
+  L(`Qb (tahanan ujung)    : ${fmtPlain(cptCap.Qb,2)} ton`);
+  L(`Qs ultimit            : ${fmtPlain(cptCap.Qsult,2)} ton`);
+  L(`Qult                  : ${fmtPlain(cptCap.Qult,2)} ton`);
+  L(`Qizin                 : ${fmtPlain(cptCap.Qizin,2)} ton`);
+  L('');
+  L('5. PERBANDINGAN SPT ORIGINAL VS QC');
+  L('-------------------');
+  if(stats.layerKritis) L(`Layer kritis (N* terendah)   : ${stats.layerKritis.jenis} (${stats.layerKritis.zTop}-${stats.layerKritis.zBottom} m), N* rerata ${fmtPlain(stats.layerKritis.NstarRerata,2)}`);
+  if(stats.layerKontribusi) L(`Layer kontribusi Qs terbesar : ${stats.layerKontribusi.jenis} (${stats.layerKontribusi.zTop}-${stats.layerKontribusi.zBottom} m), Qs ${fmtPlain(stats.layerKontribusi.Qs,2)} ton`);
+  L('');
+  L('6. REKOMENDASI PONDASI');
+  L('-------------------');
+  L(`Rekomendasi Utama : ${rec.primary||'-'}`);
+  (rec.reasons||[]).forEach(r=>L(`  - ${r}`));
+  if((rec.alternatives||[]).length) L(`Alternatif        : ${rec.alternatives.join('; ')}`);
+  L('');
+  L('7. RISIKO & CATATAN');
+  L('-------------------');
+  const importantWarns = (D.qcWarnings||[]).filter(w=>w.sev==='red'||w.sev==='amber');
+  if(importantWarns.length===0) L('Tidak ada peringatan signifikan.');
+  importantWarns.forEach(w=>L(`  [${w.sev.toUpperCase()}] ${w.title} — ${w.detail}`));
+  L('');
+  L('8. DISCLAIMER');
+  L('-------------------');
+  L('Hasil perhitungan pada modul ini bersifat PRELIMINARY / rekomendasi awal');
+  L('berbasis data dan parameter yang diinput pengguna, dan BUKAN PENGGANTI');
+  L('desain final oleh engineer geoteknik tersertifikasi. Referensi metode:');
+  L('SNI 8460:2017, ASTM D1586 (SPT), ASTM D5778/ISO 22476 (CPT), serta');
+  L('konsep tahanan tiang FHWA/Meyerhof/Bowles sebagai validasi konsep.');
+  L('');
+  L(`Dibuat otomatis oleh Sondir & SPT Foundation Planner — ${new Date().toLocaleString('id-ID')}`);
+  return lines.join('\n');
+}
+
+function generateReportHtmlDoc(){
+  const text = generateReportText();
+  const borelog = generateBorelogSvg();
+  return `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+<title>Report — ${esc(S.project.name||'Sondir & SPT Foundation Planner')}</title>
+<style>
+ body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:860px;margin:32px auto;padding:0 18px;color:#101828;}
+ h1{font-size:20px;} pre{white-space:pre-wrap;background:#FAFBFD;border:1px solid #E3E7EE;border-radius:14px;padding:18px;font-size:12.5px;line-height:1.6;}
+ .sec{margin-top:22px;} .muted{color:#667085;font-size:12px;}
+</style></head><body>
+<h1>Sondir &amp; SPT Foundation Planner — Report Summary</h1>
+<p class="muted">Home / Tools / Geotechnical &amp; Foundation / Sondir &amp; SPT Foundation Planner</p>
+<div class="sec"><h2>Borelog</h2>${borelog}</div>
+<div class="sec"><h2>Ringkasan</h2><pre>${esc(text)}</pre></div>
+</body></html>`;
+}
+
+function downloadFile(filename, content, mime){
+  const blob = new Blob([content], {type: mime||'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+function csvEscape(v){
+  if(v===null||v===undefined) return '';
+  const s = String(v);
+  return /[",\n;]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function buildCsvExport(){
+  const out = [];
+  out.push('=== DATA SPT QC (profil N*) ===');
+  out.push(['z','N*','status','jenis_tanah'].join(','));
+  (D.sptProfile||[]).forEach(p=>{
+    const layer = (D.sptLayers||[]).find(l=>p.z>=l.zTop && p.z<=l.zBottom);
+    out.push([p.z, p.Nstar, p.isInterpolated?'interpolasi':(p.isExtrapolated?'ekstrapolasi':'asli'), csvEscape(layer?layer.jenis:'')].join(','));
+  });
+  out.push('');
+  out.push('=== DATA SONDIR/CPT QC ===');
+  out.push(['z','qc','fs','zpur','Kc','z8D','Rf','Qs_interval','Q_kumulatif'].join(','));
+  ((D.cptCapacity&&D.cptCapacity.rows)||[]).forEach(r=>{
+    out.push([r.z,r.qc,r.fs,r.zPur,r.Kc,r.z8D,r.Rf,r.Qs,r.cumulative].join(','));
+  });
+  out.push('');
+  out.push('=== RINGKASAN KAPASITAS ===');
+  out.push('metode,Qb,Qsult,Qult,Qizin');
+  out.push(['SPT',D.sptCapacity?.Qb,D.sptCapacity?.Qsult,D.sptCapacity?.Qult,D.sptCapacity?.Qizin].join(','));
+  out.push(['Sondir',D.cptCapacity?.Qb,D.cptCapacity?.Qsult,D.cptCapacity?.Qult,D.cptCapacity?.Qizin].join(','));
+  return out.join('\n');
+}
+function buildJsonExport(){
+  return JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    project: S.project, pile: S.pile, correctionMode: S.correctionMode, n60: S.n60,
+    muS: S.muS, soilColors: S.soilColors,
+    sptLayers: S.spt.layers, sptRaw: S.spt.raw, cptRaw: S.cpt.raw,
+    sptProfile: D.sptProfile, sptCapacity: D.sptCapacity, cptCapacity: D.cptCapacity,
+    recommendation: D.recommendation, qcWarnings: D.qcWarnings, dashboard: D.dashboard,
+    compareStats: computeCompareStats()
+  }, null, 2);
+}
+
+function renderReportTab(){
+  document.getElementById('sspt-report-preview').textContent = generateReportText();
+}
+
+/* ============================================================
+   MASTER RENDER DISPATCHER
+   ============================================================ */
+function renderAll(){
+  safe(renderProjectForm);
+  safe(renderPileForm);
+  safe(renderCorrectionToggle);
+  safe(renderN60Settings);
+  safe(renderMusTable);
+  safe(renderColorTable);
+  safe(renderLayerTable);
+  safe(renderSptOriginalTable);
+  safe(renderSptQcTable);
+  safe(renderCptInputTable);
+  safe(renderCptQcTable);
+  safe(renderBorelogAndCharts);
+  safe(renderDashboard);
+  safe(renderCapacityTab);
+  safe(renderCompareTab);
+  safe(renderReportTab);
+}
+function recalcAndRenderAll(){
+  safe(computeAll);
+  safe(renderAll);
+}
+
+/* ============================================================
+   SOIL LAYER / SPT ROW / CPT ROW ADD HELPERS
+   ============================================================ */
+function addEmptyLayer(){
+  const last = [...S.spt.layers].sort((a,b)=>a.zBottom-b.zBottom).pop();
+  const zTop = last ? last.zBottom+1 : 0;
+  S.spt.layers.push({id:uid('layer'), zTop, zBottom: zTop+1, jenis:'Lempung', warna:S.soilColors['Lempung']||'#EEE', muS:null});
+  recalcAndRenderAll();
+}
+function addEmptySptRow(){
+  const last = [...S.spt.raw].sort((a,b)=>a.z-b.z).pop();
+  const z = last ? last.z+1 : 0;
+  S.spt.raw.push({id:uid('spt'), z, N1:null, N2:null, N:null, NstarManual:null, jenis:null, warna:null, elevasi:null});
+  recalcAndRenderAll();
+}
+function addEmptyCptRow(){
+  const last = [...S.cpt.raw].sort((a,b)=>a.z-b.z).pop();
+  const z = last ? round(last.z+0.2,2) : 0;
+  S.cpt.raw.push({id:uid('cpt'), z, qc:null, localFriction:null, fsManual:null, Kc:null, jenis:null});
+  recalcAndRenderAll();
+}
+function loadSampleData(){
+  S.project = {...SAMPLE_PROJECT};
+  S.pile = {...SAMPLE_PILE};
+  S.spt.raw = SAMPLE_SPT_RAW.map(([z,N1,N2])=>({id:uid('spt'), z, N1, N2, N:null, NstarManual:null, jenis:null, warna:null, elevasi:null}));
+  S.spt.layers = SAMPLE_SPT_LAYERS.map(l=>({id:uid('layer'), ...l, muS:null}));
+  S.cpt.raw = SAMPLE_CPT_RAW.map(([z,qc,lf])=>({id:uid('cpt'), z, qc, localFriction:lf, fsManual:null, Kc:null, jenis:null}));
+  recalcAndRenderAll();
+  toast('Data contoh dari workbook berhasil dimuat');
+}
+
+/* ============================================================
+   EVENT WIRING
+   ============================================================ */
+function wireImportUI(){
+  const dz = document.getElementById('sspt-dropzone');
+  const fileInput = document.getElementById('sspt-file-input');
+  dz.addEventListener('click', ()=>fileInput.click());
+  dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('sspt-drag'); });
+  dz.addEventListener('dragleave', ()=> dz.classList.remove('sspt-drag'));
+  dz.addEventListener('drop', e=>{
+    e.preventDefault(); dz.classList.remove('sspt-drag');
+    const file = e.dataTransfer.files[0];
+    if(file) readFileAndStartImport(file);
+  });
+  fileInput.addEventListener('change', e=>{
+    const file = e.target.files[0];
+    if(file) readFileAndStartImport(file);
+  });
+
+  document.querySelectorAll('#sspt-import-type-toggle button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      S.importType = b.dataset.type;
+      document.querySelectorAll('#sspt-import-type-toggle button').forEach(x=>x.classList.toggle('active', x===b));
+    });
+  });
+
+  document.getElementById('sspt-parse-btn').addEventListener('click', ()=>{
+    const text = document.getElementById('sspt-paste-area').value;
+    safe(()=>startImportFromText(text, S.importType));
+  });
+  document.getElementById('sspt-load-sample-btn').addEventListener('click', ()=>safe(loadSampleData));
+  document.getElementById('sspt-manual-add-btn').addEventListener('click', ()=>{
+    if(S.importType==='spt') addEmptySptRow(); else addEmptyCptRow();
+    setActiveTab(S.importType==='spt'?'spt':'cpt');
+    toast('Baris kosong ditambahkan — silakan isi langsung pada tabel');
+  });
+  document.getElementById('sspt-apply-mapping-btn').addEventListener('click', ()=>safe(applyMappingAndPreview));
+  document.getElementById('sspt-cancel-mapping-btn').addEventListener('click', ()=>{
+    S.importStaging=null; document.getElementById('sspt-mapping-card').classList.add('sspt-hidden');
+  });
+  document.getElementById('sspt-commit-import-btn').addEventListener('click', ()=>safe(commitImport));
+  document.getElementById('sspt-discard-preview-btn').addEventListener('click', ()=>{
+    S.importStaging=null; document.getElementById('sspt-preview-card').classList.add('sspt-hidden');
+  });
+}
+function readFileAndStartImport(file){
+  const reader = new FileReader();
+  reader.onload = ()=> safe(()=>startImportFromText(String(reader.result), S.importType));
+  reader.onerror = ()=> toast('Gagal membaca file — pastikan format CSV/TXT/TSV valid');
+  reader.readAsText(file);
+}
+
+function wireLayerCptButtons(){
+  document.getElementById('sspt-layer-add-btn').addEventListener('click', addEmptyLayer);
+  document.getElementById('sspt-row-add-btn').addEventListener('click', addEmptySptRow);
+  document.getElementById('sspt-cpt-row-add-btn').addEventListener('click', addEmptyCptRow);
+  document.getElementById('sspt-mus-add').addEventListener('click', ()=>{
+    const name = prompt('Nama jenis tanah baru:');
+    if(name && name.trim() && !(name in S.muS)){ S.muS[name.trim()] = 0.30; S.soilColors[name.trim()] = S.soilColors[name.trim()]||'#CBD5E1'; renderMusTable(); renderColorTable(); }
+  });
+}
+
+function wireReportButtons(){
+  document.getElementById('sspt-copy-summary-btn').addEventListener('click', ()=>{
+    const text = generateReportText();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(()=>toast('Summary disalin ke clipboard')).catch(()=>fallbackCopy(text));
+    } else fallbackCopy(text);
+  });
+  document.getElementById('sspt-export-txt-btn').addEventListener('click', ()=>{
+    downloadFile('sondir-spt-report.txt', generateReportText(), 'text/plain;charset=utf-8');
+    toast('Report TXT diunduh');
+  });
+  document.getElementById('sspt-export-csv-btn').addEventListener('click', ()=>{
+    downloadFile('sondir-spt-data.csv', buildCsvExport(), 'text/csv;charset=utf-8');
+    toast('Data CSV diunduh');
+  });
+  document.getElementById('sspt-export-json-btn').addEventListener('click', ()=>{
+    downloadFile('sondir-spt-data.json', buildJsonExport(), 'application/json;charset=utf-8');
+    toast('Data JSON diunduh');
+  });
+  document.getElementById('sspt-export-html-btn').addEventListener('click', ()=>{
+    downloadFile('sondir-spt-report.html', generateReportHtmlDoc(), 'text/html;charset=utf-8');
+    toast('Report HTML diunduh');
+  });
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); toast('Summary disalin ke clipboard'); }
+  catch(e){ toast('Gagal menyalin — silakan salin manual dari pratinjau'); }
+  document.body.removeChild(ta);
+}
+
+function wireGoButtons(){
+  document.querySelectorAll('[data-go]').forEach(btn=>{
+    btn.addEventListener('click', ()=>setActiveTab(btn.dataset.go));
+  });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function init(){
+  renderTabs();
+  setActiveTab('dashboard');
+  wireImportUI();
+  wireLayerCptButtons();
+  wireReportButtons();
+  wireGoButtons();
+  // Always render once first (covers the case where this module is integrated
+  // and started with a genuinely blank state — empty-state messages will show
+  // correctly instead of leaving containers blank).
+  recalcAndRenderAll();
+  // Preload sample data from the reference workbook so the module is fully
+  // testable without any upload. Remove this call if you want the module to
+  // start blank when integrated into your app.
+  loadSampleData();
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+window.SSPT = { state:S, recalc:recalcAndRenderAll, engine:Engine, getDerived:()=>D }; // exposed for integration/debugging only
+
+})();
+</script>
+</body>
+</html>

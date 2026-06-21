@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>CBR Lapangan & Sand Cone</title>
+<!--
+  ============================================================================
+  CBR Lapangan & Sand Cone Analyzer
+  - File berdiri sendiri (single-file, offline, tanpa dependency eksternal).
+  - Semua CSS diberi prefix ".cbrsc-" dan semua JS dibungkus IIFE bernama
+    CBRSC, sehingga aman ditempel ke aplikasi lain tanpa bentrok.
+  - Referensi: SNI 1738:2011, ASTM D4429, AASHTO T193 (CBR lapangan);
+    SNI 2828:2011 / SNI 03-2828-1992, ASTM D1556, AASHTO T191 (sand cone).
+  - Modul TIDAK mengakses internet/server. Semua kalkulasi berjalan offline.
+  ============================================================================
+-->
+<style>
+  .cbrsc-root{
+    --cs-bg:#F5F7FA; --cs-card:#FFFFFF; --cs-border:#E3E7EE; --cs-border-soft:#EDF0F5;
+    --cs-text:#101828; --cs-muted:#667085; --cs-faint:#98A2B3;
+    --cs-blue:#2563EB; --cs-blue-dark:#1D4ED8; --cs-blue-light:#EFF6FF;
+    --cs-green:#0F9D58; --cs-green-light:#E9F9F0;
+    --cs-amber:#B7791F; --cs-amber-light:#FEF6E7;
+    --cs-red:#D92D20; --cs-red-light:#FEF1F0;
+    --cs-radius-lg:20px; --cs-radius-md:14px; --cs-radius-sm:10px;
+    --cs-shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    --cs-shadow-md:0 4px 14px rgba(16,24,40,.07);
+    --cs-font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --cs-mono:'SFMono-Regular','Roboto Mono','Consolas',monospace;
+    font-family:var(--cs-font); color:var(--cs-text); background:var(--cs-bg);
+    -webkit-font-smoothing:antialiased; line-height:1.45; font-size:14px; min-height:100vh;
+  }
+  .cbrsc-root *{box-sizing:border-box;}
+  .cbrsc-root button,.cbrsc-root input,.cbrsc-root select,.cbrsc-root textarea{font-family:inherit;font-size:inherit;color:inherit;}
+  .cbrsc-root table{border-collapse:collapse;width:100%;}
+  .cbrsc-root a{color:var(--cs-blue);}
+  .cs-hidden{display:none !important;}
+
+  .cs-shell{max-width:1180px;margin:0 auto;padding:14px 14px 70px;}
+  .cs-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--cs-muted);margin-bottom:10px;}
+  .cs-breadcrumb a{color:var(--cs-muted);text-decoration:none;}
+  .cs-breadcrumb b{color:var(--cs-text);font-weight:600;}
+  .cs-breadcrumb .sep{color:var(--cs-faint);}
+
+  .cs-titlebar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .cs-titlebar h1{font-size:21px;font-weight:700;margin:0 0 2px;letter-spacing:-.01em;}
+  .cs-titlebar p{margin:0;color:var(--cs-muted);font-size:13px;}
+
+  .cs-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;-webkit-overflow-scrolling:touch;}
+  .cs-tab{
+    flex:0 0 auto;padding:9px 16px;border-radius:999px;border:1px solid var(--cs-border);
+    background:var(--cs-card);color:var(--cs-muted);font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  .cs-tab.active{background:var(--cs-blue);border-color:var(--cs-blue);color:#fff;}
+
+  .cs-card{background:var(--cs-card);border:1px solid var(--cs-border);border-radius:var(--cs-radius-lg);box-shadow:var(--cs-shadow-sm);padding:16px;margin-bottom:14px;}
+  .cs-card h2{font-size:15px;font-weight:700;margin:0 0 10px;}
+  .cs-card h3{font-size:13.5px;font-weight:700;margin:0 0 8px;color:var(--cs-text);}
+  .cs-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+
+  .cs-grid{display:grid;gap:12px;}
+  .cs-grid-2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+  .cs-grid-3{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));}
+  .cs-grid-4{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+
+  .cs-kpi{background:var(--cs-card);border:1px solid var(--cs-border);border-radius:var(--cs-radius-md);padding:12px 14px;}
+  .cs-kpi small{display:block;color:var(--cs-muted);font-size:11.5px;margin-bottom:4px;}
+  .cs-kpi b{font-size:18px;font-weight:700;}
+  .cs-kpi span.unit{font-size:12px;color:var(--cs-muted);font-weight:500;margin-left:2px;}
+
+  .cs-field{display:flex;flex-direction:column;gap:5px;}
+  .cs-field label{font-size:12px;font-weight:600;color:var(--cs-muted);}
+  .cs-field input,.cs-field select{
+    border:1px solid var(--cs-border);border-radius:var(--cs-radius-sm);padding:9px 11px;background:#fff;
+  }
+  .cs-field input:focus,.cs-field select:focus{outline:none;border-color:var(--cs-blue);box-shadow:0 0 0 3px var(--cs-blue-light);}
+
+  .cs-btn{
+    border:1px solid var(--cs-border);background:#fff;color:var(--cs-text);border-radius:var(--cs-radius-sm);
+    padding:9px 14px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  }
+  .cs-btn:active{transform:translateY(1px);}
+  .cs-btn.primary{background:var(--cs-blue);border-color:var(--cs-blue);color:#fff;}
+  .cs-btn.ghost{background:transparent;}
+  .cs-btn.sm{padding:6px 10px;font-size:12px;}
+  .cs-btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .cs-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--cs-border-soft);border-radius:var(--cs-radius-md);}
+  .cs-table th,.cs-table td{padding:8px 10px;font-size:12.5px;border-bottom:1px solid var(--cs-border-soft);text-align:right;white-space:nowrap;}
+  .cs-table th:first-child,.cs-table td:first-child{text-align:left;}
+  .cs-table thead th{background:#FAFBFD;color:var(--cs-muted);font-weight:600;}
+  .cs-table input{width:78px;border:1px solid var(--cs-border);border-radius:8px;padding:5px 7px;text-align:right;font-size:12.5px;}
+  .cs-table tbody tr:last-child td{border-bottom:none;}
+
+  .cs-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;font-weight:700;font-size:12px;}
+  .cs-pill.pass{background:var(--cs-green-light);color:var(--cs-green);}
+  .cs-pill.warn{background:var(--cs-amber-light);color:var(--cs-amber);}
+  .cs-pill.fail{background:var(--cs-red-light);color:var(--cs-red);}
+  .cs-pill.check{background:var(--cs-blue-light);color:var(--cs-blue-dark);}
+
+  .cs-note{font-size:12.5px;border-radius:var(--cs-radius-sm);padding:10px 12px;margin-top:8px;line-height:1.5;}
+  .cs-note.warn{background:var(--cs-amber-light);color:#7A4E0E;}
+  .cs-note.info{background:var(--cs-blue-light);color:var(--cs-blue-dark);}
+  .cs-note.bad{background:var(--cs-red-light);color:#7A1410;}
+  .cs-note.good{background:var(--cs-green-light);color:#0B6B3B;}
+
+  canvas.cs-chart{width:100%;height:240px;display:block;}
+  .cs-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--cs-muted);}
+  .cs-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .cs-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+
+  .cs-report-box{white-space:pre-wrap;font-family:var(--cs-mono);font-size:12px;background:#FAFBFD;border:1px solid var(--cs-border-soft);border-radius:var(--cs-radius-md);padding:14px;max-height:420px;overflow:auto;}
+  .cs-modal-bg{position:fixed;inset:0;background:rgba(16,24,40,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;}
+  .cs-modal{background:#fff;border-radius:var(--cs-radius-lg);max-width:560px;width:100%;padding:18px;box-shadow:var(--cs-shadow-md);max-height:85vh;overflow:auto;}
+  .cs-modal textarea{width:100%;min-height:140px;border:1px solid var(--cs-border);border-radius:var(--cs-radius-sm);padding:10px;font-family:var(--cs-mono);font-size:12px;}
+  .cs-import-drop{
+    border:1.5px dashed var(--cs-border);border-radius:var(--cs-radius-md);padding:14px;margin-bottom:10px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#FAFBFD;
+  }
+  .cs-import-drop.dragover{border-color:var(--cs-blue);background:var(--cs-blue-light);}
+  .cs-import-filename{font-size:12px;color:var(--cs-muted);}
+  .cs-toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#101828;color:#fff;padding:9px 16px;border-radius:999px;font-size:12.5px;z-index:60;box-shadow:var(--cs-shadow-md);}
+
+  @media print{
+    .cs-no-print{display:none !important;}
+    .cbrsc-root{background:#fff;}
+  }
+</style>
+</head>
+<body>
+<div class="cbrsc-root" id="cbrscRoot">
+  <div class="cs-shell">
+    <div class="cs-breadcrumb cs-no-print">
+      <span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span>
+      <a href="civil-hub.html">Civil</a><span class="sep">/</span><b>CBR Lapangan & Sand Cone</b>
+    </div>
+    <div class="cs-titlebar">
+      <div>
+        <h1>CBR Lapangan & Sand Cone</h1>
+        <p>Olah data CBR lapangan dan kepadatan sand cone — perhitungan, QC, grafik, dan report otomatis (offline).</p>
+      </div>
+      <span class="cs-pill check" id="csFinalStatus">—</span>
+    </div>
+
+    <div class="cs-tabs cs-no-print" id="csTabs">
+      <button class="cs-tab active" data-tab="dash">Dashboard</button>
+      <button class="cs-tab" data-tab="cbr">CBR Lapangan</button>
+      <button class="cs-tab" data-tab="sand">Sand Cone</button>
+      <button class="cs-tab" data-tab="report">Report</button>
+    </div>
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <section id="csView-dash">
+      <div class="cs-card cs-no-print">
+        <div class="cs-card-head" style="margin-bottom:0;">
+          <h2 style="margin:0;">Import Data Cepat</h2>
+          <button class="cs-btn primary" id="csQuickImport">Import CSV/TXT (Auto-detect)</button>
+        </div>
+        <p style="margin:8px 0 0;font-size:12.5px;color:var(--cs-muted);">Pilih atau tempel file CSV/TXT — aplikasi otomatis mengenali apakah data tersebut CBR Lapangan atau Sand Cone.</p>
+      </div>
+      <div class="cs-card">
+        <h2>Ringkasan CBR Lapangan</h2>
+        <div class="cs-grid cs-grid-4" id="csDashCbrKpi"></div>
+        <div class="cs-note info" id="csDashCbrNote"></div>
+      </div>
+      <div class="cs-card">
+        <h2>Ringkasan Sand Cone</h2>
+        <div class="cs-grid cs-grid-4" id="csDashSandKpi"></div>
+        <div class="cs-note info" id="csDashSandNote"></div>
+      </div>
+      <div class="cs-card">
+        <h2>Status Final</h2>
+        <p style="margin:0;font-size:13px;color:var(--cs-muted)" id="csDashFinalText"></p>
+      </div>
+    </section>
+
+    <!-- ===================== CBR LAPANGAN ===================== -->
+    <section id="csView-cbr" class="cs-hidden">
+      <div class="cs-card cs-no-print">
+        <div class="cs-card-head">
+          <h2>Data &amp; Input CBR</h2>
+          <div class="cs-btn-row">
+            <button class="cs-btn" id="csCbrSample">Muat Sample dari Laporan</button>
+            <button class="cs-btn" id="csCbrAddPoint">+ Titik Uji</button>
+            <button class="cs-btn" id="csCbrImport">Import Data</button>
+            <button class="cs-btn ghost" id="csCbrReset">Reset</button>
+          </div>
+        </div>
+        <div class="cs-grid cs-grid-3">
+          <div class="cs-field"><label>Luas piston A (in²)</label><input type="number" step="0.01" id="csCbrA" value="3"></div>
+          <div class="cs-field"><label>LRC (lbs/div)</label><input type="number" step="0.01" id="csCbrLRC" value="5.36"></div>
+          <div class="cs-field"><label>Jenis lapis rencana</label>
+            <select id="csCbrLayer"><option value="subgrade">Subgrade</option><option value="subbase" selected>Subbase</option><option value="base">Base</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div id="csCbrPoints"></div>
+
+      <div class="cs-card">
+        <h2>Perbandingan Titik Uji</h2>
+        <div class="cs-table-wrap">
+          <table class="cs-table" id="csCbrCompareTable"></table>
+        </div>
+        <div class="cs-note" id="csCbrRule"></div>
+      </div>
+
+      <div class="cs-card">
+        <h2>Grafik Penetrasi vs Stress (Semua Titik)</h2>
+        <canvas class="cs-chart" id="csCbrChart"></canvas>
+        <div class="cs-legend" id="csCbrLegend"></div>
+      </div>
+    </section>
+
+    <!-- ===================== SAND CONE ===================== -->
+    <section id="csView-sand" class="cs-hidden">
+      <div class="cs-card cs-no-print">
+        <div class="cs-card-head">
+          <h2>Data &amp; Input Sand Cone</h2>
+          <div class="cs-btn-row">
+            <button class="cs-btn" id="csSandSample">Muat Sample dari Laporan</button>
+            <button class="cs-btn" id="csSandAddHole">+ Hole</button>
+            <button class="cs-btn" id="csSandImport">Import Data</button>
+            <button class="cs-btn ghost" id="csSandReset">Reset</button>
+          </div>
+        </div>
+        <div class="cs-grid cs-grid-3">
+          <div class="cs-field"><label>γ sand (gr/cm³)</label><input type="number" step="0.001" id="csSandGammaSand" value="1.43"></div>
+          <div class="cs-field"><label>γ dry lab / MDD (gr/cm³)</label><input type="number" step="0.001" id="csSandGammaLab" value="1.30"></div>
+          <div class="cs-field"><label>Target kepadatan (%)</label><input type="number" step="0.1" id="csSandTarget" value="95"></div>
+        </div>
+      </div>
+
+      <div class="cs-table-wrap cs-card" style="padding:0;">
+        <table class="cs-table" id="csSandTable"></table>
+      </div>
+
+      <div class="cs-card">
+        <h2>Grafik Kadar Air vs Derajat Kepadatan</h2>
+        <canvas class="cs-chart" id="csSandChart"></canvas>
+      </div>
+
+      <div class="cs-card">
+        <h2>Grafik γ dry Lapangan vs γ dry Lab</h2>
+        <canvas class="cs-chart" id="csSandBarChart"></canvas>
+      </div>
+    </section>
+
+    <!-- ===================== REPORT ===================== -->
+    <section id="csView-report" class="cs-hidden">
+      <div class="cs-card cs-no-print">
+        <div class="cs-grid cs-grid-2">
+          <div class="cs-field"><label>Nama Proyek</label><input type="text" id="csRptProject" placeholder="cth. Pembangunan RSUI"></div>
+          <div class="cs-field"><label>Lokasi</label><input type="text" id="csRptLocation" placeholder="cth. FTUI / RSUI"></div>
+          <div class="cs-field"><label>Tanggal Pengujian</label><input type="date" id="csRptDate"></div>
+          <div class="cs-field"><label>Pengujian Oleh</label><input type="text" id="csRptBy" placeholder="Nama / Tim"></div>
+        </div>
+        <div class="cs-btn-row" style="margin-top:12px;">
+          <button class="cs-btn primary" id="csRptGenerate">Generate Report</button>
+          <button class="cs-btn" id="csRptCopy">Copy Summary</button>
+          <button class="cs-btn" id="csRptTxt">Export TXT</button>
+          <button class="cs-btn" id="csRptCsv">Export CSV</button>
+          <button class="cs-btn" id="csRptJson">Export JSON</button>
+          <button class="cs-btn" id="csRptPrint">Print</button>
+        </div>
+      </div>
+      <div class="cs-card">
+        <h2>Report Summary</h2>
+        <div class="cs-report-box" id="csReportBox">Klik "Generate Report" untuk membuat ringkasan otomatis.</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="csImportModal" class="cs-modal-bg cs-hidden">
+  <div class="cs-modal">
+    <h3 id="csImportTitle">Import Data</h3>
+    <p style="font-size:12.5px;color:#667085;margin:0 0 8px;">Pilih file CSV/TXT atau tempel datanya langsung. Delimiter (koma, titik koma, tab, pipe, spasi) dan jenis data (CBR/Sand Cone) akan terdeteksi otomatis.</p>
+    <div id="csImportDrop" class="cs-import-drop">
+      <input type="file" id="csImportFile" accept=".csv,.txt,.tsv,text/csv,text/plain" hidden>
+      <button type="button" class="cs-btn" id="csImportBrowse">Pilih File CSV/TXT</button>
+      <span id="csImportFileName" class="cs-import-filename">atau drag &amp; drop file di sini, atau tempel di bawah</span>
+    </div>
+    <textarea id="csImportText" placeholder="contoh CBR:&#10;0.025,19&#10;0.05,33&#10;...&#10;&#10;contoh Sand Cone:&#10;lokasi,hole,w%,ydry_field&#10;FTUI,1,16.01,1.317"></textarea>
+    <div id="csImportDetect" class="cs-note info cs-hidden"></div>
+    <div class="cs-btn-row" style="margin-top:10px;justify-content:flex-end;">
+      <button class="cs-btn ghost" id="csImportCancel">Batal</button>
+      <button class="cs-btn primary" id="csImportApply">Terapkan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* =========================== STATE =========================== */
+  var STD_STRESS = [ // penetration_in, standard unit stress psi
+    {pen:0.1, stress:1000}, {pen:0.2, stress:1500},
+    {pen:0.3, stress:1900}, {pen:0.4, stress:2300}, {pen:0.5, stress:2600}
+  ];
+  var CLASS_TABLE = [
+    {min:0,  max:3,  label:'Sangat rendah',       use:'Subgrade'},
+    {min:3,  max:7,  label:'Rendah s/d cukup baik',use:'Subgrade'},
+    {min:7,  max:20, label:'Cukup baik',          use:'Subbase'},
+    {min:20, max:50, label:'Baik',                use:'Base atau subbase'},
+    {min:50, max:Infinity, label:'Sangat baik',   use:'Base'}
+  ];
+
+  var SAMPLE_CBR = {
+    A: 3, LRC: 5.36,
+    points: [
+      {name:'Titik 1', rows:[
+        {pen:0.025,dial:19},{pen:0.05,dial:33},{pen:0.075,dial:45},{pen:0.1,dial:62},
+        {pen:0.125,dial:79},{pen:0.15,dial:94},{pen:0.175,dial:111},{pen:0.2,dial:128}
+      ]},
+      {name:'Titik 2', rows:[
+        {pen:0.025,dial:14},{pen:0.05,dial:28},{pen:0.075,dial:41},{pen:0.1,dial:55},
+        {pen:0.125,dial:64},{pen:0.15,dial:75},{pen:0.175,dial:89},{pen:0.2,dial:102}
+      ]}
+    ]
+  };
+
+  var SAMPLE_SAND = {
+    gammaSand: 1.43, gammaLab: 1.30, target: 95,
+    holes: [
+      {location:'FTUI', hole:1, w:16.01504, gammaDryField:1.317},
+      {location:'FTUI', hole:2, w:31.15413, gammaDryField:1.221},
+      {location:'RSUI', hole:1, w:27.2311,  gammaDryField:1.272},
+      {location:'RSUI', hole:2, w:24.7692,  gammaDryField:1.323}
+    ]
+  };
+
+  var state = {
+    cbr: JSON.parse(JSON.stringify(SAMPLE_CBR)),
+    sand: JSON.parse(JSON.stringify(SAMPLE_SAND)),
+    importTarget: null
+  };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var fmt = function(n, d){
+    if(n===null || n===undefined || isNaN(n) || !isFinite(n)) return '–';
+    d = (d===undefined)?2:d;
+    return Number(n).toFixed(d);
+  };
+  var clampNum = function(v, fallback){ var n = parseFloat(v); return isFinite(n) ? n : fallback; };
+
+  /* =========================== CBR CALC =========================== */
+  function stdStressFor(pen){
+    // interpolasi linear sederhana dari tabel SNI/AASHTO T193 jika pen tidak persis ada
+    var t = STD_STRESS;
+    for(var i=0;i<t.length;i++){ if(Math.abs(t[i].pen-pen) < 1e-6) return t[i].stress; }
+    if(pen <= t[0].pen) return t[0].stress;
+    if(pen >= t[t.length-1].pen) return t[t.length-1].stress;
+    for(var j=0;j<t.length-1;j++){
+      if(pen > t[j].pen && pen < t[j+1].pen){
+        var f = (pen - t[j].pen) / (t[j+1].pen - t[j].pen);
+        return t[j].stress + f*(t[j+1].stress - t[j].stress);
+      }
+    }
+    return null;
+  }
+  function computeCbrPoint(point, A, LRC){
+    var rows = point.rows.map(function(r){
+      var stress = (A>0) ? (r.dial * LRC) / A : NaN;
+      return {pen:r.pen, dial:r.dial, stress:stress};
+    });
+    function stressAt(pen){
+      var hit = rows.find(function(r){ return Math.abs(r.pen-pen) < 1e-6; });
+      return hit ? hit.stress : null;
+    }
+    var s01 = stressAt(0.1), s02 = stressAt(0.2);
+    var cbr01 = (s01!==null) ? (s01/1000)*100 : null;
+    var cbr02 = (s02!==null) ? (s02/1500)*100 : null;
+    var cls = classifyCbr(cbr01!==null ? cbr01 : cbr02);
+    return {rows:rows, cbr01:cbr01, cbr02:cbr02, classification:cls};
+  }
+  function classifyCbr(val){
+    if(val===null || val===undefined || isNaN(val)) return null;
+    for(var i=0;i<CLASS_TABLE.length;i++){
+      var c = CLASS_TABLE[i];
+      if(val >= c.min && val < c.max) return c;
+    }
+    return CLASS_TABLE[CLASS_TABLE.length-1];
+  }
+
+  function getCbrResults(){
+    var A = clampNum($('csCbrA').value, 3);
+    var LRC = clampNum($('csCbrLRC').value, 5.36);
+    return state.cbr.points.map(function(p){
+      var r = computeCbrPoint(p, A, LRC);
+      r.name = p.name;
+      return r;
+    });
+  }
+
+  function pickFinalCbr(results){
+    if(!results.length) return {value:null, note:'Belum ada data CBR.', repeatWarn:false};
+    // ambil titik dengan cbr terkecil sbg representatif worst-case, sesuai contoh laporan (titik 2 dipakai)
+    var best = null;
+    results.forEach(function(r){
+      var v = (r.cbr02!==null && r.cbr01!==null && r.cbr02>r.cbr01) ? r.cbr02 : r.cbr01;
+      if(v===null) return;
+      if(best===null || v < best.value) best = {value:v, ref:r};
+    });
+    var anyRepeat = results.some(function(r){ return r.cbr01!==null && r.cbr02!==null && r.cbr02 > r.cbr01; });
+    return {
+      value: best ? best.value : null,
+      repeatWarn: anyRepeat,
+      note: anyRepeat
+        ? 'CBR pada penetrasi 5.08 mm (0.2") lebih besar dari 2.54 mm (0.1") pada salah satu titik. Sesuai SNI 1738:2011, uji sebaiknya diulang. Jika hasil ulangan tetap lebih besar, gunakan CBR 0.2" sebagai nilai laporan.'
+        : 'Nilai CBR diambil dari penetrasi 0.1" (2.54 mm) sebagai acuan standar.'
+    };
+  }
+
+  /* =========================== SAND CONE CALC =========================== */
+  function computeSandHole(h){
+    var w = clampNum(h.w, NaN);
+    var gammaDryField = clampNum(h.gammaDryField, NaN);
+    var gammaLab = clampNum($('csSandGammaLab').value, 1.3);
+    var target = clampNum($('csSandTarget').value, 95);
+    var degree = (gammaLab>0 && isFinite(gammaDryField)) ? (gammaDryField/gammaLab)*100 : NaN;
+    var status = 'check';
+    if(isFinite(degree)){
+      if(degree > 110) status = 'check';
+      else if(degree >= target) status = 'pass';
+      else if(degree >= target-5) status = 'warn';
+      else status = 'fail';
+    }
+    return {w:w, gammaDryField:gammaDryField, degree:degree, status:status, target:target};
+  }
+  function statusLabel(s){
+    return {pass:'PASS', warn:'WARNING', fail:'FAIL', check:'NEED CHECK'}[s] || '—';
+  }
+
+  /* =========================== RENDER: CBR =========================== */
+  function renderCbrPoints(){
+    var wrap = $('csCbrPoints');
+    wrap.innerHTML = state.cbr.points.map(function(p, pi){
+      var rowsHtml = p.rows.map(function(r, ri){
+        return '<tr>'+
+          '<td><input type="number" step="0.005" value="'+r.pen+'" data-pi="'+pi+'" data-ri="'+ri+'" data-f="pen"></td>'+
+          '<td><input type="number" step="1" value="'+r.dial+'" data-pi="'+pi+'" data-ri="'+ri+'" data-f="dial"></td>'+
+          '<td class="cs-cell-stress" data-pi="'+pi+'" data-ri="'+ri+'">–</td>'+
+          '<td><button class="cs-btn sm ghost" data-act="delrow" data-pi="'+pi+'" data-ri="'+ri+'">Hapus</button></td>'+
+        '</tr>';
+      }).join('');
+      return '<div class="cs-card">'+
+        '<div class="cs-card-head">'+
+          '<h3 style="margin:0;"><input type="text" value="'+p.name+'" data-pi="'+pi+'" data-f="name" style="border:none;background:transparent;font-weight:700;font-size:13.5px;width:140px;"></h3>'+
+          '<div class="cs-btn-row cs-no-print">'+
+            '<button class="cs-btn sm" data-act="addrow" data-pi="'+pi+'">+ Baris</button>'+
+            '<button class="cs-btn sm ghost" data-act="delpoint" data-pi="'+pi+'">Hapus Titik</button>'+
+          '</div>'+
+        '</div>'+
+        '<div class="cs-table-wrap"><table class="cs-table">'+
+        '<thead><tr><th>Penetrasi (in)</th><th>Dial Reading</th><th>Stress (psi)</th><th></th></tr></thead>'+
+        '<tbody>'+rowsHtml+'</tbody></table></div>'+
+        '<div class="cs-grid cs-grid-3" style="margin-top:10px;">'+
+          '<div class="cs-kpi"><small>CBR 0.1"</small><b id="csCbrVal01-'+pi+'">–</b><span class="unit">%</span></div>'+
+          '<div class="cs-kpi"><small>CBR 0.2"</small><b id="csCbrVal02-'+pi+'">–</b><span class="unit">%</span></div>'+
+          '<div class="cs-kpi"><small>Klasifikasi</small><b id="csCbrCls-'+pi+'" style="font-size:13px;">–</b></div>'+
+        '</div>'+
+      '</div>';
+    }).join('') || '<div class="cs-card"><p style="color:var(--cs-muted);font-size:13px;margin:0;">Belum ada titik uji CBR. Muat sample atau tambah titik.</p></div>';
+
+    bindCbrPointEvents();
+    recalcAndRenderCbr();
+  }
+
+  function bindCbrPointEvents(){
+    var wrap = $('csCbrPoints');
+    wrap.querySelectorAll('input[data-pi]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var pi = +inp.getAttribute('data-pi');
+        var f = inp.getAttribute('data-f');
+        if(f==='name'){ state.cbr.points[pi].name = inp.value; }
+        else {
+          var ri = +inp.getAttribute('data-ri');
+          var v = parseFloat(inp.value);
+          state.cbr.points[pi].rows[ri][f] = isFinite(v) ? v : 0;
+        }
+        recalcAndRenderCbr();
+      });
+    });
+    wrap.querySelectorAll('button[data-act]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var act = btn.getAttribute('data-act');
+        var pi = +btn.getAttribute('data-pi');
+        if(act==='addrow'){ state.cbr.points[pi].rows.push({pen:0, dial:0}); renderCbrPoints(); }
+        else if(act==='delrow'){ var ri = +btn.getAttribute('data-ri'); state.cbr.points[pi].rows.splice(ri,1); renderCbrPoints(); }
+        else if(act==='delpoint'){ state.cbr.points.splice(pi,1); renderCbrPoints(); }
+      });
+    });
+  }
+
+  function recalcAndRenderCbr(){
+    var results = getCbrResults();
+    // update per-point stress cells & kpi
+    results.forEach(function(r, pi){
+      r.rows.forEach(function(row, ri){
+        var cell = document.querySelector('.cs-cell-stress[data-pi="'+pi+'"][data-ri="'+ri+'"]');
+        if(cell) cell.textContent = fmt(row.stress);
+      });
+      var v01 = $('csCbrVal01-'+pi), v02 = $('csCbrVal02-'+pi), cls = $('csCbrCls-'+pi);
+      if(v01) v01.textContent = fmt(r.cbr01);
+      if(v02) v02.textContent = fmt(r.cbr02);
+      if(cls) cls.textContent = r.classification ? (r.classification.label+' — '+r.classification.use) : '–';
+    });
+
+    // comparison table
+    var table = $('csCbrCompareTable');
+    table.innerHTML =
+      '<thead><tr><th>Titik</th><th>CBR 0.1" (%)</th><th>CBR 0.2" (%)</th><th>Status</th></tr></thead>'+
+      '<tbody>'+ results.map(function(r){
+        var repeat = (r.cbr01!==null && r.cbr02!==null && r.cbr02 > r.cbr01);
+        return '<tr><td>'+r.name+'</td><td>'+fmt(r.cbr01)+'</td><td>'+fmt(r.cbr02)+'</td>'+
+          '<td>'+(repeat ? '<span class="cs-pill warn">Perlu Uji Ulang</span>' : '<span class="cs-pill pass">OK</span>')+'</td></tr>';
+      }).join('') + '</tbody>';
+
+    var final = pickFinalCbr(results);
+    var fc = classifyCbr(final.value);
+    $('csCbrRule').className = 'cs-note ' + (final.repeatWarn ? 'warn' : 'good');
+    $('csCbrRule').textContent = 'Nilai CBR akhir = ' + (final.value!==null ? fmt(final.value)+'%' : '–') +
+      (fc ? ' — klasifikasi: ' + fc.label + ' (kegunaan: ' + fc.use + ').' : '') + ' ' + final.note;
+
+    drawCbrChart(results);
+    state._cbrFinal = final;
+    state._cbrResults = results;
+    renderDashboard();
+  }
+
+  function drawCbrChart(results){
+    var canvas = $('csCbrChart');
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth || 600, h = 240;
+    canvas.width = w*dpr; canvas.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+
+    var allPts = [];
+    results.forEach(function(r){ r.rows.forEach(function(row){ if(isFinite(row.stress)) allPts.push(row); }); });
+    if(!allPts.length){ ctx.fillStyle='#98A2B3'; ctx.font='12px Inter'; ctx.fillText('Belum ada data.', 10, 20); return; }
+
+    var maxPen = Math.max.apply(null, allPts.map(function(p){return p.pen;})) || 0.2;
+    var maxStress = Math.max.apply(null, allPts.map(function(p){return p.stress;})) || 100;
+    var padL=42, padB=26, padT=10, padR=10;
+    var plotW = w-padL-padR, plotH = h-padT-padB;
+    function X(pen){ return padL + (pen/maxPen)*plotW; }
+    function Y(s){ return padT + plotH - (s/maxStress)*plotH; }
+
+    ctx.strokeStyle = '#EDF0F5'; ctx.lineWidth=1;
+    for(var i=0;i<=4;i++){
+      var yy = padT + (plotH/4)*i;
+      ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(w-padR,yy); ctx.stroke();
+      ctx.fillStyle='#98A2B3'; ctx.font='10px Inter';
+      ctx.fillText(fmt(maxStress - (maxStress/4)*i,0), 4, yy+3);
+    }
+    ctx.fillText('0', padL-8, h-padB+12);
+    ctx.fillText(fmt(maxPen,2)+' in', w-padR-30, h-padB+12);
+
+    var colors = ['#2563EB','#0F9D58','#B7791F','#D92D20','#7C3AED'];
+    results.forEach(function(r, idx){
+      var pts = r.rows.filter(function(p){return isFinite(p.stress);}).sort(function(a,b){return a.pen-b.pen;});
+      if(!pts.length) return;
+      ctx.strokeStyle = colors[idx % colors.length];
+      ctx.lineWidth = 2; ctx.beginPath();
+      pts.forEach(function(p, i2){ var x=X(p.pen), y=Y(p.stress); if(i2===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+      ctx.stroke();
+      pts.forEach(function(p){ var x=X(p.pen), y=Y(p.stress); ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fillStyle=colors[idx%colors.length]; ctx.fill(); });
+    });
+
+    $('csCbrLegend').innerHTML = results.map(function(r, idx){
+      return '<span><i style="background:'+colors[idx%colors.length]+'"></i>'+r.name+'</span>';
+    }).join('');
+  }
+
+  /* =========================== RENDER: SAND CONE =========================== */
+  function renderSandTable(){
+    var table = $('csSandTable');
+    var rowsHtml = state.sand.holes.map(function(h, i){
+      var r = computeSandHole(h);
+      return '<tr>'+
+        '<td><input type="text" value="'+h.location+'" data-i="'+i+'" data-f="location"></td>'+
+        '<td><input type="number" value="'+h.hole+'" data-i="'+i+'" data-f="hole" style="width:54px;"></td>'+
+        '<td><input type="number" step="0.01" value="'+h.w+'" data-i="'+i+'" data-f="w"></td>'+
+        '<td><input type="number" step="0.001" value="'+h.gammaDryField+'" data-i="'+i+'" data-f="gammaDryField"></td>'+
+        '<td>'+fmt(r.degree)+'</td>'+
+        '<td><span class="cs-pill '+r.status+'">'+statusLabel(r.status)+'</span></td>'+
+        '<td><button class="cs-btn sm ghost" data-act="delhole" data-i="'+i+'">Hapus</button></td>'+
+      '</tr>';
+    }).join('');
+    table.innerHTML =
+      '<thead><tr><th>Lokasi</th><th>Hole</th><th>w (%)</th><th>γdry field</th><th>Derajat Kepadatan (%)</th><th>Status</th><th></th></tr></thead>'+
+      '<tbody>'+(rowsHtml || '<tr><td colspan="7" style="text-align:center;color:var(--cs-muted);">Belum ada data sand cone.</td></tr>')+'</tbody>';
+
+    table.querySelectorAll('input[data-i]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var i = +inp.getAttribute('data-i'), f = inp.getAttribute('data-f');
+        var val = (f==='location') ? inp.value : parseFloat(inp.value);
+        state.sand.holes[i][f] = (f==='location') ? val : (isFinite(val)?val:0);
+        renderSandTable();
+      });
+    });
+    table.querySelectorAll('button[data-act="delhole"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.sand.holes.splice(+btn.getAttribute('data-i'),1);
+        renderSandTable();
+      });
+    });
+
+    drawSandScatter();
+    drawSandBar();
+    renderDashboard();
+  }
+
+  function drawSandScatter(){
+    var canvas = $('csSandChart'); var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio||1, w = canvas.clientWidth||600, h=240;
+    canvas.width=w*dpr; canvas.height=h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    var data = state.sand.holes.map(computeSandHole).filter(function(r){return isFinite(r.w)&&isFinite(r.degree);});
+    if(!data.length){ ctx.fillStyle='#98A2B3'; ctx.font='12px Inter'; ctx.fillText('Belum ada data.',10,20); return; }
+    var padL=42,padB=26,padT=10,padR=10, plotW=w-padL-padR, plotH=h-padT-padB;
+    var maxW = Math.max.apply(null,data.map(function(d){return d.w;}))*1.1 || 40;
+    var minD = Math.min.apply(null,data.map(function(d){return d.degree;}))*0.95 || 0;
+    var maxD = Math.max.apply(null,data.map(function(d){return d.degree;}))*1.05 || 110;
+    function X(v){ return padL + (v/maxW)*plotW; }
+    function Y(v){ return padT + plotH - ((v-minD)/(maxD-minD))*plotH; }
+    ctx.strokeStyle='#EDF0F5';
+    for(var i=0;i<=4;i++){ var yy=padT+(plotH/4)*i; ctx.beginPath();ctx.moveTo(padL,yy);ctx.lineTo(w-padR,yy);ctx.stroke();
+      ctx.fillStyle='#98A2B3'; ctx.font='10px Inter'; ctx.fillText(fmt(maxD-((maxD-minD)/4)*i,0),4,yy+3); }
+    data.forEach(function(d){
+      var x=X(d.w), y=Y(d.degree);
+      ctx.beginPath(); ctx.arc(x,y,5,0,7);
+      ctx.fillStyle = {pass:'#0F9D58',warn:'#B7791F',fail:'#D92D20',check:'#2563EB'}[d.status];
+      ctx.fill();
+    });
+    ctx.fillStyle='#667085'; ctx.font='10px Inter'; ctx.fillText('w (%) →', w-padR-40, h-6);
+  }
+
+  function drawSandBar(){
+    var canvas = $('csSandBarChart'); var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio||1, w = canvas.clientWidth||600, h=240;
+    canvas.width=w*dpr; canvas.height=h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    var holes = state.sand.holes;
+    if(!holes.length){ ctx.fillStyle='#98A2B3'; ctx.font='12px Inter'; ctx.fillText('Belum ada data.',10,20); return; }
+    var gammaLab = clampNum($('csSandGammaLab').value,1.3);
+    var maxG = Math.max(gammaLab, Math.max.apply(null,holes.map(function(h){return clampNum(h.gammaDryField,0);}))) * 1.15;
+    var padL=36,padB=34,padT=10,padR=10, plotW=w-padL-padR, plotH=h-padT-padB;
+    var bw = plotW/holes.length;
+    holes.forEach(function(h,i){
+      var x = padL + i*bw + bw*0.2, bwUse = bw*0.6;
+      var gv = clampNum(h.gammaDryField,0);
+      var bh = (gv/maxG)*plotH;
+      ctx.fillStyle = '#2563EB';
+      ctx.fillRect(x, padT+plotH-bh, bwUse, bh);
+      ctx.fillStyle='#667085'; ctx.font='10px Inter';
+      ctx.fillText((h.location||'')+' H'+h.hole, x-2, h-padB+14);
+      ctx.fillText(fmt(gv,3), x, padT+plotH-bh-4);
+    });
+    var labY = padT+plotH-(gammaLab/maxG)*plotH;
+    ctx.strokeStyle='#D92D20'; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(padL,labY); ctx.lineTo(w-padR,labY); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='#D92D20'; ctx.font='10px Inter'; ctx.fillText('γ dry lab = '+fmt(gammaLab,3), padL+4, labY-4);
+  }
+
+  /* =========================== DASHBOARD =========================== */
+  function renderDashboard(){
+    var cbrResults = state._cbrResults || getCbrResults();
+    var final = state._cbrFinal || pickFinalCbr(cbrResults);
+    var fc = classifyCbr(final.value);
+    $('csDashCbrKpi').innerHTML =
+      kpi('Jumlah Titik', cbrResults.length, '') +
+      kpi('CBR 0.1" rata-rata', fmt(avg(cbrResults.map(function(r){return r.cbr01;}))), '%') +
+      kpi('CBR 0.2" rata-rata', fmt(avg(cbrResults.map(function(r){return r.cbr02;}))), '%') +
+      kpi('CBR Akhir', final.value!==null?fmt(final.value):'–', '%');
+    $('csDashCbrNote').textContent = fc
+      ? 'Klasifikasi: ' + fc.label + ' — direkomendasikan untuk ' + fc.use + '. ' + final.note
+      : 'Belum ada nilai CBR yang dapat diklasifikasikan.';
+
+    var sandHoles = state.sand.holes.map(computeSandHole);
+    var degrees = sandHoles.map(function(h){return h.degree;}).filter(isFinite);
+    var pass = sandHoles.filter(function(h){return h.status==='pass';}).length;
+    var warnFail = sandHoles.filter(function(h){return h.status==='warn'||h.status==='fail';}).length;
+    $('csDashSandKpi').innerHTML =
+      kpi('Jumlah Hole', sandHoles.length, '') +
+      kpi('Rata² γ dry', fmt(avg(sandHoles.map(function(h){return h.gammaDryField;})),3), '') +
+      kpi('Rata² Kepadatan', fmt(avg(degrees)), '%') +
+      kpi('PASS / WARNING+FAIL', pass+' / '+warnFail, '');
+
+    var worst = sandHoles.slice().sort(function(a,b){return (a.degree||999)-(b.degree||999);})[0];
+    $('csDashSandNote').textContent = worst
+      ? 'Titik dengan kepadatan terendah: ' + (state.sand.holes[sandHoles.indexOf(worst)] ? (state.sand.holes[sandHoles.indexOf(worst)].location+' Hole '+state.sand.holes[sandHoles.indexOf(worst)].hole) : '-') + ' (' + fmt(worst.degree) + '%).'
+      : 'Belum ada data sand cone.';
+
+    var finalStatus = 'check';
+    if(warnFail===0 && sandHoles.length && final.value!==null && !final.repeatWarn) finalStatus='pass';
+    else if(sandHoles.some(function(h){return h.status==='fail';})) finalStatus='fail';
+    else finalStatus='warn';
+    var pillMap = {pass:['cs-pill pass','PASS'], warn:['cs-pill warn','PASS WITH WARNING'], fail:['cs-pill fail','FAIL'], check:['cs-pill check','NEED RETEST']};
+    $('csFinalStatus').className = pillMap[finalStatus][0];
+    $('csFinalStatus').textContent = pillMap[finalStatus][1];
+    $('csDashFinalText').textContent =
+      'Status final ditentukan dari kombinasi hasil CBR lapangan (warning uji ulang) dan sand cone (PASS/WARNING/FAIL terhadap target kepadatan). ' +
+      'Gunakan hasil ini sebagai alat bantu evaluasi awal; verifikasi akhir tetap oleh engineer/laboratorium berwenang.';
+  }
+  function kpi(label, val, unit){
+    return '<div class="cs-kpi"><small>'+label+'</small><b>'+val+'</b><span class="unit">'+unit+'</span></div>';
+  }
+  function avg(arr){
+    var f = arr.filter(function(v){return isFinite(v);});
+    if(!f.length) return NaN;
+    return f.reduce(function(a,b){return a+b;},0)/f.length;
+  }
+
+  /* =========================== REPORT =========================== */
+  function buildReportText(){
+    var proj = $('csRptProject').value || '(belum diisi)';
+    var loc = $('csRptLocation').value || '(belum diisi)';
+    var date = $('csRptDate').value || '(belum diisi)';
+    var by = $('csRptBy').value || '(belum diisi)';
+    var cbrResults = state._cbrResults || getCbrResults();
+    var final = state._cbrFinal || pickFinalCbr(cbrResults);
+    var fc = classifyCbr(final.value);
+    var sandHoles = state.sand.holes.map(function(h){ var r = computeSandHole(h); r.location=h.location; r.hole=h.hole; return r; });
+
+    var lines = [];
+    lines.push('LAPORAN CBR LAPANGAN & SAND CONE');
+    lines.push('================================');
+    lines.push('Proyek      : '+proj);
+    lines.push('Lokasi      : '+loc);
+    lines.push('Tanggal Uji : '+date);
+    lines.push('Diuji Oleh  : '+by);
+    lines.push('Standar     : SNI 1738:2011, ASTM D4429, AASHTO T193 (CBR); SNI 2828:2011, ASTM D1556, AASHTO T191 (Sand Cone)');
+    lines.push('');
+    lines.push('1. DATA CBR LAPANGAN');
+    cbrResults.forEach(function(r){
+      lines.push('  '+r.name+': CBR 0.1" = '+fmt(r.cbr01)+'%, CBR 0.2" = '+fmt(r.cbr02)+'%'+
+        ((r.cbr01!==null&&r.cbr02!==null&&r.cbr02>r.cbr01) ? ' (CBR 0.2 > 0.1, perlu uji ulang)' : ''));
+    });
+    lines.push('  Nilai CBR akhir : '+(final.value!==null?fmt(final.value)+'%':'–'));
+    lines.push('  Klasifikasi     : '+(fc?fc.label+' — '+fc.use:'–'));
+    lines.push('  Catatan         : '+final.note);
+    lines.push('');
+    lines.push('2. DATA SAND CONE');
+    sandHoles.forEach(function(h){
+      lines.push('  '+h.location+' Hole '+h.hole+': w = '+fmt(h.w)+'%, ydry field = '+fmt(h.gammaDryField,3)+
+        ', derajat kepadatan = '+fmt(h.degree)+'% ['+statusLabel(h.status)+']');
+    });
+    lines.push('');
+    lines.push('3. ANALISIS');
+    lines.push('  Nilai CBR akhir yang digunakan adalah '+(final.value!==null?fmt(final.value)+'%':'-')+
+      (fc?(' termasuk kategori "'+fc.label+'" dan direkomendasikan untuk '+fc.use+'.'):'.'));
+    var worst = sandHoles.slice().sort(function(a,b){return (a.degree||999)-(b.degree||999);})[0];
+    if(worst){
+      lines.push('  Hasil sand cone menunjukkan derajat kepadatan berkisar '+
+        fmt(Math.min.apply(null,sandHoles.map(function(h){return h.degree;}).filter(isFinite)))+'% - '+
+        fmt(Math.max.apply(null,sandHoles.map(function(h){return h.degree;}).filter(isFinite)))+'%. '+
+        'Titik dengan kepadatan terendah adalah '+worst.location+' Hole '+worst.hole+' ('+fmt(worst.degree)+'%).');
+    }
+    lines.push('');
+    lines.push('4. REKOMENDASI LAPANGAN');
+    if(final.repeatWarn) lines.push('  - Lakukan uji ulang CBR karena nilai pada penetrasi 0.2" lebih besar dari 0.1" pada salah satu titik.');
+    if(sandHoles.some(function(h){return h.status==='fail'||h.status==='warn';})) lines.push('  - Pertimbangkan pemadatan ulang pada titik dengan derajat kepadatan di bawah target.');
+    if(sandHoles.some(function(h){return h.status==='check';})) lines.push('  - Periksa kalibrasi pasir/alat karena derajat kepadatan melebihi 110%.');
+    lines.push('  - Gunakan data CBR dan sand cone bersama untuk evaluasi subgrade/subbase.');
+    lines.push('  - Tambahkan data Proctor/MDD bila belum tersedia.');
+    lines.push('');
+    lines.push('DISCLAIMER');
+    lines.push('Hasil aplikasi ini adalah alat bantu perhitungan dan laporan awal. Keputusan teknis');
+    lines.push('final harus diverifikasi oleh engineer/laboratorium/geoteknik berwenang sesuai standar proyek.');
+    return lines.join('\n');
+  }
+
+  function buildCsv(){
+    var rows = [['Modul','Titik/Lokasi','Hole','Parameter1','Nilai1','Parameter2','Nilai2','Status']];
+    (state._cbrResults||getCbrResults()).forEach(function(r){
+      rows.push(['CBR', r.name, '', 'CBR_0.1', fmt(r.cbr01), 'CBR_0.2', fmt(r.cbr02), (r.classification?r.classification.label:'')]);
+    });
+    state.sand.holes.forEach(function(h){
+      var r = computeSandHole(h);
+      rows.push(['SandCone', h.location, h.hole, 'w%', fmt(r.w), 'ydry_field', fmt(r.gammaDryField,3), statusLabel(r.status)]);
+    });
+    return rows.map(function(row){ return row.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  }
+
+  function buildJson(){
+    return JSON.stringify({
+      project: $('csRptProject').value, location: $('csRptLocation').value,
+      date: $('csRptDate').value, testedBy: $('csRptBy').value,
+      cbr: state.cbr, cbrResults: (state._cbrResults||getCbrResults()).map(function(r){
+        return {name:r.name, cbr01:r.cbr01, cbr02:r.cbr02, classification:r.classification};
+      }),
+      sand: state.sand
+    }, null, 2);
+  }
+
+  function downloadFile(name, content, mime){
+    var blob = new Blob([content], {type:mime});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  }
+
+  function toast(msg){
+    var t = document.createElement('div');
+    t.className = 'cs-toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 1800);
+  }
+
+  /* =========================== IMPORT =========================== */
+  // Variasi nama kolom yang dikenali otomatis (lihat PRD §4.4 / §4.5)
+  var COLVAR_CBR = {
+    point:      ['titik','point','test_point','test point','lokasi','nama'],
+    penetration:['penetration','penetrasi','penetration_in','penetration_mm','penetration (in)','pen'],
+    dial:       ['dial reading','dial','pembacaan dial','reading','dial_reading'],
+    stress:     ['stress','tegangan','test unit load','psi','stress (psi)'],
+    cbr:        ['cbr','nilai cbr']
+  };
+  var COLVAR_SAND = {
+    location:   ['location','lokasi'],
+    hole:       ['hole no','hole','lubang','titik','hole_no'],
+    w:          ['w','w%','kadar air','water content','w (%)'],
+    gammaDryField: ['gamma dry','ydry','γdry','gamma_dry','ydry field','γdry field','gamma dry field'],
+    gammaDryLab:   ['gamma dry lab','ydry lab','mdd','maximum dry density'],
+    degree:        ['degree compaction','derajat kepadatan','derajat_kepadatan']
+  };
+  // Kata kunci untuk auto-detect jenis data (PRD §4.3)
+  var DETECT_CBR_HINTS  = ['penetration','penetrasi','dial','stress','tegangan','cbr'];
+  var DETECT_SAND_HINTS = ['w1','w2','w3','w4','wwet','wdry','water content','gamma','ydry','γdry','degree','derajat','hole','volume'];
+
+  function norm(s){ return String(s||'').toLowerCase().replace(/[_\-]/g,' ').trim(); }
+  function findCol(headerNorm, variants){
+    for(var i=0;i<headerNorm.length;i++){
+      for(var v=0;v<variants.length;v++){
+        if(headerNorm[i] === variants[v] || headerNorm[i].indexOf(variants[v]) >= 0) return i;
+      }
+    }
+    return -1;
+  }
+  function detectDelimiter(line){
+    var cands = [',',';','\t','|'];
+    var best = ',', bestCount = 0;
+    cands.forEach(function(c){
+      var n = line.split(c).length;
+      if(n > bestCount){ bestCount = n; best = c; }
+    });
+    if(bestCount <= 1){ return /\s+/; }
+    return best;
+  }
+  function parseDelimited(text){
+    var lines = text.split(/\r?\n/).map(function(l){return l.trim();}).filter(function(l){return l.length;});
+    if(!lines.length) return [];
+    var delim = detectDelimiter(lines[0]);
+    return lines.map(function(l){ return l.split(delim).map(function(c){return c.trim().replace(/^"|"$/g,'');}); });
+  }
+  function looksLikeHeader(row){
+    return row.some(function(c){ return isNaN(parseFloat(c)); });
+  }
+  // Deteksi otomatis jenis data: 'cbr' | 'sand' | null (tidak terdeteksi)
+  function detectDataType(headerNorm){
+    if(!headerNorm) return null;
+    var cbrScore = headerNorm.filter(function(h){ return DETECT_CBR_HINTS.some(function(k){ return h.indexOf(k)>=0; }); }).length;
+    var sandScore = headerNorm.filter(function(h){ return DETECT_SAND_HINTS.some(function(k){ return h.indexOf(k)>=0; }); }).length;
+    if(cbrScore===0 && sandScore===0) return null;
+    return cbrScore >= sandScore ? 'cbr' : 'sand';
+  }
+  function splitRows(text){
+    var rows = parseDelimited(text);
+    if(!rows.length) return {header:null, headerNorm:null, data:[]};
+    if(looksLikeHeader(rows[0])){
+      return {header:rows[0], headerNorm:rows[0].map(norm), data:rows.slice(1)};
+    }
+    return {header:null, headerNorm:null, data:rows};
+  }
+  function updateImportDetect(){
+    var box = $('csImportDetect');
+    var text = $('csImportText').value;
+    if(!text.trim()){ box.classList.add('cs-hidden'); return; }
+    var parsed = splitRows(text);
+    var type = detectDataType(parsed.headerNorm);
+    if(!type && state.importTarget!=='auto') type = state.importTarget; // fallback ke tab asal jika header tidak dikenali
+    box.classList.remove('cs-hidden');
+    box.className = 'cs-note info';
+    box.textContent = 'Terdeteksi otomatis: ' + (type==='cbr' ? 'Data CBR Lapangan' : type==='sand' ? 'Data Sand Cone' : 'Tidak dikenali') +
+      ' · ' + parsed.data.length + ' baris data' + (parsed.header ? ' (header terbaca)' : ' (tanpa header)') + '.';
+    state._importDetected = type;
+  }
+  function applyImport(){
+    var text = $('csImportText').value;
+    var parsed = splitRows(text);
+    if(!parsed.data.length){ toast('Data kosong atau tidak terbaca.'); return; }
+    var type = detectDataType(parsed.headerNorm) || (state.importTarget!=='auto' ? state.importTarget : null);
+
+    if(type === 'cbr'){
+      var pts = {};
+      var hn = parsed.headerNorm;
+      var iPoint = hn ? findCol(hn, COLVAR_CBR.point) : -1;
+      var iPen   = hn ? findCol(hn, COLVAR_CBR.penetration) : -1;
+      var iDial  = hn ? findCol(hn, COLVAR_CBR.dial) : -1;
+      parsed.data.forEach(function(r){
+        if(r.length < 2) return;
+        var name, pen, dial;
+        if(iPen>=0 && iDial>=0){
+          name = (iPoint>=0 && r[iPoint]) ? r[iPoint] : 'Import';
+          pen = parseFloat(r[iPen]); dial = parseFloat(r[iDial]);
+        } else if(r.length >= 3){
+          name = r[0]; pen = parseFloat(r[1]); dial = parseFloat(r[2]);
+        } else {
+          name = 'Import'; pen = parseFloat(r[0]); dial = parseFloat(r[1]);
+        }
+        if(!isFinite(pen) || !isFinite(dial)) return;
+        if(!pts[name]) pts[name] = [];
+        pts[name].push({pen:pen, dial:dial});
+      });
+      var newPoints = Object.keys(pts).map(function(k){ return {name:k, rows:pts[k]}; });
+      if(newPoints.length){ state.cbr.points = newPoints; switchTab('cbr'); renderCbrPoints(); toast('Data CBR berhasil diimport ('+newPoints.length+' titik).'); }
+      else toast('Format data CBR tidak terbaca. Kolom yang dikenali: titik, penetration, dial reading.');
+    } else if(type === 'sand'){
+      var holes = [];
+      var hn2 = parsed.headerNorm;
+      var iLoc = hn2 ? findCol(hn2, COLVAR_SAND.location) : -1;
+      var iHole = hn2 ? findCol(hn2, COLVAR_SAND.hole) : -1;
+      var iW = hn2 ? findCol(hn2, COLVAR_SAND.w) : -1;
+      var iGdf = hn2 ? findCol(hn2, COLVAR_SAND.gammaDryField) : -1;
+      parsed.data.forEach(function(r){
+        if(r.length < 3) return;
+        var location, hole, w, gdf;
+        if(iW>=0 && iGdf>=0){
+          location = (iLoc>=0 && r[iLoc]) ? r[iLoc] : 'Import';
+          hole = (iHole>=0 && parseFloat(r[iHole])) || 1;
+          w = parseFloat(r[iW]); gdf = parseFloat(r[iGdf]);
+        } else {
+          location = r[0]; hole = parseFloat(r[1])||1; w = parseFloat(r[2]); gdf = parseFloat(r[3]);
+        }
+        if(!isFinite(w) || !isFinite(gdf)) return;
+        holes.push({location:location, hole:hole, w:w, gammaDryField:gdf});
+      });
+      if(holes.length){ state.sand.holes = holes; switchTab('sand'); renderSandTable(); toast('Data Sand Cone berhasil diimport ('+holes.length+' hole).'); }
+      else toast('Format data Sand Cone tidak terbaca. Kolom yang dikenali: lokasi, hole, w%, gamma dry field.');
+    } else {
+      toast('Jenis data tidak terdeteksi. Pastikan ada kolom penetration/dial (CBR) atau lokasi/w%/gamma dry (Sand Cone).');
+      return;
+    }
+    closeImportModal();
+  }
+  function readImportFile(file){
+    if(!file) return;
+    var name = file.name || '';
+    var okExt = /\.(csv|txt|tsv)$/i.test(name);
+    if(!okExt){ toast('Format file harus .csv, .txt, atau .tsv'); return; }
+    var reader = new FileReader();
+    reader.onload = function(e){
+      $('csImportText').value = String(e.target.result||'');
+      $('csImportFileName').textContent = 'File dimuat: ' + name;
+      updateImportDetect();
+    };
+    reader.onerror = function(){ toast('Gagal membaca file.'); };
+    reader.readAsText(file, 'UTF-8');
+  }
+  function openImportModal(target){
+    state.importTarget = target;
+    state._importDetected = null;
+    $('csImportTitle').textContent = target==='cbr' ? 'Import Data CBR Lapangan' : target==='sand' ? 'Import Data Sand Cone' : 'Import Data (Auto-detect)';
+    $('csImportText').value = '';
+    $('csImportFile').value = '';
+    $('csImportFileName').textContent = 'atau drag & drop file di sini, atau tempel di bawah';
+    $('csImportDetect').classList.add('cs-hidden');
+    $('csImportModal').classList.remove('cs-hidden');
+  }
+  function closeImportModal(){ $('csImportModal').classList.add('cs-hidden'); }
+
+  /* =========================== TABS =========================== */
+  function switchTab(tab){
+    ['dash','cbr','sand','report'].forEach(function(t){
+      $('csView-'+t).classList.toggle('cs-hidden', t!==tab);
+    });
+    document.querySelectorAll('#csTabs .cs-tab').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-tab')===tab);
+    });
+    if(tab==='cbr') recalcAndRenderCbr();
+    if(tab==='sand') renderSandTable();
+    if(tab==='dash') renderDashboard();
+  }
+
+  /* =========================== INIT / BIND =========================== */
+  function init(){
+    document.querySelectorAll('#csTabs .cs-tab').forEach(function(btn){
+      btn.addEventListener('click', function(){ switchTab(btn.getAttribute('data-tab')); });
+    });
+
+    $('csCbrSample').addEventListener('click', function(){
+      state.cbr = JSON.parse(JSON.stringify(SAMPLE_CBR));
+      $('csCbrA').value = SAMPLE_CBR.A; $('csCbrLRC').value = SAMPLE_CBR.LRC;
+      renderCbrPoints(); toast('Sample CBR dimuat.');
+    });
+    $('csCbrAddPoint').addEventListener('click', function(){
+      state.cbr.points.push({name:'Titik '+(state.cbr.points.length+1), rows:[{pen:0.025,dial:0}]});
+      renderCbrPoints();
+    });
+    $('csCbrReset').addEventListener('click', function(){ state.cbr = {A:3,LRC:5.36,points:[]}; $('csCbrA').value=3; $('csCbrLRC').value=5.36; renderCbrPoints(); });
+    $('csCbrImport').addEventListener('click', function(){ openImportModal('cbr'); });
+    ['csCbrA','csCbrLRC'].forEach(function(id){ $(id).addEventListener('input', recalcAndRenderCbr); });
+
+    $('csSandSample').addEventListener('click', function(){
+      state.sand = JSON.parse(JSON.stringify(SAMPLE_SAND));
+      $('csSandGammaSand').value = SAMPLE_SAND.gammaSand; $('csSandGammaLab').value = SAMPLE_SAND.gammaLab; $('csSandTarget').value = SAMPLE_SAND.target;
+      renderSandTable(); toast('Sample Sand Cone dimuat.');
+    });
+    $('csSandAddHole').addEventListener('click', function(){
+      state.sand.holes.push({location:'Lokasi', hole:state.sand.holes.length+1, w:0, gammaDryField:0});
+      renderSandTable();
+    });
+    $('csSandReset').addEventListener('click', function(){ state.sand.holes = []; renderSandTable(); });
+    $('csSandImport').addEventListener('click', function(){ openImportModal('sand'); });
+    ['csSandGammaSand','csSandGammaLab','csSandTarget'].forEach(function(id){ $(id).addEventListener('input', renderSandTable); });
+
+    $('csQuickImport').addEventListener('click', function(){ openImportModal('auto'); });
+    $('csImportCancel').addEventListener('click', closeImportModal);
+    $('csImportApply').addEventListener('click', applyImport);
+    $('csImportText').addEventListener('input', updateImportDetect);
+    $('csImportBrowse').addEventListener('click', function(){ $('csImportFile').click(); });
+    $('csImportFile').addEventListener('change', function(){ readImportFile($('csImportFile').files[0]); });
+    var dropZone = $('csImportDrop');
+    ['dragenter','dragover'].forEach(function(ev){
+      dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.add('dragover'); });
+    });
+    ['dragleave','drop'].forEach(function(ev){
+      dropZone.addEventListener(ev, function(e){ e.preventDefault(); dropZone.classList.remove('dragover'); });
+    });
+    dropZone.addEventListener('drop', function(e){
+      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(file) readImportFile(file);
+    });
+
+    $('csRptGenerate').addEventListener('click', function(){ $('csReportBox').textContent = buildReportText(); });
+    $('csRptCopy').addEventListener('click', function(){
+      var txt = $('csReportBox').textContent;
+      if(!txt || txt.indexOf('Generate Report')>=0){ txt = buildReportText(); $('csReportBox').textContent = txt; }
+      navigator.clipboard && navigator.clipboard.writeText(txt).then(function(){ toast('Summary disalin.'); }).catch(function(){ toast('Gagal menyalin.'); });
+    });
+    $('csRptTxt').addEventListener('click', function(){ downloadFile('cbr-sandcone-report.txt', buildReportText(), 'text/plain'); });
+    $('csRptCsv').addEventListener('click', function(){ downloadFile('cbr-sandcone-data.csv', buildCsv(), 'text/csv'); });
+    $('csRptJson').addEventListener('click', function(){ downloadFile('cbr-sandcone-data.json', buildJson(), 'application/json'); });
+    $('csRptPrint').addEventListener('click', function(){ $('csReportBox').textContent = buildReportText(); window.print(); });
+
+    renderCbrPoints();
+    renderSandTable();
+    renderDashboard();
+    window.addEventListener('resize', function(){
+      drawCbrChart(state._cbrResults||getCbrResults());
+      drawSandScatter(); drawSandBar();
+    });
+  }
+
+  /* -------- embed mode (selaras shell SurvAI) -------- */
+  try{
+    var p = new URLSearchParams(location.search);
+    if(p.get('embed')==='1'){ document.documentElement.classList.add('survai-embed'); }
+  }catch(e){}
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>

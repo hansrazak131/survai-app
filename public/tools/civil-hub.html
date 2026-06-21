@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Civil</title>
+<!--
+  Submenu "Civil" di dalam Tools.
+  Tambahkan entri baru ke array CIVIL_ITEMS jika ada fitur teknik sipil
+  baru di kemudian hari agar semuanya terkoordinir di satu tempat.
+-->
+<style>
+  .civh-root{
+    --c-bg:#F5F7FA; --c-card:#FFFFFF; --c-border:#E3E7EE; --c-border-soft:#EDF0F5;
+    --c-text:#101828; --c-muted:#667085; --c-faint:#98A2B3;
+    --c-blue:#2563EB; --c-blue-light:#EFF6FF;
+    --c-radius-lg:20px; --c-radius-md:14px;
+    --c-shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    --c-shadow-md:0 4px 14px rgba(16,24,40,.07);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--c-bg); color:var(--c-text); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .civh-root *{box-sizing:border-box;}
+  .civh-shell{max-width:960px;margin:0 auto;padding:14px 14px 64px;}
+  .civh-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--c-muted);margin-bottom:10px;}
+  .civh-breadcrumb b{color:var(--c-text);font-weight:600;}
+  .civh-breadcrumb .sep{color:var(--c-faint);}
+  .civh-title h1{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;}
+  .civh-title p{margin:0 0 18px;color:var(--c-muted);font-size:13px;}
+  .civh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+  .civh-card{
+    background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);
+    padding:16px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:8px;
+    box-shadow:var(--c-shadow-sm);transition:box-shadow .15s,border-color .15s;
+  }
+  .civh-card:hover, .civh-card:active{box-shadow:var(--c-shadow-md);border-color:var(--c-blue);}
+  .civh-card .ibox{
+    width:42px;height:42px;border-radius:var(--c-radius-md);background:var(--c-blue-light);
+    color:var(--c-blue);display:flex;align-items:center;justify-content:center;
+  }
+  .civh-card b{font-size:14.5px;font-weight:700;}
+  .civh-card small{color:var(--c-muted);font-size:12.5px;line-height:1.4;}
+  .civh-card .tag{
+    margin-top:2px;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;
+    color:#0F9D58;background:#E9F9F0;border-radius:999px;padding:3px 9px;width:max-content;
+  }
+  .civh-empty{
+    border:1px dashed var(--c-border);border-radius:var(--c-radius-lg);padding:22px;text-align:center;
+    color:var(--c-faint);font-size:13px;
+  }
+</style>
+</head>
+<body>
+<div class="civh-root">
+  <div class="civh-shell">
+    <div class="civh-breadcrumb"><span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span><b>Civil</b></div>
+    <div class="civh-title">
+      <h1>Civil</h1>
+      <p>Kumpulan tools teknik sipil — pekerjaan geoteknik, pondasi, dan perkerasan jalan.</p>
+    </div>
+    <div class="civh-grid" id="civhGrid"></div>
+  </div>
+</div>
+<script>
+(function(){
+  // Tambahkan tool civil baru di sini (urutan tampil sesuai array).
+  var CIVIL_ITEMS = [
+    {
+      file:'sondir-spt-foundation-planner.html',
+      title:'Sondir & SPT Foundation Planner',
+      desc:'Perencanaan pondasi berdasarkan data sondir (CPT) dan SPT.',
+      tag:'Geoteknik'
+    },
+    {
+      file:'cbr-lapangan-sand-cone.html',
+      title:'CBR Lapangan & Sand Cone',
+      desc:'Olah data CBR lapangan dan kepadatan sand cone otomatis.',
+      tag:'Perkerasan Jalan'
+    }
+  ];
+
+  function svgIcon(){
+    return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+
+      '<path d="M4 21h16M5 21V9.5L12 5l7 4.5V21"/><path d="M9 21v-6h6v6"/>'+
+      '</svg>';
+  }
+
+  function render(){
+    var grid = document.getElementById('civhGrid');
+    if(!CIVIL_ITEMS.length){
+      grid.innerHTML = '<div class="civh-empty">Belum ada tools civil.</div>';
+      return;
+    }
+    grid.innerHTML = CIVIL_ITEMS.map(function(it){
+      return '<button type="button" class="civh-card" data-file="'+it.file+'">'+
+        '<span class="ibox">'+svgIcon()+'</span>'+
+        '<b>'+it.title+'</b>'+
+        '<small>'+it.desc+'</small>'+
+        (it.tag ? '<span class="tag">'+it.tag+'</span>' : '')+
+        '</button>';
+    }).join('');
+    Array.prototype.forEach.call(grid.querySelectorAll('.civh-card'), function(btn){
+      btn.addEventListener('click', function(){
+        var file = btn.getAttribute('data-file');
+        var sep = location.search.indexOf('embed=1')>=0 ? '?embed=1' : '';
+        location.href = file + sep;
+      });
+    });
+  }
+  render();
+})();
+</script>
+</body>
+</html>
