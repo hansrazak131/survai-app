@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Hidrografi Pasut — SurvAI</title>
+<title>Hidrografi Pasut — Tukang Ukur</title>
 <style>
 :root{
   --navy:#17365f; --blue:#2563eb; --blue-ink:#094cb2; --teal:#14b8a6; --cyan:#06b6d4;
@@ -748,7 +748,7 @@ function hypackRun(){
 }
 function hypackDownloadTid(){
   if(!window._hypackTid) return;
-  let txt='# HYPACK Tide File (.tid) — dibuat SurvAI\n# format: detik_past_midnight  tide_correction(cm)\n';
+  let txt='# HYPACK Tide File (.tid) — dibuat Tukang Ukur\n# format: detik_past_midnight  tide_correction(cm)\n';
   window._hypackTid.forEach(r=>{ txt+=r.t+' '+r.tide.toFixed(2)+'\n'; });
   const blob=new Blob([txt],{type:'text/plain'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='koreksi_pasut.tid'; a.click();

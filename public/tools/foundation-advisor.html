@@ -99,6 +99,26 @@
       </div>
       <div class="fa-btn-row">
         <button class="fa-btn" id="faRefresh">Muat Ulang Data</button>
+        <button class="fa-btn primary" id="faLoadSample">Muat Data Sampel: Gedung 3 Lantai</button>
+        <button class="fa-btn" id="faToggleImport">Import Data Manual (JSON)</button>
+      </div>
+
+      <div class="fa-card fa-hidden" id="faImportCard">
+        <h2>Import Data Manual</h2>
+        <div class="fa-note info">Gunakan ini jika data dari modul Sondir/SPT atau CBR/Sand Cone tidak otomatis terbaca di sini (misalnya karena dibuka dari domain/preview yang berbeda). Tempel JSON hasil export dari modul tersebut, atau hasil "Export JSON" yang sudah diedit.</div>
+        <div class="fa-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="fa-field">
+            <label>JSON Sondir/SPT (civilhub_sondir_result)</label>
+            <textarea id="faImportSondir" rows="8" style="width:100%;border:1px solid var(--c-border);border-radius:10px;padding:8px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;" placeholder='{"savedAt":"...","project":"...","Qizin":130,"Qult":390,"primaryRecommendation":"...","alternatives":[],"reasons":[],"warnings":[],"context":{}}'></textarea>
+          </div>
+          <div class="fa-field">
+            <label>JSON CBR/Sand Cone (civilhub_cbr_result)</label>
+            <textarea id="faImportCbr" rows="8" style="width:100%;border:1px solid var(--c-border);border-radius:10px;padding:8px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;" placeholder='{"savedAt":"...","project":"...","cbrFinal":4.8,"cbrClassification":{"label":"...","use":"..."},"sandWorst":{},"sandAllPass":true}'></textarea>
+          </div>
+        </div>
+        <div class="fa-btn-row">
+          <button class="fa-btn primary" id="faApplyImport">Terapkan Import</button>
+        </div>
       </div>
     </section>
 
@@ -169,6 +189,50 @@
     return {sondir:sondir, cbr:cbr};
   }
   var DATA = loadHubData();
+
+  /* =========================== SAMPLE DATA: GEDUNG 3 LANTAI =========================== */
+  // Contoh dataset lengkap untuk bangunan gedung 3 lantai (beban kolom menengah, tanah lempung
+  // dengan lapisan agak keras pada kedalaman menengah). Dipakai untuk menguji alur data antar
+  // modul (Sondir/SPT & CBR/Sand Cone -> Foundation Advisor -> BOQ/RAB -> Schedule -> QC -> Dashboard)
+  // tanpa harus mengulang input manual di tiap modul satu per satu.
+  function sampleSondirResult(){
+    return {
+      savedAt: new Date().toISOString(),
+      project: 'Gedung Kantor 3 Lantai - Contoh', location: 'Jakarta',
+      loadRencana: 120,
+      pile: {D_cm:40, D_cm_cpt:40, shape:'circle', shapeCpt:'square', pur:2, ujungTiang:12, ujungTiangCpt:12, panjang:14, FS:3, muB:40},
+      Qizin: 130, Qult: 390,
+      primaryRecommendation: 'Mini Pile / Tiang Pancang Sedang',
+      alternatives: ['Pondasi Sumuran (alternatif bila kedalaman galian terbuka memungkinkan)', 'Bored Pile (bila beban struktur besar)'],
+      reasons: ['Lapisan keras berada pada kedalaman menengah (≈6.5 m) — mini pile/tiang pancang ukuran sedang umumnya ekonomis untuk kondisi ini, terutama bila akses alat berat terbatas.'],
+      warnings: [],
+      context: {surfaceNstar:8, surfaceQcAvg:35, hardDepth:6.5, softThickness:6.5, Qizin:130, capacitySufficient:true},
+      standardRef: 'SNI 8460:2017 (Geoteknik), SNI 03-2847 / SNI 2847:2019 (Beton Struktural)'
+    };
+  }
+  function sampleCbrResult(){
+    return {
+      savedAt: new Date().toISOString(),
+      project: 'Gedung Kantor 3 Lantai - Contoh', location: 'Jakarta', date: new Date().toISOString().slice(0,10),
+      cbrFinal: 4.8,
+      cbrClassification: {min:3, max:7, label:'Rendah s/d cukup baik', use:'Subgrade'},
+      cbrRepeatWarn: false,
+      cbrNote: 'Nilai CBR diambil dari penetrasi 0.1" (2.54 mm) sebagai acuan standar.',
+      sandWorst: {location:'Titik 2', hole:1, w:18.5, gammaDryField:1.42, degree:96.5, status:'pass', target:95},
+      sandAllPass: true,
+      standardRef: 'SNI 1738:2011, ASTM D4429, AASHTO T193 (CBR); SNI 2828:2011, ASTM D1556 (Sand Cone)'
+    };
+  }
+  function loadSampleProject(){
+    try{
+      localStorage.setItem('civilhub_sondir_result', JSON.stringify(sampleSondirResult()));
+      localStorage.setItem('civilhub_cbr_result', JSON.stringify(sampleCbrResult()));
+      DATA = loadHubData();
+      renderDataTab();
+      if($('faLoad')) $('faLoad').value = DATA.sondir.loadRencana;
+      toast('Data sampel Gedung 3 Lantai dimuat. Buka tab Rekomendasi untuk melihat hasilnya.');
+    }catch(e){ toast('Gagal memuat data sampel.'); }
+  }
 
   function fmt(n,d){
     if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '–';
@@ -443,6 +507,27 @@
     DATA = loadHubData();
     renderDataTab();
     toast('Data dimuat ulang.');
+  });
+  $('faLoadSample').addEventListener('click', loadSampleProject);
+  $('faToggleImport').addEventListener('click', function(){
+    $('faImportCard').classList.toggle('fa-hidden');
+  });
+  $('faApplyImport').addEventListener('click', function(){
+    var sondirTxt = $('faImportSondir').value.trim();
+    var cbrTxt = $('faImportCbr').value.trim();
+    var applied = 0;
+    if(sondirTxt){
+      try{ JSON.parse(sondirTxt); localStorage.setItem('civilhub_sondir_result', sondirTxt); applied++; }
+      catch(e){ toast('JSON Sondir/SPT tidak valid: '+e.message); return; }
+    }
+    if(cbrTxt){
+      try{ JSON.parse(cbrTxt); localStorage.setItem('civilhub_cbr_result', cbrTxt); applied++; }
+      catch(e){ toast('JSON CBR/Sand Cone tidak valid: '+e.message); return; }
+    }
+    if(!applied){ toast('Tempel minimal salah satu JSON terlebih dahulu.'); return; }
+    DATA = loadHubData();
+    renderDataTab();
+    toast('Data hasil import diterapkan.');
   });
 
   $('faGenReport').addEventListener('click', function(){

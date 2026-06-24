@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Hydro Bathymetry QC — SurvAI</title>
+<title>Hydro Bathymetry QC — Tukang Ukur</title>
 <style>
 :root{
   --navy:#17365f;--blue:#2563eb;--blue-ink:#094cb2;--teal:#14b8a6;--cyan:#06b6d4;
@@ -866,7 +866,7 @@ function buildReport(){
   t+='Status Global: '+g.global+'\n\n';
   t+='Status Modul:\n';
   t+='  TVU  : '+(st.tvu||'-')+'\n  THU  : '+(st.thu||'-')+'\n  MBES : '+(st.mbes||'-')+'\n  SBES : '+(st.sbes||'-')+'\n  SSS  : '+(st.sss||'-')+'\n  GNSS : '+(st.gnss||'-')+'\n\n';
-  t+='Dibuat: '+new Date().toLocaleString('id-ID')+' via SurvAI\n';
+  t+='Dibuat: '+new Date().toLocaleString('id-ID')+' via Tukang Ukur\n';
   return t;
 }
 function renderExport(){
