@@ -263,6 +263,7 @@
           <button class="cs-btn" id="csRptCsv">Export CSV</button>
           <button class="cs-btn" id="csRptJson">Export JSON</button>
           <button class="cs-btn" id="csRptPrint">Print</button>
+          <button class="cs-btn primary" id="csRptToHub">Kirim ke Civil Hub</button>
         </div>
       </div>
       <div class="cs-card">
@@ -796,6 +797,36 @@
     }, null, 2);
   }
 
+  /* =========================== CIVIL HUB INTEGRATION =========================== */
+  // Simpan ringkasan hasil CBR & Sand Cone agar bisa dibaca modul Foundation Advisor
+  // (key: 'civilhub_cbr_result'). Lihat juga sondir-spt-foundation-planner.html.
+  function saveToCivilHub(){
+    var cbrResults = state._cbrResults || getCbrResults();
+    var final = state._cbrFinal || pickFinalCbr(cbrResults);
+    var fc = classifyCbr(final.value);
+    var sandHoles = state.sand.holes.map(function(h){
+      var r = computeSandHole(h); r.location = h.location; r.hole = h.hole; return r;
+    });
+    var worstSand = sandHoles.slice().sort(function(a,b){ return (a.degree||999)-(b.degree||999); })[0] || null;
+    var payload = {
+      savedAt: new Date().toISOString(),
+      project: $('csRptProject').value || '',
+      location: $('csRptLocation').value || '',
+      date: $('csRptDate').value || '',
+      cbrFinal: final.value,
+      cbrClassification: fc,
+      cbrRepeatWarn: final.repeatWarn,
+      cbrNote: final.note,
+      sandWorst: worstSand,
+      sandAllPass: sandHoles.length>0 && sandHoles.every(function(h){ return h.status==='pass'; }),
+      standardRef: 'SNI 1738:2011, ASTM D4429, AASHTO T193 (CBR); SNI 2828:2011, ASTM D1556 (Sand Cone)'
+    };
+    try{
+      localStorage.setItem('civilhub_cbr_result', JSON.stringify(payload));
+      toast('Hasil CBR & Sand Cone dikirim ke Civil Hub.');
+    }catch(e){ toast('Gagal menyimpan ke Civil Hub.'); }
+  }
+
   function downloadFile(name, content, mime){
     var blob = new Blob([content], {type:mime});
     var url = URL.createObjectURL(blob);
@@ -1046,6 +1077,7 @@
     $('csRptCsv').addEventListener('click', function(){ downloadFile('cbr-sandcone-data.csv', buildCsv(), 'text/csv'); });
     $('csRptJson').addEventListener('click', function(){ downloadFile('cbr-sandcone-data.json', buildJson(), 'application/json'); });
     $('csRptPrint').addEventListener('click', function(){ $('csReportBox').textContent = buildReportText(); window.print(); });
+    $('csRptToHub').addEventListener('click', saveToCivilHub);
 
     renderCbrPoints();
     renderSandTable();

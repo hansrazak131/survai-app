@@ -571,6 +571,7 @@
         <button class="sspt-btn" id="sspt-export-csv-btn">Export CSV</button>
         <button class="sspt-btn" id="sspt-export-json-btn">Export JSON</button>
         <button class="sspt-btn" id="sspt-export-html-btn">Export HTML Report</button>
+        <button class="sspt-btn sspt-btn-primary" id="sspt-to-hub-btn">Kirim ke Civil Hub</button>
       </div>
       <div class="sspt-report-pre" id="sspt-report-preview"></div>
     </div>
@@ -2098,6 +2099,34 @@ function renderReportTab(){
 }
 
 /* ============================================================
+   CIVIL HUB INTEGRATION
+   Simpan ringkasan kapasitas & rekomendasi pondasi agar bisa dibaca
+   modul Foundation Advisor (key: 'civilhub_sondir_result').
+   Lihat juga cbr-lapangan-sand-cone.html.
+   ============================================================ */
+function saveToCivilHub(){
+  const rec = D.recommendation || {};
+  const Qizin = Math.max(D.sptCapacity?.Qizin||0, D.cptCapacity?.Qizin||0) || null;
+  const payload = {
+    savedAt: new Date().toISOString(),
+    project: S.project.name||'', location: S.project.location||'',
+    loadRencana: S.project.loadRencana||null,
+    pile: S.pile,
+    Qizin, Qult: Math.max(D.sptCapacity?.Qult||0, D.cptCapacity?.Qult||0) || null,
+    primaryRecommendation: rec.primary||null,
+    alternatives: rec.alternatives||[],
+    reasons: rec.reasons||[],
+    warnings: rec.warnings||[],
+    context: rec.context||{},
+    standardRef: 'SNI 8460:2017 (Geoteknik), SNI 03-2847 / SNI 2847:2019 (Beton Struktural)'
+  };
+  try{
+    localStorage.setItem('civilhub_sondir_result', JSON.stringify(payload));
+    toast('Hasil Sondir/SPT dikirim ke Civil Hub.');
+  }catch(e){ toast('Gagal menyimpan ke Civil Hub.'); }
+}
+
+/* ============================================================
    MASTER RENDER DISPATCHER
    ============================================================ */
 function renderAll(){
@@ -2239,6 +2268,7 @@ function wireReportButtons(){
     downloadFile('sondir-spt-report.html', generateReportHtmlDoc(), 'text/html;charset=utf-8');
     toast('Report HTML diunduh');
   });
+  document.getElementById('sspt-to-hub-btn').addEventListener('click', saveToCivilHub);
 }
 function fallbackCopy(text){
   const ta = document.createElement('textarea');

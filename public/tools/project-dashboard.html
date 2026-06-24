@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Project Dashboard</title>
+<!--
+  Civil Construction Engineering Suite — Modul "Project Dashboard".
+  Mengagregasi seluruh hasil modul Civil Hub dari localStorage:
+    civilhub_sondir_result, civilhub_cbr_result, civilhub_design_result,
+    civilhub_boq_result, civilhub_schedule_result, civilhub_qc_result
+  serta input progres aktual manual (civilhub_actual_progress) untuk
+  menghasilkan dashboard project control: progress, kurva S (rencana vs
+  aktual), deviasi, biaya, dan status QC — sesuai bagian "Project Control"
+  & "Dashboard" pada PRD Civil Construction Engineering Suite.
+-->
+<style>
+  .dash-root{
+    --c-bg:#F5F7FA; --c-card:#FFFFFF; --c-border:#E3E7EE; --c-border-soft:#EDF0F5;
+    --c-text:#101828; --c-muted:#667085; --c-faint:#98A2B3;
+    --c-blue:#2563EB; --c-blue-light:#EFF6FF;
+    --c-green:#0F9D58; --c-green-light:#E9F9F0;
+    --c-amber:#B54708; --c-amber-light:#FFF6E5;
+    --c-red:#B42318; --c-red-light:#FEF3F2;
+    --c-radius-lg:20px; --c-radius-md:14px;
+    --c-shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--c-bg); color:var(--c-text); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .dash-root *{box-sizing:border-box;}
+  .dash-shell{max-width:1080px;margin:0 auto;padding:14px 14px 64px;}
+  .dash-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--c-muted);margin-bottom:10px;}
+  .dash-breadcrumb b{color:var(--c-text);font-weight:600;}
+  .dash-breadcrumb .sep{color:var(--c-faint);}
+  .dash-title h1{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;}
+  .dash-title p{margin:0 0 16px;color:var(--c-muted);font-size:13px;}
+  .dash-card{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--c-shadow-sm);}
+  .dash-card h2{font-size:15px;font-weight:700;margin:0 0 10px;}
+  .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;}
+  .dash-kpi{border:1px solid var(--c-border-soft);border-radius:14px;padding:11px 13px;background:#FAFBFC;}
+  .dash-kpi small{display:block;color:var(--c-muted);font-size:11px;margin-bottom:2px;}
+  .dash-kpi b{font-size:17px;}
+  .dash-kpi .unit{font-size:11px;color:var(--c-faint);margin-left:3px;}
+  .dash-status{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;border-radius:999px;padding:4px 10px;}
+  .dash-status.ok{background:var(--c-green-light);color:var(--c-green);}
+  .dash-status.warn{background:var(--c-amber-light);color:var(--c-amber);}
+  .dash-status.missing{background:var(--c-red-light);color:var(--c-red);}
+  .dash-note{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-blue-light);color:#1D4ED8;}
+  .dash-btn{border:1px solid var(--c-border);background:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--c-text);}
+  .dash-btn.primary{background:var(--c-blue);border-color:var(--c-blue);color:#fff;}
+  .dash-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .dash-field label{display:block;font-size:12px;color:var(--c-muted);margin-bottom:4px;}
+  .dash-field input{width:100%;border:1px solid var(--c-border);border-radius:10px;padding:8px 10px;font-size:13.5px;}
+  canvas.dash-chart{width:100%;height:300px;display:block;}
+  .dash-legend{display:flex;gap:14px;font-size:12px;color:var(--c-muted);margin-top:6px;}
+  .dash-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .dash-legend i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+  table.dash-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.dash-table th,table.dash-table td{border-bottom:1px solid var(--c-border-soft);padding:6px 8px;text-align:left;}
+  .dash-pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#0B1220;color:#D7E2F2;border-radius:12px;padding:14px;max-height:420px;overflow:auto;}
+  .dash-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#101828;color:#fff;padding:9px 16px;border-radius:10px;font-size:12.5px;z-index:50;}
+  .dash-disclaimer{font-size:11.5px;color:var(--c-faint);border-top:1px dashed var(--c-border);padding-top:10px;margin-top:10px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="dash-root">
+  <div class="dash-shell">
+    <div class="dash-breadcrumb"><span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span><span>Civil</span><span class="sep">/</span><b>Project Dashboard</b></div>
+    <div class="dash-title">
+      <h1>Project Dashboard</h1>
+      <p>Ringkasan terintegrasi: geoteknik, pondasi, biaya, jadwal/kurva S, dan QC — dari seluruh modul Civil Hub.</p>
+    </div>
+
+    <!-- ===================== OVERVIEW KPI ===================== -->
+    <div class="dash-card">
+      <h2>Overview Proyek</h2>
+      <div class="dash-grid" id="dashOverviewKpi"></div>
+    </div>
+
+    <!-- ===================== GEOTEKNIK & PONDASI ===================== -->
+    <div class="dash-card">
+      <h2>Geoteknik &amp; Pondasi</h2>
+      <div id="dashGeoStatus"></div>
+      <div class="dash-grid" id="dashGeoKpi"></div>
+    </div>
+
+    <!-- ===================== PROGRESS / KURVA S ===================== -->
+    <div class="dash-card">
+      <h2>Progress &amp; Kurva S (Rencana vs Aktual)</h2>
+      <div id="dashScheduleStatus"></div>
+      <canvas class="dash-chart" id="dashCurveChart"></canvas>
+      <div class="dash-legend">
+        <span><i style="background:#2563EB;"></i> Rencana</span>
+        <span><i style="background:#0F9D58;"></i> Aktual</span>
+      </div>
+      <div class="dash-grid" style="margin-top:10px;">
+        <div class="dash-field"><label>Tanggal Progres Aktual</label><input type="date" id="dashActualDate"></div>
+        <div class="dash-field"><label>Progres Aktual (%)</label><input type="number" step="0.5" id="dashActualPct" placeholder="cth. 35"></div>
+      </div>
+      <div class="dash-btn-row">
+        <button class="dash-btn primary" id="dashAddActual">Catat Progres Aktual</button>
+      </div>
+      <div id="dashDeviationNote"></div>
+    </div>
+
+    <!-- ===================== BIAYA ===================== -->
+    <div class="dash-card">
+      <h2>Biaya (RAB)</h2>
+      <div id="dashCostStatus"></div>
+      <div style="overflow-x:auto;">
+        <table class="dash-table" id="dashCostTable"></table>
+      </div>
+    </div>
+
+    <!-- ===================== QC ===================== -->
+    <div class="dash-card">
+      <h2>Quality Control</h2>
+      <div id="dashQcStatus"></div>
+      <div class="dash-grid" id="dashQcKpi"></div>
+    </div>
+
+    <!-- ===================== REPORT ===================== -->
+    <div class="dash-card">
+      <h2>Laporan Ringkasan Proyek</h2>
+      <div class="dash-btn-row">
+        <button class="dash-btn" id="dashRefresh">Muat Ulang Semua Data</button>
+        <button class="dash-btn primary" id="dashGenReport">Generate Report</button>
+        <button class="dash-btn" id="dashCopyReport">Copy</button>
+        <button class="dash-btn" id="dashDownloadTxt">Export TXT</button>
+        <button class="dash-btn" id="dashDownloadJson">Export JSON</button>
+      </div>
+      <div class="dash-pre" id="dashReportBox" style="margin-top:10px;">Klik "Generate Report" untuk membuat ringkasan proyek lengkap.</div>
+      <div class="dash-disclaimer">
+        Dashboard ini mengagregasi hasil dari modul Sondir/SPT, CBR/Sand Cone, Foundation Advisor, BOQ/RAB,
+        Schedule/Kurva S, dan QC Checklist yang telah "dikirim ke Civil Hub/Dashboard" dari masing-masing modul.
+        Seluruh nilai bersifat estimasi tahap konsep dan harus diverifikasi oleh tim proyek (PM, QS, QA/QC,
+        Engineer Struktur/Geoteknik) sebelum digunakan untuk keputusan kontraktual.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '–'; d=(d===undefined)?2:d; return Number(n).toFixed(d); }
+  function rp(n){ if(n===null||n===undefined||isNaN(n)) return '–'; return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+  function dateLabel(iso){ if(!iso) return '–'; try{ return new Date(iso).toLocaleString('id-ID'); }catch(e){ return iso; } }
+  function toast(msg){
+    var t=document.createElement('div'); t.className='dash-toast'; t.textContent=msg;
+    document.body.appendChild(t); setTimeout(function(){ t.remove(); },1800);
+  }
+  function downloadFile(name, content, mime){
+    var blob=new Blob([content],{type:mime}); var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },200);
+  }
+
+  /* =========================== LOAD ALL DATA =========================== */
+  function loadAll(){
+    function read(key){ try{ var v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+    return {
+      sondir: read('civilhub_sondir_result'),
+      cbr: read('civilhub_cbr_result'),
+      design: read('civilhub_design_result'),
+      boq: read('civilhub_boq_result'),
+      schedule: read('civilhub_schedule_result'),
+      qc: read('civilhub_qc_result'),
+      actual: read('civilhub_actual_progress') || []
+    };
+  }
+  var DATA = loadAll();
+
+  function statusBadge(ok, label){
+    return '<span class="dash-status '+(ok?'ok':'missing')+'">'+(ok?'Tersedia':'Belum ada data')+'</span>'+
+      (label ? ' <span style="font-size:12px;color:var(--c-muted);">'+label+'</span>' : '');
+  }
+
+  /* =========================== OVERVIEW =========================== */
+  function renderOverview(){
+    var totalCost = DATA.schedule ? DATA.schedule.totalCost : (DATA.boq ? DATA.boq.grandTotal : null);
+    var totalDur = DATA.schedule ? DATA.schedule.totalDurationDays : null;
+    var lastActual = DATA.actual.length ? DATA.actual[DATA.actual.length-1] : null;
+    var plannedNow = plannedPctAtDate(lastActual ? lastActual.date : null);
+    var qcPassRate = (DATA.qc && DATA.qc.totalItems) ? (DATA.qc.passItems/DATA.qc.totalItems*100) : null;
+
+    $('dashOverviewKpi').innerHTML =
+      '<div class="dash-kpi"><small>Total Biaya (RAB)</small><b>'+rp(totalCost)+'</b></div>'+
+      '<div class="dash-kpi"><small>Total Durasi</small><b>'+(totalDur!==null?totalDur:'–')+'</b><span class="unit">hari</span></div>'+
+      '<div class="dash-kpi"><small>Progres Aktual Terakhir</small><b>'+(lastActual?fmt(lastActual.pct,1):'–')+'</b><span class="unit">%</span></div>'+
+      '<div class="dash-kpi"><small>Progres Rencana (tgl sama)</small><b>'+(plannedNow!==null?fmt(plannedNow,1):'–')+'</b><span class="unit">%</span></div>'+
+      '<div class="dash-kpi"><small>QC Pass Rate</small><b>'+(qcPassRate!==null?fmt(qcPassRate,0):'–')+'</b><span class="unit">%</span></div>'+
+      '<div class="dash-kpi"><small>NCR / Punch Open</small><b>'+(DATA.qc?((DATA.qc.openNcr||0)+' / '+(DATA.qc.openPunch||0)):'–')+'</b></div>';
+  }
+
+  /* =========================== GEOTEKNIK & PONDASI =========================== */
+  function renderGeo(){
+    var sd = DATA.sondir, cb = DATA.cbr, ds = DATA.design;
+    $('dashGeoStatus').innerHTML =
+      '<div style="margin-bottom:8px;">Sondir/SPT: '+statusBadge(!!sd, sd?('disimpan '+dateLabel(sd.savedAt)):'')+'</div>'+
+      '<div style="margin-bottom:8px;">CBR/Sand Cone: '+statusBadge(!!cb, cb?('disimpan '+dateLabel(cb.savedAt)):'')+'</div>'+
+      '<div>Foundation Advisor: '+statusBadge(!!ds, ds?('disimpan '+dateLabel(ds.savedAt)):'')+'</div>';
+
+    $('dashGeoKpi').innerHTML =
+      '<div class="dash-kpi"><small>Qizin Tiang/Pondasi</small><b>'+(sd?fmt(sd.Qizin):'–')+'</b><span class="unit">ton</span></div>'+
+      '<div class="dash-kpi"><small>CBR Akhir</small><b>'+(cb?fmt(cb.cbrFinal):'–')+'</b><span class="unit">%</span></div>'+
+      '<div class="dash-kpi"><small>Rekomendasi Pondasi</small><b style="font-size:13px;">'+(sd?sd.primaryRecommendation:(ds?ds.primary:'–'))+'</b></div>'+
+      '<div class="dash-kpi"><small>Mutu Beton</small><b style="font-size:13px;">'+(ds?ds.concreteGrade:'–')+'</b></div>'+
+      '<div class="dash-kpi"><small>Volume Beton</small><b>'+(ds?fmt(ds.concreteVolumeM3):'–')+'</b><span class="unit">m³</span></div>';
+  }
+
+  /* =========================== KURVA S (RENCANA vs AKTUAL) =========================== */
+  function plannedPctAtDate(dateStr){
+    var sc = DATA.schedule;
+    if(!sc || !sc.curve || !sc.curve.length || !sc.startDate || !dateStr) return null;
+    var start = new Date(sc.startDate);
+    var target = new Date(dateStr);
+    var dayDiff = Math.round((target-start)/86400000);
+    if(dayDiff<0) return 0;
+    var pt = sc.curve.find(function(p){ return p.day===dayDiff; });
+    if(pt) return pt.pct;
+    var last = sc.curve[sc.curve.length-1];
+    return dayDiff > last.day ? last.pct : 0;
+  }
+
+  function drawDashChart(){
+    var canvas = $('dashCurveChart');
+    var ctx = canvas.getContext('2d');
+    var w = canvas.clientWidth || 600, h = 300;
+    canvas.width = w; canvas.height = h;
+    ctx.clearRect(0,0,w,h);
+    var padL=40, padB=24, padT=14, padR=10;
+    var plotW = w-padL-padR, plotH = h-padT-padB;
+    ctx.strokeStyle = '#E3E7EE'; ctx.lineWidth = 1;
+    for(var g=0; g<=4; g++){
+      var y = padT + plotH - (g/4)*plotH;
+      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+      ctx.fillStyle = '#98A2B3'; ctx.font='11px Inter,Arial'; ctx.fillText((g*25)+'%', 4, y+4);
+    }
+    var sc = DATA.schedule;
+    if(!sc || !sc.curve || !sc.curve.length){
+      ctx.fillStyle='#98A2B3'; ctx.font='12px Inter,Arial';
+      ctx.fillText('Belum ada data jadwal/kurva S. Kirim data dari modul Schedule & Kurva S.', padL, h/2);
+      return;
+    }
+    var maxDay = sc.curve[sc.curve.length-1].day || 1;
+    ctx.strokeStyle = '#2563EB'; ctx.lineWidth = 2; ctx.beginPath();
+    sc.curve.forEach(function(p,i){
+      var x = padL + (p.day/maxDay)*plotW;
+      var y = padT + plotH - (p.pct/100)*plotH;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    if(sc.startDate && DATA.actual.length){
+      var start = new Date(sc.startDate);
+      ctx.strokeStyle = '#0F9D58'; ctx.lineWidth = 2; ctx.beginPath();
+      DATA.actual.forEach(function(a,i){
+        var d = Math.round((new Date(a.date)-start)/86400000);
+        var x = padL + (Math.max(0,Math.min(d,maxDay))/maxDay)*plotW;
+        var y = padT + plotH - (Math.max(0,Math.min(a.pct,100))/100)*plotH;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        ctx.fillStyle='#0F9D58'; ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fill();
+      });
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#667085'; ctx.font='11px Inter,Arial';
+    ctx.fillText('Hari ke-0', padL, h-6);
+    ctx.fillText('Hari ke-'+maxDay, w-padR-50, h-6);
+  }
+
+  function renderScheduleSection(){
+    var sc = DATA.schedule;
+    $('dashScheduleStatus').innerHTML = statusBadge(!!sc, sc?('disimpan '+dateLabel(sc.savedAt)+', mulai '+(sc.startDate||'belum diisi')):'');
+    drawDashChart();
+    renderDeviation();
+  }
+
+  function renderDeviation(){
+    var lastActual = DATA.actual.length ? DATA.actual[DATA.actual.length-1] : null;
+    if(!lastActual){ $('dashDeviationNote').innerHTML=''; return; }
+    var planned = plannedPctAtDate(lastActual.date);
+    if(planned===null){ $('dashDeviationNote').innerHTML = '<div class="dash-note">Isi Tanggal Mulai Proyek pada modul Schedule & Kurva S agar deviasi dapat dihitung.</div>'; return; }
+    var dev = lastActual.pct - planned;
+    var statusClass = Math.abs(dev)<=3 ? 'ok' : (dev<0 ? 'warn' : 'ok');
+    var statusLabel = Math.abs(dev)<=3 ? 'ON TRACK' : (dev<0 ? 'TERLAMBAT' : 'LEBIH CEPAT');
+    $('dashDeviationNote').innerHTML =
+      '<div class="dash-note">Pada '+lastActual.date+': progres aktual '+fmt(lastActual.pct,1)+'% vs rencana '+fmt(planned,1)+'% — deviasi '+
+      (dev>=0?'+':'')+fmt(dev,1)+'% — <span class="dash-status '+statusClass+'">'+statusLabel+'</span></div>';
+  }
+
+  /* =========================== BIAYA =========================== */
+  function renderCost(){
+    var boq = DATA.boq;
+    $('dashCostStatus').innerHTML = statusBadge(!!boq, boq?('disimpan '+dateLabel(boq.savedAt)):'');
+    if(!boq || !boq.items){ $('dashCostTable').innerHTML=''; return; }
+    var rows = '<tr><th>Uraian</th><th>Satuan</th><th>Volume</th><th>Jumlah Biaya</th></tr>';
+    boq.items.forEach(function(it){
+      rows += '<tr><td>'+it.uraian+'</td><td>'+it.satuan+'</td><td>'+fmt(it.volume,2)+'</td><td>'+rp(it.total)+'</td></tr>';
+    });
+    rows += '<tr><td colspan="3" style="font-weight:700;">TOTAL RAB</td><td style="font-weight:700;">'+rp(boq.grandTotal)+'</td></tr>';
+    $('dashCostTable').innerHTML = rows;
+  }
+
+  /* =========================== QC =========================== */
+  function renderQc(){
+    var qc = DATA.qc;
+    $('dashQcStatus').innerHTML = statusBadge(!!qc, qc?('disimpan '+dateLabel(qc.savedAt)):'');
+    $('dashQcKpi').innerHTML = qc ? (
+      '<div class="dash-kpi"><small>Total Item QC</small><b>'+qc.totalItems+'</b></div>'+
+      '<div class="dash-kpi"><small>PASS</small><b style="color:var(--c-green);">'+qc.passItems+'</b></div>'+
+      '<div class="dash-kpi"><small>FAIL</small><b style="color:var(--c-red);">'+qc.failItems+'</b></div>'+
+      '<div class="dash-kpi"><small>Pending</small><b style="color:var(--c-amber);">'+qc.pendingItems+'</b></div>'+
+      '<div class="dash-kpi"><small>NCR (open/total)</small><b>'+qc.openNcr+' / '+qc.totalNcr+'</b></div>'+
+      '<div class="dash-kpi"><small>Punch (open/total)</small><b>'+qc.openPunch+' / '+qc.totalPunch+'</b></div>'
+    ) : '';
+  }
+
+  /* =========================== ACTUAL PROGRESS INPUT =========================== */
+  function saveActual(date, pct){
+    var arr = DATA.actual.filter(function(a){ return a.date!==date; });
+    arr.push({date:date, pct:pct});
+    arr.sort(function(a,b){ return new Date(a.date)-new Date(b.date); });
+    DATA.actual = arr;
+    try{ localStorage.setItem('civilhub_actual_progress', JSON.stringify(arr)); }catch(e){}
+  }
+
+  $('dashAddActual').addEventListener('click', function(){
+    var date = $('dashActualDate').value;
+    var pct = parseFloat($('dashActualPct').value);
+    if(!date || isNaN(pct)){ toast('Isi tanggal & progres aktual terlebih dahulu.'); return; }
+    saveActual(date, Math.max(0, Math.min(100, pct)));
+    renderOverview(); renderScheduleSection();
+    toast('Progres aktual dicatat.');
+  });
+
+  $('dashRefresh').addEventListener('click', function(){
+    DATA = loadAll();
+    renderAll();
+    toast('Semua data dimuat ulang.');
+  });
+
+  /* =========================== REPORT =========================== */
+  function buildReportText(){
+    var lines = [];
+    lines.push('LAPORAN RINGKASAN PROYEK — PROJECT DASHBOARD');
+    lines.push('Civil Construction Engineering Suite');
+    lines.push('======================================================');
+    lines.push('');
+    lines.push('1. GEOTEKNIK & PONDASI');
+    lines.push('  Sondir/SPT  : '+(DATA.sondir?('Qizin '+fmt(DATA.sondir.Qizin)+' ton, rekomendasi: '+DATA.sondir.primaryRecommendation):'tidak tersedia'));
+    lines.push('  CBR/SandCone: '+(DATA.cbr?('CBR akhir '+fmt(DATA.cbr.cbrFinal)+'%'):'tidak tersedia'));
+    lines.push('  Desain Awal : '+(DATA.design?(DATA.design.concreteGrade+', volume beton '+fmt(DATA.design.concreteVolumeM3)+' m3'):'tidak tersedia'));
+    lines.push('');
+    lines.push('2. BIAYA (RAB)');
+    lines.push('  Total RAB   : '+rp(DATA.boq?DATA.boq.grandTotal:null));
+    lines.push('');
+    lines.push('3. JADWAL & PROGRESS');
+    lines.push('  Total durasi: '+(DATA.schedule?DATA.schedule.totalDurationDays:'–')+' hari');
+    if(DATA.actual.length){
+      var last = DATA.actual[DATA.actual.length-1];
+      var planned = plannedPctAtDate(last.date);
+      lines.push('  Progres terakhir ('+last.date+'): aktual '+fmt(last.pct,1)+'% vs rencana '+(planned!==null?fmt(planned,1):'–')+'%');
+    } else {
+      lines.push('  Belum ada input progres aktual.');
+    }
+    lines.push('');
+    lines.push('4. QUALITY CONTROL');
+    if(DATA.qc){
+      lines.push('  Item QC     : '+DATA.qc.totalItems+' (PASS '+DATA.qc.passItems+', FAIL '+DATA.qc.failItems+', Pending '+DATA.qc.pendingItems+')');
+      lines.push('  NCR         : '+DATA.qc.openNcr+' open / '+DATA.qc.totalNcr+' total');
+      lines.push('  Punch List  : '+DATA.qc.openPunch+' open / '+DATA.qc.totalPunch+' total');
+    } else {
+      lines.push('  Belum ada data QC.');
+    }
+    lines.push('');
+    lines.push('DISCLAIMER');
+    lines.push('Laporan ini adalah agregasi otomatis dari data yang telah dikirim dari masing-masing modul');
+    lines.push('Civil Hub. Verifikasi dan keputusan akhir tetap berada pada tim proyek (PM, QS, QA/QC,');
+    lines.push('Engineer Struktur/Geoteknik berwenang).');
+    return lines.join('\n');
+  }
+
+  function buildReportJson(){
+    return JSON.stringify({ generatedAt:new Date().toISOString(), data:DATA }, null, 2);
+  }
+
+  $('dashGenReport').addEventListener('click', function(){ $('dashReportBox').textContent = buildReportText(); });
+  $('dashCopyReport').addEventListener('click', function(){
+    var txt = buildReportText();
+    $('dashReportBox').textContent = txt;
+    navigator.clipboard && navigator.clipboard.writeText(txt).then(function(){ toast('Disalin.'); }).catch(function(){ toast('Gagal menyalin.'); });
+  });
+  $('dashDownloadTxt').addEventListener('click', function(){ downloadFile('project-dashboard-report.txt', buildReportText(), 'text/plain'); });
+  $('dashDownloadJson').addEventListener('click', function(){ downloadFile('project-dashboard-report.json', buildReportJson(), 'application/json'); });
+
+  window.addEventListener('resize', drawDashChart);
+
+  function renderAll(){
+    renderOverview();
+    renderGeo();
+    renderScheduleSection();
+    renderCost();
+    renderQc();
+  }
+  renderAll();
+})();
+</script>
+</body>
+</html>

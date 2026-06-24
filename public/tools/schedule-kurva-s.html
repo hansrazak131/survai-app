@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Schedule &amp; Kurva S</title>
+<!--
+  Civil Construction Engineering Suite — Modul "Schedule & Kurva S".
+  Membaca item pekerjaan & biaya dari BOQ/RAB (localStorage key:
+  civilhub_boq_result), menghitung durasi dari volume/produktivitas,
+  menyusun jadwal sekuensial sederhana (bar chart), dan kurva S rencana
+  (bobot biaya per item didistribusikan linear selama durasinya).
+  Ini adalah penjadwalan awal (preliminary) — bukan pengganti analisis
+  jaringan kerja (CPM/PDM) untuk proyek kompleks dengan banyak ketergantungan.
+-->
+<style>
+  .sch-root{
+    --c-bg:#F5F7FA; --c-card:#FFFFFF; --c-border:#E3E7EE; --c-border-soft:#EDF0F5;
+    --c-text:#101828; --c-muted:#667085; --c-faint:#98A2B3;
+    --c-blue:#2563EB; --c-blue-light:#EFF6FF; --c-green:#0F9D58;
+    --c-radius-lg:20px; --c-radius-md:14px;
+    --c-shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--c-bg); color:var(--c-text); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sch-root *{box-sizing:border-box;}
+  .sch-shell{max-width:1040px;margin:0 auto;padding:14px 14px 64px;}
+  .sch-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--c-muted);margin-bottom:10px;}
+  .sch-breadcrumb b{color:var(--c-text);font-weight:600;}
+  .sch-breadcrumb .sep{color:var(--c-faint);}
+  .sch-title h1{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;}
+  .sch-title p{margin:0 0 16px;color:var(--c-muted);font-size:13px;}
+  .sch-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .sch-tab{border:1px solid var(--c-border);background:var(--c-card);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--c-muted);cursor:pointer;}
+  .sch-tab.active{background:var(--c-blue);color:#fff;border-color:var(--c-blue);}
+  .sch-card{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--c-shadow-sm);}
+  .sch-card h2{font-size:15px;font-weight:700;margin:0 0 10px;}
+  .sch-hidden{display:none;}
+  .sch-note{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-blue-light);color:#1D4ED8;}
+  .sch-btn{border:1px solid var(--c-border);background:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--c-text);}
+  .sch-btn.primary{background:var(--c-blue);border-color:var(--c-blue);color:#fff;}
+  .sch-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  table.sch-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.sch-table th,table.sch-table td{border-bottom:1px solid var(--c-border-soft);padding:7px 8px;text-align:left;vertical-align:middle;}
+  table.sch-table th{color:var(--c-muted);font-weight:600;font-size:11.5px;text-transform:uppercase;}
+  table.sch-table input{width:90px;border:1px solid var(--c-border);border-radius:8px;padding:5px 7px;font-size:12.5px;}
+  .sch-num{text-align:right;}
+  .sch-gantt-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .sch-gantt-label{width:220px;font-size:12px;flex-shrink:0;}
+  .sch-gantt-track{position:relative;flex:1;height:18px;background:var(--c-border-soft);border-radius:6px;overflow:hidden;}
+  .sch-gantt-bar{position:absolute;top:0;height:100%;background:var(--c-blue);border-radius:6px;}
+  .sch-gantt-days{font-size:11px;color:var(--c-muted);width:90px;text-align:right;flex-shrink:0;}
+  .sch-pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#0B1220;color:#D7E2F2;border-radius:12px;padding:14px;max-height:420px;overflow:auto;}
+  .sch-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#101828;color:#fff;padding:9px 16px;border-radius:10px;font-size:12.5px;z-index:50;}
+  .sch-disclaimer{font-size:11.5px;color:var(--c-faint);border-top:1px dashed var(--c-border);padding-top:10px;margin-top:10px;line-height:1.5;}
+  .sch-kpi{border:1px solid var(--c-border-soft);border-radius:14px;padding:10px 12px;background:#FAFBFC;}
+  .sch-kpi small{display:block;color:var(--c-muted);font-size:11px;}
+  .sch-kpi b{font-size:16px;}
+  .sch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+  canvas.sch-chart{width:100%;height:280px;display:block;}
+</style>
+</head>
+<body>
+<div class="sch-root">
+  <div class="sch-shell">
+    <div class="sch-breadcrumb"><span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span><span>Civil</span><span class="sep">/</span><b>Schedule &amp; Kurva S</b></div>
+    <div class="sch-title">
+      <h1>Schedule &amp; Kurva S</h1>
+      <p>Durasi &amp; jadwal sekuensial awal dari item BOQ/RAB, lengkap dengan kurva S rencana.</p>
+    </div>
+
+    <div class="sch-tabs">
+      <button class="sch-tab active" data-tab="items">Item &amp; Produktivitas</button>
+      <button class="sch-tab" data-tab="gantt">Jadwal (Gantt)</button>
+      <button class="sch-tab" data-tab="curve">Kurva S</button>
+      <button class="sch-tab" data-tab="report">Report</button>
+    </div>
+
+    <!-- ===================== TAB: ITEMS ===================== -->
+    <section id="sch-view-items">
+      <div class="sch-card">
+        <h2>Item Pekerjaan &amp; Produktivitas Harian</h2>
+        <div id="schSourceNote"></div>
+        <div style="overflow-x:auto;">
+          <table class="sch-table" id="schItemsTable"></table>
+        </div>
+        <div class="sch-btn-row">
+          <button class="sch-btn" id="schReloadSource">Muat Ulang dari BOQ/RAB</button>
+        </div>
+        <div class="sch-note">Durasi (hari) = Volume ÷ Produktivitas per hari (dibulatkan ke atas, minimum 1 hari). Sesuaikan produktivitas dengan kapasitas tenaga kerja/alat di lapangan (acuan AHSP/SNI produktivitas dapat berbeda per kondisi proyek).</div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: GANTT ===================== -->
+    <section id="sch-view-gantt" class="sch-hidden">
+      <div class="sch-card">
+        <h2>Jadwal Sekuensial (Gantt Sederhana)</h2>
+        <div class="sch-grid" style="margin-bottom:10px;">
+          <div class="sch-kpi"><small>Tanggal Mulai Proyek</small><input type="date" id="schStartDate" style="width:100%;border:1px solid var(--c-border);border-radius:8px;padding:5px 7px;"></div>
+          <div class="sch-kpi"><small>Total Durasi</small><b id="schTotalDuration">–</b></div>
+        </div>
+        <div id="schGanttBox"></div>
+        <div class="sch-note">Jadwal disusun sekuensial (item berikutnya mulai setelah item sebelumnya selesai). Untuk pekerjaan yang dapat overlap/paralel, sesuaikan durasi atau urutan item secara manual di tab sebelumnya.</div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: KURVA S ===================== -->
+    <section id="sch-view-curve" class="sch-hidden">
+      <div class="sch-card">
+        <h2>Kurva S Rencana</h2>
+        <canvas class="sch-chart" id="schCurveChart"></canvas>
+        <div class="sch-disclaimer">
+          Bobot setiap item = biaya item ÷ total biaya BOQ/RAB. Progres rencana per item didistribusikan
+          linear sepanjang durasinya (asumsi produktivitas konstan). Kurva S aktual harus diisi dari progres
+          realisasi lapangan dan dibandingkan dengan kurva rencana ini untuk evaluasi deviasi (Earned Value).
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: REPORT ===================== -->
+    <section id="sch-view-report" class="sch-hidden">
+      <div class="sch-card">
+        <div class="sch-btn-row">
+          <button class="sch-btn primary" id="schGenReport">Generate Report</button>
+          <button class="sch-btn" id="schCopyReport">Copy</button>
+          <button class="sch-btn" id="schDownloadTxt">Export TXT</button>
+          <button class="sch-btn" id="schDownloadCsv">Export CSV (Kurva S)</button>
+          <button class="sch-btn" id="schDownloadJson">Export JSON</button>
+          <button class="sch-btn primary" id="schToDashboard">Kirim ke Dashboard</button>
+        </div>
+        <div class="sch-pre" id="schReportBox">Klik "Generate Report" untuk membuat ringkasan jadwal &amp; kurva S.</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '–'; d=(d===undefined)?2:d; return Number(n).toFixed(d); }
+  function rp(n){ if(n===null||n===undefined||isNaN(n)) return '–'; return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+  function toast(msg){
+    var t=document.createElement('div'); t.className='sch-toast'; t.textContent=msg;
+    document.body.appendChild(t); setTimeout(function(){ t.remove(); },1800);
+  }
+  function downloadFile(name, content, mime){
+    var blob=new Blob([content],{type:mime}); var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },200);
+  }
+  function uid(){ return 'i'+Math.random().toString(36).slice(2,9); }
+
+  /* =========================== STATE =========================== */
+  var state = { items: [] };
+
+  function loadSourceData(){
+    var d = null;
+    try{ var raw = localStorage.getItem('civilhub_boq_result'); if(raw) d = JSON.parse(raw); }catch(e){}
+    return d;
+  }
+
+  function defaultProductivity(satuan){
+    var map = {m3:3, m2:15, kg:300};
+    return map[satuan] || 5;
+  }
+
+  function itemsFromSource(src){
+    if(!src || !src.items) return [];
+    return src.items.map(function(it){
+      return {id:uid(), uraian:it.uraian, satuan:it.satuan, volume:it.volume, cost:it.total, productivity:defaultProductivity(it.satuan)};
+    });
+  }
+
+  /* =========================== RENDER: ITEMS =========================== */
+  function renderItemsTab(){
+    var src = loadSourceData();
+    $('schSourceNote').innerHTML = src
+      ? '<div class="sch-note">Item dimuat dari BOQ/RAB, disimpan '+(src.savedAt? new Date(src.savedAt).toLocaleString('id-ID'):'–')+'.</div>'
+      : '<div class="sch-note">Belum ada item dari BOQ/RAB. Buka modul tersebut, lalu klik "Kirim ke Schedule/Kurva S" pada tab Report.</div>';
+
+    var rows = '<tr><th style="width:30%;">Uraian</th><th>Satuan</th><th class="sch-num">Volume</th><th class="sch-num">Biaya</th><th class="sch-num">Produktivitas/hari</th><th class="sch-num">Durasi (hari)</th></tr>';
+    state.items.forEach(function(it){
+      var dur = Math.max(1, Math.ceil((it.volume||0) / (it.productivity||1)));
+      it.duration = dur;
+      rows += '<tr data-id="'+it.id+'">'+
+        '<td>'+it.uraian+'</td><td>'+it.satuan+'</td>'+
+        '<td class="sch-num">'+fmt(it.volume,2)+'</td>'+
+        '<td class="sch-num">'+rp(it.cost)+'</td>'+
+        '<td class="sch-num"><input type="number" step="0.5" class="sch-f-prod" value="'+it.productivity+'"></td>'+
+        '<td class="sch-num">'+dur+'</td>'+
+      '</tr>';
+    });
+    $('schItemsTable').innerHTML = rows;
+
+    Array.prototype.forEach.call($('schItemsTable').querySelectorAll('tr[data-id]'), function(tr){
+      var id = tr.getAttribute('data-id');
+      var it = state.items.find(function(x){ return x.id===id; });
+      tr.querySelector('.sch-f-prod').addEventListener('input', function(e){
+        it.productivity = parseFloat(e.target.value) || 1;
+        renderItemsTab();
+      });
+    });
+  }
+
+  /* =========================== SCHEDULE CALC =========================== */
+  function computeSchedule(){
+    var startDay = 0;
+    return state.items.map(function(it){
+      var dur = Math.max(1, Math.ceil((it.volume||0) / (it.productivity||1)));
+      var sched = {uraian:it.uraian, satuan:it.satuan, cost:it.cost, duration:dur, startDay:startDay, endDay:startDay+dur};
+      startDay += dur;
+      return sched;
+    });
+  }
+
+  /* =========================== RENDER: GANTT =========================== */
+  function renderGanttTab(){
+    var sched = computeSchedule();
+    var totalDur = sched.length ? sched[sched.length-1].endDay : 0;
+    $('schTotalDuration').textContent = totalDur + ' hari';
+    var box = $('schGanttBox');
+    box.innerHTML = sched.map(function(s){
+      var leftPct = totalDur ? (s.startDay/totalDur*100) : 0;
+      var widthPct = totalDur ? (s.duration/totalDur*100) : 0;
+      return '<div class="sch-gantt-row">'+
+        '<div class="sch-gantt-label">'+s.uraian+'</div>'+
+        '<div class="sch-gantt-track"><div class="sch-gantt-bar" style="left:'+leftPct+'%;width:'+widthPct+'%;"></div></div>'+
+        '<div class="sch-gantt-days">hari '+(s.startDay+1)+'–'+s.endDay+'</div>'+
+      '</div>';
+    }).join('') || '<div style="color:var(--c-muted);font-size:13px;">Belum ada item.</div>';
+    state._lastSchedule = sched;
+  }
+
+  /* =========================== KURVA S CALC =========================== */
+  function computeCurve(){
+    var sched = state._lastSchedule || computeSchedule();
+    var totalCost = sched.reduce(function(s,it){ return s+(it.cost||0); },0) || 1;
+    var totalDur = sched.length ? sched[sched.length-1].endDay : 0;
+    var points = [];
+    for(var day=0; day<=totalDur; day++){
+      var cum = 0;
+      sched.forEach(function(s){
+        if(day <= s.startDay) return;
+        var d = Math.min(day, s.endDay) - s.startDay;
+        var frac = Math.max(0, Math.min(1, d/s.duration));
+        cum += frac * (s.cost||0);
+      });
+      points.push({day:day, pct: (cum/totalCost)*100});
+    }
+    return points;
+  }
+
+  function drawCurveChart(points){
+    var canvas = $('schCurveChart');
+    var ctx = canvas.getContext('2d');
+    var w = canvas.clientWidth || 600, h = 280;
+    canvas.width = w; canvas.height = h;
+    ctx.clearRect(0,0,w,h);
+    var padL=40, padB=24, padT=14, padR=10;
+    var plotW = w-padL-padR, plotH = h-padT-padB;
+    ctx.strokeStyle = '#E3E7EE'; ctx.lineWidth = 1;
+    for(var g=0; g<=4; g++){
+      var y = padT + plotH - (g/4)*plotH;
+      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+      ctx.fillStyle = '#98A2B3'; ctx.font='11px Inter,Arial'; ctx.fillText((g*25)+'%', 4, y+4);
+    }
+    if(!points.length) return;
+    var maxDay = points[points.length-1].day || 1;
+    ctx.strokeStyle = '#2563EB'; ctx.lineWidth = 2; ctx.beginPath();
+    points.forEach(function(p,i){
+      var x = padL + (p.day/maxDay)*plotW;
+      var y = padT + plotH - (p.pct/100)*plotH;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.fillStyle = '#667085'; ctx.font='11px Inter,Arial';
+    ctx.fillText('Hari ke-0', padL, h-6);
+    ctx.fillText('Hari ke-'+maxDay, w-padR-50, h-6);
+  }
+
+  function renderCurveTab(){
+    var points = computeCurve();
+    drawCurveChart(points);
+    state._lastCurve = points;
+  }
+
+  /* =========================== REPORT =========================== */
+  function buildReportText(){
+    var sched = state._lastSchedule || computeSchedule();
+    var totalDur = sched.length ? sched[sched.length-1].endDay : 0;
+    var lines = [];
+    lines.push('JADWAL PELAKSANAAN & KURVA S RENCANA');
+    lines.push('Civil Construction Engineering Suite');
+    lines.push('======================================================');
+    lines.push('');
+    lines.push('1. DURASI PER ITEM');
+    sched.forEach(function(s){
+      lines.push('  '+s.uraian+' : '+s.duration+' hari (hari ke-'+(s.startDay+1)+' s.d. '+s.endDay+')');
+    });
+    lines.push('');
+    lines.push('  Total durasi proyek (estimasi) : '+totalDur+' hari');
+    lines.push('');
+    lines.push('2. KURVA S RENCANA');
+    lines.push('  Lihat data per-hari pada export CSV. Bobot tiap item = biaya/total biaya BOQ-RAB,');
+    lines.push('  didistribusikan linear sepanjang durasinya.');
+    lines.push('');
+    lines.push('DISCLAIMER');
+    lines.push('Jadwal ini disusun sekuensial sederhana tanpa analisis jaringan kerja (CPM/PDM) dan');
+    lines.push('tanpa mempertimbangkan keterbatasan resource/cuaca/hari libur. Untuk proyek dengan');
+    lines.push('banyak ketergantungan antar pekerjaan, gunakan software penjadwalan (CPM) dan sesuaikan');
+    lines.push('durasi dengan produktivitas tenaga kerja/alat aktual di lapangan.');
+    return lines.join('\n');
+  }
+
+  function buildReportCsv(){
+    var points = state._lastCurve || computeCurve();
+    var rows = [['Hari','Progress Rencana (%)']];
+    points.forEach(function(p){ rows.push([p.day, fmt(p.pct,2)]); });
+    return rows.map(function(row){ return row.join(','); }).join('\n');
+  }
+
+  function buildReportJson(){
+    return JSON.stringify({ generatedAt:new Date().toISOString(), items:state.items, schedule:state._lastSchedule, curve:state._lastCurve }, null, 2);
+  }
+
+  /* =========================== TAB SWITCH =========================== */
+  function showTab(key){
+    ['items','gantt','curve','report'].forEach(function(k){
+      $('sch-view-'+k).classList.toggle('sch-hidden', k!==key);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.sch-tab'), function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-tab')===key);
+    });
+    if(key==='gantt') renderGanttTab();
+    if(key==='curve') renderCurveTab();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.sch-tab'), function(btn){
+    btn.addEventListener('click', function(){ showTab(btn.getAttribute('data-tab')); });
+  });
+
+  $('schReloadSource').addEventListener('click', function(){
+    var src = loadSourceData();
+    var newItems = itemsFromSource(src);
+    if(!newItems.length){ toast('Tidak ada data dari BOQ/RAB.'); return; }
+    state.items = newItems;
+    renderItemsTab();
+    toast('Item dimuat ulang dari BOQ/RAB.');
+  });
+
+  $('schGenReport').addEventListener('click', function(){
+    renderGanttTab(); renderCurveTab();
+    $('schReportBox').textContent = buildReportText();
+  });
+  $('schCopyReport').addEventListener('click', function(){
+    renderGanttTab(); renderCurveTab();
+    var txt = buildReportText();
+    $('schReportBox').textContent = txt;
+    navigator.clipboard && navigator.clipboard.writeText(txt).then(function(){ toast('Disalin.'); }).catch(function(){ toast('Gagal menyalin.'); });
+  });
+  $('schDownloadTxt').addEventListener('click', function(){ renderGanttTab(); renderCurveTab(); downloadFile('schedule-kurva-s.txt', buildReportText(), 'text/plain'); });
+  $('schDownloadCsv').addEventListener('click', function(){ renderGanttTab(); renderCurveTab(); downloadFile('kurva-s-data.csv', buildReportCsv(), 'text/csv'); });
+  $('schDownloadJson').addEventListener('click', function(){ renderGanttTab(); renderCurveTab(); downloadFile('schedule-kurva-s.json', buildReportJson(), 'application/json'); });
+  $('schToDashboard').addEventListener('click', function(){
+    renderGanttTab(); renderCurveTab();
+    var sched = state._lastSchedule || [];
+    if(!sched.length){ toast('Belum ada jadwal untuk dikirim.'); return; }
+    var totalCost = sched.reduce(function(s,it){ return s+(it.cost||0); },0);
+    var payload = {
+      savedAt: new Date().toISOString(), source:'schedule-kurva-s',
+      startDate: $('schStartDate').value || null,
+      totalDurationDays: sched[sched.length-1].endDay,
+      totalCost: totalCost,
+      curve: state._lastCurve || []
+    };
+    try{
+      localStorage.setItem('civilhub_schedule_result', JSON.stringify(payload));
+      toast('Jadwal & kurva S dikirim ke Dashboard.');
+    }catch(e){ toast('Gagal menyimpan ke Dashboard.'); }
+  });
+
+  window.addEventListener('resize', function(){
+    if(!$('sch-view-curve').classList.contains('sch-hidden')) drawCurveChart(state._lastCurve||[]);
+  });
+
+  // Init
+  state.items = itemsFromSource(loadSourceData());
+  renderItemsTab();
+})();
+</script>
+</body>
+</html>

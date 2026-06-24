@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>BOQ &amp; RAB</title>
+<!--
+  Civil Construction Engineering Suite — Modul "BOQ & RAB Awal".
+  Membaca volume pekerjaan dari Foundation Advisor (localStorage key:
+  civilhub_design_result), menghitung harga satuan pekerjaan dengan
+  pendekatan AHSP (koefisien tenaga/bahan/alat x harga satuan dasar/HSD),
+  lalu menjumlahkan menjadi RAB awal. Koefisien default bersifat INDIKATIF
+  (mengikuti pola umum AHSP PUPR/Bina Marga) — wajib disesuaikan dengan
+  AHSP edisi resmi yang berlaku di lokasi proyek sebelum dipakai untuk RAB
+  kontraktual.
+-->
+<style>
+  .boq-root{
+    --c-bg:#F5F7FA; --c-card:#FFFFFF; --c-border:#E3E7EE; --c-border-soft:#EDF0F5;
+    --c-text:#101828; --c-muted:#667085; --c-faint:#98A2B3;
+    --c-blue:#2563EB; --c-blue-light:#EFF6FF;
+    --c-green:#0F9D58; --c-green-light:#E9F9F0;
+    --c-radius-lg:20px; --c-radius-md:14px;
+    --c-shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--c-bg); color:var(--c-text); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .boq-root *{box-sizing:border-box;}
+  .boq-shell{max-width:1040px;margin:0 auto;padding:14px 14px 64px;}
+  .boq-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--c-muted);margin-bottom:10px;}
+  .boq-breadcrumb b{color:var(--c-text);font-weight:600;}
+  .boq-breadcrumb .sep{color:var(--c-faint);}
+  .boq-title h1{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;}
+  .boq-title p{margin:0 0 16px;color:var(--c-muted);font-size:13px;}
+  .boq-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .boq-tab{border:1px solid var(--c-border);background:var(--c-card);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--c-muted);cursor:pointer;}
+  .boq-tab.active{background:var(--c-blue);color:#fff;border-color:var(--c-blue);}
+  .boq-card{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--c-shadow-sm);}
+  .boq-card h2{font-size:15px;font-weight:700;margin:0 0 10px;}
+  .boq-hidden{display:none;}
+  .boq-note{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-blue-light);color:#1D4ED8;}
+  .boq-btn{border:1px solid var(--c-border);background:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--c-text);}
+  .boq-btn.primary{background:var(--c-blue);border-color:var(--c-blue);color:#fff;}
+  .boq-btn.sm{padding:5px 10px;font-size:12px;}
+  .boq-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  table.boq-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.boq-table th,table.boq-table td{border-bottom:1px solid var(--c-border-soft);padding:7px 8px;text-align:left;vertical-align:middle;}
+  table.boq-table th{color:var(--c-muted);font-weight:600;font-size:11.5px;text-transform:uppercase;}
+  table.boq-table input,table.boq-table select{width:100%;border:1px solid var(--c-border);border-radius:8px;padding:5px 7px;font-size:12.5px;}
+  .boq-num{text-align:right;}
+  .boq-pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#0B1220;color:#D7E2F2;border-radius:12px;padding:14px;max-height:420px;overflow:auto;}
+  .boq-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#101828;color:#fff;padding:9px 16px;border-radius:10px;font-size:12.5px;z-index:50;}
+  .boq-disclaimer{font-size:11.5px;color:var(--c-faint);border-top:1px dashed var(--c-border);padding-top:10px;margin-top:10px;line-height:1.5;}
+  .boq-kpi{border:1px solid var(--c-border-soft);border-radius:14px;padding:10px 12px;background:#FAFBFC;}
+  .boq-kpi small{display:block;color:var(--c-muted);font-size:11px;}
+  .boq-kpi b{font-size:16px;}
+  .boq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+</style>
+</head>
+<body>
+<div class="boq-root">
+  <div class="boq-shell">
+    <div class="boq-breadcrumb"><span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span><span>Civil</span><span class="sep">/</span><b>BOQ &amp; RAB</b></div>
+    <div class="boq-title">
+      <h1>BOQ &amp; RAB Awal</h1>
+      <p>Volume pekerjaan otomatis dari Foundation Advisor, dihitung dengan pendekatan AHSP menjadi RAB awal.</p>
+    </div>
+
+    <div class="boq-tabs">
+      <button class="boq-tab active" data-tab="boq">BOQ</button>
+      <button class="boq-tab" data-tab="hsd">AHSP &amp; Harga Satuan</button>
+      <button class="boq-tab" data-tab="rab">RAB</button>
+      <button class="boq-tab" data-tab="report">Report</button>
+    </div>
+
+    <!-- ===================== TAB: BOQ ===================== -->
+    <section id="boq-view-boq">
+      <div class="boq-card">
+        <h2>Bill of Quantity (BOQ)</h2>
+        <div id="boqSourceNote"></div>
+        <div style="overflow-x:auto;">
+          <table class="boq-table" id="boqTable"></table>
+        </div>
+        <div class="boq-btn-row">
+          <button class="boq-btn" id="boqAddRow">+ Tambah Item Manual</button>
+          <button class="boq-btn" id="boqReloadSource">Muat Ulang dari Foundation Advisor</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: AHSP & HSD ===================== -->
+    <section id="boq-view-hsd" class="boq-hidden">
+      <div class="boq-card">
+        <h2>Harga Satuan Dasar (HSD)</h2>
+        <div class="boq-note">Isi harga satuan dasar tenaga kerja, bahan, dan alat sesuai lokasi proyek. Koefisien AHSP pada tiap item BOQ bersifat indikatif (pola umum AHSP PUPR/Bina Marga) dan otomatis dikalikan dengan HSD ini untuk mendapatkan harga satuan pekerjaan.</div>
+        <div style="overflow-x:auto;">
+          <table class="boq-table" id="hsdTable"></table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: RAB ===================== -->
+    <section id="boq-view-rab" class="boq-hidden">
+      <div class="boq-card">
+        <h2>Rencana Anggaran Biaya (RAB)</h2>
+        <div class="boq-grid" style="margin-bottom:10px;">
+          <div class="boq-kpi"><small>Overhead &amp; Profit (%)</small><input type="number" step="0.5" id="rabOverhead" value="10" style="width:100%;border:1px solid var(--c-border);border-radius:8px;padding:5px 7px;"></div>
+          <div class="boq-kpi"><small>PPN (%)</small><input type="number" step="0.5" id="rabPpn" value="11" style="width:100%;border:1px solid var(--c-border);border-radius:8px;padding:5px 7px;"></div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="boq-table" id="rabTable"></table>
+        </div>
+        <div class="boq-grid" style="margin-top:10px;">
+          <div class="boq-kpi"><small>Subtotal Pekerjaan</small><b id="rabSubtotal">–</b></div>
+          <div class="boq-kpi"><small>Overhead &amp; Profit</small><b id="rabOverheadVal">–</b></div>
+          <div class="boq-kpi"><small>PPN</small><b id="rabPpnVal">–</b></div>
+          <div class="boq-kpi"><small>Total RAB</small><b id="rabTotal">–</b></div>
+        </div>
+        <div class="boq-disclaimer">
+          Estimasi ini adalah RAB awal (tahap konsep) berbasis koefisien AHSP indikatif dan volume preliminary
+          dari Foundation Advisor. Untuk RAB kontraktual gunakan AHSP resmi (Permen PUPR / SE terbaru) dan
+          volume hasil gambar kerja/shop drawing final, serta survei harga pasar setempat.
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: REPORT ===================== -->
+    <section id="boq-view-report" class="boq-hidden">
+      <div class="boq-card">
+        <div class="boq-btn-row">
+          <button class="boq-btn primary" id="boqGenReport">Generate Report</button>
+          <button class="boq-btn" id="boqCopyReport">Copy</button>
+          <button class="boq-btn" id="boqDownloadTxt">Export TXT</button>
+          <button class="boq-btn" id="boqDownloadCsv">Export CSV</button>
+          <button class="boq-btn" id="boqDownloadJson">Export JSON</button>
+          <button class="boq-btn primary" id="boqToSchedule">Kirim ke Schedule/Kurva S</button>
+        </div>
+        <div class="boq-pre" id="boqReportBox">Klik "Generate Report" untuk membuat ringkasan BOQ &amp; RAB.</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '–'; d=(d===undefined)?2:d; return Number(n).toFixed(d); }
+  function rp(n){ if(n===null||n===undefined||isNaN(n)) return '–'; return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+  function toast(msg){
+    var t=document.createElement('div'); t.className='boq-toast'; t.textContent=msg;
+    document.body.appendChild(t); setTimeout(function(){ t.remove(); },1800);
+  }
+  function downloadFile(name, content, mime){
+    var blob=new Blob([content],{type:mime}); var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },200);
+  }
+  function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
+
+  /* =========================== AHSP LIBRARY (INDIKATIF) =========================== */
+  // Koefisien per satuan pekerjaan, pola umum AHSP PUPR/Bina Marga.
+  // WAJIB disesuaikan dengan AHSP edisi resmi yang berlaku sebelum dipakai untuk RAB kontrak.
+  var AHSP = {
+    beton: { label:'Beton Pondasi (per m3)', unit:'m3',
+      labor:[{name:'Pekerja',coef:1.65,unit:'OH'},{name:'Tukang Batu',coef:0.275,unit:'OH'},{name:'Kepala Tukang',coef:0.028,unit:'OH'},{name:'Mandor',coef:0.083,unit:'OH'}],
+      material:[{name:'Semen PC',coef:336,unit:'kg'},{name:'Pasir Beton',coef:0.54,unit:'m3'},{name:'Kerikil/Split',coef:0.81,unit:'m3'},{name:'Air Kerja',coef:215,unit:'liter'}],
+      equipment:[{name:'Concrete Mixer',coef:0.083,unit:'jam'},{name:'Concrete Vibrator',coef:0.083,unit:'jam'}]
+    },
+    bekisting: { label:'Bekisting Pondasi (per m2)', unit:'m2',
+      labor:[{name:'Pekerja',coef:0.66,unit:'OH'},{name:'Tukang Kayu',coef:0.33,unit:'OH'},{name:'Kepala Tukang',coef:0.033,unit:'OH'},{name:'Mandor',coef:0.033,unit:'OH'}],
+      material:[{name:'Kayu Bekisting',coef:0.04,unit:'m3'},{name:'Paku',coef:0.4,unit:'kg'},{name:'Minyak Bekisting',coef:0.2,unit:'liter'},{name:'Plywood 9mm',coef:0.35,unit:'lbr'}],
+      equipment:[]
+    },
+    besi: { label:'Pembesian Pondasi (per kg)', unit:'kg',
+      labor:[{name:'Pekerja',coef:0.007,unit:'OH'},{name:'Tukang Besi',coef:0.007,unit:'OH'},{name:'Kepala Tukang',coef:0.0007,unit:'OH'},{name:'Mandor',coef:0.0004,unit:'OH'}],
+      material:[{name:'Besi Beton',coef:1.05,unit:'kg'},{name:'Kawat Bendrat',coef:0.015,unit:'kg'}],
+      equipment:[]
+    },
+    galian: { label:'Galian Tanah Manual (per m3)', unit:'m3',
+      labor:[{name:'Pekerja',coef:0.75,unit:'OH'},{name:'Mandor',coef:0.025,unit:'OH'}],
+      material:[], equipment:[]
+    },
+    urugan: { label:'Urugan Pasir Dipadatkan (per m3)', unit:'m3',
+      labor:[{name:'Pekerja',coef:0.3,unit:'OH'},{name:'Mandor',coef:0.01,unit:'OH'}],
+      material:[{name:'Pasir Urug',coef:1.2,unit:'m3'}], equipment:[{name:'Stamper',coef:0.1,unit:'jam'}]
+    },
+    manual: { label:'Item Manual (harga satuan langsung)', unit:'-', labor:[], material:[], equipment:[] }
+  };
+
+  /* =========================== STATE =========================== */
+  var state = { items: [], hsd: {} };
+
+  function loadSourceData(){
+    var d = null;
+    try{ var raw = localStorage.getItem('civilhub_design_result'); if(raw) d = JSON.parse(raw); }catch(e){}
+    return d;
+  }
+
+  function defaultItemsFromSource(d){
+    if(!d) return [];
+    var items = [];
+    if(d.concreteVolumeM3) items.push({id:uid(), uraian:'Pekerjaan Beton Pondasi ('+(d.concreteGrade||'')+')', satuan:'m3', volume:d.concreteVolumeM3, ahsp:'beton', manualPrice:null});
+    if(d.formworkAreaM2) items.push({id:uid(), uraian:'Pekerjaan Bekisting Pondasi', satuan:'m2', volume:d.formworkAreaM2, ahsp:'bekisting', manualPrice:null});
+    if(d.rebarWeightKg) items.push({id:uid(), uraian:'Pekerjaan Pembesian Pondasi', satuan:'kg', volume:d.rebarWeightKg, ahsp:'besi', manualPrice:null});
+    return items;
+  }
+
+  function collectHsdKeys(){
+    var keys = {}; // name -> unit
+    state.items.forEach(function(it){
+      var lib = AHSP[it.ahsp];
+      if(!lib) return;
+      ['labor','material','equipment'].forEach(function(grp){
+        (lib[grp]||[]).forEach(function(r){ keys[r.name] = r.unit; });
+      });
+    });
+    return keys;
+  }
+
+  /* =========================== RENDER: BOQ =========================== */
+  function renderBoqTab(){
+    var src = loadSourceData();
+    $('boqSourceNote').innerHTML = src
+      ? '<div class="boq-note">Volume dimuat dari Foundation Advisor, disimpan '+(src.savedAt? new Date(src.savedAt).toLocaleString('id-ID'):'–')+'. Anda tetap dapat mengubah/menambah item di bawah.</div>'
+      : '<div class="boq-note">Belum ada volume dari Foundation Advisor. Buka modul tersebut, lalu klik "Kirim Volume ke BOQ/RAB" pada tab Report. Anda juga bisa menambah item manual di sini.</div>';
+
+    var rows = '<tr><th style="width:28%;">Uraian Pekerjaan</th><th>Satuan</th><th>Volume</th><th>AHSP</th><th style="width:120px;">Harga Manual (Rp)</th><th></th></tr>';
+    state.items.forEach(function(it){
+      rows += '<tr data-id="'+it.id+'">'+
+        '<td><input type="text" class="boq-f-uraian" value="'+(it.uraian||'').replace(/"/g,'&quot;')+'"></td>'+
+        '<td><input type="text" class="boq-f-satuan" value="'+(it.satuan||'')+'" style="width:70px;"></td>'+
+        '<td><input type="number" step="0.01" class="boq-f-volume" value="'+(it.volume!==null&&it.volume!==undefined?it.volume:'')+'" style="width:90px;"></td>'+
+        '<td><select class="boq-f-ahsp">'+Object.keys(AHSP).map(function(k){
+          return '<option value="'+k+'"'+(it.ahsp===k?' selected':'')+'>'+AHSP[k].label+'</option>';
+        }).join('')+'</select></td>'+
+        '<td><input type="number" step="100" class="boq-f-manual" value="'+(it.manualPrice!==null&&it.manualPrice!==undefined?it.manualPrice:'')+'" placeholder="opsional" style="width:110px;"></td>'+
+        '<td><button class="boq-btn sm boq-f-del" type="button">Hapus</button></td>'+
+      '</tr>';
+    });
+    $('boqTable').innerHTML = rows;
+
+    Array.prototype.forEach.call($('boqTable').querySelectorAll('tr[data-id]'), function(tr){
+      var id = tr.getAttribute('data-id');
+      var it = state.items.find(function(x){ return x.id===id; });
+      function bind(sel, field, isNum){
+        tr.querySelector(sel).addEventListener('input', function(e){
+          it[field] = isNum ? (e.target.value===''?null:parseFloat(e.target.value)) : e.target.value;
+        });
+      }
+      bind('.boq-f-uraian','uraian',false);
+      bind('.boq-f-satuan','satuan',false);
+      bind('.boq-f-volume','volume',true);
+      bind('.boq-f-manual','manualPrice',true);
+      tr.querySelector('.boq-f-ahsp').addEventListener('change', function(e){ it.ahsp = e.target.value; });
+      tr.querySelector('.boq-f-del').addEventListener('click', function(){
+        state.items = state.items.filter(function(x){ return x.id!==id; });
+        renderBoqTab();
+      });
+    });
+  }
+
+  /* =========================== RENDER: HSD =========================== */
+  function renderHsdTab(){
+    var keys = collectHsdKeys();
+    var names = Object.keys(keys).sort();
+    if(!names.length){
+      $('hsdTable').innerHTML = '<tr><td style="color:var(--c-muted);">Belum ada item BOQ yang memakai AHSP — tambah item di tab BOQ terlebih dahulu.</td></tr>';
+      return;
+    }
+    var rows = '<tr><th>Komponen</th><th>Satuan</th><th style="width:160px;">Harga Satuan Dasar (Rp)</th></tr>';
+    names.forEach(function(n){
+      var val = state.hsd[n]!==undefined ? state.hsd[n] : '';
+      rows += '<tr><td>'+n+'</td><td>'+keys[n]+'</td><td><input type="number" step="100" class="hsd-input" data-name="'+n+'" value="'+val+'"></td></tr>';
+    });
+    $('hsdTable').innerHTML = rows;
+    Array.prototype.forEach.call($('hsdTable').querySelectorAll('.hsd-input'), function(inp){
+      inp.addEventListener('input', function(){
+        state.hsd[inp.getAttribute('data-name')] = inp.value===''?0:parseFloat(inp.value);
+      });
+    });
+  }
+
+  /* =========================== CALC: UNIT PRICE =========================== */
+  function unitPriceFor(it){
+    if(it.ahsp==='manual' || (it.manualPrice!==null && it.manualPrice!==undefined && it.manualPrice!=='')){
+      return it.manualPrice || 0;
+    }
+    var lib = AHSP[it.ahsp];
+    if(!lib) return 0;
+    var total = 0;
+    ['labor','material','equipment'].forEach(function(grp){
+      (lib[grp]||[]).forEach(function(r){
+        var hsd = state.hsd[r.name] || 0;
+        total += r.coef * hsd;
+      });
+    });
+    return total;
+  }
+
+  function computeRab(){
+    return state.items.map(function(it){
+      var unitPrice = unitPriceFor(it);
+      var vol = it.volume || 0;
+      return {
+        uraian: it.uraian, satuan: it.satuan, volume: vol,
+        unitPrice: unitPrice, total: vol*unitPrice,
+        ahspLabel: AHSP[it.ahsp] ? AHSP[it.ahsp].label : it.ahsp
+      };
+    });
+  }
+
+  /* =========================== RENDER: RAB =========================== */
+  function renderRabTab(){
+    var rows = computeRab();
+    var html = '<tr><th>Uraian</th><th>Satuan</th><th class="boq-num">Volume</th><th class="boq-num">Harga Satuan</th><th class="boq-num">Jumlah</th></tr>';
+    rows.forEach(function(r){
+      html += '<tr><td>'+r.uraian+'</td><td>'+r.satuan+'</td><td class="boq-num">'+fmt(r.volume,2)+'</td><td class="boq-num">'+rp(r.unitPrice)+'</td><td class="boq-num">'+rp(r.total)+'</td></tr>';
+    });
+    $('rabTable').innerHTML = html;
+
+    var subtotal = rows.reduce(function(s,r){ return s+r.total; },0);
+    var ohPct = parseFloat($('rabOverhead').value)||0;
+    var ppnPct = parseFloat($('rabPpn').value)||0;
+    var ohVal = subtotal*ohPct/100;
+    var ppnVal = (subtotal+ohVal)*ppnPct/100;
+    var grand = subtotal+ohVal+ppnVal;
+
+    $('rabSubtotal').textContent = rp(subtotal);
+    $('rabOverheadVal').textContent = rp(ohVal);
+    $('rabPpnVal').textContent = rp(ppnVal);
+    $('rabTotal').textContent = rp(grand);
+
+    state._lastRab = {rows:rows, subtotal:subtotal, overheadPct:ohPct, overheadVal:ohVal, ppnPct:ppnPct, ppnVal:ppnVal, grandTotal:grand};
+  }
+
+  /* =========================== REPORT =========================== */
+  function buildReportText(){
+    var r = state._lastRab;
+    var lines = [];
+    lines.push('BILL OF QUANTITY & RENCANA ANGGARAN BIAYA (RAB) AWAL');
+    lines.push('Civil Construction Engineering Suite');
+    lines.push('======================================================');
+    lines.push('');
+    lines.push('1. BILL OF QUANTITY');
+    (r?r.rows:[]).forEach(function(row){
+      lines.push('  '+row.uraian+' : '+fmt(row.volume,2)+' '+row.satuan+' ('+row.ahspLabel+')');
+    });
+    lines.push('');
+    lines.push('2. RENCANA ANGGARAN BIAYA');
+    (r?r.rows:[]).forEach(function(row){
+      lines.push('  '+row.uraian+' = '+fmt(row.volume,2)+' x '+rp(row.unitPrice)+' = '+rp(row.total));
+    });
+    lines.push('  ---');
+    lines.push('  Subtotal              : '+rp(r?r.subtotal:0));
+    lines.push('  Overhead & Profit ('+(r?r.overheadPct:0)+'%) : '+rp(r?r.overheadVal:0));
+    lines.push('  PPN ('+(r?r.ppnPct:0)+'%)            : '+rp(r?r.ppnVal:0));
+    lines.push('  TOTAL RAB             : '+rp(r?r.grandTotal:0));
+    lines.push('');
+    lines.push('REFERENSI');
+    lines.push('  Pendekatan AHSP (Analisa Harga Satuan Pekerjaan) mengacu pola umum AHSP PUPR/Bina Marga.');
+    lines.push('  Volume pekerjaan dari modul Foundation Advisor (Civil Construction Engineering Suite).');
+    lines.push('');
+    lines.push('DISCLAIMER');
+    lines.push('RAB ini adalah estimasi awal tahap konsep. Koefisien AHSP bersifat indikatif dan harus');
+    lines.push('disesuaikan dengan AHSP resmi (Permen PUPR/SE terbaru) serta survei harga pasar setempat');
+    lines.push('sebelum digunakan sebagai dasar kontrak atau pengadaan.');
+    return lines.join('\n');
+  }
+
+  function buildReportCsv(){
+    var r = state._lastRab;
+    var rows = [['Uraian','Satuan','Volume','Harga Satuan','Jumlah']];
+    (r?r.rows:[]).forEach(function(row){
+      rows.push([row.uraian, row.satuan, fmt(row.volume,2), Math.round(row.unitPrice), Math.round(row.total)]);
+    });
+    return rows.map(function(row){ return row.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  }
+
+  function buildReportJson(){
+    return JSON.stringify({ generatedAt:new Date().toISOString(), items:state.items, hsd:state.hsd, rab:state._lastRab }, null, 2);
+  }
+
+  /* =========================== TAB SWITCH =========================== */
+  function showTab(key){
+    ['boq','hsd','rab','report'].forEach(function(k){
+      $('boq-view-'+k).classList.toggle('boq-hidden', k!==key);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.boq-tab'), function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-tab')===key);
+    });
+    if(key==='hsd') renderHsdTab();
+    if(key==='rab') renderRabTab();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.boq-tab'), function(btn){
+    btn.addEventListener('click', function(){ showTab(btn.getAttribute('data-tab')); });
+  });
+
+  $('boqAddRow').addEventListener('click', function(){
+    state.items.push({id:uid(), uraian:'Item baru', satuan:'m3', volume:0, ahsp:'manual', manualPrice:0});
+    renderBoqTab();
+  });
+  $('boqReloadSource').addEventListener('click', function(){
+    var src = loadSourceData();
+    var newItems = defaultItemsFromSource(src);
+    if(!newItems.length){ toast('Tidak ada data baru dari Foundation Advisor.'); return; }
+    state.items = newItems.concat(state.items.filter(function(it){ return it.ahsp==='manual'; }));
+    renderBoqTab();
+    toast('BOQ dimuat ulang dari Foundation Advisor.');
+  });
+
+  $('rabOverhead').addEventListener('input', renderRabTab);
+  $('rabPpn').addEventListener('input', renderRabTab);
+
+  $('boqGenReport').addEventListener('click', function(){
+    renderRabTab();
+    $('boqReportBox').textContent = buildReportText();
+  });
+  $('boqCopyReport').addEventListener('click', function(){
+    renderRabTab();
+    var txt = buildReportText();
+    $('boqReportBox').textContent = txt;
+    navigator.clipboard && navigator.clipboard.writeText(txt).then(function(){ toast('Disalin.'); }).catch(function(){ toast('Gagal menyalin.'); });
+  });
+  $('boqDownloadTxt').addEventListener('click', function(){ renderRabTab(); downloadFile('boq-rab-report.txt', buildReportText(), 'text/plain'); });
+  $('boqDownloadCsv').addEventListener('click', function(){ renderRabTab(); downloadFile('boq-rab-data.csv', buildReportCsv(), 'text/csv'); });
+  $('boqDownloadJson').addEventListener('click', function(){ renderRabTab(); downloadFile('boq-rab-data.json', buildReportJson(), 'application/json'); });
+  $('boqToSchedule').addEventListener('click', function(){
+    renderRabTab();
+    var r = state._lastRab;
+    if(!r || !r.rows.length){ toast('Belum ada item RAB untuk dikirim.'); return; }
+    var payload = {
+      savedAt: new Date().toISOString(),
+      source: 'boq-rab',
+      items: r.rows.map(function(row){ return {uraian:row.uraian, satuan:row.satuan, volume:row.volume, total:row.total}; }),
+      grandTotal: r.grandTotal
+    };
+    try{
+      localStorage.setItem('civilhub_boq_result', JSON.stringify(payload));
+      toast('Item pekerjaan dikirim ke Schedule/Kurva S.');
+    }catch(e){ toast('Gagal menyimpan ke Schedule/Kurva S.'); }
+  });
+
+  // Init
+  state.items = defaultItemsFromSource(loadSourceData());
+  renderBoqTab();
+})();
+</script>
+</body>
+</html>

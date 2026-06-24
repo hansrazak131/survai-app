@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Foundation Advisor</title>
+<!--
+  Civil Construction Engineering Suite — Modul "Foundation Advisor".
+  Membaca hasil tersimpan dari:
+    - cbr-lapangan-sand-cone.html  (localStorage key: civilhub_cbr_result)
+    - sondir-spt-foundation-planner.html (localStorage key: civilhub_sondir_result)
+  lalu menghasilkan rekomendasi pondasi awal terintegrasi (jenis, dimensi,
+  mutu beton, tulangan awal, volume beton/bekisting) berdasarkan SNI 8460:2017,
+  SNI 2847:2019, dan SNI 1738:2011. Hasil adalah estimasi awal — wajib
+  diverifikasi oleh engineer struktur/geoteknik berwenang.
+-->
+<style>
+  .fa-root{
+    --c-bg:#F5F7FA; --c-card:#FFFFFF; --c-border:#E3E7EE; --c-border-soft:#EDF0F5;
+    --c-text:#101828; --c-muted:#667085; --c-faint:#98A2B3;
+    --c-blue:#2563EB; --c-blue-light:#EFF6FF;
+    --c-green:#0F9D58; --c-green-light:#E9F9F0;
+    --c-amber:#B54708; --c-amber-light:#FFF6E5;
+    --c-red:#B42318; --c-red-light:#FEF3F2;
+    --c-radius-lg:20px; --c-radius-md:14px;
+    --c-shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    --c-shadow-md:0 4px 14px rgba(16,24,40,.07);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--c-bg); color:var(--c-text); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .fa-root *{box-sizing:border-box;}
+  .fa-shell{max-width:980px;margin:0 auto;padding:14px 14px 64px;}
+  .fa-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--c-muted);margin-bottom:10px;}
+  .fa-breadcrumb b{color:var(--c-text);font-weight:600;}
+  .fa-breadcrumb .sep{color:var(--c-faint);}
+  .fa-title h1{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;}
+  .fa-title p{margin:0 0 16px;color:var(--c-muted);font-size:13px;}
+  .fa-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .fa-tab{border:1px solid var(--c-border);background:var(--c-card);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--c-muted);cursor:pointer;}
+  .fa-tab.active{background:var(--c-blue);color:#fff;border-color:var(--c-blue);}
+  .fa-card{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--c-shadow-sm);}
+  .fa-card h2{font-size:15px;font-weight:700;margin:0 0 10px;}
+  .fa-card h3{font-size:13px;font-weight:700;margin:14px 0 6px;}
+  .fa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+  .fa-field label{display:block;font-size:12px;color:var(--c-muted);margin-bottom:4px;}
+  .fa-field input,.fa-field select{width:100%;border:1px solid var(--c-border);border-radius:10px;padding:8px 10px;font-size:13.5px;background:#fff;color:var(--c-text);}
+  .fa-kpi{border:1px solid var(--c-border-soft);border-radius:14px;padding:10px 12px;background:#FAFBFC;}
+  .fa-kpi small{display:block;color:var(--c-muted);font-size:11px;}
+  .fa-kpi b{font-size:16px;}
+  .fa-kpi .unit{font-size:11px;color:var(--c-faint);margin-left:3px;}
+  .fa-status{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;border-radius:999px;padding:4px 10px;}
+  .fa-status.ok{background:var(--c-green-light);color:var(--c-green);}
+  .fa-status.warn{background:var(--c-amber-light);color:var(--c-amber);}
+  .fa-status.missing{background:var(--c-red-light);color:var(--c-red);}
+  .fa-note{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;}
+  .fa-note.info{background:var(--c-blue-light);color:#1D4ED8;}
+  .fa-note.warn{background:var(--c-amber-light);color:var(--c-amber);}
+  .fa-note.danger{background:var(--c-red-light);color:var(--c-red);}
+  .fa-list{margin:0;padding-left:18px;font-size:13px;line-height:1.6;}
+  .fa-btn{border:1px solid var(--c-border);background:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--c-text);}
+  .fa-btn.primary{background:var(--c-blue);border-color:var(--c-blue);color:#fff;}
+  .fa-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .fa-hidden{display:none;}
+  .fa-pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#0B1220;color:#D7E2F2;border-radius:12px;padding:14px;max-height:420px;overflow:auto;}
+  .fa-disclaimer{font-size:11.5px;color:var(--c-faint);border-top:1px dashed var(--c-border);padding-top:10px;margin-top:10px;line-height:1.5;}
+  .fa-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#101828;color:#fff;padding:9px 16px;border-radius:10px;font-size:12.5px;z-index:50;}
+  table.fa-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.fa-table th,table.fa-table td{border-bottom:1px solid var(--c-border-soft);padding:6px 8px;text-align:left;}
+</style>
+</head>
+<body>
+<div class="fa-root">
+  <div class="fa-shell">
+    <div class="fa-breadcrumb"><span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span><span>Civil</span><span class="sep">/</span><b>Foundation Advisor</b></div>
+    <div class="fa-title">
+      <h1>Foundation Advisor</h1>
+      <p>Rekomendasi pondasi awal terintegrasi dari hasil Sondir/SPT &amp; CBR Lapangan/Sand Cone. Bagian dari Civil Construction Engineering Suite.</p>
+    </div>
+
+    <div class="fa-tabs">
+      <button class="fa-tab active" data-tab="data">Data Sumber</button>
+      <button class="fa-tab" data-tab="design">Parameter Desain</button>
+      <button class="fa-tab" data-tab="recommendation">Rekomendasi</button>
+      <button class="fa-tab" data-tab="report">Report</button>
+    </div>
+
+    <!-- ===================== TAB: DATA SUMBER ===================== -->
+    <section id="fa-view-data">
+      <div class="fa-card">
+        <h2>Hasil Sondir &amp; SPT (Foundation Planner)</h2>
+        <div id="faSondirStatus"></div>
+        <div id="faSondirBox"></div>
+      </div>
+      <div class="fa-card">
+        <h2>Hasil CBR Lapangan &amp; Sand Cone</h2>
+        <div id="faCbrStatus"></div>
+        <div id="faCbrBox"></div>
+      </div>
+      <div class="fa-btn-row">
+        <button class="fa-btn" id="faRefresh">Muat Ulang Data</button>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: PARAMETER DESAIN ===================== -->
+    <section id="fa-view-design" class="fa-hidden">
+      <div class="fa-card">
+        <h2>Parameter Desain Awal</h2>
+        <div class="fa-grid">
+          <div class="fa-field"><label>Beban rencana per kolom (ton)</label><input type="number" step="0.1" id="faLoad" value="50"></div>
+          <div class="fa-field"><label>Mutu baja tulangan fy (MPa)</label><input type="number" step="10" id="faFy" value="420"></div>
+          <div class="fa-field"><label>Selimut beton (mm)</label><input type="number" step="1" id="faCover" value="50"></div>
+          <div class="fa-field"><label>Tebal awal pelat/poer (m)</label><input type="number" step="0.05" id="faThk" value="0.6"></div>
+          <div class="fa-field"><label>Faktor jarak antar tiang (x D)</label><input type="number" step="0.1" id="faSpacing" value="3"></div>
+        </div>
+        <div class="fa-note info">Nilai default beban rencana diambil dari data Sondir/SPT bila tersedia (field "Beban Rencana" pada modul tersebut). Sesuaikan sesuai hasil analisis struktur atas.</div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: REKOMENDASI ===================== -->
+    <section id="fa-view-recommendation" class="fa-hidden">
+      <div class="fa-card">
+        <h2>Rekomendasi Jenis Pondasi</h2>
+        <div id="faPrimaryBox"></div>
+      </div>
+      <div class="fa-card">
+        <h2>Catatan Gabungan Geoteknik (Sondir/SPT) + Mutu Tanah Dasar (CBR/Sand Cone)</h2>
+        <div id="faCombinedNotes"></div>
+      </div>
+      <div class="fa-card">
+        <h2>Dimensi &amp; Mutu Beton Awal</h2>
+        <div id="faDesignOutput"></div>
+        <div class="fa-disclaimer">
+          Perhitungan pada modul ini adalah estimasi awal (preliminary sizing) untuk membantu tahap konsep desain.
+          Daya dukung tanah/tiang harus diverifikasi dengan analisis kapasitas dukung formal (Terzaghi/Meyerhof,
+          atau hasil uji statik/dinamik tiang) sesuai SNI 8460:2017. Dimensi struktur akhir, penulangan, dan mutu
+          beton wajib dihitung ulang oleh Insinyur Struktur sesuai SNI 2847:2019 dan dibebani kombinasi beban
+          sesuai SNI 1727:2020 / SNI 1726:2019 (gempa) bila relevan.
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: REPORT ===================== -->
+    <section id="fa-view-report" class="fa-hidden">
+      <div class="fa-card">
+        <div class="fa-btn-row">
+          <button class="fa-btn primary" id="faGenReport">Generate Report</button>
+          <button class="fa-btn" id="faCopyReport">Copy</button>
+          <button class="fa-btn" id="faDownloadTxt">Export TXT</button>
+          <button class="fa-btn" id="faDownloadJson">Export JSON</button>
+          <button class="fa-btn primary" id="faToBoq">Kirim Volume ke BOQ/RAB</button>
+        </div>
+        <div class="fa-pre" id="faReportBox">Klik "Generate Report" untuk membuat ringkasan rekomendasi pondasi.</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* =========================== LOAD DATA =========================== */
+  function loadHubData(){
+    var sondir = null, cbr = null;
+    try{ var s = localStorage.getItem('civilhub_sondir_result'); if(s) sondir = JSON.parse(s); }catch(e){}
+    try{ var c = localStorage.getItem('civilhub_cbr_result'); if(c) cbr = JSON.parse(c); }catch(e){}
+    return {sondir:sondir, cbr:cbr};
+  }
+  var DATA = loadHubData();
+
+  function fmt(n,d){
+    if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '–';
+    d = (d===undefined)?2:d;
+    return Number(n).toFixed(d);
+  }
+  function dateLabel(iso){
+    if(!iso) return '–';
+    try{ return new Date(iso).toLocaleString('id-ID'); }catch(e){ return iso; }
+  }
+
+  /* =========================== RENDER: DATA SUMBER =========================== */
+  function renderDataTab(){
+    var sd = DATA.sondir, cb = DATA.cbr;
+
+    $('faSondirStatus').innerHTML = sd
+      ? '<span class="fa-status ok">Data tersedia</span> <span style="font-size:12px;color:var(--c-muted);">disimpan '+dateLabel(sd.savedAt)+'</span>'
+      : '<span class="fa-status missing">Belum ada data</span> <span style="font-size:12px;color:var(--c-muted);">Buka modul <b>Sondir &amp; SPT Foundation Planner</b>, lalu klik "Kirim ke Civil Hub" pada tab Report &amp; Export.</span>';
+
+    $('faSondirBox').innerHTML = sd ? (
+      '<div class="fa-grid">'+
+        '<div class="fa-kpi"><small>Proyek</small><b style="font-size:13px;">'+(sd.project||'–')+'</b></div>'+
+        '<div class="fa-kpi"><small>Qizin (FS='+(sd.pile&&sd.pile.FS!==undefined?sd.pile.FS:'–')+')</small><b>'+fmt(sd.Qizin)+'</b><span class="unit">ton</span></div>'+
+        '<div class="fa-kpi"><small>Qult</small><b>'+fmt(sd.Qult)+'</b><span class="unit">ton</span></div>'+
+        '<div class="fa-kpi"><small>Rekomendasi Pondasi</small><b style="font-size:13px;">'+(sd.primaryRecommendation||'–')+'</b></div>'+
+      '</div>'
+    ) : '';
+
+    $('faCbrStatus').innerHTML = cb
+      ? '<span class="fa-status ok">Data tersedia</span> <span style="font-size:12px;color:var(--c-muted);">disimpan '+dateLabel(cb.savedAt)+'</span>'
+      : '<span class="fa-status missing">Belum ada data</span> <span style="font-size:12px;color:var(--c-muted);">Buka modul <b>CBR Lapangan &amp; Sand Cone</b>, lalu klik "Kirim ke Civil Hub" pada tab Report.</span>';
+
+    $('faCbrBox').innerHTML = cb ? (
+      '<div class="fa-grid">'+
+        '<div class="fa-kpi"><small>Proyek</small><b style="font-size:13px;">'+(cb.project||'–')+'</b></div>'+
+        '<div class="fa-kpi"><small>CBR Akhir</small><b>'+fmt(cb.cbrFinal)+'</b><span class="unit">%</span></div>'+
+        '<div class="fa-kpi"><small>Klasifikasi</small><b style="font-size:13px;">'+(cb.cbrClassification?cb.cbrClassification.label:'–')+'</b></div>'+
+        '<div class="fa-kpi"><small>Sand Cone</small><b style="font-size:13px;">'+(cb.sandAllPass?'Semua PASS':'Ada titik di bawah target')+'</b></div>'+
+      '</div>'
+    ) : '';
+  }
+
+  /* =========================== ENGINE: REKOMENDASI TERINTEGRASI =========================== */
+  // ρ_min pelat fondasi sesuai SNI 2847:2019 pasal 7.6.1.1 (fy=420 -> 0.0018; fy<420 -> 0.0020)
+  function rhoMin(fy){ return fy>=420 ? 0.0018 : 0.0020; }
+
+  // Mutu beton minimum indikatif untuk elemen pondasi sesuai SNI 2847:2019 Tabel 19.3.2.1
+  // (kategori paparan F0/S0 - tanah tidak agresif). Untuk tanah agresif/air tanah tinggi sulfat,
+  // gunakan kategori paparan yang lebih ketat (S1-S3) dan naikkan fc' sesuai tabel tersebut.
+  function recommendConcreteGrade(primary){
+    if(/dalam|tiang|bore|pile|mini pile/i.test(primary||'')) return {fc:30, label:"f'c 30 MPa (≈K-350)"};
+    return {fc:25, label:"f'c 25 MPa (≈K-300)"};
+  }
+
+  function buildCombinedNotes(sd, cb){
+    var notes = [];
+    if(!sd && !cb){
+      notes.push({type:'danger', text:'Belum ada data Sondir/SPT maupun CBR/Sand Cone. Kirim data dari kedua modul tersebut terlebih dahulu agar rekomendasi dapat dihitung.'});
+      return notes;
+    }
+    if(!sd) notes.push({type:'warn', text:'Data Sondir/SPT belum tersedia — rekomendasi jenis pondasi & kapasitas daya dukung tidak dapat dihitung otomatis.'});
+    if(!cb) notes.push({type:'warn', text:'Data CBR/Sand Cone belum tersedia — mutu tanah dasar untuk pondasi dangkal/lantai kerja belum dapat dievaluasi.'});
+
+    if(sd && sd.warnings && sd.warnings.length){
+      sd.warnings.forEach(function(w){ notes.push({type:'warn', text:w}); });
+    }
+    if(cb){
+      if(cb.cbrRepeatWarn) notes.push({type:'warn', text:'CBR 0.2" lebih besar dari 0.1" pada salah satu titik — sesuai SNI 1738:2011 sebaiknya uji diulang sebelum nilai dipakai final.'});
+      if(cb.cbrClassification && cb.cbrClassification.label){
+        var lbl = cb.cbrClassification.label.toLowerCase();
+        if(/sangat rendah|rendah/.test(lbl) && sd && /dangkal/i.test(sd.primaryRecommendation||'')){
+          notes.push({type:'danger', text:'Rekomendasi geoteknik mengarah ke pondasi dangkal, namun CBR tanah dasar tergolong "'+cb.cbrClassification.label+'" — pertimbangkan perbaikan tanah dasar (lapis pasir/agregat, stabilisasi, atau lantai kerja diperkuat) sebelum pengecoran pondasi dangkal.'});
+        }
+      }
+      if(cb.sandWorst && cb.sandWorst.status && cb.sandWorst.status!=='pass'){
+        notes.push({type:'warn', text:'Derajat kepadatan sand cone terendah ('+fmt(cb.sandWorst.degree)+'%) belum mencapai target ('+fmt(cb.sandWorst.target)+'%) — lakukan pemadatan ulang pada area tersebut sebelum pekerjaan pondasi dilanjutkan.'});
+      }
+    }
+    if(!notes.length) notes.push({type:'info', text:'Tidak ada catatan khusus dari data yang tersimpan. Tetap lakukan verifikasi lapangan sebelum eksekusi.'});
+    return notes;
+  }
+
+  function computeDesign(sd, cb, params){
+    var primary = sd ? (sd.primaryRecommendation||'') : '';
+    var grade = recommendConcreteGrade(primary);
+    var isDeep = /dalam|tiang|bore|pile|mini pile/i.test(primary);
+    var out = {primary:primary, isDeep:isDeep, grade:grade};
+
+    if(isDeep && sd && sd.Qizin){
+      var nPile = Math.max(1, Math.ceil(params.load / sd.Qizin));
+      var D = (sd.pile && (sd.pile.D_cm||sd.pile.D_cm_cpt)) ? (sd.pile.D_cm||sd.pile.D_cm_cpt)/100 : 0.4;
+      var capSide = Math.ceil(Math.sqrt(nPile)) * params.spacing * D + D; // estimasi kasar dimensi poer
+      out.nPile = nPile;
+      out.pileDiameter = D;
+      out.capSideEst = capSide;
+      out.capThickness = params.thk;
+      out.concreteVolume = capSide*capSide*params.thk;
+      out.formworkArea = 4*capSide*params.thk;
+    } else {
+      // Pondasi dangkal: estimasi luas telapak dari beban & taksiran qijin berbasis CBR (sangat indikatif)
+      var cbrVal = cb ? cb.cbrFinal : null;
+      var qAllowKpa = (cbrVal!==null && cbrVal!==undefined) ? Math.max(50, cbrVal*10) : 150; // estimasi awal, BUKAN pengganti uji bearing capacity formal
+      var loadKn = params.load * 9.81; // ton -> kN
+      var areaM2 = loadKn / qAllowKpa;
+      var side = Math.sqrt(Math.max(areaM2, 0.36));
+      out.qAllowKpa = qAllowKpa;
+      out.footingSide = side;
+      out.footingThickness = params.thk;
+      out.concreteVolume = side*side*params.thk;
+      out.formworkArea = 4*side*params.thk;
+    }
+
+    var rho = rhoMin(params.fy);
+    out.rhoMin = rho;
+    out.asMinPerM = rho * 1.0 * params.thk * 1e6 / 1000; // mm2 per meter lebar (b=1000mm, h=thk*1000mm) -> cm2
+    out.asMinPerM_cm2 = rho * 1000 * (params.thk*1000) / 100; // cm2/m
+
+    // Estimasi kasar berat tulangan dari volume beton menggunakan rasio kg/m3 umum
+    // (pile cap ≈110 kg/m3, telapak dangkal ≈90 kg/m3) — bukan pengganti perhitungan
+    // detailing tulangan oleh Insinyur Struktur.
+    out.rebarRatioKgM3 = d_isDeepRatio(isDeep);
+    out.rebarWeightEstimate = out.concreteVolume * out.rebarRatioKgM3;
+    return out;
+  }
+  function d_isDeepRatio(isDeep){ return isDeep ? 110 : 90; }
+
+  function noteBox(n){
+    return '<div class="fa-note '+n.type+'">'+n.text+'</div>';
+  }
+
+  function renderRecommendationTab(){
+    var sd = DATA.sondir, cb = DATA.cbr;
+    var params = {
+      load: parseFloat($('faLoad').value)||0,
+      fy: parseFloat($('faFy').value)||420,
+      cover: parseFloat($('faCover').value)||50,
+      thk: parseFloat($('faThk').value)||0.6,
+      spacing: parseFloat($('faSpacing').value)||3
+    };
+
+    $('faPrimaryBox').innerHTML = sd ? (
+      '<h3 style="margin-top:0;">'+sd.primaryRecommendation+'</h3>'+
+      (sd.reasons&&sd.reasons.length ? '<ul class="fa-list">'+sd.reasons.map(function(r){return '<li>'+r+'</li>';}).join('')+'</ul>' : '')+
+      (sd.alternatives&&sd.alternatives.length ? '<h3>Alternatif</h3><ul class="fa-list">'+sd.alternatives.map(function(a){return '<li>'+a+'</li>';}).join('')+'</ul>' : '')
+    ) : '<div class="fa-note warn">Belum ada rekomendasi geoteknik — kirim data dari modul Sondir &amp; SPT Foundation Planner.</div>';
+
+    var notes = buildCombinedNotes(sd, cb);
+    $('faCombinedNotes').innerHTML = notes.map(noteBox).join('');
+
+    var d = computeDesign(sd, cb, params);
+    var html = '';
+    html += '<div class="fa-grid">';
+    html += '<div class="fa-kpi"><small>Mutu Beton Rekomendasi</small><b style="font-size:14px;">'+d.grade.label+'</b></div>';
+    html += '<div class="fa-kpi"><small>ρ tulangan minimum</small><b>'+fmt(d.rhoMin*100,2)+'</b><span class="unit">%</span></div>';
+    html += '<div class="fa-kpi"><small>As minimum</small><b>'+fmt(d.asMinPerM_cm2,1)+'</b><span class="unit">cm²/m</span></div>';
+    html += '</div>';
+    if(d.isDeep){
+      html += '<table class="fa-table" style="margin-top:10px;">'+
+        '<tr><th>Parameter</th><th>Nilai</th></tr>'+
+        '<tr><td>Jumlah tiang per kolom (estimasi)</td><td>'+d.nPile+' tiang (Ø'+fmt(d.pileDiameter*100,0)+' cm)</td></tr>'+
+        '<tr><td>Dimensi pile cap (estimasi, persegi)</td><td>'+fmt(d.capSideEst,2)+' x '+fmt(d.capSideEst,2)+' m</td></tr>'+
+        '<tr><td>Tebal pile cap</td><td>'+fmt(d.capThickness,2)+' m</td></tr>'+
+        '<tr><td>Volume beton pile cap (estimasi)</td><td>'+fmt(d.concreteVolume,2)+' m³</td></tr>'+
+        '<tr><td>Luas bekisting (estimasi, keliling)</td><td>'+fmt(d.formworkArea,2)+' m²</td></tr>'+
+        '</table>'+
+        '<div class="fa-note info">Jumlah tiang = beban rencana / Qizin per tiang (FS sesuai modul Sondir/SPT). Dimensi pile cap adalah taksiran awal dari jumlah tiang &amp; jarak antar tiang ('+params.spacing+'×D), bukan hasil análisis struktur pile cap.</div>';
+    } else {
+      html += '<table class="fa-table" style="margin-top:10px;">'+
+        '<tr><th>Parameter</th><th>Nilai</th></tr>'+
+        '<tr><td>Estimasi qijin tanah dasar (dari CBR)</td><td>'+fmt(d.qAllowKpa,0)+' kPa</td></tr>'+
+        '<tr><td>Dimensi telapak (estimasi, persegi)</td><td>'+fmt(d.footingSide,2)+' x '+fmt(d.footingSide,2)+' m</td></tr>'+
+        '<tr><td>Tebal telapak</td><td>'+fmt(d.footingThickness,2)+' m</td></tr>'+
+        '<tr><td>Volume beton telapak (estimasi)</td><td>'+fmt(d.concreteVolume,2)+' m³</td></tr>'+
+        '<tr><td>Luas bekisting (estimasi, keliling)</td><td>'+fmt(d.formworkArea,2)+' m²</td></tr>'+
+        '</table>'+
+        '<div class="fa-note info">Korelasi qijin ≈ 10×CBR (kPa) bersifat sangat indikatif untuk tahap konsep saja. Untuk desain akhir gunakan analisis kapasitas dukung formal (Terzaghi/Meyerhof) sesuai SNI 8460:2017.</div>';
+    }
+    DATA._lastDesign = d;
+  }
+
+  /* =========================== REPORT =========================== */
+  function buildReportText(){
+    var sd = DATA.sondir, cb = DATA.cbr, d = DATA._lastDesign;
+    var lines = [];
+    lines.push('LAPORAN REKOMENDASI PONDASI AWAL — FOUNDATION ADVISOR');
+    lines.push('Civil Construction Engineering Suite');
+    lines.push('======================================================');
+    lines.push('');
+    lines.push('1. SUMBER DATA');
+    lines.push('  Sondir/SPT : '+(sd ? ('tersedia, disimpan '+dateLabel(sd.savedAt)) : 'tidak tersedia'));
+    lines.push('  CBR/Sand Cone : '+(cb ? ('tersedia, disimpan '+dateLabel(cb.savedAt)) : 'tidak tersedia'));
+    lines.push('');
+    if(sd){
+      lines.push('2. HASIL GEOTEKNIK (SONDIR/SPT)');
+      lines.push('  Rekomendasi utama : '+sd.primaryRecommendation);
+      lines.push('  Qult / Qizin      : '+fmt(sd.Qult)+' / '+fmt(sd.Qizin)+' ton');
+      (sd.reasons||[]).forEach(function(r){ lines.push('  - '+r); });
+      lines.push('');
+    }
+    if(cb){
+      lines.push('3. HASIL TANAH DASAR (CBR/SAND CONE)');
+      lines.push('  CBR akhir   : '+fmt(cb.cbrFinal)+'% — '+(cb.cbrClassification?cb.cbrClassification.label:'–'));
+      lines.push('  Sand cone   : '+(cb.sandAllPass?'semua titik PASS':'ada titik di bawah target kepadatan'));
+      lines.push('');
+    }
+    if(d){
+      lines.push('4. REKOMENDASI DESAIN AWAL');
+      lines.push('  Mutu beton  : '+d.grade.label);
+      lines.push('  ρ tulangan minimum : '+fmt(d.rhoMin*100,2)+'% (As min '+fmt(d.asMinPerM_cm2,1)+' cm²/m)');
+      if(d.isDeep){
+        lines.push('  Jumlah tiang/kolom : '+d.nPile);
+        lines.push('  Pile cap (estimasi): '+fmt(d.capSideEst,2)+' x '+fmt(d.capSideEst,2)+' x '+fmt(d.capThickness,2)+' m');
+      } else {
+        lines.push('  Telapak (estimasi) : '+fmt(d.footingSide,2)+' x '+fmt(d.footingSide,2)+' x '+fmt(d.footingThickness,2)+' m');
+        lines.push('  qijin tanah (estimasi dari CBR): '+fmt(d.qAllowKpa,0)+' kPa');
+      }
+      lines.push('  Volume beton (estimasi) : '+fmt(d.concreteVolume,2)+' m³');
+      lines.push('  Luas bekisting (estimasi) : '+fmt(d.formworkArea,2)+' m²');
+      lines.push('');
+    }
+    lines.push('5. REFERENSI');
+    lines.push('  SNI 8460:2017 (Persyaratan Perancangan Geoteknik)');
+    lines.push('  SNI 2847:2019 (Persyaratan Beton Struktural untuk Bangunan Gedung)');
+    lines.push('  SNI 1738:2011, ASTM D4429/AASHTO T193 (CBR Lapangan)');
+    lines.push('  SNI 2828:2011, ASTM D1556 (Sand Cone)');
+    lines.push('');
+    lines.push('DISCLAIMER');
+    lines.push('Seluruh nilai pada laporan ini adalah estimasi awal (preliminary sizing) untuk');
+    lines.push('mendukung tahap konsep desain. Hasil wajib diverifikasi dan dihitung ulang oleh');
+    lines.push('Insinyur Geoteknik dan Insinyur Struktur berwenang sesuai standar yang berlaku');
+    lines.push('sebelum digunakan untuk pelaksanaan konstruksi.');
+    return lines.join('\n');
+  }
+
+  function buildReportJson(){
+    return JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      sondir: DATA.sondir, cbr: DATA.cbr, design: DATA._lastDesign
+    }, null, 2);
+  }
+
+  function downloadFile(name, content, mime){
+    var blob = new Blob([content], {type:mime});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  }
+  function toast(msg){
+    var t = document.createElement('div');
+    t.className = 'fa-toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); }, 1800);
+  }
+
+  /* =========================== TAB SWITCH =========================== */
+  function showTab(key){
+    ['data','design','recommendation','report'].forEach(function(k){
+      $('fa-view-'+k).classList.toggle('fa-hidden', k!==key);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.fa-tab'), function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-tab')===key);
+    });
+    if(key==='recommendation') renderRecommendationTab();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.fa-tab'), function(btn){
+    btn.addEventListener('click', function(){ showTab(btn.getAttribute('data-tab')); });
+  });
+
+  $('faRefresh').addEventListener('click', function(){
+    DATA = loadHubData();
+    renderDataTab();
+    toast('Data dimuat ulang.');
+  });
+
+  $('faGenReport').addEventListener('click', function(){
+    renderRecommendationTab();
+    $('faReportBox').textContent = buildReportText();
+  });
+  $('faCopyReport').addEventListener('click', function(){
+    var txt = $('faReportBox').textContent;
+    if(!txt || txt.indexOf('Generate Report')>=0){ renderRecommendationTab(); txt = buildReportText(); $('faReportBox').textContent = txt; }
+    navigator.clipboard && navigator.clipboard.writeText(txt).then(function(){ toast('Disalin.'); }).catch(function(){ toast('Gagal menyalin.'); });
+  });
+  $('faDownloadTxt').addEventListener('click', function(){
+    renderRecommendationTab();
+    downloadFile('foundation-advisor-report.txt', buildReportText(), 'text/plain');
+  });
+  $('faDownloadJson').addEventListener('click', function(){
+    renderRecommendationTab();
+    downloadFile('foundation-advisor-report.json', buildReportJson(), 'application/json');
+  });
+  $('faToBoq').addEventListener('click', function(){
+    renderRecommendationTab();
+    var d = DATA._lastDesign;
+    if(!d){ toast('Belum ada hasil desain untuk dikirim.'); return; }
+    var payload = {
+      savedAt: new Date().toISOString(),
+      source: 'foundation-advisor',
+      primary: d.primary,
+      isDeep: d.isDeep,
+      concreteGrade: d.grade.label,
+      concreteVolumeM3: d.concreteVolume,
+      formworkAreaM2: d.formworkArea,
+      rebarWeightKg: d.rebarWeightEstimate,
+      nPile: d.nPile||null,
+      dimensionLabel: d.isDeep
+        ? ('Pile cap '+fmt(d.capSideEst,2)+'x'+fmt(d.capSideEst,2)+'x'+fmt(d.capThickness,2)+' m')
+        : ('Telapak '+fmt(d.footingSide,2)+'x'+fmt(d.footingSide,2)+'x'+fmt(d.footingThickness,2)+' m')
+    };
+    try{
+      localStorage.setItem('civilhub_design_result', JSON.stringify(payload));
+      toast('Volume pekerjaan dikirim ke BOQ/RAB.');
+    }catch(e){ toast('Gagal menyimpan ke BOQ/RAB.'); }
+  });
+
+  // Pre-fill beban rencana dari data sondir jika tersedia
+  if(DATA.sondir && DATA.sondir.loadRencana) $('faLoad').value = DATA.sondir.loadRencana;
+
+  renderDataTab();
+})();
+</script>
+</body>
+</html>
