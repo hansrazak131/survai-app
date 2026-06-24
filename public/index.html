@@ -940,6 +940,10 @@ function tryEmbedInnerBack(cw){
   }catch(e){ return null; }
 }
 
+// Bandingkan nama file tanpa peduli ekstensi .html — Vercel cleanUrls bisa
+// menyajikan/redirect ke URL tanpa ".html" sehingga perbandingan string biasa gagal.
+function stripHtmlExt(name){ return String(name||'').replace(/\.html$/i,'').replace(/\/$/,''); }
+
 function goBack(){
   if(stack.length<=1) return;
   const top = stack[stack.length-1];
@@ -951,8 +955,10 @@ function goBack(){
       const cw = iframe.contentWindow;
       const children = HUB_CHILDREN[top.file];
       if(children){
-        const curFile = (cw.location.pathname.split('/').pop()) || '';
-        if(curFile && curFile !== top.file && children.indexOf(curFile)>=0){
+        const curFile = stripHtmlExt((cw.location.pathname.split('/').pop()) || '');
+        const hubFile = stripHtmlExt(top.file);
+        const childBases = children.map(stripHtmlExt);
+        if(curFile && curFile !== hubFile && childBases.indexOf(curFile)>=0){
           iframe.src = baseDir + top.file + '?embed=1';
           return; // tetap di level 'tools-detail', hanya pindah ke halaman hub
         }
