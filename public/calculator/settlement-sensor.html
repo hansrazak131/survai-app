@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Settlement Sensor — Monitoring Penurunan Struktur (XYZ)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..950&display=swap" rel="stylesheet">
+<style>
+:root{
+  --body:#e2e8f0;--frame:#f8fafc;--ink:#0b1220;--navy:#0f172a;--muted:#64748b;--soft:#94a3b8;
+  --line:#e2e8f0;--field:#f8fafc;--white:#fff;--gold:#d6a94a;--gold-2:#f2cf7b;
+  --blue:#2563eb;--green:#16a34a;--amber:#d97706;--red:#dc2626;--violet:#7c3aed;
+  --card-shadow:0 18px 45px rgba(15,23,42,.12),0 3px 12px rgba(15,23,42,.08);
+  --soft-shadow:0 10px 30px rgba(15,23,42,.10);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;min-width:0}
+html,body{margin:0;height:100%;width:100%}
+body{background:var(--frame);font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink);overflow-x:hidden}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.tap{transition:transform .12s ease,filter .12s ease}.tap:active{transform:scale(.97)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:14px clamp(14px,2.4vw,28px) 110px}
+
+/* ---- Hero / header ---- */
+.hero{background:linear-gradient(135deg,#0f172a,#1e293b 60%,#0b1220);color:#fff;border-radius:24px;
+  padding:16px 18px;box-shadow:var(--card-shadow);position:relative;overflow:hidden}
+.hero:before{content:"";position:absolute;right:-40px;top:-40px;width:170px;height:170px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,rgba(242,207,123,.4),transparent 70%)}
+.hero h1{margin:0;font-size:18px;letter-spacing:-.03em;display:flex;align-items:center;gap:9px}
+.hero p{margin:6px 0 0;font-size:11.5px;color:#cbd5e1;font-weight:650;line-height:1.5;max-width:640px}
+.hero .proj{margin-top:11px;display:flex;flex-wrap:wrap;gap:7px}
+.hero .chip{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:999px;
+  padding:6px 11px;font-size:10.5px;font-weight:800;color:#e2e8f0;display:inline-flex;gap:6px;align-items:center}
+
+/* ---- Tab nav ---- */
+.tabbar{display:flex;gap:7px;margin:14px 0 4px;background:#fff;border:1px solid var(--line);
+  border-radius:18px;padding:6px;box-shadow:var(--soft-shadow);position:sticky;top:8px;z-index:30}
+.tabbar button{flex:1;border:0;background:transparent;color:#64748b;font-weight:850;font-size:11.5px;
+  padding:10px 6px;border-radius:13px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.tabbar button svg{width:18px;height:18px}
+.tabbar button.active{background:#0f172a;color:#f2cf7b;box-shadow:0 10px 20px rgba(15,23,42,.18)}
+
+.screen{display:none;animation:fade .25s ease}
+.screen.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---- Cards / KPI ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:13px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:18px;padding:13px;box-shadow:var(--soft-shadow);position:relative;overflow:hidden}
+.kpi .lab{font-size:10px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.03em}
+.kpi .val{font-size:23px;font-weight:950;letter-spacing:-.03em;margin-top:5px;line-height:1}
+.kpi .sub{font-size:10px;color:var(--soft);font-weight:750;margin-top:5px}
+.kpi .bar{position:absolute;left:0;top:0;bottom:0;width:5px}
+.kpi.ok .bar{background:var(--green)}.kpi.watch .bar{background:var(--amber)}
+.kpi.alert .bar{background:var(--red)}.kpi.info .bar{background:var(--blue)}
+
+.panel{background:#fff;border:1px solid var(--line);border-radius:22px;padding:15px;box-shadow:var(--card-shadow);margin-top:13px}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px;flex-wrap:wrap}
+.panel-head h3{margin:0;font-size:14px;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.panel-head .badge{font-size:10px;font-weight:900;background:#eef2ff;color:#3730a3;border-radius:999px;padding:5px 9px}
+.sub-note{font-size:10.8px;color:var(--muted);font-weight:700;line-height:1.5}
+
+canvas.chart{width:100%;height:230px;display:block;border-radius:14px;background:linear-gradient(180deg,#fbfdff,#f1f5f9);border:1px solid var(--line)}
+canvas.iso{width:100%;height:360px;display:block;border-radius:14px;background:radial-gradient(circle at 50% 18%,#f4f7fc,#d2dae8);border:1px solid var(--line);touch-action:none;cursor:grab}
+canvas.iso:active{cursor:grabbing}
+.iso-row{display:flex;gap:10px;align-items:stretch}
+.iso-row canvas.iso{flex:1}
+.cmap{width:58px;flex:0 0 58px;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:4px}
+.cmap .ttl{font-size:9px;font-weight:900;color:#475569;text-transform:uppercase;letter-spacing:.02em;text-align:center;line-height:1.2}
+.cmap .barbox{flex:1;display:flex;gap:5px;align-items:stretch;width:100%;justify-content:center}
+.cmap .bar{width:16px;border-radius:5px;border:1px solid #cbd5e1;
+  background:linear-gradient(to top,#1e3a8a 0%,#2563eb 15%,#06b6d4 32%,#22c55e 50%,#eab308 68%,#f97316 84%,#dc2626 100%)}
+.cmap .scale{display:flex;flex-direction:column;justify-content:space-between;font-size:8.5px;font-weight:800;color:#475569;text-align:left}
+.cmap .scale b{color:#dc2626}
+.cmap .crit{font-size:8px;font-weight:900;color:#dc2626;text-align:center;line-height:1.15}
+canvas.profile{width:100%;height:200px;display:block;border-radius:14px;background:linear-gradient(180deg,#fbfdff,#eef2f7);border:1px solid var(--line)}
+
+/* ---- Table ---- */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px;border:1px solid var(--line)}
+table.data{width:100%;border-collapse:collapse;font-size:11.5px;min-width:560px}
+table.data th{background:#0f172a;color:#cbd5e1;text-align:left;padding:9px 10px;font-weight:850;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;position:sticky;top:0}
+table.data td{padding:9px 10px;border-bottom:1px solid #eef2f7;font-weight:700;white-space:nowrap}
+table.data tr:last-child td{border-bottom:0}
+table.data tr.click{cursor:pointer}
+table.data tr.click:hover td{background:#f8fafc}
+.pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:900}
+.pill.ok{background:#dcfce7;color:#166534}.pill.watch{background:#fef3c7;color:#92400e}
+.pill.alert{background:#fee2e2;color:#991b1b}.pill.crit{background:#1e1b4b;color:#c7d2fe}
+
+/* ---- Forms ---- */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:10.5px;color:var(--muted);font-weight:900}
+.field input,.field select,.field textarea{width:100%;height:43px;border:1px solid #cbd5e1;background:#f8fafc;
+  border-radius:13px;padding:0 12px;font-size:13px;font-weight:750;color:#0f172a;outline:0}
+.field textarea{height:auto;padding:10px 12px;resize:vertical;min-height:54px}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(214,169,74,.16)}
+
+.btn{height:46px;border:0;border-radius:14px;font-weight:900;letter-spacing:-.01em;display:inline-flex;
+  align-items:center;justify-content:center;gap:8px;padding:0 16px}
+.btn.primary{background:#0f172a;color:#fff;box-shadow:0 12px 24px rgba(15,23,42,.2)}
+.btn.gold{background:linear-gradient(135deg,#f2cf7b,#d6a94a);color:#3a2c08}
+.btn.ghost{background:#f1f5f9;color:#334155;border:1px solid var(--line)}
+.btn.red{background:#fee2e2;color:#991b1b}
+.btn.sm{height:38px;font-size:11.5px;padding:0 12px;border-radius:12px}
+.btn-row{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+
+.drop{border:2px dashed #cbd5e1;border-radius:16px;padding:18px;text-align:center;background:#f8fafc;color:#64748b;
+  font-size:12px;font-weight:750;transition:.18s}
+.drop.drag{border-color:var(--gold);background:#fff9ec;color:#8a6a24}
+.drop b{color:#0f172a}
+
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}
+.gcard{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;box-shadow:var(--soft-shadow);position:relative}
+.gcard img{width:100%;height:96px;object-fit:cover;display:block;background:#e2e8f0}
+.gcard .meta{padding:7px 9px;font-size:10px;font-weight:800;color:#334155}
+.gcard .meta small{display:block;color:var(--soft);font-weight:700;margin-top:2px}
+.gcard .del{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:9px;border:0;background:rgba(15,23,42,.75);color:#fff;font-weight:900;display:grid;place-items:center}
+
+.legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.legend .lg{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:#475569;
+  background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 9px}
+.legend .dot{width:11px;height:11px;border-radius:3px}
+
+.notice{border-radius:14px;padding:12px 13px;font-size:11.5px;font-weight:720;line-height:1.55;margin-top:11px;border:1px solid}
+.notice.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.notice.watch{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.notice.alert{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.notice.info{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+.notice b{font-weight:950}
+.notice ul{margin:7px 0 0;padding-left:18px}
+.notice li{margin:3px 0}
+
+.acard{border:1px solid var(--line);border-radius:16px;padding:13px;margin-top:11px;background:#fff;box-shadow:var(--soft-shadow)}
+.acard .ah{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.acard .ah b{font-size:13px}
+.acard .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:9px;margin-top:10px}
+.acard .m{background:#f8fafc;border:1px solid var(--line);border-radius:11px;padding:8px 10px}
+.acard .m s{display:block;font-size:9.5px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.03em;text-decoration:none}
+.acard .m b{display:block;font-size:15px;font-weight:950;margin-top:3px}
+
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.seg button{border:1px solid var(--line);background:#fff;color:#475569;border-radius:11px;padding:7px 12px;font-size:11px;font-weight:850}
+.seg button.active{background:#0f172a;color:#fff;border-color:#0f172a}
+
+.empty{text-align:center;color:var(--soft);font-weight:750;font-size:12px;padding:26px 12px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%) translateY(14px);bottom:22px;background:#0f172a;color:#fff;
+  border-radius:14px;padding:12px 16px;font-size:12px;font-weight:850;box-shadow:var(--card-shadow);opacity:0;
+  pointer-events:none;transition:.22s;z-index:120;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.hl{font-weight:950}
+.delta-up{color:var(--red)}.delta-dn{color:var(--green)}
+.foot{margin-top:16px;text-align:center;font-size:10px;color:var(--soft);font-weight:700;line-height:1.6}
+
+@media(max-width:620px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tabbar button{font-size:10px}
+  .hero h1{font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f2cf7b" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M3 5v6M21 5v6"/><path d="M6 11v8M12 11v5M18 11v8"/><path d="M3 19h7M14 16h7"/><path d="M12 16l-2 3M12 16l2 3"/></svg>
+      Settlement Sensor
+    </h1>
+    <p>Monitoring penurunan (settlement) & pergeseran struktur dari koordinat <b>XYZ</b> hasil pengukuran surveyor.
+       Rekap harian, visual displacement dari elevasi desain, tampilan 3D, deteksi anomali &gt; 10&nbsp;cm, serta rekomendasi tindakan.</p>
+    <div class="proj" id="projChips"></div>
+  </div>
+
+  <div class="tabbar">
+    <button data-s="screen-home" class="active" onclick="go('screen-home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Dashboard</button>
+    <button data-s="screen-input" onclick="go('screen-input')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Input Data</button>
+    <button data-s="screen-visual" onclick="go('screen-visual')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v10l-8 4-8-4V7z"/><path d="M12 11l8-4M12 11v10M12 11L4 7"/></svg>Visual 3D</button>
+    <button data-s="screen-analysis" onclick="go('screen-analysis')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M8 15l3-4 3 2 4-6"/></svg>Analisis</button>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section id="screen-home" class="screen active">
+    <div class="kpis" id="kpis"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Progress Penurunan (Rekap Harian)</h3>
+        <span class="badge" id="progBadge">—</span>
+      </div>
+      <canvas id="progChart" class="chart"></canvas>
+      <div class="legend" id="progLegend"></div>
+      <p class="sub-note" style="margin-top:9px">Garis menunjukkan penurunan maksimum & rata-rata seluruh titik per tanggal pengukuran. Sumbu vertikal: settlement (mm) terhadap elevasi desain awal.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Status Titik Pengamatan</h3>
+        <span class="badge" id="ptCount">0 titik</span>
+      </div>
+      <div class="tbl-wrap">
+        <table class="data" id="ptTable">
+          <thead><tr><th>Titik</th><th>X / Y</th><th>Elev. Desain</th><th>Elev. Terakhir</th><th>Settlement</th><th>Laju</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="sub-note" style="margin-top:9px">Ketuk baris titik untuk melihat visual displacement &amp; analisis.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Log Pelaporan Harian</h3><span class="badge" id="logBadge">0 laporan</span></div>
+      <div id="dailyLog"></div>
+    </div>
+  </section>
+
+  <!-- ============ INPUT ============ -->
+  <section id="screen-input" class="screen">
+    <div class="panel">
+      <div class="panel-head"><h3>Informasi Proyek</h3></div>
+      <div class="grid">
+        <div class="field" style="grid-column:1/-1"><label>Nama Proyek / Struktur</label><input id="pName" placeholder="cth. Jembatan / Gedung A"></div>
+        <div class="field"><label>Referensi / No.</label><input id="pRef" placeholder="cth. SUTT-001"></div>
+        <div class="field"><label>Datum / Sistem</label><input id="pDatum" placeholder="cth. WGS84 / Lokal"></div>
+        <div class="field"><label>Surveyor</label><input id="pSurveyor" placeholder="Nama surveyor"></div>
+      </div>
+      <div class="btn-row"><button class="btn primary sm" onclick="saveProject()">Simpan Info Proyek</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Input Manual Pembacaan</h3><span class="badge">XYZ</span></div>
+      <p class="sub-note">Satu baris = satu pembacaan titik pada tanggal tertentu. <b>Elevasi Desain</b> diisi sekali per titik (boleh dikosongkan untuk pembacaan berikutnya — sistem memakai nilai desain titik tersebut). Settlement dihitung = Elevasi Desain − Z terukur.</p>
+      <div class="grid" style="margin-top:11px">
+        <div class="field"><label>ID Titik *</label><input id="rPoint" placeholder="cth. SS1"></div>
+        <div class="field"><label>Tanggal *</label><input id="rDate" type="date"></div>
+        <div class="field"><label>X (Easting)</label><input id="rX" type="number" step="any" placeholder="m"></div>
+        <div class="field"><label>Y (Northing)</label><input id="rY" type="number" step="any" placeholder="m"></div>
+        <div class="field"><label>Z terukur * (m)</label><input id="rZ" type="number" step="any" placeholder="elevasi"></div>
+        <div class="field"><label>Z desain (m)</label><input id="rZd" type="number" step="any" placeholder="opsional"></div>
+        <div class="field"><label>Suhu (°C)</label><input id="rTemp" type="number" step="any" placeholder="opsional"></div>
+        <div class="field" style="grid-column:1/-1"><label>Catatan</label><input id="rNote" placeholder="opsional"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="addReading()">+ Tambah Pembacaan</button>
+        <button class="btn ghost sm" onclick="loadSample()">Muat Contoh Data</button>
+        <button class="btn red sm" onclick="clearAll()">Hapus Semua Data</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Import File (CSV / TXT)</h3><span class="badge">Add File</span></div>
+      <p class="sub-note">Kolom didukung (header bebas urutan): <b>point/titik, date/tanggal, x, y, z, zdesign/elev_desain, temp/suhu, note/catatan</b>. Pemisah koma / titik-koma / tab otomatis terdeteksi.</p>
+      <div id="csvDrop" class="drop tap" style="margin-top:11px" onclick="document.getElementById('csvFile').click()">
+        Tarik file ke sini atau <b>ketuk untuk pilih</b> (.csv / .txt)
+      </div>
+      <input id="csvFile" type="file" accept=".csv,.txt,text/csv" hidden>
+      <div class="btn-row"><button class="btn ghost sm" onclick="copyTemplate()">Salin Template CSV</button></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Import Gambar Visual / Foto Hasil</h3><span class="badge">Lampiran</span></div>
+      <p class="sub-note">Lampirkan foto grafik sensor, sketsa lokasi titik, atau dokumentasi lapangan. Tersimpan di perangkat (localStorage) sebagai bukti pelaporan.</p>
+      <div id="imgDrop" class="drop tap" style="margin-top:11px" onclick="document.getElementById('imgFile').click()">
+        Tarik gambar ke sini atau <b>ketuk untuk pilih</b> (jpg/png)
+      </div>
+      <input id="imgFile" type="file" accept="image/*" multiple hidden>
+      <div class="gallery" id="gallery"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Ambang Klasifikasi (Threshold)</h3></div>
+      <p class="sub-note">Batas settlement (mm) untuk pewarnaan status. Sesuaikan dengan spesifikasi / izin proyek.</p>
+      <div class="grid" style="margin-top:11px">
+        <div class="field"><label>Aman ≤ (mm)</label><input id="thOk" type="number" value="25"></div>
+        <div class="field"><label>Perhatian ≤ (mm)</label><input id="thWatch" type="number" value="50"></div>
+        <div class="field"><label>Bahaya ≤ (mm)</label><input id="thAlert" type="number" value="100"></div>
+        <div class="field"><label>Anomali / cek ukur ≥ (mm)</label><input id="thErr" type="number" value="100"></div>
+      </div>
+      <p class="sub-note" style="margin-top:13px">Parameter regangan &amp; tegangan (untuk peta kontur 3D). Regangan = distorsi sudut (Δsettlement ÷ jarak antar titik). Tegangan = E × regangan (indikatif).</p>
+      <div class="grid" style="margin-top:9px">
+        <div class="field"><label>Regangan kritis 1/n (mis. 250)</label><input id="thStrain" type="number" value="250"></div>
+        <div class="field"><label>Modulus E (MPa)</label><input id="thE" type="number" value="25"></div>
+        <div class="field"><label>Tegangan izin σ (kPa)</label><input id="thSig" type="number" value="150"></div>
+      </div>
+      <div class="btn-row"><button class="btn primary sm" onclick="saveThresholds()">Simpan Ambang</button></div>
+    </div>
+  </section>
+
+  <!-- ============ VISUAL 3D ============ -->
+  <section id="screen-visual" class="screen">
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Pilih Lokasi / Titik Settlement</h3>
+        <span class="badge" id="visDateBadge">—</span>
+      </div>
+      <div class="grid">
+        <div class="field"><label>Titik fokus</label><select id="visPoint" onchange="renderVisual()"></select></div>
+        <div class="field"><label>Tanggal pengamatan</label><select id="visDate" onchange="renderVisual()"></select></div>
+      </div>
+      <div class="seg" style="margin-top:11px" id="visModeSeg">
+        <button class="active" data-m="disp" onclick="setIsoMode('disp',this)">Displacement</button>
+        <button data-m="strain" onclick="setIsoMode('strain',this)">Regangan (ε)</button>
+        <button data-m="stress" onclick="setIsoMode('stress',this)">Tegangan (σ)</button>
+      </div>
+      <div class="seg" style="margin-top:8px" id="visScaleSeg">
+        <button class="active" data-z="1" onclick="setIsoScale(1,this)">Skala 1×</button>
+        <button data-z="3" onclick="setIsoScale(3,this)">3×</button>
+        <button data-z="8" onclick="setIsoScale(8,this)">8×</button>
+        <button data-z="20" onclick="setIsoScale(20,this)">20×</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3 id="isoTitle">Peta Kontur Displacement 3D</h3><span class="badge">Geser untuk putar</span></div>
+      <div class="iso-row">
+        <canvas id="isoCanvas" class="iso"></canvas>
+        <div class="cmap">
+          <div class="ttl" id="cmapTitle">mm</div>
+          <div class="barbox">
+            <div class="bar"></div>
+            <div class="scale" id="cmapScale"></div>
+          </div>
+          <div class="crit">▲ KRITIS<br>(merah)</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span class="lg"><span class="dot" style="background:#1e3a8a"></span>Min / aman</span>
+        <span class="lg"><span class="dot" style="background:#22c55e"></span>Sedang</span>
+        <span class="lg"><span class="dot" style="background:#eab308"></span>Tinggi</span>
+        <span class="lg"><span class="dot" style="background:#dc2626"></span>Kritis (≥ ambang)</span>
+        <span class="lg"><span class="dot" style="background:#94a3b8"></span>Posisi desain</span>
+      </div>
+      <p class="sub-note" id="isoNote" style="margin-top:9px">Permukaan jaring (mesh) terdeformasi dari bidang elevasi desain. Warna mengikuti skala kontur — <b>merah = sudah mencapai titik kritis</b>. Geser untuk memutar model 3D.</p>
+      <div class="notice info" id="mechNote" style="margin-top:11px">—</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Tren Penurunan Titik Terpilih</h3></div>
+      <canvas id="ptChart" class="chart"></canvas>
+      <p class="sub-note" id="ptChartNote" style="margin-top:9px">—</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Profil Penampang (Desain vs Terukur)</h3></div>
+      <canvas id="profCanvas" class="profile"></canvas>
+      <p class="sub-note" style="margin-top:9px">Garis abu-abu putus = elevasi desain. Garis merah = elevasi terukur terakhir sepanjang titik (urut X). Selisih = displacement vertikal.</p>
+    </div>
+  </section>
+
+  <!-- ============ ANALISIS ============ -->
+  <section id="screen-analysis" class="screen">
+    <div class="panel">
+      <div class="panel-head"><h3>Analisis & Rekomendasi Tindakan</h3><span class="badge" id="anBadge">—</span></div>
+      <p class="sub-note">Penilaian otomatis per titik: besar settlement, laju penurunan, differential settlement antar titik bersebelahan, deteksi kemungkinan kesalahan pengukuran, dan kemungkinan penyebab geoteknik.</p>
+      <div class="btn-row">
+        <button class="btn gold sm" onclick="exportReport()">⬇ Unduh Laporan (HTML)</button>
+        <button class="btn ghost sm" onclick="exportCSV()">⬇ Ekspor Rekap CSV</button>
+      </div>
+    </div>
+    <div id="analysisBody"></div>
+  </section>
+
+  <div class="foot">
+    Settlement Observation · Building/Structure Settlement Survey — TukangUkur Suite.<br>
+    Data tersimpan lokal di perangkat (offline-ready). Hasil bersifat indikatif; verifikasi tetap oleh engineer geoteknik berwenang.
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- embed handling (selaras shell) -->
+<script>
+(function(){try{var p=new URLSearchParams(location.search);if(p.get('embed')==='1'){document.documentElement.classList.add('survai-embed');}
+var open=p.get('open');if(open){window.__openTarget=open;}}catch(e){}
+window.addEventListener('load',function(){try{if(parent&&parent!==window){parent.postMessage({survai:'ready'},'*');}}catch(e){}});})();
+</script>
+
+<script>
+/* =========================================================
+   STATE & PERSISTENCE
+   ========================================================= */
+const LS_KEY='survai_settlement_v1';
+const DEF_TH={ok:25,watch:50,alert:100,err:100,strainN:250,E:25,sig:150};
+let DB={project:{name:'',ref:'',datum:'',surveyor:''},readings:[],photos:[],th:{...DEF_TH}};
+
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s&&typeof s==='object'){DB=Object.assign(DB,s);DB.th=Object.assign({...DEF_TH},s.th||{});DB.readings=s.readings||[];DB.photos=s.photos||[];DB.project=Object.assign({name:'',ref:'',datum:'',surveyor:''},s.project||{});}}catch(e){}
+}
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(DB));}catch(e){toast('Gagal menyimpan (penyimpanan penuh?)');}}
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function num(v){const n=parseFloat(v);return isFinite(n)?n:null;}
+function fmt(v,d=1){return v==null||!isFinite(v)?'—':(+v).toFixed(d);}
+
+/* =========================================================
+   NAVIGATION (kompatibel dgn shell: showHome/openScreen)
+   ========================================================= */
+function go(id,push){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===id));
+  document.querySelectorAll('.tabbar button').forEach(b=>b.classList.toggle('active',b.dataset.s===id));
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(id==='screen-home') renderDashboard();
+  if(id==='screen-input') renderInput();
+  if(id==='screen-visual') {buildVisualSelectors();renderVisual();}
+  if(id==='screen-analysis') renderAnalysis();
+}
+function showHome(){go('screen-home');}                 // dipanggil shell saat tombol back
+function openScreen(id){go(id);}                         // konvensi shell
+window.showHome=showHome;window.openScreen=openScreen;
+
+/* =========================================================
+   DERIVED DATA
+   ========================================================= */
+// kembalikan map titik -> {id, x,y, zDesign, series:[{date,z,temp,note,settlement}], ...}
+function buildPoints(){
+  const map={};
+  // urutkan readings by date
+  const rs=[...DB.readings].sort((a,b)=>(a.date||'').localeCompare(b.date||'')|| (a.t||0)-(b.t||0));
+  rs.forEach(r=>{
+    const id=(r.point||'').trim();if(!id)return;
+    if(!map[id])map[id]={id,x:null,y:null,zDesign:null,series:[]};
+    const p=map[id];
+    if(r.x!=null)p.x=r.x; if(r.y!=null)p.y=r.y;
+    if(r.zd!=null)p.zDesign=r.zd;
+    p.series.push(r);
+  });
+  Object.values(map).forEach(p=>{
+    // elevasi desain: pakai zDesign eksplisit, jika tidak ada pakai Z pembacaan pertama
+    if(p.zDesign==null && p.series.length)p.zDesign=p.series[0].z;
+    p.series.forEach(r=>{ r._settle = (p.zDesign!=null && r.z!=null)? (p.zDesign - r.z)*1000 : null; }); // mm, turun = positif
+    const valid=p.series.filter(r=>r._settle!=null);
+    p.latest=valid.length?valid[valid.length-1]:null;
+    p.first=valid.length?valid[0]:null;
+    p.settle = p.latest? p.latest._settle : null;       // mm
+    // laju mm/hari via regresi linier settlement thd waktu
+    p.rate=computeRate(valid);
+    // lonjakan maksimum antar pembacaan berturut (deteksi anomali sensor)
+    p.maxStep=0;p.maxStepLabel='';
+    for(let i=1;i<valid.length;i++){
+      const d=Math.abs(valid[i]._settle-valid[i-1]._settle);
+      if(d>p.maxStep){p.maxStep=d;p.maxStepLabel=valid[i-1].date+'→'+valid[i].date;}
+    }
+    // pergeseran horizontal terhadap posisi pertama
+    p.horiz=computeHoriz(p.series);
+  });
+  return map;
+}
+function computeRate(valid){
+  if(valid.length<2)return null;
+  const t0=Date.parse(valid[0].date);
+  const xs=[],ys=[];
+  valid.forEach(r=>{const t=Date.parse(r.date);if(isFinite(t)){xs.push((t-t0)/86400000);ys.push(r._settle);}});
+  if(xs.length<2)return null;
+  const n=xs.length;const sx=xs.reduce((a,b)=>a+b,0),sy=ys.reduce((a,b)=>a+b,0);
+  const sxx=xs.reduce((a,b)=>a+b*b,0),sxy=xs.reduce((a,b,i)=>a+b*ys[i],0);
+  const den=n*sxx-sx*sx;if(Math.abs(den)<1e-9)return null;
+  return (n*sxy-sx*sy)/den;  // mm/hari
+}
+function computeHoriz(series){
+  const withXY=series.filter(r=>r.x!=null&&r.y!=null);
+  if(withXY.length<2)return null;
+  const a=withXY[0],b=withXY[withXY.length-1];
+  return Math.hypot(b.x-a.x,b.y-a.y)*1000; // mm
+}
+function statusOf(settle){
+  const th=DB.th;const s=Math.abs(settle);
+  if(settle==null)return{k:'info',t:'—'};
+  if(s>th.alert)return{k:'crit',t:'Kritis'};
+  if(s>th.watch)return{k:'alert',t:'Bahaya'};
+  if(s>th.ok)return{k:'watch',t:'Perhatian'};
+  return{k:'ok',t:'Aman'};
+}
+function statusColor(k){return{ok:'#16a34a',watch:'#d97706',alert:'#dc2626',crit:'#4c1d95',info:'#94a3b8'}[k];}
+
+function allDates(){
+  const set=new Set();DB.readings.forEach(r=>{if(r.date)set.add(r.date);});
+  return [...set].sort();
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+function renderProjectChips(){
+  const c=document.getElementById('projChips');const p=DB.project;
+  const items=[];
+  items.push(['Proyek',p.name||'Belum diisi']);
+  if(p.ref)items.push(['Ref',p.ref]);
+  items.push(['Titik',Object.keys(buildPoints()).length]);
+  items.push(['Laporan',allDates().length]);
+  if(p.surveyor)items.push(['Surveyor',p.surveyor]);
+  c.innerHTML=items.map(([k,v])=>`<span class="chip">${k}: <b>${esc(String(v))}</b></span>`).join('');
+}
+function renderDashboard(){
+  renderProjectChips();
+  const pts=Object.values(buildPoints());
+  const valid=pts.filter(p=>p.settle!=null);
+  const maxP=valid.reduce((m,p)=>(!m||Math.abs(p.settle)>Math.abs(m.settle))?p:m,null);
+  const avg=valid.length?valid.reduce((a,p)=>a+p.settle,0)/valid.length:null;
+  const alerts=valid.filter(p=>['alert','crit'].includes(statusOf(p.settle).k)).length;
+  const anomalies=valid.filter(p=>isAnomaly(p)).length;
+
+  document.getElementById('kpis').innerHTML=
+    kpi('info','Titik Dipantau',pts.length,allDates().length+' tanggal laporan')+
+    kpi(maxP?statusOf(maxP.settle).k:'info','Settlement Maks',(maxP?signed(maxP.settle):'—'),maxP?('di '+esc(maxP.id)):'—')+
+    kpi('info','Rata-rata',avg!=null?signed(avg):'—','seluruh titik')+
+    kpi(alerts?'alert':'ok','Perlu Tindakan',alerts,anomalies+' anomali ukur');
+
+  drawProgress();
+  renderPtTable(pts);
+  renderDailyLog();
+}
+function kpi(k,lab,val,sub){return `<div class="kpi ${k}"><span class="bar"></span><div class="lab">${lab}</div><div class="val">${val}</div><div class="sub">${sub}</div></div>`;}
+function signed(mm){ // turun (settle>0) = penurunan ↓ ; naik (heave) = ↑
+  if(mm==null||!isFinite(mm))return '—';
+  const a=Math.abs(mm);const txt=a>=100?(a/10).toFixed(1)+' cm':a.toFixed(0)+' mm';
+  if(mm>0.5)return txt+' ↓';
+  if(mm<-0.5)return txt+' ↑';
+  return '0 mm';
+}
+function signedRate(r){ // mm/hari, turun = ↓
+  if(r==null||!isFinite(r))return '—';
+  const a=Math.abs(r).toFixed(2);
+  if(r>0.01)return a+' ↓';
+  if(r<-0.01)return a+' ↑';
+  return '0.00';
+}
+
+function renderPtTable(pts){
+  const tb=document.querySelector('#ptTable tbody');
+  document.getElementById('ptCount').textContent=pts.length+' titik';
+  if(!pts.length){tb.innerHTML='<tr><td colspan="7"><div class="empty">Belum ada data. Buka tab <b>Input Data</b> untuk menambah pembacaan atau muat contoh.</div></td></tr>';return;}
+  tb.innerHTML=pts.map(p=>{
+    const st=statusOf(p.settle);const an=isAnomaly(p);
+    return `<tr class="click" onclick="focusPoint('${esc(p.id)}')">
+      <td><b>${esc(p.id)}</b></td>
+      <td>${p.x!=null?fmt(p.x,2):'—'} / ${p.y!=null?fmt(p.y,2):'—'}</td>
+      <td>${p.zDesign!=null?fmt(p.zDesign,3):'—'}</td>
+      <td>${p.latest&&p.latest.z!=null?fmt(p.latest.z,3):'—'}</td>
+      <td class="${p.settle>0?'delta-up':'delta-dn'}"><b>${p.settle!=null?signed(p.settle):'—'}</b></td>
+      <td>${p.rate!=null?signedRate(p.rate)+' mm/hr':'—'}</td>
+      <td><span class="pill ${st.k}">${st.t}</span>${an?' <span class="pill crit">!</span>':''}</td>
+    </tr>`;
+  }).join('');
+}
+function renderDailyLog(){
+  const dates=allDates();const el=document.getElementById('dailyLog');
+  document.getElementById('logBadge').textContent=dates.length+' laporan';
+  if(!dates.length){el.innerHTML='<div class="empty">Belum ada laporan harian.</div>';return;}
+  const pts=buildPoints();
+  el.innerHTML=[...dates].reverse().map(d=>{
+    const rs=DB.readings.filter(r=>r.date===d);
+    // settlement maksimum hari itu
+    let maxS=null,maxId='';
+    rs.forEach(r=>{const p=pts[(r.point||'').trim()];if(!p)return;const v=r.z!=null&&p.zDesign!=null?(p.zDesign-r.z)*1000:null;if(v!=null&&(maxS==null||Math.abs(v)>Math.abs(maxS))){maxS=v;maxId=r.point;}});
+    const st=maxS!=null?statusOf(maxS):{k:'info',t:'—'};
+    return `<div class="acard" style="margin-top:9px">
+      <div class="ah"><b>${fmtDate(d)}</b><span class="pill ${st.k}">${st.t}</span></div>
+      <div class="metrics">
+        <div class="m"><s>Titik diukur</s><b>${rs.length}</b></div>
+        <div class="m"><s>Settle maks</s><b>${maxS!=null?signed(maxS):'—'}</b></div>
+        <div class="m"><s>Titik kritis</s><b>${esc(maxId||'—')}</b></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* =========================================================
+   CHARTS (vanilla canvas)
+   ========================================================= */
+function setupCanvas(cv){
+  const dpr=window.devicePixelRatio||1;const r=cv.getBoundingClientRect();
+  cv.width=Math.max(300,r.width)*dpr;cv.height=r.height*dpr;
+  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w:r.width,h:r.height};
+}
+function drawLineChart(cv,series,opt){
+  opt=opt||{};const {ctx,w,h}=setupCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const pad={l:46,r:14,t:14,b:38};
+  const all=[];series.forEach(s=>s.points.forEach(p=>all.push(p)));
+  if(!all.length){ctx.fillStyle='#94a3b8';ctx.font='600 12px Inter';ctx.textAlign='center';ctx.fillText('Belum ada data',w/2,h/2);return;}
+  const xs=all.map(p=>p.x),ys=all.map(p=>p.y);
+  let minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys,0),maxY=Math.max(...ys,0);
+  if(minX===maxX){minX-=1;maxX+=1;}
+  const padY=(maxY-minY)*0.12||5;minY-=padY;maxY+=padY;
+  const X=x=>pad.l+(x-minX)/(maxX-minX)*(w-pad.l-pad.r);
+  const Y=y=>pad.t+(1-(y-minY)/(maxY-minY))*(h-pad.t-pad.b);
+  // grid + y labels
+  ctx.strokeStyle='#e2e8f0';ctx.fillStyle='#94a3b8';ctx.font='600 9.5px Inter';ctx.lineWidth=1;ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const yv=minY+(maxY-minY)*i/4;const yy=Y(yv);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillText(yv.toFixed(0),pad.l-6,yy+3);}
+  // zero line
+  if(minY<0&&maxY>0){ctx.strokeStyle='#cbd5e1';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(pad.l,Y(0));ctx.lineTo(w-pad.r,Y(0));ctx.stroke();ctx.setLineDash([]);}
+  // x labels (dates)
+  ctx.textAlign='center';ctx.fillStyle='#64748b';
+  const labs=opt.xLabels||[];const step=Math.ceil(labs.length/5)||1;
+  labs.forEach((l,i)=>{if(i%step===0||i===labs.length-1){const xx=X(i);ctx.fillText(l,xx,h-pad.b+15);}});
+  // series
+  series.forEach(s=>{
+    ctx.strokeStyle=s.color;ctx.lineWidth=2.2;ctx.beginPath();
+    s.points.forEach((p,i)=>{const xx=X(p.x),yy=Y(p.y);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});
+    ctx.stroke();
+    ctx.fillStyle=s.color;s.points.forEach(p=>{ctx.beginPath();ctx.arc(X(p.x),Y(p.y),3,0,7);ctx.fill();});
+  });
+  // y-axis title
+  ctx.save();ctx.translate(12,h/2);ctx.rotate(-Math.PI/2);ctx.fillStyle='#94a3b8';ctx.font='700 9.5px Inter';ctx.textAlign='center';ctx.fillText('Settlement (mm)',0,0);ctx.restore();
+}
+function drawProgress(){
+  const dates=allDates();const pts=buildPoints();
+  const badge=document.getElementById('progBadge');
+  if(!dates.length){drawLineChart(document.getElementById('progChart'),[],{});badge.textContent='—';document.getElementById('progLegend').innerHTML='';return;}
+  const maxPts=[],avgPts=[];
+  dates.forEach((d,i)=>{
+    const vals=[];
+    Object.values(pts).forEach(p=>{const r=p.series.find(s=>s.date===d);if(r&&r._settle!=null)vals.push(r._settle);});
+    if(vals.length){
+      const mx=vals.reduce((m,v)=>Math.abs(v)>Math.abs(m)?v:m,vals[0]);
+      const av=vals.reduce((a,v)=>a+v,0)/vals.length;
+      maxPts.push({x:i,y:mx});avgPts.push({x:i,y:av});
+    }
+  });
+  drawLineChart(document.getElementById('progChart'),[
+    {name:'Maks',color:'#dc2626',points:maxPts},
+    {name:'Rata-rata',color:'#2563eb',points:avgPts}
+  ],{xLabels:dates.map(fmtDateShort)});
+  badge.textContent=dates.length+' tanggal';
+  document.getElementById('progLegend').innerHTML=
+    '<span class="lg"><span class="dot" style="background:#dc2626"></span>Settlement maks</span>'+
+    '<span class="lg"><span class="dot" style="background:#2563eb"></span>Rata-rata</span>';
+}
+
+/* =========================================================
+   VISUAL 3D (isometric canvas, drag-rotate)
+   ========================================================= */
+let isoState={rotY:-0.7,rotX:0.62,zScale:3,focus:null,mode:'disp'};
+const MODE_META={
+  disp  :{title:'Peta Kontur Displacement 3D', unit:'mm',  cmap:'Settlement (mm)'},
+  strain:{title:'Peta Regangan / Distorsi 3D', unit:'1/n', cmap:'Distorsi (1/n)'},
+  stress:{title:'Peta Tegangan (indikatif) 3D',unit:'kPa', cmap:'Tegangan (kPa)'}
+};
+function setIsoMode(m,btn){isoState.mode=m;document.querySelectorAll('#visModeSeg button').forEach(b=>b.classList.toggle('active',b===btn));renderVisual();}
+function buildVisualSelectors(){
+  const pts=Object.values(buildPoints());
+  const sel=document.getElementById('visPoint');
+  const cur=sel.value;
+  sel.innerHTML=pts.map(p=>`<option value="${esc(p.id)}">${esc(p.id)}</option>`).join('')||'<option>—</option>';
+  if(isoState.focus&&pts.find(p=>p.id===isoState.focus))sel.value=isoState.focus;
+  else if(cur&&pts.find(p=>p.id===cur))sel.value=cur;
+  const ds=document.getElementById('visDate');
+  const dates=allDates();
+  ds.innerHTML=dates.map(d=>`<option value="${d}">${fmtDate(d)}</option>`).join('')||'<option>—</option>';
+  ds.value=dates[dates.length-1]||'';
+}
+function setIsoScale(z,btn){isoState.zScale=z;document.querySelectorAll('#visScaleSeg button').forEach(b=>b.classList.toggle('active',b===btn));renderVisual();}
+function focusPoint(id){isoState.focus=id;go('screen-visual');setTimeout(()=>{const sel=document.getElementById('visPoint');sel.value=id;renderVisual();},60);}
+
+function renderVisual(){
+  const pts=Object.values(buildPoints());
+  const sel=document.getElementById('visPoint');const focusId=sel.value;
+  const dateSel=document.getElementById('visDate').value;
+  document.getElementById('visDateBadge').textContent=dateSel?fmtDate(dateSel):'—';
+  drawIso(pts,focusId,dateSel);
+  drawPointTrend(pts.find(p=>p.id===focusId));
+  drawProfile(pts,dateSel);
+}
+function readingAt(p,date){
+  // pembacaan pada tanggal (atau terdekat sebelumnya)
+  let chosen=null;p.series.forEach(r=>{if(r.date<=date&&r._settle!=null)chosen=r;});
+  return chosen||p.latest;
+}
+/* ----- colormap (jet: biru->cyan->hijau->kuning->merah) ----- */
+function jet(t){
+  t=Math.max(0,Math.min(1,t));
+  const stops=[[30,58,138],[37,99,235],[6,182,212],[34,197,94],[234,179,8],[249,115,22],[220,38,38]];
+  const x=t*(stops.length-1),i=Math.floor(x),f=x-i;
+  const a=stops[i],b=stops[Math.min(i+1,stops.length-1)];
+  const c=k=>Math.round(a[k]+(b[k]-a[k])*f);
+  return 'rgb('+c(0)+','+c(1)+','+c(2)+')';
+}
+/* ----- Delaunay (Bowyer-Watson) pada koordinat 2D ternormalisasi ----- */
+function delaunay(P){
+  const n=P.length;if(n<3)return[];
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  P.forEach(p=>{minx=Math.min(minx,p.x);miny=Math.min(miny,p.y);maxx=Math.max(maxx,p.x);maxy=Math.max(maxy,p.y);});
+  const dx=(maxx-minx)||1,dy=(maxy-miny)||1,dm=Math.max(dx,dy)*20;
+  const midx=(minx+maxx)/2,midy=(miny+maxy)/2;
+  const pts=P.map(p=>({x:p.x,y:p.y}));
+  pts.push({x:midx-dm,y:midy-dm},{x:midx,y:midy+dm},{x:midx+dm,y:midy-dm});
+  const st=[n,n+1,n+2];
+  let tris=[[st[0],st[1],st[2]]];
+  function circ(t,p){
+    const a=pts[t[0]],b=pts[t[1]],c=pts[t[2]];
+    const ax=a.x-p.x,ay=a.y-p.y,bx=b.x-p.x,by=b.y-p.y,cx=c.x-p.x,cy=c.y-p.y;
+    const det=(ax*ax+ay*ay)*(bx*cy-cx*by)-(bx*bx+by*by)*(ax*cy-cx*ay)+(cx*cx+cy*cy)*(ax*by-bx*ay);
+    // orientasi: pastikan CCW
+    const o=(b.x-a.x)*(c.y-a.y)-(c.x-a.x)*(b.y-a.y);
+    return o>0?det>1e-12:det<-1e-12;
+  }
+  for(let i=0;i<n;i++){
+    const bad=[],edges=[];
+    tris.forEach(t=>{if(circ(t,pts[i]))bad.push(t);});
+    bad.forEach(t=>{[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]].forEach(e=>{
+      let shared=false;
+      bad.forEach(o=>{if(o===t)return;const es=[[o[0],o[1]],[o[1],o[2]],[o[2],o[0]]];
+        if(es.some(x=>(x[0]===e[0]&&x[1]===e[1])||(x[0]===e[1]&&x[1]===e[0])))shared=true;});
+      if(!shared)edges.push(e);
+    });});
+    tris=tris.filter(t=>bad.indexOf(t)<0);
+    edges.forEach(e=>tris.push([e[0],e[1],i]));
+  }
+  return tris.filter(t=>t[0]<n&&t[1]<n&&t[2]<n);
+}
+/* ----- Mekanika: regangan (distorsi) & tegangan per titik dari koordinat ----- */
+function computeMech(nodes,date){
+  // nodes: {p, mx,my (meter), settleM (m), nx,ny}
+  const tris=delaunay(nodes.map(nd=>({x:nd.nx,y:nd.ny})));
+  // kumpulkan edge unik
+  const seen={},edges=[];
+  tris.forEach(t=>{[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]].forEach(e=>{
+    const k=Math.min(e[0],e[1])+'-'+Math.max(e[0],e[1]);if(seen[k])return;seen[k]=1;edges.push(e);});});
+  const Empa=DB.th.E||25;                      // MPa
+  nodes.forEach(nd=>{nd.strain=0;nd.strainEdge=null;});
+  let critEdges=[];
+  edges.forEach(e=>{
+    const a=nodes[e[0]],b=nodes[e[1]];
+    if(a.settleM==null||b.settleM==null)return;
+    const dist=Math.hypot(a.mx-b.mx,a.my-b.my);if(dist<1e-6)return;
+    const beta=Math.abs(a.settleM-b.settleM)/dist;   // distorsi sudut (rad)
+    if(beta>a.strain){a.strain=beta;a.strainEdge=b.p.id;}
+    if(beta>b.strain){b.strain=beta;b.strainEdge=a.p.id;}
+    critEdges.push({a:a.p.id,b:b.p.id,beta,dist,diff:Math.abs(a.settleM-b.settleM)*1000});
+  });
+  nodes.forEach(nd=>{nd.stress=(nd.strain||0)*Empa*1000;}); // kPa (E MPa * strain *1000)
+  critEdges.sort((x,y)=>y.beta-x.beta);
+  return {tris,edges,critEdges};
+}
+function fieldVal(nd,mode){
+  if(mode==='strain')return nd.strain||0;
+  if(mode==='stress')return nd.stress||0;
+  return Math.abs(nd.settleM!=null?nd.settleM*1000:0); // mm
+}
+function critOf(mode){
+  if(mode==='strain')return 1/(DB.th.strainN||250);
+  if(mode==='stress')return DB.th.sig||150;
+  return DB.th.alert||100;
+}
+function fmtField(v,mode){
+  if(mode==='strain')return v>0?('1/'+Math.round(1/v)):'∞';
+  if(mode==='stress')return v.toFixed(0)+' kPa';
+  return v.toFixed(0)+' mm';
+}
+
+/* pita terdeformasi untuk titik segaris (girder/dinding) — tampak seperti balok melendut */
+function drawRibbon(ctx,nodes,proj,zFor,mode,vCrit,tri){
+  // arah utama via PCA sederhana
+  let mx=0,my=0;nodes.forEach(n=>{mx+=n.nx;my+=n.ny;});mx/=nodes.length;my/=nodes.length;
+  let sxx=0,syy=0,sxy=0;nodes.forEach(n=>{const dx=n.nx-mx,dy=n.ny-my;sxx+=dx*dx;syy+=dy*dy;sxy+=dx*dy;});
+  const ang=0.5*Math.atan2(2*sxy,(sxx-syy)||1e-9);
+  const dir={x:Math.cos(ang),y:Math.sin(ang)},perp={x:-dir.y,y:dir.x};
+  const ordered=nodes.map(n=>({n,t:(n.nx-mx)*dir.x+(n.ny-my)*dir.y})).sort((a,b)=>a.t-b.t).map(o=>o.n);
+  const W=0.16; // setengah-lebar pita (normalized)
+  const KL=6;   // subdivisi memanjang per segmen
+  const cen=(n)=>({nx:n.nx,ny:n.ny,mm:n.mm,fv:fieldVal(n,mode)});
+  for(let s=0;s<ordered.length-1;s++){
+    const A=cen(ordered[s]),B=cen(ordered[s+1]);
+    for(let k=0;k<KL;k++){
+      const u0=k/KL,u1=(k+1)/KL;
+      const lerp=(u)=>{const nx=A.nx+(B.nx-A.nx)*u,ny=A.ny+(B.ny-A.ny)*u,mm=(A.mm||0)+((B.mm||0)-(A.mm||0))*u,fv=A.fv+(B.fv-A.fv)*u;return {nx,ny,mm,fv};};
+      const c0=lerp(u0),c1=lerp(u1);
+      const L0=proj(c0.nx-perp.x*W,c0.ny-perp.y*W,zFor(c0.mm)), R0=proj(c0.nx+perp.x*W,c0.ny+perp.y*W,zFor(c0.mm));
+      const L1=proj(c1.nx-perp.x*W,c1.ny-perp.y*W,zFor(c1.mm)), R1=proj(c1.nx+perp.x*W,c1.ny+perp.y*W,zFor(c1.mm));
+      const col=jet(((c0.fv+c1.fv)/2)/vCrit);
+      tri([L0,R0,L1],col);tri([R0,R1,L1],col);
+    }
+  }
+  // garis tepi pita
+  ctx.strokeStyle='rgba(15,23,42,.22)';ctx.lineWidth=1;
+  [[-W],[W]].forEach(([off])=>{ctx.beginPath();ordered.forEach((n,i)=>{const p=proj(n.nx+perp.x*off,n.ny+perp.y*off,zFor(n.mm));i?ctx.lineTo(p.sx,p.sy):ctx.moveTo(p.sx,p.sy);});ctx.stroke();});
+}
+function drawIso(pts,focusId,date){
+  const cv=document.getElementById('isoCanvas');const {ctx,w,h}=setupCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const mode=isoState.mode;const meta=MODE_META[mode];
+  document.getElementById('isoTitle').textContent=meta.title;
+  document.getElementById('cmapTitle').textContent=meta.unit;
+  const withXY=pts.filter(p=>p.x!=null&&p.y!=null);
+  const use=withXY.length>=1?withXY:pts;
+  if(!use.length){ctx.fillStyle='#94a3b8';ctx.font='600 12px Inter';ctx.textAlign='center';ctx.fillText('Tambah X/Y pada pembacaan untuk visual 3D',w/2,h/2);updateCmapLegend(mode,0);document.getElementById('mechNote').className='notice info';document.getElementById('mechNote').innerHTML='Belum ada koordinat XY untuk membentuk peta kontur.';return;}
+  // normalisasi koordinat ke -1..1
+  let xs=use.map(p=>p.x!=null?p.x:0),ys=use.map(p=>p.y!=null?p.y:0);
+  let minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const spanX=(maxX-minX)||1,spanY=(maxY-minY)||1,span=Math.max(spanX,spanY);
+  const nodes=use.map(p=>{
+    const r=readingAt(p,date);const mm=r?r._settle:null;
+    return {p, mx:(p.x!=null?p.x:0), my:(p.y!=null?p.y:0), settleM:mm!=null?mm/1000:null,
+      nx:((p.x!=null?p.x:0)-(minX+maxX)/2)/span, ny:((p.y!=null?p.y:0)-(minY+maxY)/2)/span, mm};
+  });
+  const mech=computeMech(nodes,date);
+  const vCrit=critOf(mode);
+  updateCmapLegend(mode,vCrit);
+
+  const cx=w/2,cy=h*0.52,S=Math.min(w,h)*0.6;
+  const cosY=Math.cos(isoState.rotY),sinY=Math.sin(isoState.rotY);
+  const cosX=Math.cos(isoState.rotX),sinX=Math.sin(isoState.rotX);
+  function proj(nx,ny,nz){
+    let x=nx*cosY - ny*sinY, z0=nx*sinY + ny*cosY, y=nz;
+    let yy=y*cosX - z0*sinX, zz=y*sinX + z0*cosX;
+    return {sx:cx+x*S, sy:cy - yy*S, depth:zz};
+  }
+  const zFor=mm=>-(mm||0)*0.0008*isoState.zScale; // turun = ke bawah
+
+  // bidang desain (grid abu-abu, z=0)
+  ctx.strokeStyle='rgba(148,163,184,.45)';ctx.lineWidth=1;
+  const gl=[-0.6,-0.3,0,0.3,0.6];
+  gl.forEach(g=>{
+    let a=proj(g,-0.6,0),b=proj(g,0.6,0);ctx.beginPath();ctx.moveTo(a.sx,a.sy);ctx.lineTo(b.sx,b.sy);ctx.stroke();
+    let c=proj(-0.6,g,0),d=proj(0.6,g,0);ctx.beginPath();ctx.moveTo(c.sx,c.sy);ctx.lineTo(d.sx,d.sy);ctx.stroke();
+  });
+
+  // ---- permukaan kontur terdeformasi (jet colormap) ----
+  const tri=(P,color)=>{ctx.fillStyle=color;ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(P[0].sx,P[0].sy);ctx.lineTo(P[1].sx,P[1].sy);ctx.lineTo(P[2].sx,P[2].sy);ctx.closePath();ctx.fill();ctx.stroke();};
+  ctx.lineWidth=0.6;
+  if(mech.tris.length){
+    // --- jaring 2D (≥3 titik tak-segaris): segitiga ter-subdivisi ---
+    const SUB=5;
+    const triList=mech.tris.map(t=>{const A=nodes[t[0]],B=nodes[t[1]],C=nodes[t[2]];
+      return {A,B,C,depth:proj(A.nx,A.ny,zFor(A.mm)).depth};}).sort((p,q)=>p.depth-q.depth);
+    const vAt=(A,B,C,a,b,c)=>{const mm=(A.mm||0)*a+(B.mm||0)*b+(C.mm||0)*c;
+      const nx=A.nx*a+B.nx*b+C.nx*c, ny=A.ny*a+B.ny*b+C.ny*c;
+      const fv=fieldVal(A,mode)*a+fieldVal(B,mode)*b+fieldVal(C,mode)*c;
+      return {pt:proj(nx,ny,zFor(mm)),fv};};
+    triList.forEach(T=>{const {A,B,C}=T;
+      for(let i=0;i<SUB;i++)for(let j=0;j<SUB-i;j++){
+        const cells=[[[i,j],[i+1,j],[i,j+1]]];
+        if(j<SUB-i-1)cells.push([[i+1,j],[i+1,j+1],[i,j+1]]);
+        cells.forEach(cell=>{const verts=cell.map(([ii,jj])=>{const a=1-(ii+jj)/SUB,b=ii/SUB,c=jj/SUB;return vAt(A,B,C,a,b,c);});
+          tri(verts.map(v=>v.pt),jet((verts[0].fv+verts[1].fv+verts[2].fv)/3/vCrit));});
+      }});
+    ctx.strokeStyle='rgba(15,23,42,.18)';ctx.lineWidth=0.8;
+    mech.tris.forEach(t=>{const P=[nodes[t[0]],nodes[t[1]],nodes[t[2]]].map(nd=>proj(nd.nx,nd.ny,zFor(nd.mm)));
+      ctx.beginPath();ctx.moveTo(P[0].sx,P[0].sy);ctx.lineTo(P[1].sx,P[1].sy);ctx.lineTo(P[2].sx,P[2].sy);ctx.closePath();ctx.stroke();});
+  }else{
+    // --- pita/balok terdeformasi (titik segaris: jembatan girder / dinding) ---
+    drawRibbon(ctx,nodes,proj,zFor,mode,vCrit,tri);
+  }
+
+  // ---- node markers + label + sorot kritis ----
+  const drawNodes=nodes.map(nd=>({nd,top:proj(nd.nx,nd.ny,zFor(nd.mm)),bot:proj(nd.nx,nd.ny,0)})).sort((a,b)=>a.top.depth-b.top.depth);
+  drawNodes.forEach(o=>{
+    const nd=o.nd;const fv=fieldVal(nd,mode);const t=fv/vCrit;const crit=t>=1;
+    const focus=nd.p.id===focusId;
+    // garis desain -> deformasi
+    ctx.strokeStyle='rgba(15,23,42,.22)';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(o.bot.sx,o.bot.sy);ctx.lineTo(o.top.sx,o.top.sy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#94a3b8';ctx.beginPath();ctx.arc(o.bot.sx,o.bot.sy,2.4,0,7);ctx.fill();
+    // halo kritis
+    if(crit){ctx.fillStyle='rgba(220,38,38,.18)';ctx.beginPath();ctx.arc(o.top.sx,o.top.sy,focus?15:11,0,7);ctx.fill();}
+    ctx.fillStyle=jet(t);ctx.strokeStyle=crit?'#dc2626':(focus?'#0f172a':'#fff');ctx.lineWidth=crit?3:(focus?3:1.6);
+    ctx.beginPath();ctx.arc(o.top.sx,o.top.sy,focus?7.5:5.2,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#0f172a';ctx.font=(focus?'900 11px':'800 9.5px')+' Inter';ctx.textAlign='center';
+    ctx.fillText(nd.p.id+(crit?' ⚠':''),o.top.sx,o.top.sy-(focus?13:9));
+    ctx.fillStyle=crit?'#b91c1c':'#475569';ctx.font='800 8.5px Inter';
+    ctx.fillText(fmtField(fv,mode),o.top.sx,o.top.sy+(focus?19:14));
+  });
+
+  updateMechNote(nodes,mech,mode,vCrit);
+}
+function updateCmapLegend(mode,vCrit){
+  const meta=MODE_META[mode];
+  document.getElementById('cmapTitle').textContent=meta.unit;
+  const el=document.getElementById('cmapScale');
+  const labs=[1,0.75,0.5,0.25,0].map(f=>{
+    const v=vCrit*f;
+    if(mode==='strain')return f===1?'1/'+(DB.th.strainN||250):(v>0?'1/'+Math.round(1/v):'∞');
+    if(mode==='stress')return Math.round(v)+(f===1?' (izin)':'');
+    return Math.round(v)+(f===1?' (kritis)':'');
+  });
+  el.innerHTML=labs.map((l,i)=>`<span ${i===0?'style="color:#dc2626;font-weight:900"':''}>${l}</span>`).join('');
+}
+function updateMechNote(nodes,mech,mode,vCrit){
+  const note=document.getElementById('mechNote');
+  const crit=nodes.filter(nd=>fieldVal(nd,mode)>=vCrit);
+  const worst=mech.critEdges[0];
+  if(mode==='disp'){
+    const cd=nodes.filter(nd=>Math.abs((nd.mm||0))>=(DB.th.alert||100));
+    note.className='notice '+(cd.length?'alert':'ok');
+    note.innerHTML=cd.length
+      ? `<b>${cd.length} titik mencapai zona merah (kritis ≥ ${(DB.th.alert/10).toFixed(0)} cm):</b> ${cd.map(n=>esc(n.p.id)+' ('+signed(n.mm)+')').join(', ')}. Lihat rekomendasi pada tab Analisis.`
+      : `Tidak ada titik di zona merah. Settlement maksimum masih di bawah ambang kritis ${(DB.th.alert/10).toFixed(0)} cm.`;
+    return;
+  }
+  if(mode==='strain'){
+    note.className='notice '+(crit.length?'alert':(mech.critEdges[0]&&mech.critEdges[0].beta>1/(2*(DB.th.strainN||250))?'watch':'ok'));
+    note.innerHTML=(crit.length
+      ? `<b>Regangan KRITIS pada ${crit.length} titik</b> (distorsi ≥ 1/${DB.th.strainN}). `
+      : `Regangan masih di bawah batas 1/${DB.th.strainN}. `)+
+      (worst?`Distorsi terbesar: <b>${esc(worst.a)}–${esc(worst.b)}</b> = 1/${worst.beta>0?Math.round(1/worst.beta):'∞'} (Δ ${worst.diff.toFixed(0)} mm / ${worst.dist.toFixed(1)} m). `:'')+
+      strainRecoShort(crit);
+    return;
+  }
+  // stress
+  note.className='notice '+(crit.length?'alert':'ok');
+  const maxS=Math.max(0,...nodes.map(n=>n.stress||0));
+  note.innerHTML=(crit.length
+    ? `<b>Tegangan indikatif melampaui izin (σ ≥ ${DB.th.sig} kPa) pada ${crit.length} titik:</b> ${crit.map(n=>esc(n.p.id)).join(', ')}. `
+    : `Tegangan indikatif maks <b>${maxS.toFixed(0)} kPa</b> masih < izin ${DB.th.sig} kPa. `)+
+    `<br><small>σ = E·ε (E=${DB.th.E} MPa). Nilai indikatif — verifikasi dengan analisis struktur/geoteknik.</small>`;
+}
+function strainRecoShort(crit){
+  if(!crit.length)return 'Pertahankan monitoring rutin.';
+  return 'Tindakan: verifikasi ukur di titik kritis, periksa fondasi & penurunan diferensial, batasi penambahan beban, dan rujuk ke engineer struktur.';
+}
+/* regangan & tegangan dari koordinat riil (untuk tab Analisis) */
+function computeMechReal(pts){
+  const res={byId:{},critEdges:[]};
+  const xy=pts.filter(p=>p.x!=null&&p.y!=null&&p.settle!=null).slice().sort((a,b)=>(a.x-b.x)||(a.y-b.y));
+  if(xy.length<2)return res;
+  const tris=delaunay(xy.map(p=>({x:p.x,y:p.y})));
+  let edges=[],seen={};
+  if(tris.length){tris.forEach(t=>{[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]].forEach(e=>{const k=Math.min(e[0],e[1])+'-'+Math.max(e[0],e[1]);if(!seen[k]){seen[k]=1;edges.push(e);}});});}
+  else{for(let i=1;i<xy.length;i++)edges.push([i-1,i]);}    // kolinear: rantai berurutan
+  const E=DB.th.E||25;
+  xy.forEach(p=>{res.byId[p.id]={strain:0,stress:0,edge:null};});
+  edges.forEach(e=>{
+    const a=xy[e[0]],b=xy[e[1]];const dist=Math.hypot(a.x-b.x,a.y-b.y);if(dist<1e-6)return;
+    const beta=Math.abs(a.settle-b.settle)/1000/dist;       // distorsi sudut (rad)
+    const ra=res.byId[a.id],rb=res.byId[b.id];
+    if(beta>ra.strain){ra.strain=beta;ra.edge=b.id;}
+    if(beta>rb.strain){rb.strain=beta;rb.edge=a.id;}
+    res.critEdges.push({a:a.id,b:b.id,beta,dist,diff:Math.abs(a.settle-b.settle)});
+  });
+  Object.values(res.byId).forEach(r=>r.stress=r.strain*E*1000); // kPa
+  res.critEdges.sort((x,y)=>y.beta-x.beta);
+  return res;
+}
+function strainStatus(beta){
+  const crit=1/(DB.th.strainN||250), warn=1/((DB.th.strainN||250)*2);
+  if(beta>=crit)return{k:'alert',t:'Kritis'};
+  if(beta>=warn)return{k:'watch',t:'Perhatian'};
+  return{k:'ok',t:'Aman'};
+}
+// drag rotate
+(function(){
+  const cv=document.getElementById('isoCanvas');let drag=false,lx,ly;
+  function down(e){drag=true;const p=pt(e);lx=p.x;ly=p.y;}
+  function move(e){if(!drag)return;const p=pt(e);isoState.rotY+=(p.x-lx)*0.01;isoState.rotX+=(p.y-ly)*0.008;isoState.rotX=Math.max(0.05,Math.min(1.45,isoState.rotX));lx=p.x;ly=p.y;e.preventDefault();renderVisual();}
+  function up(){drag=false;}
+  function pt(e){const t=e.touches?e.touches[0]:e;return{x:t.clientX,y:t.clientY};}
+  cv.addEventListener('mousedown',down);window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',down,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',up);
+})();
+
+function drawPointTrend(p){
+  const cv=document.getElementById('ptChart');const note=document.getElementById('ptChartNote');
+  if(!p){drawLineChart(cv,[],{});note.textContent='—';return;}
+  const valid=p.series.filter(r=>r._settle!=null);
+  const pts=valid.map((r,i)=>({x:i,y:r._settle}));
+  const series=[{name:p.id,color:'#7c3aed',points:pts}];
+  // suhu (sumbu sekunder visual sederhana — skala ke range settlement)
+  drawLineChart(cv,series,{xLabels:valid.map(r=>fmtDateShort(r.date))});
+  if(valid.length){
+    note.innerHTML=`Titik <b>${esc(p.id)}</b>: settlement terakhir <b>${signed(p.settle)}</b>, laju <b>${signedRate(p.rate)} mm/hari</b>, lonjakan maks antar ukur <b>${p.maxStep.toFixed(0)} mm</b>${p.maxStepLabel?(' ('+p.maxStepLabel+')'):''}.`;
+  } else note.textContent='Belum cukup data untuk titik ini.';
+}
+function drawProfile(pts,date){
+  const cv=document.getElementById('profCanvas');const {ctx,w,h}=setupCanvas(cv);
+  ctx.clearRect(0,0,w,h);
+  const use=pts.filter(p=>p.x!=null&&p.zDesign!=null).sort((a,b)=>a.x-b.x);
+  if(use.length<2){ctx.fillStyle='#94a3b8';ctx.font='600 12px Inter';ctx.textAlign='center';ctx.fillText('Butuh ≥2 titik dengan X & elevasi desain',w/2,h/2);return;}
+  const pad={l:46,r:14,t:16,b:30};
+  const xs=use.map(p=>p.x);
+  const design=use.map(p=>p.zDesign);
+  const meas=use.map(p=>{const r=readingAt(p,date);return r&&r.z!=null?r.z:p.zDesign;});
+  const allZ=design.concat(meas);
+  let minZ=Math.min(...allZ),maxZ=Math.max(...allZ);const padZ=(maxZ-minZ)*0.25||0.05;minZ-=padZ;maxZ+=padZ;
+  let minX=Math.min(...xs),maxX=Math.max(...xs);if(minX===maxX){minX-=1;maxX+=1;}
+  const X=x=>pad.l+(x-minX)/(maxX-minX)*(w-pad.l-pad.r);
+  const Y=z=>pad.t+(1-(z-minZ)/(maxZ-minZ))*(h-pad.t-pad.b);
+  // grid
+  ctx.strokeStyle='#e2e8f0';ctx.fillStyle='#94a3b8';ctx.font='600 9px Inter';ctx.textAlign='right';
+  for(let i=0;i<=3;i++){const zv=minZ+(maxZ-minZ)*i/3;const yy=Y(zv);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillText(zv.toFixed(2),pad.l-5,yy+3);}
+  // design
+  ctx.strokeStyle='#94a3b8';ctx.setLineDash([5,4]);ctx.lineWidth=2;ctx.beginPath();
+  use.forEach((p,i)=>{const xx=X(p.x),yy=Y(design[i]);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});ctx.stroke();ctx.setLineDash([]);
+  // measured
+  ctx.strokeStyle='#dc2626';ctx.lineWidth=2.4;ctx.beginPath();
+  use.forEach((p,i)=>{const xx=X(p.x),yy=Y(meas[i]);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);});ctx.stroke();
+  use.forEach((p,i)=>{
+    const xx=X(p.x);
+    ctx.fillStyle='#94a3b8';ctx.beginPath();ctx.arc(xx,Y(design[i]),3,0,7);ctx.fill();
+    ctx.fillStyle='#dc2626';ctx.beginPath();ctx.arc(xx,Y(meas[i]),3.4,0,7);ctx.fill();
+    ctx.fillStyle='#334155';ctx.font='800 9px Inter';ctx.textAlign='center';ctx.fillText(p.id,xx,h-pad.b+13);
+  });
+}
+
+/* =========================================================
+   ANALYSIS & RECOMMENDATIONS
+   ========================================================= */
+function isAnomaly(p){
+  if(p.settle==null)return false;
+  if(Math.abs(p.settle)>=DB.th.err)return true;             // > ambang (default 10 cm)
+  if(p.maxStep>=DB.th.err*0.7)return true;                   // lonjakan tiba2 besar
+  return false;
+}
+function renderAnalysis(){
+  const pts=Object.values(buildPoints());
+  const body=document.getElementById('analysisBody');
+  document.getElementById('anBadge').textContent=pts.length+' titik';
+  if(!pts.length){body.innerHTML='<div class="panel"><div class="empty">Belum ada data untuk dianalisis.</div></div>';return;}
+
+  // Differential settlement antar titik bersebelahan (punya X/Y)
+  let diffHtml='';
+  const xy=pts.filter(p=>p.x!=null&&p.y!=null&&p.settle!=null);
+  if(xy.length>=2){
+    const pairs=[];
+    for(let i=0;i<xy.length;i++)for(let j=i+1;j<xy.length;j++){
+      const a=xy[i],b=xy[j];const dist=Math.hypot(a.x-b.x,a.y-b.y);
+      if(dist<=0)continue;
+      const diff=Math.abs(a.settle-b.settle);          // mm
+      const distort=diff/(dist*1000);                  // rasio (mm/mm)
+      pairs.push({a:a.id,b:b.id,dist,diff,distort});
+    }
+    pairs.sort((p,q)=>q.distort-p.distort);
+    const worst=pairs.slice(0,3);
+    diffHtml=`<div class="panel"><div class="panel-head"><h3>Differential Settlement (Distorsi Sudut)</h3><span class="badge">Batas umum 1/500</span></div>
+      <div class="tbl-wrap"><table class="data"><thead><tr><th>Pasangan</th><th>Jarak (m)</th><th>Δ Settle (mm)</th><th>Distorsi</th><th>Penilaian</th></tr></thead><tbody>${
+        worst.map(p=>{const lim=1/500;const k=p.distort>1/250?'alert':(p.distort>lim?'watch':'ok');const t=p.distort>1/250?'Melebihi 1/250':(p.distort>lim?'Mendekati batas':'Aman');
+        return `<tr><td><b>${esc(p.a)}–${esc(p.b)}</b></td><td>${p.dist.toFixed(2)}</td><td>${p.diff.toFixed(0)}</td><td>1/${p.distort>0?Math.round(1/p.distort):'∞'}</td><td><span class="pill ${k}">${t}</span></td></tr>`;}).join('')
+      }</tbody></table></div>
+      <p class="sub-note" style="margin-top:9px">Distorsi sudut = Δ settlement ÷ jarak. Batas layan umum bangunan ≈ 1/500 (retak arsitektural), 1/250 (kerusakan struktur). Sesuaikan dengan kelas bangunan.</p></div>`;
+  }
+
+  // Regangan & tegangan dari koordinat — sumber peta kontur 3D
+  const mech=computeMechReal(pts);
+  pts.forEach(p=>{const r=mech.byId[p.id];p._strain=r?r.strain:null;p._stress=r?r.stress:null;p._strainEdge=r?r.edge:null;});
+  let mechHtml='';
+  if(Object.keys(mech.byId).length){
+    const sc=1/(DB.th.strainN||250);
+    const critN=pts.filter(p=>p._strain!=null&&p._strain>=sc).length;
+    const sigN=pts.filter(p=>p._stress!=null&&p._stress>=(DB.th.sig||150)).length;
+    mechHtml=`<div class="panel"><div class="panel-head"><h3>Regangan (ε) &amp; Tegangan (σ) per Titik</h3><span class="badge">ε kritis 1/${DB.th.strainN} · σ izin ${DB.th.sig} kPa</span></div>
+      <div class="tbl-wrap"><table class="data"><thead><tr><th>Titik</th><th>Settlement</th><th>Regangan ε</th><th>Tegangan σ (kPa)</th><th>Thd kritis</th><th>Status</th></tr></thead><tbody>${
+        pts.filter(p=>p._strain!=null).map(p=>{const ss=strainStatus(p._strain);const ratio=p._strain/sc;
+          return `<tr class="click" onclick="focusPoint('${esc(p.id)}')"><td><b>${esc(p.id)}</b></td><td>${p.settle!=null?signed(p.settle):'—'}</td><td>${p._strain>0?'1/'+Math.round(1/p._strain):'∞'}</td><td>${p._stress.toFixed(0)}</td><td>${(ratio*100).toFixed(0)}%</td><td><span class="pill ${ss.k}">${ss.t}</span></td></tr>`;}).join('')
+      }</tbody></table></div>
+      <div class="notice ${critN||sigN?'alert':'ok'}" style="margin-top:11px"><b>${critN||sigN?'⚠ Titik kritis terdeteksi (zona merah pada peta 3D).':'Belum ada titik di zona kritis regangan/tegangan.'}</b>
+        <ul>
+          <li>Regangan ε = beda penurunan antar titik ÷ jarak (distorsi sudut). Kritis bila ε ≥ 1/${DB.th.strainN}.</li>
+          <li>Tegangan σ = E·ε (E=${DB.th.E} MPa) — <i>indikatif</i>, bukan pengganti analisis struktur. Kritis bila σ ≥ ${DB.th.sig} kPa.</li>
+          ${critN?`<li><b>${critN} titik</b> melampaui regangan kritis → utamakan inspeksi & perkuatan.</li>`:''}
+        </ul>
+      </div>
+      <p class="sub-note" style="margin-top:8px">Atur E, σ izin, dan 1/n kritis di tab <b>Input Data → Ambang</b>. Peta kontur 3D (tab Visual) memakai parameter yang sama.</p></div>`;
+  }
+
+  body.innerHTML=diffHtml+mechHtml+pts.map(p=>analysisCard(p)).join('');
+}
+function analysisCard(p){
+  const st=statusOf(p.settle);const an=isAnomaly(p);
+  const causes=likelyCauses(p);
+  const recs=recommendations(p,st,an);
+  const noticeClass=an?'alert':(st.k==='ok'?'ok':(st.k==='watch'?'watch':'alert'));
+  return `<div class="acard">
+    <div class="ah"><b>Titik ${esc(p.id)}</b>
+      <span>${an?'<span class="pill crit">ANOMALI</span> ':''}<span class="pill ${st.k}">${st.t}</span></span></div>
+    <div class="metrics">
+      <div class="m"><s>Settlement total</s><b class="${p.settle>0?'delta-up':'delta-dn'}">${p.settle!=null?signed(p.settle):'—'}</b></div>
+      <div class="m"><s>Laju</s><b>${signedRate(p.rate)} mm/hr</b></div>
+      <div class="m"><s>Pergeseran horiz.</s><b>${p.horiz!=null?p.horiz.toFixed(0)+' mm':'—'}</b></div>
+      <div class="m"><s>Lonjakan maks</s><b>${p.maxStep.toFixed(0)} mm</b></div>
+      <div class="m"><s>Regangan ε</s><b>${p._strain!=null&&p._strain>0?'1/'+Math.round(1/p._strain):(p._strain===0?'~0':'—')}</b></div>
+      <div class="m"><s>Tegangan σ</s><b>${p._stress!=null?p._stress.toFixed(0)+' kPa':'—'}</b></div>
+      <div class="m"><s>Elev. desain</s><b>${p.zDesign!=null?p.zDesign.toFixed(3):'—'}</b></div>
+    </div>
+    <div class="notice info" style="margin-top:11px"><b>Kemungkinan penyebab:</b><ul>${causes.map(c=>`<li>${c}</li>`).join('')}</ul></div>
+    <div class="notice ${noticeClass}"><b>Rekomendasi tindakan:</b><ul>${recs.map(r=>`<li>${r}</li>`).join('')}</ul></div>
+  </div>`;
+}
+function likelyCauses(p){
+  const out=[];const s=p.settle||0;const abs=Math.abs(s);
+  if(s>0){ // turun
+    if(p.rate!=null&&Math.abs(p.rate)>1)out.push('Konsolidasi tanah masih aktif (laju > 1 mm/hari) — penurunan primer/sekunder akibat beban.');
+    else if(abs>5)out.push('Konsolidasi tanah / pemampatan lapisan kompresibel di bawah fondasi.');
+    if(p.horiz!=null&&p.horiz>30)out.push('Indikasi pergeseran lateral / kelongsoran lokal (horizontal '+p.horiz.toFixed(0)+' mm) — perik­sa kestabilan lereng/timbunan.');
+    if(abs>50)out.push('Beban konstruksi/timbunan bertambah, atau daya dukung fondasi terlampaui.');
+    out.push('Fluktuasi muka air tanah / dewatering di sekitar area.');
+  }else if(s<0){
+    out.push('Elevasi terukur di atas desain — kemungkinan heave (pengangkatan), beban diangkat, atau benchmark/titik ikat berubah.');
+  }else out.push('Stabil terhadap elevasi desain.');
+  if(isAnomaly(p)&&abs>=DB.th.err){
+    out.unshift('⚠ Nilai sangat besar (≥ '+(DB.th.err/10).toFixed(0)+' cm) — <b>periksa dulu kemungkinan kesalahan pengukuran</b> sebelum disimpulkan sebagai penurunan riil.');
+  }
+  if(p.maxStep>=DB.th.err*0.7)out.push('Lonjakan tajam antar pembacaan ('+p.maxStep.toFixed(0)+' mm) — indikasi kesalahan baca/blunder, bukan tren alami.');
+  return out;
+}
+function recommendations(p,st,an){
+  const out=[];const abs=Math.abs(p.settle||0);
+  if(an){
+    out.push('Verifikasi pengukuran: ulangi pembacaan titik ini, cek tinggi target/prisma & tinggi alat.');
+    out.push('Periksa stabilitas benchmark/BM referensi dan lakukan loop closing (tutup level).');
+    out.push('Bandingkan dengan titik sekitar; jika hanya 1 titik melonjak, kemungkinan besar blunder.');
+    out.push('Cek kondisi alat (kalibrasi TS/level, kolimasi) dan kondisi atmosfer saat ukur.');
+  }
+  if(st.k==='crit'||st.k==='alert'){
+    out.push('Tingkatkan frekuensi monitoring (harian) & pasang batas peringatan (trigger level).');
+    out.push('Lapor ke engineer geoteknik/struktur; evaluasi daya dukung & kebutuhan perkuatan fondasi.');
+    out.push('Hentikan/atur penambahan beban; tinjau dewatering & drainase area.');
+  }else if(st.k==='watch'){
+    out.push('Lanjut monitoring berkala (mingguan); amati tren laju penurunan.');
+    out.push('Dokumentasikan kondisi retak/struktur sebagai data pendukung.');
+  }else{
+    out.push('Pertahankan jadwal monitoring rutin; arsipkan data sebagai baseline.');
+  }
+  if(p.rate!=null&&p.rate>0.5&&!an)out.push('Laju masih positif ('+p.rate.toFixed(2)+' mm/hari) — pantau hingga laju mendekati nol (konsolidasi selesai).');
+  if(p.horiz!=null&&p.horiz>30)out.push('Pasang/inspeksi inklinometer untuk konfirmasi pergerakan lateral.');
+  // Rekomendasi berbasis regangan & tegangan (faktor distorsi koordinat)
+  const sc=1/(DB.th.strainN||250);
+  if(p._strain!=null&&p._strain>=sc){
+    out.push('Regangan/distorsi sudut KRITIS (1/'+Math.round(1/p._strain)+' ≥ 1/'+DB.th.strainN+') terhadap titik '+esc(p._strainEdge||'')+' — risiko retak struktur; lakukan inspeksi retak & survei kerataan detail.');
+    out.push('Tegangan indikatif ≈ '+(p._stress!=null?p._stress.toFixed(0):'—')+' kPa — minta evaluasi struktur/geoteknik untuk perkuatan (grouting/underpinning/penambahan tiang) bila terkonfirmasi.');
+  }else if(p._strain!=null&&p._strain>=sc/2){
+    out.push('Regangan mendekati batas (1/'+Math.round(1/p._strain)+') — perketat monitoring penurunan diferensial titik bersebelahan.');
+  }
+  if(p._stress!=null&&p._stress>=(DB.th.sig||150))out.push('Tegangan indikatif melampaui σ izin ('+(DB.th.sig||150)+' kPa) — tahan penambahan beban sampai diverifikasi engineer.');
+  return out;
+}
+
+/* =========================================================
+   INPUT HANDLERS
+   ========================================================= */
+function renderInput(){
+  const p=DB.project;
+  document.getElementById('pName').value=p.name||'';
+  document.getElementById('pRef').value=p.ref||'';
+  document.getElementById('pDatum').value=p.datum||'';
+  document.getElementById('pSurveyor').value=p.surveyor||'';
+  document.getElementById('thOk').value=DB.th.ok;document.getElementById('thWatch').value=DB.th.watch;
+  document.getElementById('thAlert').value=DB.th.alert;document.getElementById('thErr').value=DB.th.err;
+  document.getElementById('thStrain').value=DB.th.strainN;document.getElementById('thE').value=DB.th.E;document.getElementById('thSig').value=DB.th.sig;
+  if(!document.getElementById('rDate').value)document.getElementById('rDate').value=new Date().toISOString().slice(0,10);
+  renderGallery();
+}
+function saveProject(){
+  DB.project={name:val('pName'),ref:val('pRef'),datum:val('pDatum'),surveyor:val('pSurveyor')};
+  save();toast('Info proyek disimpan');renderProjectChips();
+}
+function saveThresholds(){
+  DB.th={ok:+val('thOk')||25,watch:+val('thWatch')||50,alert:+val('thAlert')||100,err:+val('thErr')||100,
+    strainN:+val('thStrain')||250,E:+val('thE')||25,sig:+val('thSig')||150};
+  save();toast('Ambang & parameter disimpan');
+}
+function val(id){return document.getElementById(id).value.trim();}
+function addReading(){
+  const point=val('rPoint');const date=val('rDate');const z=num(val('rZ'));
+  if(!point){toast('ID titik wajib diisi');return;}
+  if(!date){toast('Tanggal wajib diisi');return;}
+  if(z==null){toast('Z terukur wajib angka');return;}
+  DB.readings.push({id:uid(),t:Date.now(),point,date,x:num(val('rX')),y:num(val('rY')),z,zd:num(val('rZd')),temp:num(val('rTemp')),note:val('rNote')});
+  save();
+  document.getElementById('rZ').value='';document.getElementById('rNote').value='';
+  toast('Pembacaan '+point+' @ '+date+' ditambahkan');
+}
+function clearAll(){
+  if(!confirm('Hapus SEMUA data settlement (pembacaan, foto, proyek)? Tindakan ini tidak bisa dibatalkan.'))return;
+  DB={project:{name:'',ref:'',datum:'',surveyor:''},readings:[],photos:[],th:{...DEF_TH}};
+  save();renderInput();toast('Semua data dihapus');
+}
+
+/* ---- CSV import ---- */
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim().length);
+  if(!lines.length)return 0;
+  let delim=',';const head=lines[0];
+  if(head.split(';').length>head.split(',').length)delim=';';
+  else if(head.split('\t').length>head.split(',').length)delim='\t';
+  const headers=lines[0].split(delim).map(h=>h.trim().toLowerCase());
+  const idx=(names)=>{for(const n of names){const i=headers.indexOf(n);if(i>=0)return i;}return -1;};
+  const iP=idx(['point','titik','id','station','sta','name']);
+  const iD=idx(['date','tanggal','tgl','time']);
+  const iX=idx(['x','easting','e','bt']);
+  const iY=idx(['y','northing','n','ls']);
+  const iZ=idx(['z','elev','elevation','elevasi','tinggi','h']);
+  const iZd=idx(['zdesign','z_design','elev_desain','desain','design','z0']);
+  const iT=idx(['temp','suhu','temperature']);
+  const iN=idx(['note','catatan','keterangan','ket']);
+  // jika header tak dikenali, asumsikan urutan: point,date,x,y,z,zdesign,temp,note
+  const hasHeader=iP>=0||iZ>=0;
+  let added=0;
+  const rows=hasHeader?lines.slice(1):lines;
+  rows.forEach(line=>{
+    const c=line.split(delim).map(s=>s.trim());
+    let point,date,x,y,z,zd,temp,note;
+    if(hasHeader){
+      point=iP>=0?c[iP]:'';date=iD>=0?c[iD]:'';
+      x=iX>=0?num(c[iX]):null;y=iY>=0?num(c[iY]):null;z=iZ>=0?num(c[iZ]):null;
+      zd=iZd>=0?num(c[iZd]):null;temp=iT>=0?num(c[iT]):null;note=iN>=0?c[iN]:'';
+    }else{
+      point=c[0];date=c[1];x=num(c[2]);y=num(c[3]);z=num(c[4]);zd=num(c[5]);temp=num(c[6]);note=c[7]||'';
+    }
+    if(!point||z==null)return;
+    date=normDate(date);
+    DB.readings.push({id:uid(),t:Date.now()+added,point,date,x,y,z,zd,temp,note});
+    added++;
+  });
+  if(added)save();
+  return added;
+}
+function normDate(d){
+  if(!d)return new Date().toISOString().slice(0,10);
+  d=d.trim();
+  let m=d.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if(m)return m[1]+'-'+pad(m[2])+'-'+pad(m[3]);
+  m=d.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);          // dd/mm/yyyy atau dd-mm-yyyy
+  if(m)return m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
+  return d;
+}
+function pad(n){return String(n).padStart(2,'0');}
+
+function handleCSVFile(file){
+  const r=new FileReader();
+  r.onload=()=>{const n=parseCSV(String(r.result));toast(n?(n+' pembacaan diimpor'):'Tidak ada baris valid ditemukan');};
+  r.onerror=()=>toast('Gagal membaca file');
+  r.readAsText(file);
+}
+function copyTemplate(){
+  const t='point,date,x,y,z,zdesign,temp,note\nSS1,2021-03-01,100.000,200.000,12.500,12.520,30,Awal\nSS1,2021-03-02,100.000,200.001,12.488,12.520,31,Hari2\nSS2,2021-03-01,110.000,200.000,12.480,12.500,30,Awal';
+  navigator.clipboard?.writeText(t).then(()=>toast('Template CSV disalin'),()=>toast('Salin manual: lihat hint'));
+}
+
+/* ---- Image import (downscale + store) ---- */
+function handleImages(files){
+  let count=0,total=files.length;
+  [...files].forEach(f=>{
+    if(!f.type.startsWith('image/')){total--;return;}
+    const r=new FileReader();
+    r.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const max=1100;let{width:w,height:h}=img;
+        if(w>max||h>max){const s=max/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        const data=cv.toDataURL('image/jpeg',0.78);
+        DB.photos.push({id:uid(),name:f.name,date:new Date().toISOString().slice(0,10),data});
+        count++;save();renderGallery();
+        if(count>=total)toast(count+' gambar dilampirkan');
+      };
+      img.src=r.result;
+    };
+    r.readAsDataURL(f);
+  });
+}
+function renderGallery(){
+  const g=document.getElementById('gallery');
+  if(!DB.photos.length){g.innerHTML='<div class="empty" style="grid-column:1/-1">Belum ada lampiran gambar.</div>';return;}
+  g.innerHTML=DB.photos.map(ph=>`<div class="gcard"><button class="del tap" onclick="delPhoto('${ph.id}')">×</button>
+    <img src="${ph.data}" alt="${esc(ph.name)}"><div class="meta">${esc(ph.name).slice(0,22)}<small>${ph.date}</small></div></div>`).join('');
+}
+function delPhoto(id){DB.photos=DB.photos.filter(p=>p.id!==id);save();renderGallery();}
+
+/* ---- drag & drop wiring ---- */
+function wireDrop(dropId,fileId,handler){
+  const drop=document.getElementById(dropId),inp=document.getElementById(fileId);
+  inp.addEventListener('change',()=>{if(inp.files.length)handler(inp.files);inp.value='';});
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+  drop.addEventListener('drop',e=>{if(e.dataTransfer.files.length)handler(e.dataTransfer.files);});
+}
+
+/* =========================================================
+   SAMPLE DATA (mengacu kasus settlement sensor jembatan)
+   ========================================================= */
+function loadSample(){
+  // Grid 2 baris × 4 kolom (8 titik) di atas pelat/pilecap → kontur penurunan tampak jelas.
+  // Pola: cekungan (settlement bowl) memuncak di tengah + 1 anomali besar (kesalahan ukur) di P7.
+  const days=['2021-03-01','2021-03-02','2021-03-03','2021-03-04','2021-03-05'];
+  const zd0=12.500;
+  // [x, y, profil settlement mm per hari]
+  const base={
+    P1:[100,200,[0, 3, 5, 7, 8]],   P2:[112,200,[0, 7,13,18,22]],
+    P3:[124,200,[0, 9,18,26,33]],   P4:[136,200,[0, 5, 9,12,14]],
+    P5:[100,212,[0, 4, 7, 9,11]],   P6:[112,212,[0, 8,15,22,28]],
+    P7:[124,212,[0,11,21,30,135]],  P8:[136,212,[0, 6,10,13,16]]
+  };
+  DB.readings=[];
+  Object.keys(base).forEach(id=>{
+    const[x,y,prof]=base[id];
+    days.forEach((d,i)=>{
+      const set=prof[i];
+      DB.readings.push({id:uid(),t:Date.now()+Math.random(),point:id,date:d,
+        x:+(x+(Math.random()-0.5)*0.003).toFixed(3), y:+(y+(Math.random()-0.5)*0.003).toFixed(3),
+        z:+(zd0-set/1000).toFixed(4), zd:zd0, temp:+(30+Math.sin(i)*4).toFixed(1),
+        note:i===0?'Baseline':''});
+    });
+  });
+  DB.project={name:DB.project.name||'Contoh: Pilecap / Pelat Lantai',ref:DB.project.ref||'SS-DEMO',datum:DB.project.datum||'Lokal',surveyor:DB.project.surveyor||'Surveyor'};
+  save();renderInput();toast('Contoh data dimuat (8 titik grid, 5 hari, 1 anomali di P7)');
+  go('screen-home');
+}
+
+/* =========================================================
+   EXPORT
+   ========================================================= */
+function exportCSV(){
+  const rows=[['point','date','x','y','z','zdesign','settlement_mm','temp','note']];
+  const pts=buildPoints();
+  DB.readings.slice().sort((a,b)=>(a.point||'').localeCompare(b.point||'')||(a.date||'').localeCompare(b.date||'')).forEach(r=>{
+    const p=pts[(r.point||'').trim()];const set=p&&p.zDesign!=null&&r.z!=null?((p.zDesign-r.z)*1000).toFixed(1):'';
+    rows.push([r.point,r.date,r.x??'',r.y??'',r.z??'',p?p.zDesign??'':'',set,r.temp??'',(r.note||'').replace(/,/g,';')]);
+  });
+  download('settlement_rekap.csv',rows.map(r=>r.join(',')).join('\n'),'text/csv');
+}
+function exportReport(){
+  const pts=Object.values(buildPoints());const p=DB.project;
+  const mech=computeMechReal(pts);
+  pts.forEach(pt=>{const r=mech.byId[pt.id];pt._strain=r?r.strain:null;pt._stress=r?r.stress:null;pt._strainEdge=r?r.edge:null;});
+  const today=new Date().toLocaleString('id-ID');
+  let html='<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>Laporan Settlement</title>'+
+    '<style>body{font-family:Arial,sans-serif;margin:24px;color:#0f172a}h1{font-size:20px}h2{font-size:15px;margin-top:22px;border-bottom:2px solid #d6a94a;padding-bottom:4px}table{border-collapse:collapse;width:100%;font-size:12px;margin-top:8px}th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left}th{background:#0f172a;color:#fff}.crit{color:#dc2626;font-weight:bold}.ok{color:#16a34a}small{color:#64748b}ul{font-size:12px}</style></head><body>';
+  html+='<h1>Laporan Settlement Observation</h1>';
+  html+=`<p><b>Proyek:</b> ${esc(p.name||'-')} &nbsp; <b>Ref:</b> ${esc(p.ref||'-')} &nbsp; <b>Datum:</b> ${esc(p.datum||'-')}<br><b>Surveyor:</b> ${esc(p.surveyor||'-')} &nbsp; <small>Dibuat: ${today}</small></p>`;
+  html+='<h2>Ringkasan Titik</h2><table><tr><th>Titik</th><th>Elev. Desain</th><th>Elev. Terakhir</th><th>Settlement (mm)</th><th>Laju (mm/hr)</th><th>Regangan ε</th><th>Tegangan σ (kPa)</th><th>Status</th></tr>';
+  const sc=1/(DB.th.strainN||250);
+  pts.forEach(pt=>{const st=statusOf(pt.settle);const an=isAnomaly(pt);const ecrit=pt._strain!=null&&pt._strain>=sc;
+    html+=`<tr><td>${esc(pt.id)}</td><td>${pt.zDesign!=null?pt.zDesign.toFixed(3):'-'}</td><td>${pt.latest&&pt.latest.z!=null?pt.latest.z.toFixed(3):'-'}</td><td class="${st.k==='ok'?'ok':'crit'}">${pt.settle!=null?signed(pt.settle):'-'}</td><td>${pt.rate!=null?pt.rate.toFixed(2):'-'}</td><td class="${ecrit?'crit':''}">${pt._strain!=null&&pt._strain>0?'1/'+Math.round(1/pt._strain):'-'}</td><td>${pt._stress!=null?pt._stress.toFixed(0):'-'}</td><td>${st.t}${an?' (ANOMALI)':''}</td></tr>`;});
+  html+=`</table><p><small>Regangan ε = distorsi sudut (Δsettlement ÷ jarak); kritis ≥ 1/${DB.th.strainN}. Tegangan σ = E·ε (E=${DB.th.E} MPa), indikatif.</small></p>`;
+  html+='<h2>Analisis & Rekomendasi</h2>';
+  pts.forEach(pt=>{const st=statusOf(pt.settle);const an=isAnomaly(pt);
+    html+=`<h3 style="font-size:13px;margin:14px 0 2px">Titik ${esc(pt.id)} — ${st.t}${an?' / ANOMALI':''}</h3>`;
+    html+='<b style="font-size:12px">Kemungkinan penyebab:</b><ul>'+likelyCauses(pt).map(c=>'<li>'+c+'</li>').join('')+'</ul>';
+    html+='<b style="font-size:12px">Rekomendasi:</b><ul>'+recommendations(pt,st,an).map(r=>'<li>'+r+'</li>').join('')+'</ul>';});
+  html+=`<p><small>Threshold: Aman ≤${DB.th.ok}mm · Perhatian ≤${DB.th.watch}mm · Bahaya ≤${DB.th.alert}mm · Cek-ukur ≥${DB.th.err}mm. Hasil indikatif — verifikasi oleh engineer geoteknik berwenang.</small></p>`;
+  html+='</body></html>';
+  download('Laporan_Settlement.html',html,'text/html');
+}
+function download(name,content,type){
+  const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);toast('Mengunduh '+name);
+}
+
+/* =========================================================
+   UTIL
+   ========================================================= */
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtDate(d){if(!d)return'—';const t=new Date(d);if(isNaN(t))return d;return t.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});}
+function fmtDateShort(d){if(!d)return'';const t=new Date(d);if(isNaN(t))return d;return t.toLocaleDateString('id-ID',{day:'2-digit',month:'2-digit'});}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+load();
+wireDrop('csvDrop','csvFile',f=>handleCSVFile(f[0]));
+wireDrop('imgDrop','imgFile',handleImages);
+window.addEventListener('resize',()=>{const a=document.querySelector('.screen.active');if(a&&a.id==='screen-home')drawProgress();if(a&&a.id==='screen-visual')renderVisual();});
+// deep-link via ?open=
+const ot=window.__openTarget;
+const map={dashboard:'screen-home',input:'screen-input',visual:'screen-visual',analysis:'screen-analysis'};
+go(map[ot]||'screen-home');
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@
    - Aset  -> cache-first (icon, manifest)
    - Naikkan CACHE_VERSION setiap deploy agar cache lama dibersihkan.
 */
-const CACHE_VERSION = 'survai-v8';
+const CACHE_VERSION = 'survai-v12';
 const CORE = [
   './',
   './index.html',
@@ -22,6 +22,7 @@ const CORE = [
   'calculator/kdv.html',
   'calculator/kdh.html',
   'calculator/volume.html',
+  'calculator/settlement-sensor.html',
   'tools/utility-tools.html',
   'tools/tools-field.html',
   'tools/tools-curve.html',

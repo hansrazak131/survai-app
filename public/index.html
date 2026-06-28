@@ -689,6 +689,7 @@ const CALC_ITEMS = [
   {file:'kdv.html',              title:'K.D. Vertikal',   desc:'Kerangka Dasar Vertikal / Sipat datar.', icon:icoUpDown()},
   {file:'kdh.html',              title:'K.D. Horizontal', desc:'Perataan jaring kontrol horizontal.', icon:icoBars()},
   {file:'volume.html',           title:'Volume',          desc:'Kapasitas stockpile atau galian.', icon:icoCube()},
+  {file:'settlement-sensor.html',title:'Settlement Sensor',desc:'Monitoring penurunan struktur dari koordinat XYZ.', icon:icoSettlement()},
 ];
 
 /* ---- DATA: Tools menu ---- */
@@ -715,6 +716,7 @@ const ALL_QA = [
   {tab:'tools', file:'tools-field.html',      title:'Digital Compass',    open:'compass'},
   {tab:'calc',  file:'volume.html',           title:'Volume'},
   {tab:'tools', file:'tools-field.html',      title:'Digital Level Book', open:'levelbook'},
+  {tab:'tools', file:'tools-field.html',      title:'Progress Survey',    open:'progresssurvey'},
   {tab:'tools', file:'aktivitas-tambang.html',title:'Excavator',          open:'excavator'},
   {tab:'tools', file:'aktivitas-tambang.html',title:'Hauler',             open:'hauler'},
   {tab:'tools', file:'aktivitas-tambang.html',title:'Bulldozer',          open:'bulldozer'},
@@ -727,6 +729,7 @@ const ALL_QA = [
   {tab:'calc',  file:'poligon-terbuka.html',  title:'Poligon Terbuka'},
   {tab:'calc',  file:'advance-survey.html',   title:'Advance Survey'},
   {tab:'calc',  file:'kdv.html',              title:'K.D. Vertikal'},
+  {tab:'calc',  file:'settlement-sensor.html',title:'Settlement Sensor'},
   {tab:'tools', file:'utility-tools.html',    title:'Utility Tools'},
   {tab:'tools', file:'tools-curve.html',      title:'Curve Tools'},
   {tab:'tools', file:'aktivitas-tambang.html',title:'Produktivitas'},
@@ -773,6 +776,7 @@ function qaIcon(title){
     'Stripping Ratio':icoLayers(), 'Cut & Fill':icoLayers(), 'Level Jalan':icoLevels(),
     'Poligon Terbuka':icoTrend(), 'Advance Survey':icoCompass(), 'K.D. Vertikal':icoUpDown(),
     'Utility Tools':icoTools(), 'Curve Tools':icoTrend(), 'Produktivitas':icoChartUp(),
+    'Settlement Sensor':icoSettlement(),
     'Maps':icoMap(),
   };
   return m[title] || icoTools();
@@ -1176,6 +1180,7 @@ function icoHauler(){return svg('<rect x="1" y="10" width="15" height="8" rx="1"
 function icoBulldozer(){return svg('<rect x="2" y="9" width="13" height="8" rx="1"/><path d="M2 13H0M15 11h5v4l2 2H15z"/><circle cx="5" cy="18" r="1.5"/><circle cx="12" cy="18" r="1.5"/>'); }
 function icoOre(){return svg('<path d="M12 3l8 5v8l-8 5-8-5V8z"/><path d="M12 8l4 2.5v5L12 18l-4-2.5v-5z"/>');}
 function icoCivil(){return svg('<path d="M4 21h16M5 21V9.5L12 5l7 4.5V21"/><path d="M9 21v-6h6v6"/><path d="M9 12h.01M12 12h.01M15 12h.01"/>');}
+function icoSettlement(){return svg('<path d="M3 5h18M3 5v6M21 5v6"/><path d="M6 11v8M12 11v5M18 11v8"/><path d="M3 19h7M14 16h7"/><path d="M12 16l-2 3M12 16l2 3"/>');}
 
 /* =================== GNSS STATUS =================== */
 let gnssLoaded = false;
