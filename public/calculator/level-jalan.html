@@ -227,7 +227,7 @@ canvas,
 <body>
 <header><div><div class="brand">📐 SURVEY ENGINEER PRO COMBINED</div><div class="sub">Advanced + Full Suite • Ordered Workflow: Data Awal → Import → Validasi → Template → QC → Quantity → Visual → Laporan</div></div><div class="badge">Professional Surveying Report Engine</div></header>
 <nav class="nav">
-<button class="active" onclick="showTab(event,'workflow')">0 Workflow</button><button onclick="showTab(event,'awal')">1 Data Awal</button><button onclick="showTab(event,'import')">2 Import & Sort</button><button onclick="showTab(event,'template')">3 Template</button><button onclick="showTab(event,'xsec')">4 Cross Section</button><button onclick="showTab(event,'level')">5 QC Leveling</button><button onclick="showTab(event,'marking')">6 Marking</button><button onclick="showTab(event,'quantity')">7 Quantity & Mass Haul</button><button onclick="showTab(event,'visual')">8 Visual 2D/3D</button><button onclick="showTab(event,'present')">9 Presentation</button><button onclick="showTab(event,'report')">10 Report PDF</button>
+<button class="active" onclick="showTab(event,'workflow')">0 Workflow</button><button onclick="showTab(event,'awal')">1 Data Awal</button><button onclick="showTab(event,'import')">2 Import & Sort</button><button onclick="showTab(event,'template')">3 Template</button><button onclick="showTab(event,'xsec')">4 Cross Section</button><button onclick="showTab(event,'pavement')">🛣️ Perkerasan & Progress</button><button onclick="showTab(event,'level')">5 QC Leveling</button><button onclick="showTab(event,'marking')">6 Marking</button><button onclick="showTab(event,'quantity')">7 Quantity & Mass Haul</button><button onclick="showTab(event,'visual')">8 Visual 2D/3D</button><button onclick="showTab(event,'present')">9 Presentation</button><button onclick="showTab(event,'report')">10 Report PDF</button>
 </nav>
 <main class="wrap">
 <section id="workflow" class="tab grid">
@@ -258,6 +258,68 @@ RL point = HI − Staff Reading</div></div>
 <div class="card span4"><h2>4. Cross Section Detail Berbasis Offset</h2><div class="form2"><div class="field"><label>STA m</label><input id="csSta" type="number" step="0.001" value="0"></div><div class="field"><label>Offset m</label><input id="csOffset" type="number" step="0.001" value="0"></div><div class="field"><label>Existing RL</label><input id="csEx" type="number" step="0.001" value="99"></div><div class="field"><label>Design RL</label><input id="csDes" type="number" step="0.001" value="100"></div></div><div class="btns"><button class="btn green" onclick="addCSPoint()">Tambah/Update Titik</button><button class="btn cyan" onclick="sampleCrossSections()">Sample CS</button><button class="btn gray" onclick="exportCSV('cross')">Export CSV</button></div><div class="field"><label>Pilih STA Visual</label><select id="csViewSta" onchange="renderCSVisual()"></select></div><div class="formula">Area dihitung dari offset strip, sehingga bentuk ground yang tidak simetris tetap terbaca.</div></div>
 <div class="card span8"><h2>Cross Section Data, Area Cut/Fill per STA</h2><div class="tablewrap"><table id="csTable"></table></div></div><div class="card span6"><h2>Visual Cross Section 2D</h2><div id="csSVG" class="svgBox"></div></div><div class="card span6"><h2>Section Area Chart</h2><canvas id="areaChart"></canvas></div>
 </section>
+<section id="pavement" class="tab grid hide">
+<div class="card span12"><h1>🛣️ Struktur Perkerasan Jalan + Progress Surveyor (Acuan SNI / Bina Marga)</h1><p class="muted">Modul fokus level jalan: susunan lapis perkerasan badan jalan (finish aspal) & bahu jalan (Agg Class S), saluran irigasi/drainase tepi, dan pelacak progress timbunan per lapis berdasarkan <b>elevasi & posisi (offset)</b> yang sedang dikerjakan. Ketebalan default mengikuti praktik umum SNI 1732 / Manual Desain Perkerasan (MDP 2017) Bina Marga — <b>wajib divalidasi terhadap hasil desain perkerasan proyek (CBR, LHR, beban gandar)</b>.</p></div>
+
+<div class="card span4"><h2>A. Kategori & Geometri Jalan</h2><div class="form2">
+<div class="field"><label>Kategori Jalan (SNI preset)</label><select id="pvCat" onchange="pvLoadPreset()"></select></div>
+<div class="field"><label>STA acuan</label><input id="pvSta" type="number" step="0.001" value="0"></div>
+<div class="field"><label>Lebar Badan Jalan total (m)</label><input id="pvBadan" type="number" step="0.01" value="6.0" onchange="pvCompute()"></div>
+<div class="field"><label>Lebar Bahu Jalan / sisi (m)</label><input id="pvBahu" type="number" step="0.01" value="1.5" onchange="pvCompute()"></div>
+<div class="field"><label>Crossfall Badan (%)</label><input id="pvCfBadan" type="number" step="0.1" value="2.0" onchange="pvCompute()"></div>
+<div class="field"><label>Crossfall Bahu (%)</label><input id="pvCfBahu" type="number" step="0.1" value="5.0" onchange="pvCompute()"></div>
+<div class="field"><label>Side Slope timbunan H:V</label><input id="pvSide" type="number" step="0.1" value="1.5" onchange="pvCompute()"></div>
+<div class="field"><label>Rounding bahu (m)</label><input id="pvRound" type="number" step="0.01" value="1.0" onchange="pvCompute()"></div>
+<div class="field"><label>Finish RL As Jalan / CL (m)</label><input id="pvFinishRL" type="number" step="0.001" value="100.000" onchange="pvCompute()"></div>
+<div class="field"><label>Existing Ground RL @CL (m)</label><input id="pvGroundRL" type="number" step="0.001" value="98.200" onchange="pvCompute()"></div>
+</div><div class="btns"><button class="btn green" onclick="pvLoadPreset()">Muat Preset Kategori</button><button class="btn cyan" onclick="pvCompute()">Hitung & Gambar</button></div>
+<div id="pvCatNote" class="formula" style="margin-top:8px"></div></div>
+
+<div class="card span4"><h2>B. Lapis Perkerasan (Badan Jalan)</h2><p class="muted">Urut atas → bawah. Tebal dalam <b>cm</b>. Badan jalan finish aspal.</p>
+<div class="tablewrap" style="max-height:260px"><table id="pvLayerTable"></table></div>
+<div class="btns"><button class="btn green mini" onclick="pvAddLayer()">+ Tambah Lapis</button></div>
+<h3 style="margin-top:10px">Bahu Jalan (finish Agg Class S)</h3>
+<div class="tablewrap" style="max-height:160px"><table id="pvBahuTable"></table></div>
+<div class="btns"><button class="btn green mini" onclick="pvAddBahu()">+ Tambah Lapis Bahu</button></div></div>
+
+<div class="card span4"><h2>C. Saluran Irigasi / Drainase Tepi</h2><div class="form2">
+<div class="field"><label>Tipe Saluran</label><select id="pvDrainType" onchange="pvCompute()"><option>Trapesium tanah</option><option>Pasangan batu (trapesium)</option><option>U-Ditch beton precast</option><option>Persegi pasangan</option></select></div>
+<div class="field"><label>Jarak dari tepi bahu (m)</label><input id="pvDrainGap" type="number" step="0.01" value="0.30" onchange="pvCompute()"></div>
+<div class="field"><label>Lebar atas (m)</label><input id="pvDrainTop" type="number" step="0.01" value="1.20" onchange="pvCompute()"></div>
+<div class="field"><label>Lebar dasar (m)</label><input id="pvDrainBot" type="number" step="0.01" value="0.60" onchange="pvCompute()"></div>
+<div class="field"><label>Kedalaman saluran (m)</label><input id="pvDrainDepth" type="number" step="0.01" value="0.80" onchange="pvCompute()"></div>
+<div class="field"><label>Kemiringan dasar saluran (%)</label><input id="pvDrainSlope" type="number" step="0.01" value="0.20" onchange="pvCompute()"></div>
+</div>
+<div id="pvDrainOut" class="formula" style="margin-top:8px"></div></div>
+
+<div class="card span12"><h2>D. Desain Cross Section (skema lapis + bahu + saluran)</h2><div id="pvSVG" class="svgBox" style="min-height:420px"></div></div>
+
+<div class="card span6"><h2>E. Elevasi Tiap Lapis @CL (acuan stake-out)</h2><div class="tablewrap"><table id="pvElevTable"></table></div>
+<div class="formula" style="margin-top:8px">Target elevasi pada offset = elevasi @CL − (crossfall). Tabel ini dipakai surveyor untuk pasang patok/benang per lapis.</div></div>
+
+<div class="card span6"><h2>F. Progress Surveyor (berdasar elevasi & posisi)</h2><div class="form2">
+<div class="field"><label>Offset titik ukur (m, − kiri / + kanan)</label><input id="pvMOffset" type="number" step="0.01" value="0"></div>
+<div class="field"><label>Elevasi terukur aktual (m)</label><input id="pvMRL" type="number" step="0.001" value="98.800"></div>
+<div class="field"><label>Toleransi (m)</label><input id="pvMTol" type="number" step="0.001" value="0.020"></div>
+<div class="field"><label>&nbsp;</label><button class="btn green" onclick="pvProgress()">Cek Progress & Instruksi</button></div>
+</div>
+<div id="pvProgOut" class="formula" style="margin-top:8px"></div>
+<div id="pvProgBar" style="margin-top:10px"></div></div>
+
+<div class="card span5"><h2>H. Bacaan Rambu Elevasi (Staff Reading)</h2><p class="muted">Hitung target bacaan rambu utk lapis yang sedang dikerjakan. Tekan "Cek Progress" dulu agar target lapis & offset terisi otomatis.</p><div class="form2">
+<div class="field"><label>RL titik berdiri alat / BM (m)</label><input id="pvBMrl" type="number" step="0.001" value="100.000"></div>
+<div class="field"><label>Bacaan BS ke BM (m)</label><input id="pvBS" type="number" step="0.001" value="1.500"></div>
+<div class="field"><label>Target lapis</label><select id="pvTargetStage"></select></div>
+<div class="field"><label>Offset titik (m)</label><input id="pvStaffOffset" type="number" step="0.01" value="0"></div>
+<div class="field"><label>Bacaan rambu aktual (m)</label><input id="pvStaffAct" type="number" step="0.001" value="1.300"></div>
+<div class="field"><label>Toleransi (m)</label><input id="pvStaffTol" type="number" step="0.001" value="0.010"></div>
+</div><div class="btns"><button class="btn green" onclick="pvStaff()">Hitung Target Bacaan</button></div>
+<div id="pvStaffOut" class="formula" style="margin-top:8px"></div></div>
+<div class="card span7"><h2>Sketsa Alat & Rambu</h2><div id="pvStaffSVG" class="svgBox" style="min-height:340px"></div></div>
+
+<div class="card span12"><h2>G. Rekomendasi & Acuan SNI</h2><div id="pvSNI" class="formula"></div></div>
+</section>
+
 <section id="level" class="tab grid hide">
 <div class="card span4"><h2>5. QC Leveling + Misclose Adjustment</h2><div class="form2"><div class="field"><label>Point</label><input id="lvPoint" value="P1"></div><div class="field"><label>BS</label><input id="lvBS" type="number" step="0.001"></div><div class="field"><label>IS</label><input id="lvIS" type="number" step="0.001"></div><div class="field"><label>FS</label><input id="lvFS" type="number" step="0.001"></div><div class="field"><label>Known Closing RL</label><input id="lvCloseRL" type="number" step="0.001" value="100.000"></div><div class="field"><label>Distance km</label><input id="lvKm" type="number" step="0.001" value="0.5"></div></div><div class="btns"><button class="btn green" onclick="addLevelRow()">Tambah Level Row</button><button class="btn cyan" onclick="sampleLevel()">Sample Level</button><button class="btn gray" onclick="exportCSV('level')">Export Level CSV</button><button class="btn red" onclick="clearLevel()">Clear</button></div><div id="levelSummary" class="formula"></div></div>
 <div class="card span8"><h2>Level Book Adjusted</h2><div class="tablewrap"><table id="levelTable"></table></div></div>
@@ -337,6 +399,278 @@ function runFullWorkflow(dummy){if(dummy){sampleMeta();sampleCrossSections();sam
 function refreshAll(full=true){renderStepper(); if(full)computeAll();}
 function init(){renderTplHelp();fillImportSample();sampleMarking();computeAll();renderStepper()}window.addEventListener('load',init);
 </script>
+<!-- ==== MODUL PERKERASAN JALAN & PROGRESS (mandiri, tidak mengubah engine lama) ==== -->
+<script id="pavement-module">
+(function(){
+const $=id=>document.getElementById(id);
+const nf=(n,d=2)=>Number(n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const num=v=>{let n=parseFloat(v);return Number.isFinite(n)?n:0};
+const fmtSta=v=>{v=Number(v||0);let km=Math.floor(v/1000),m=v-km*1000;return km+'+'+String(Math.round(m)).padStart(3,'0')};
+
+// Preset kategori jalan — tebal lapis (cm). Acuan umum SNI 1732 / MDP 2017 Bina Marga (WAJIB divalidasi desain proyek).
+const PV_PRESETS={
+ nasional:{label:'Jalan Nasional / Arteri (LHR berat)',badan:7.0,bahu:1.5,cfBadan:2.0,cfBahu:4.0,side:1.5,round:1.0,
+   layers:[{n:'AC-WC (Wearing)',t:4},{n:'AC-BC (Binder)',t:6},{n:'LPA — Agg Class A',t:20},{n:'LPB — Agg Class B',t:20},{n:'Subbase — Agg Class S',t:15}],
+   bahu:[{n:'Agg Class S',t:15}],drain:{type:'Pasangan batu (trapesium)',top:1.2,bot:0.6,depth:0.8},
+   note:'Perkerasan lentur lalu lintas berat. Finish badan: AC-WC. Bahu: Agg Class S dipadatkan, crossfall lebih curam agar air cepat ke saluran.'},
+ provinsi:{label:'Jalan Provinsi / Kolektor',badan:7.0,bahu:1.5,cfBadan:2.0,cfBahu:4.0,side:1.5,round:1.0,
+   layers:[{n:'AC-WC (Wearing)',t:4},{n:'AC-BC (Binder)',t:5},{n:'LPA — Agg Class A',t:15},{n:'LPB — Agg Class B',t:20}],
+   bahu:[{n:'Agg Class S',t:15}],drain:{type:'Pasangan batu (trapesium)',top:1.0,bot:0.5,depth:0.7},
+   note:'Kolektor lalu lintas sedang–berat. Boleh AC-BC dikurangi sesuai MDP.'},
+ kabupaten:{label:'Jalan Kabupaten / Kecamatan (Lokal)',badan:5.5,bahu:1.0,cfBadan:2.0,cfBahu:5.0,side:1.5,round:0.75,
+   layers:[{n:'AC-WC / HRS-WC',t:4},{n:'LPA — Agg Class A',t:15},{n:'LPB — Agg Class B',t:20}],
+   bahu:[{n:'Agg Class S',t:12}],drain:{type:'Trapesium tanah',top:0.9,bot:0.4,depth:0.6},
+   note:'Lalu lintas ringan–sedang. Alternatif HRS-WC / Lapen. LPA bisa langsung di atas tanah dasar siap.'},
+ desa:{label:'Jalan Desa (Lokal rendah)',badan:4.0,bahu:0.75,cfBadan:2.5,cfBahu:6.0,side:1.0,round:0.5,
+   layers:[{n:'Lapen / HRS-WC',t:3},{n:'LPA — Agg Class A',t:15},{n:'LPB — Agg Class B / Telford',t:15}],
+   bahu:[{n:'Agg Class S',t:10}],drain:{type:'Trapesium tanah',top:0.8,bot:0.3,depth:0.5},
+   note:'Lalu lintas rendah. Umum Telford + Lapen / penetrasi macadam. Drainase tanah cukup, jaga kemiringan minimal 0,2%.'},
+ pabrik:{label:'Jalan Pabrik / Industri (beban gandar berat)',badan:8.0,bahu:1.5,cfBadan:2.0,cfBahu:4.0,side:1.5,round:1.0,
+   layers:[{n:'AC-WC (Wearing)',t:4},{n:'AC-BC (Binder)',t:8.5},{n:'LPA — Agg Class A',t:30},{n:'LPB — Agg Class B',t:30},{n:'Subbase — Agg Class S',t:20}],
+   bahu:[{n:'Agg Class S',t:15}],drain:{type:'U-Ditch beton precast',top:0.8,bot:0.8,depth:1.0},
+   note:'Beban gandar berat & repetisi tinggi. Pertimbangkan PERKERASAN KAKU (rigid/beton K-350, tebal 20–25 cm) sebagai alternatif lebih ekonomis untuk truk berat.'}
+};
+
+let PV={cat:'nasional',layers:[],bahu:[]};
+
+function pvInitSelect(){let sel=$('pvCat');if(!sel||sel.options.length)return;sel.innerHTML=Object.keys(PV_PRESETS).map(k=>`<option value="${k}">${PV_PRESETS[k].label}</option>`).join('')}
+function pvLoadPreset(){let k=$('pvCat').value;let p=PV_PRESETS[k];PV.cat=k;PV.layers=p.layers.map(x=>({...x}));PV.bahu=p.bahu.map(x=>({...x}));
+ $('pvBadan').value=p.badan;$('pvBahu').value=p.bahu;$('pvCfBadan').value=p.cfBadan;$('pvCfBahu').value=p.cfBahu;$('pvSide').value=p.side;$('pvRound').value=p.round;
+ $('pvDrainType').value=p.drain.type;$('pvDrainTop').value=p.drain.top;$('pvDrainBot').value=p.drain.bot;$('pvDrainDepth').value=p.drain.depth;
+ $('pvCatNote').textContent=p.note;pvRenderLayers();pvCompute()}
+function pvRenderLayers(){
+ $('pvLayerTable').innerHTML='<thead><tr><th>#</th><th>Nama Lapis</th><th>Tebal (cm)</th><th>Aksi</th></tr></thead><tbody>'+
+   PV.layers.map((l,i)=>`<tr><td>${i+1}</td><td><input value="${l.n}" style="width:100%" oninput="PVset(${i},'n',this.value)"></td><td><input type="number" step="0.5" value="${l.t}" style="width:70px" oninput="PVset(${i},'t',this.value)"></td><td><button class="btn red mini" onclick="PVdel(${i})">x</button></td></tr>`).join('')+'</tbody>';
+ $('pvBahuTable').innerHTML='<thead><tr><th>#</th><th>Nama Lapis</th><th>Tebal (cm)</th><th>Aksi</th></tr></thead><tbody>'+
+   PV.bahu.map((l,i)=>`<tr><td>${i+1}</td><td><input value="${l.n}" style="width:100%" oninput="PVsetB(${i},'n',this.value)"></td><td><input type="number" step="0.5" value="${l.t}" style="width:70px" oninput="PVsetB(${i},'t',this.value)"></td><td><button class="btn red mini" onclick="PVdelB(${i})">x</button></td></tr>`).join('')+'</tbody>';
+}
+window.PVset=(i,f,v)=>{PV.layers[i][f]=f==='t'?num(v):v;pvCompute()};
+window.PVdel=i=>{PV.layers.splice(i,1);pvRenderLayers();pvCompute()};
+window.pvAddLayer=()=>{PV.layers.push({n:'Lapis baru',t:10});pvRenderLayers();pvCompute()};
+window.PVsetB=(i,f,v)=>{PV.bahu[i][f]=f==='t'?num(v):v;pvCompute()};
+window.PVdelB=i=>{PV.bahu.splice(i,1);pvRenderLayers();pvCompute()};
+window.pvAddBahu=()=>{PV.bahu.push({n:'Lapis bahu',t:10});pvRenderLayers();pvCompute()};
+window.pvLoadPreset=pvLoadPreset;
+
+// Geometri & elevasi
+function pvGeom(){return{
+ halfBadan:num($('pvBadan').value)/2, bahu:num($('pvBahu').value), cfB:num($('pvCfBadan').value)/100, cfS:num($('pvCfBahu').value)/100,
+ side:num($('pvSide').value), round:num($('pvRound').value), finish:num($('pvFinishRL').value), ground:num($('pvGroundRL').value)}}
+// penurunan elevasi permukaan dari CL ke offset o (akibat crossfall badan lalu bahu)
+function pvDz(o,g){let a=Math.abs(o);let d=Math.min(a,g.halfBadan)*g.cfB; if(a>g.halfBadan){d+=(Math.min(a,g.halfBadan+g.bahu)-g.halfBadan)*g.cfS;} return d;}
+function pvTotalPave(){return PV.layers.reduce((s,l)=>s+num(l.t),0)/100;} // m
+// stages bawah→atas dgn target top RL @CL
+function pvStages(g){let total=pvTotalPave();let sub=g.finish-total; // top subgrade @CL
+ let stages=[{n:'Tanah dasar / subgrade siap (top timbunan)',rl:sub,kind:'subgrade'}];
+ let cum=0; for(let i=PV.layers.length-1;i>=0;i--){cum+=num(PV.layers[i].t)/100; stages.push({n:'Selesai '+PV.layers[i].n,rl:sub+cum,kind:'layer'});}
+ return{stages,sub,total};}
+
+function pvCompute(){
+ if(!PV.layers.length)pvLoadPreset();
+ let g=pvGeom();let S=pvStages(g);
+ // Elevasi tiap lapis @CL (top→bawah)
+ let rows='',top=g.finish;
+ PV.layers.forEach((l,i)=>{let bot=top-num(l.t)/100; rows+=`<tr><td>${i+1}</td><td>${l.n}</td><td>${nf(l.t,1)}</td><td>${nf(top,3)}</td><td>${nf(bot,3)}</td></tr>`; top=bot;});
+ rows+=`<tr style="font-weight:900"><td>—</td><td>Top Tanah Dasar (subgrade)</td><td>—</td><td colspan="2">${nf(S.sub,3)}</td></tr>`;
+ let fill=S.sub-g.ground;
+ rows+=`<tr><td>—</td><td>Existing ground @CL</td><td>—</td><td colspan="2">${nf(g.ground,3)} (timbunan ${fill>=0?'+':''}${nf(fill,3)} m${fill<0?' → GALIAN':''})</td></tr>`;
+ $('pvElevTable').innerHTML='<thead><tr><th>#</th><th>Lapis</th><th>Tebal cm</th><th>Top RL</th><th>Bottom RL</th></tr></thead><tbody>'+rows+'</tbody>';
+ // Drain
+ let bahuEdgeRL=g.finish-pvDz(g.halfBadan+g.bahu,g); let invert=bahuEdgeRL-num($('pvDrainDepth').value);
+ $('pvDrainOut').innerHTML=`Tipe: ${$('pvDrainType').value}\nElevasi tepi bahu (muka tanah saluran): ${nf(bahuEdgeRL,3)} m\nElevasi dasar (invert) saluran: ${nf(invert,3)} m\nKedalaman: ${nf(num($('pvDrainDepth').value),2)} m | Lebar atas ${nf(num($('pvDrainTop').value),2)} m / dasar ${nf(num($('pvDrainBot').value),2)} m\nKemiringan memanjang dasar: ${nf(num($('pvDrainSlope').value),2)} % (jaga ≥0,20% agar air mengalir & tidak menggerus badan jalan).`;
+ // dropdown target lapis utk bacaan rambu
+ if($('pvTargetStage')){let sel=$('pvTargetStage'),keep=sel.selectedIndex;sel.innerHTML=S.stages.map((s,i)=>`<option value="${s.rl}">${i+1}. ${s.n} = ${nf(s.rl,3)} m</option>`).join('');if(keep>=0&&keep<sel.options.length)sel.selectedIndex=keep;}
+ pvDraw(g,S,invert,bahuEdgeRL);
+ pvSNI(g,S);
+ if($('pvStaffSVG'))pvStaff();
+}
+window.pvCompute=pvCompute;
+
+function pvDraw(g,S,invert,bahuEdgeRL){
+ let box=$('pvSVG');if(!box)return;
+ const W=1060,H=470;
+ const totalHalf=g.halfBadan+g.bahu;
+ const drainGap=num($('pvDrainGap').value),drainTop=num($('pvDrainTop').value),drainBot=num($('pvDrainBot').value),drainDepth=num($('pvDrainDepth').value);
+ const spanM=2*(totalHalf+g.round+drainGap+drainTop+0.4);
+ const drawW=700,leftPad=36;
+ const sx=drawW/spanM, cx=leftPad+drawW/2;
+ const X=o=>cx+o*sx;
+ const pxcm=2.7, labelX=leftPad+drawW+26;
+ const isAsph=n=>/AC-|HRS|Lapen|Aspal|Wearing|Binder/i.test(n);
+ const colFor=n=>/WC|Wearing/i.test(n)?'#23262b':isAsph(n)?'#3f4046':/Class A|LPA/i.test(n)?'#9aa3ad':/Class B|LPB/i.test(n)?'#b79b63':'#cdbb84';
+ const asphPx=PV.layers.filter(l=>isAsph(l.n)).reduce((s,l)=>s+l.t*pxcm,0);
+ const totPx=PV.layers.reduce((s,l)=>s+l.t*pxcm,0);
+ const subgradeY=330, surfaceY=subgradeY-totPx, aggTopY=subgradeY-(totPx-asphPx);
+ let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" font-family="Inter,Arial">`;
+ svg+=`<rect width="${W}" height="${H}" fill="#061525"/>`;
+ // existing ground (dashed)
+ svg+=`<polyline points="${X(-(totalHalf+g.round+drainTop+0.3))},${subgradeY+72} ${X(-(totalHalf+0.4))},${subgradeY+40} ${X(0)},${subgradeY+32} ${X(totalHalf+0.4)},${subgradeY+40} ${X(totalHalf+g.round+drainTop+0.3)},${subgradeY+72}" fill="none" stroke="#5e7d52" stroke-width="2" stroke-dasharray="6 4"/>`;
+ svg+=`<text x="${X(0)-38}" y="${subgradeY+48}" fill="#7fae6e" font-size="11">Existing ground</text>`;
+ // embankment trapesium (timbunan)
+ const baseY=subgradeY+56, run=46;
+ svg+=`<polygon points="${X(-totalHalf)-run},${baseY} ${X(-totalHalf)},${subgradeY} ${X(totalHalf)},${subgradeY} ${X(totalHalf)+run},${baseY}" fill="#7a6a48" stroke="#9a865c"/>`;
+ svg+=`<text x="${X(0)-82}" y="${(subgradeY+baseY)/2+4}" fill="#e4d4a6" font-size="11">Selected Embankment / Timbunan Pilihan</text>`;
+ // aggregate bands full width (bottom->top)
+ const order=[...PV.layers].reverse();
+ let yb=subgradeY;
+ order.filter(l=>!isAsph(l.n)).forEach(l=>{let th=l.t*pxcm,yt=yb-th;svg+=`<polygon points="${X(-totalHalf)},${yb} ${X(totalHalf)},${yb} ${X(totalHalf)},${yt} ${X(-totalHalf)},${yt}" fill="${colFor(l.n)}" stroke="#0b1c30" stroke-width=".6"/>`;l._cy=(yb+yt)/2;l._ex=X(totalHalf);yb=yt;});
+ // asphalt bands carriageway only (aggTopY->up)
+ let ya=aggTopY;
+ order.filter(l=>isAsph(l.n)).forEach(l=>{let th=l.t*pxcm,yt=ya-th;svg+=`<polygon points="${X(-g.halfBadan)},${ya} ${X(g.halfBadan)},${ya} ${X(g.halfBadan)},${yt} ${X(-g.halfBadan)},${yt}" fill="${colFor(l.n)}" stroke="#0b1c30" stroke-width=".6"/>`;l._cy=(ya+yt)/2;l._ex=X(g.halfBadan);ya=yt;});
+ // bahu Agg S block (both sides, aggTopY->surfaceY)
+ [-1,1].forEach(s=>{svg+=`<polygon points="${X(s*g.halfBadan)},${aggTopY} ${X(s*totalHalf)},${aggTopY} ${X(s*totalHalf)},${surfaceY} ${X(s*g.halfBadan)},${surfaceY}" fill="#d8c79a" stroke="#0b1c30" stroke-width=".6"/>`;});
+ svg+=`<text x="${X(g.halfBadan+g.bahu/2)-16}" y="${(aggTopY+surfaceY)/2+4}" fill="#3a2f12" font-size="10">Agg S</text>`;
+ svg+=`<text x="${X(-(g.halfBadan+g.bahu/2))-16}" y="${(aggTopY+surfaceY)/2+4}" fill="#3a2f12" font-size="10">Agg S</text>`;
+ // surface crossfall line (cyan)
+ svg+=`<polyline points="${X(-totalHalf)},${surfaceY+6} ${X(-g.halfBadan)},${surfaceY} ${X(0)},${surfaceY-3} ${X(g.halfBadan)},${surfaceY} ${X(totalHalf)},${surfaceY+6}" fill="none" stroke="#22d3ee" stroke-width="2.5"/>`;
+ // centerline
+ svg+=`<line x1="${cx}" y1="${surfaceY-34}" x2="${cx}" y2="${subgradeY+6}" stroke="#64748b" stroke-dasharray="4 5"/><text x="${cx-7}" y="${surfaceY-38}" fill="#94a3b8" font-size="11">CL</text>`;
+ // crossfall labels
+ svg+=`<text x="${X(-g.halfBadan/2)-16}" y="${surfaceY-8}" fill="#ff7b7b" font-size="12">↘${nf(g.cfB*100,1)}%</text>`;
+ svg+=`<text x="${X(g.halfBadan/2)-10}" y="${surfaceY-8}" fill="#ff7b7b" font-size="12">${nf(g.cfB*100,1)}%↙</text>`;
+ svg+=`<text x="${X(g.halfBadan+g.bahu/2)-12}" y="${surfaceY-1}" fill="#ffb347" font-size="10">${nf(g.cfS*100,1)}%</text>`;
+ svg+=`<text x="${X(-(g.halfBadan+g.bahu/2))-12}" y="${surfaceY-1}" fill="#ffb347" font-size="10">${nf(g.cfS*100,1)}%</text>`;
+ // drainage both sides (with water)
+ [-1,1].forEach(s=>{let xs=totalHalf+drainGap; let topL=X(s*xs),topR=X(s*(xs+drainTop)); let bL=X(s*(xs+(drainTop-drainBot)/2)),bR=X(s*(xs+(drainTop+drainBot)/2)); let dY=surfaceY+10,dBot=dY+Math.max(38,drainDepth*52); let wY=dY+(dBot-dY)*0.42;
+   svg+=`<polygon points="${topL},${dY} ${bL},${dBot} ${bR},${dBot} ${topR},${dY}" fill="rgba(56,189,248,.10)" stroke="#38bdf8" stroke-width="1.8"/>`;
+   svg+=`<polygon points="${topL+(bL-topL)*0.5},${wY} ${bL+(bR-bL)*0.08},${dBot-3} ${bR-(bR-bL)*0.08},${dBot-3} ${topR-(topR-bR)*0.5},${wY}" fill="rgba(56,189,248,.42)"/>`;});
+ svg+=`<text x="${X(totalHalf+drainGap)-2}" y="${surfaceY+5}" fill="#7dd3fc" font-size="10">Saluran</text>`;
+ svg+=`<text x="${X(-(totalHalf+drainGap+drainTop))}" y="${surfaceY+5}" fill="#7dd3fc" font-size="10">Saluran</text>`;
+ // leader-line labels (right)
+ let ly=58; const lstep=Math.min(24,(subgradeY-66)/(PV.layers.length+2));
+ PV.layers.forEach(l=>{svg+=`<line x1="${l._ex}" y1="${l._cy}" x2="${labelX-6}" y2="${ly-4}" stroke="#3a5167" stroke-width="1"/><circle cx="${l._ex}" cy="${l._cy}" r="2.5" fill="#dbeafe"/><text x="${labelX}" y="${ly}" fill="#dbeafe" font-size="11">${l.n} = ${nf(l.t,1)} cm</text>`;ly+=lstep;});
+ svg+=`<text x="${labelX}" y="${ly}" fill="#d8c79a" font-size="11">Bahu: Agg Class S (finish)</text>`;ly+=lstep;
+ svg+=`<text x="${labelX}" y="${ly}" fill="#7dd3fc" font-size="11">Invert saluran = ${nf(invert,3)} m</text>`;
+ // dimension line
+ const dimY=baseY+30, tick=o=>`<line x1="${X(o)}" y1="${dimY-5}" x2="${X(o)}" y2="${dimY+5}" stroke="#9db3cc"/>`;
+ const dim=(a,b,t)=>{let mid=(X(a)+X(b))/2;return `<line x1="${X(a)}" y1="${dimY}" x2="${X(b)}" y2="${dimY}" stroke="#9db3cc"/>${tick(a)}${tick(b)}<text x="${mid-16}" y="${dimY-7}" fill="#cfe3ff" font-size="10">${t}</text>`;};
+ svg+=dim(-(totalHalf+g.round),-totalHalf,'R '+nf(g.round,2));
+ svg+=dim(-totalHalf,-g.halfBadan,'Bahu '+nf(g.bahu,2));
+ svg+=dim(-g.halfBadan,g.halfBadan,'Badan '+nf(g.halfBadan*2,2)+' m');
+ svg+=dim(g.halfBadan,totalHalf,'Bahu '+nf(g.bahu,2));
+ svg+=dim(totalHalf,totalHalf+g.round,'R '+nf(g.round,2));
+ // title/footer
+ svg+=`<text x="30" y="26" fill="#eaf4ff" font-size="15" font-weight="800">${PV_PRESETS[PV.cat].label} — STA ${fmtSta(num($('pvSta').value))}</text>`;
+ svg+=`<text x="30" y="${H-10}" fill="#9db3cc" font-size="10">Finish CL ${nf(g.finish,3)} m | Subgrade ${nf(S.sub,3)} m | Total perkerasan ${nf(totPx/pxcm,1)} cm | skema (tidak berskala vertikal)</text>`;
+ svg+=`</svg>`;box.innerHTML=svg;
+}
+
+function pvProgress(){
+ let g=pvGeom();let S=pvStages(g);
+ let o=num($('pvMOffset').value),mrl=num($('pvMRL').value),tol=num($('pvMTol').value);
+ let dz=pvDz(o,g); // koreksi crossfall ke offset
+ // target tiap stage pada offset = stage.rl - dz (subgrade & lapis sejajar permukaan, asumsi pdt)
+ let stagesO=S.stages.map(s=>({n:s.n,rl:s.rl-dz}));
+ let finishO=g.finish-dz, groundO=g.ground;
+ // tentukan stage selesai = stage tertinggi yg rl <= mrl+tol
+ let done=-1; stagesO.forEach((s,i)=>{if(mrl>=s.rl-tol)done=i;});
+ let cur=stagesO[done], next=stagesO[done+1];
+ let pct=Math.max(0,Math.min(100,(mrl-groundO)/((finishO-groundO)||1)*100));
+ let out='';
+ out+=`Offset ${o>=0?'+':''}${nf(o,2)} m | Elevasi terukur = ${nf(mrl,3)} m | Toleransi ±${nf(tol,3)} m\n`;
+ out+=`Penurunan crossfall di offset ini = ${nf(dz,3)} m → target permukaan finish = ${nf(finishO,3)} m\n`;
+ out+=`Target subgrade di offset ini = ${nf(stagesO[0].rl,3)} m\n\n`;
+ if(mrl>finishO+tol){out+=`⚠ Elevasi MELEBIHI finish surface. Instruksi: POTONG / turunkan ${nf(mrl-finishO,3)} m.`;}
+ else if(done<0){let t0=stagesO[0].rl;out+=`Tahap saat ini: TIMBUNAN belum capai subgrade.\nInstruksi: TIMBUN naikkan ${nf(t0-mrl,3)} m lagi untuk capai elevasi subgrade (${nf(t0,3)} m).`;}
+ else{
+   out+=`✅ Tahap selesai: ${cur.n} (≈${nf(cur.rl,3)} m).\n`;
+   if(next){let rem=next.rl-mrl; out+=`➡ Pekerjaan selanjutnya: hamparkan & padatkan menuju "${next.n}".\nNaikkan elevasi ${nf(rem,3)} m lagi → target ${nf(next.rl,3)} m.`;}
+   else{out+=`🎉 Seluruh lapis selesai sampai finish surface (${nf(finishO,3)} m).`;}
+ }
+ // status drain
+ let invert=(g.finish-pvDz(g.halfBadan+g.bahu,g))-num($('pvDrainDepth').value);
+ out+=`\n\nLevel irigasi/drainase (invert) target: ${nf(invert,3)} m.`;
+ $('pvProgOut').innerHTML=out;
+ // progress bar
+ let stageList=S.stages.map((s,i)=>{let ok=i<=done; return `<div style="flex:1;min-width:90px;padding:6px;border-radius:8px;text-align:center;font-size:11px;border:1px solid ${ok?'#22c55e':'#33597b'};background:${ok?'rgba(34,197,94,.15)':'#0a1728'};color:${ok?'#bbf7d0':'#9db3cc'}">${ok?'✅':'⬜'} ${s.n}</div>`}).join('');
+ $('pvProgBar').innerHTML=`<div style="margin-bottom:6px;font-weight:800">Progress vertikal: ${nf(pct,1)}% (ground→finish)</div><div style="height:14px;border-radius:999px;background:#0a1728;overflow:hidden;border:1px solid #33597b"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0ea5e9,#22c55e)"></div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${stageList}</div>`;
+ // sinkron ke modul bacaan rambu: target = lapis berikutnya, offset sama
+ if($('pvTargetStage')&&$('pvTargetStage').options.length){$('pvTargetStage').selectedIndex=Math.min(Math.max(done+1,0),$('pvTargetStage').options.length-1);}
+ if($('pvStaffOffset'))$('pvStaffOffset').value=o;
+ if($('pvStaffSVG'))pvStaff();
+}
+window.pvProgress=pvProgress;
+
+function pvStaff(){
+ if(!$('pvTargetStage')||!$('pvTargetStage').options.length)pvCompute();
+ let g=pvGeom();
+ let HI=num($('pvBMrl').value)+num($('pvBS').value);
+ let sel=$('pvTargetStage'); let stageRL=num(sel.value); let stageName=(sel.options[sel.selectedIndex]||{}).text||'-';
+ let o=num($('pvStaffOffset').value),dz=pvDz(o,g);
+ let targetRL=stageRL-dz, targetReading=HI-targetRL;
+ let actual=num($('pvStaffAct').value), actualRL=HI-actual;
+ let tol=num($('pvStaffTol').value), diff=targetRL-actualRL;
+ let instr=Math.abs(diff)<=tol?'✅ SESUAI elevasi (dalam toleransi)':diff>0?('⬆ TIMBUN / naikkan '+nf(diff,3)+' m'):('⬇ POTONG / turunkan '+nf(-diff,3)+' m');
+ $('pvStaffOut').innerHTML=
+`HI (tinggi garis bidik) = RL alat + BS = ${nf(num($('pvBMrl').value),3)} + ${nf(num($('pvBS').value),3)} = ${nf(HI,3)} m
+Target lapis: ${stageName}
+Penurunan crossfall di offset ${o>=0?'+':''}${nf(o,2)} m = ${nf(dz,3)} m
+Target elevasi di titik ini = ${nf(targetRL,3)} m
+► TARGET BACAAN RAMBU = HI − target = ${nf(targetReading,3)} m
+Bacaan rambu aktual = ${nf(actual,3)} m → elevasi tanah = ${nf(actualRL,3)} m
+Selisih = ${nf(diff,3)} m → ${instr}`;
+ drawStaff(HI,targetReading,actual,targetRL,actualRL,diff,tol,stageName);
+}
+window.pvStaff=pvStaff;
+
+function drawStaff(HI,targetReading,actual,targetRL,actualRL,diff,tol,stageName){
+ let box=$('pvStaffSVG');if(!box)return;
+ const W=820,H=360,sightY=140,rodX=520;
+ let sy=Math.min(80,170/Math.max(0.6,Math.abs(diff)+0.7));
+ let yAct=sightY, yTgt=sightY+diff*sy;
+ let rodTop=Math.min(yAct,yTgt)-46, rodBot=Math.max(yAct,yTgt)+58;
+ let okc=Math.abs(diff)<=tol;
+ let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" font-family="Inter,Arial">`;
+ svg+=`<rect width="${W}" height="${H}" fill="#061525"/>`;
+ svg+=`<text x="28" y="26" fill="#eaf4ff" font-size="15" font-weight="800">Bacaan Rambu — ${stageName}</text>`;
+ // tripod + waterpass
+ svg+=`<line x1="150" y1="${sightY}" x2="112" y2="300" stroke="#64748b" stroke-width="2"/><line x1="150" y1="${sightY}" x2="188" y2="300" stroke="#64748b" stroke-width="2"/><line x1="150" y1="${sightY}" x2="150" y2="300" stroke="#64748b" stroke-width="2"/>`;
+ svg+=`<rect x="118" y="${sightY-12}" width="64" height="22" rx="5" fill="#22d3ee"/><text x="120" y="${sightY-17}" fill="#dbeafe" font-size="11">Waterpass</text>`;
+ // garis bidik
+ svg+=`<line x1="182" y1="${sightY}" x2="${rodX+12}" y2="${sightY}" stroke="#22d3ee" stroke-width="2" stroke-dasharray="7 5"/>`;
+ svg+=`<text x="250" y="${sightY-7}" fill="#67e8f9" font-size="11">Garis bidik  HI = ${nf(HI,3)} m</text>`;
+ // rambu/rod
+ svg+=`<rect x="${rodX-10}" y="${rodTop}" width="20" height="${rodBot-rodTop}" fill="#f8fafc" stroke="#334155"/>`;
+ let Rtop=actual-(rodTop-sightY)/sy, Rbot=actual-(rodBot-sightY)/sy;
+ for(let R=Math.floor(Math.min(Rtop,Rbot)*10)/10; R<=Math.max(Rtop,Rbot); R=+(R+0.1).toFixed(2)){let y=sightY+(actual-R)*sy; if(y<rodTop||y>rodBot)continue; let major=Math.round(R*10)%5===0; svg+=`<line x1="${rodX-10}" y1="${y}" x2="${rodX-(major?18:13)}" y2="${y}" stroke="#475569"/>`; if(major)svg+=`<text x="${rodX-44}" y="${y+3}" fill="#94a3b8" font-size="9">${R.toFixed(1)}</text>`;}
+ // bacaan aktual (di garis bidik)
+ svg+=`<circle cx="${rodX}" cy="${yAct}" r="4" fill="#ef4444"/><line x1="${rodX+10}" y1="${yAct}" x2="${rodX+58}" y2="${yAct}" stroke="#ef4444"/><text x="${rodX+62}" y="${yAct+4}" fill="#ef4444" font-size="11">Aktual ${nf(actual,3)} (tanah ${nf(actualRL,3)})</text>`;
+ // target reading
+ svg+=`<circle cx="${rodX}" cy="${yTgt}" r="4" fill="#22c55e"/><line x1="${rodX+10}" y1="${yTgt}" x2="${rodX+58}" y2="${yTgt}" stroke="#22c55e"/><text x="${rodX+62}" y="${yTgt+4}" fill="#22c55e" font-size="11">Target baca ${nf(targetReading,3)} (RL ${nf(targetRL,3)})</text>`;
+ // bracket fill/cut
+ let bx=rodX-72;
+ svg+=`<line x1="${bx}" y1="${yAct}" x2="${bx}" y2="${yTgt}" stroke="${okc?'#22c55e':'#f59e0b'}" stroke-width="3"/><line x1="${bx}" y1="${yAct}" x2="${rodX-10}" y2="${yAct}" stroke="${okc?'#22c55e':'#f59e0b'}" stroke-width="1" stroke-dasharray="3 3"/><line x1="${bx}" y1="${yTgt}" x2="${rodX-10}" y2="${yTgt}" stroke="${okc?'#22c55e':'#f59e0b'}" stroke-width="1" stroke-dasharray="3 3"/>`;
+ svg+=`<text x="${bx-150}" y="${(yAct+yTgt)/2+4}" fill="${okc?'#22c55e':'#f59e0b'}" font-size="12" font-weight="700">${okc?'OK (±tol)':(diff>0?'TIMBUN '+nf(diff,3)+' m':'POTONG '+nf(-diff,3)+' m')}</text>`;
+ svg+=`<text x="28" y="${H-12}" fill="#9db3cc" font-size="10">Bacaan rambu lebih KECIL = elevasi lebih TINGGI. Naikkan tanah → bacaan mengecil menuju target.</text>`;
+ svg+=`</svg>`;box.innerHTML=svg;
+}
+
+function pvSNI(g,S){
+ let total=S.total;
+ $('pvSNI').innerHTML=
+`ACUAN & REKOMENDASI (validasi terhadap dokumen desain proyek):
+• SNI 1732 / Manual Desain Perkerasan Jalan (MDP 2017, Bina Marga) — penentuan tebal lapis berdasar CBR tanah dasar, LHR & beban sumbu (ESA).
+• SNI 03-1743 — pemadatan tanah (timbunan), kepadatan ≥ 95% (badan jalan) / ≥ 100% (15 cm di bawah subgrade) MDD.
+• SNI 8460 / Spesifikasi Umum Bina Marga 2018 Div.5 — Agg Class A (LPA), Class B (LPB), Class S (bahu).
+• Spesifikasi Div.6 — Lapis beraspal (AC-WC, AC-BC, AC-Base).
+
+GEOMETRI & DRAINASE:
+• Crossfall badan jalan 2% (lurus) — diisi ${nf(g.cfB*100,1)}%. Bahu 4–6% — diisi ${nf(g.cfS*100,1)}%.
+• Bahu jalan finish Agg Class S (tidak diaspal) sesuai permintaan; berfungsi sebagai pengaman & jalur air ke saluran.
+• Saluran irigasi/drainase tepi: kemiringan dasar ≥ 0,20%, invert di bawah subgrade agar muka air tanah turun & badan jalan tetap kering (mencegah penurunan/pumping).
+
+TOTAL TEBAL PERKERASAN = ${nf(total*100,1)} cm (${nf(total,3)} m) di atas tanah dasar.
+URUTAN PEKERJAAN (progress surveyor): Tanah dasar/subgrade → ${[...PV.layers].reverse().map(l=>l.n).join(' → ')} → Marking.
+Tiap lapis: cek elevasi (Tabel E) + kepadatan (sand cone/DCP) sebelum lapis berikut.
+${PV.cat==='pabrik'?'\n⚠ JALAN PABRIK: untuk truk berat & repetisi tinggi, pertimbangkan perkerasan kaku (rigid) beton K-350 tebal 20–25 cm + lean concrete — sering lebih awet & ekonomis.':''}`;
+}
+
+function pvInit(){pvInitSelect();pvLoadPreset();}
+if(document.readyState==='complete'||document.readyState==='interactive'){setTimeout(pvInit,0);}else{window.addEventListener('load',pvInit);}
+})();
+</script>
+<!-- ==== END MODUL PERKERASAN ==== -->
+
 <!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
 <style id="survai-embed-style">
 @media all{
