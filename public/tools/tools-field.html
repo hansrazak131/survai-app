@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <style>
 :root{
@@ -104,6 +106,65 @@ body{margin:0;font-family:Poppins,Arial,sans-serif;background:var(--bg);color:va
 .bubble-status{font-size:9.5px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.95);margin-top:4px;line-height:1.25}
 @media(max-width:640px){.bubble-overlay{width:138px !important}.mini-bubble{width:78px;height:78px}.level-v{height:78px}.level-h{width:80px}}
 
+/* === Progress Survey === */
+.ps-hero{background:linear-gradient(135deg,var(--mint),#29c8af);color:white;border-radius:26px;padding:18px 20px;margin-bottom:18px;box-shadow:0 12px 28px rgba(34,190,162,.18)}
+.ps-hero h2{margin:0 0 4px;font-size:19px}.ps-hero p{margin:0;font-size:13px;opacity:.92}
+.ps-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.ps-row .btn{flex:1;min-width:150px}
+.ps-tabs{display:flex;gap:8px;background:white;border-radius:18px;padding:6px;margin-bottom:16px;box-shadow:var(--shadow);overflow-x:auto}
+.ps-tab{flex:1;white-space:nowrap;border:0;border-radius:13px;padding:11px 14px;font-family:inherit;font-weight:800;font-size:13px;cursor:pointer;background:transparent;color:#6b7280}
+.ps-tab.active{background:var(--mint);color:white}
+.ps-pane{display:none}.ps-pane.active{display:block}
+.ps-table-wrap{overflow-x:auto}
+.ps-table{width:100%;min-width:760px;border-collapse:collapse;font-size:12.5px}
+.ps-table th{background:#faf8fc;color:var(--muted);font-weight:800;padding:9px 8px;text-align:left;white-space:nowrap;position:sticky;top:0}
+.ps-table td{padding:7px 8px;border-bottom:1px solid #eee;white-space:nowrap}
+.ps-table tr.ps-active-row{background:#e9fbf7}
+.ps-table input.ps-zin{width:78px;border:1px solid #e6e2ec;border-radius:9px;padding:6px 8px;font-family:inherit;font-size:12.5px}
+.ps-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800}
+.ps-badge.cut{background:#fde8e8;color:#ef4444}
+.ps-badge.fill{background:#e8f0fe;color:#3b82f6}
+.ps-badge.ok{background:#e8f9ef;color:#22c55e}
+.ps-badge.belum{background:#f1f1f3;color:#6b7280}
+.ps-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.ps-filter{border:2px solid #e6e2ec;background:white;border-radius:999px;padding:6px 13px;font-family:inherit;font-size:12px;font-weight:800;color:#6b7280;cursor:pointer}
+.ps-filter.active{border-color:var(--mint);color:var(--mint);background:#e9fbf7}
+.ps-guide{border-radius:22px;padding:20px;text-align:center;margin-bottom:16px}
+.ps-guide.maju{background:#e8f0fe}.ps-guide.mundur{background:#fff4e6}.ps-guide.ok{background:#e8f9ef}.ps-guide.wait{background:#f4f1fa}
+.ps-guide .arrow{font-size:42px;line-height:1}
+.ps-guide .val{font-size:30px;font-weight:800;margin-top:6px}
+.ps-guide .lbl{font-size:13px;color:var(--muted);margin-top:4px}
+.ps-kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.ps-kv div{background:#faf8fc;border-radius:14px;padding:10px 12px}
+.ps-kv small{display:block;color:var(--muted);font-weight:800;font-size:11px}
+.ps-kv b{font-size:15px}
+.ps-obstruct-banner{background:#fff4e6;border:1px solid #fcd9a0;border-radius:14px;padding:12px 14px;font-size:13px;margin-bottom:14px;display:none}
+.ps-obstruct-banner.on{display:block}
+.ps-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ps-summary-grid div{background:#faf8fc;border-radius:14px;padding:14px}
+.ps-summary-grid small{display:block;color:var(--muted);font-weight:800;font-size:11px}
+.ps-summary-grid b{font-size:22px}
+@media(max-width:640px){.ps-kv,.ps-summary-grid{grid-template-columns:1fr 1fr}.ps-table{min-width:680px}}
+.ps-table input.ps-zin.ps-xyin{width:96px}
+.ps-chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);flex:0;white-space:nowrap}
+.ps-chk input{width:auto}
+.ps-canvas-wrap{position:relative;background:#f8f6fb;border-radius:18px;overflow:hidden;height:440px;box-shadow:inset 0 0 0 1px var(--line)}
+.ps-canvas-wrap canvas{width:100%;height:100%;display:block;cursor:grab}
+.ps-tooltip{position:absolute;pointer-events:none;background:rgba(17,24,39,.92);color:white;font-size:12px;padding:8px 10px;border-radius:10px;line-height:1.5;display:none;z-index:5;max-width:220px}
+.ps-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12px;color:var(--muted);align-items:center}
+.ps-legend .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.ps-legend .line{display:inline-block;width:18px;height:2px;background:#ef4444;margin-right:5px;vertical-align:middle}
+.ps-sign-grid{display:flex;justify-content:space-between;gap:20px;margin-top:30px;text-align:center;font-size:13px;color:var(--muted)}
+body.ps-active .app{max-width:1180px}
+@media(max-width:1024px){body.ps-active .app{max-width:100%}}
+@media(max-width:640px){.ps-canvas-wrap{height:320px}}
+@media print{
+  body.ps-active *{visibility:hidden}
+  #psPane-report,#psPane-report *{visibility:visible}
+  #psPane-report{position:absolute;left:0;top:0;width:100%}
+  .ps-tabs,.ps-hero,.btn-row,#psFileExcel,#psFileTxt{display:none !important}
+}
+
 </style>
 <link rel="stylesheet" href="../shared-home-theme.css" />
 </head>
@@ -116,6 +177,7 @@ body{margin:0;font-family:Poppins,Arial,sans-serif;background:var(--bg);color:va
       <div class="menu-card" onclick="openScreen('compass')"><div class="menu-icon mint">🧭</div><div><h2>Digital Compass</h2><p>Modern compass, AR camera, GPS average, and bubble level</p></div><div class="arrow">›</div></div>
       <div class="menu-card" onclick="openScreen('levelBook')"><div class="menu-icon purple">📖</div><div><h2>Digital Level Book</h2><p>H.I. method, BS / IS / FS, RL check, Excel and PDF</p></div><div class="arrow">›</div></div>
       <div class="menu-card" onclick="openScreen('loopAdjustment')"><div class="menu-icon orange">☷</div><div><h2>Level Loop Adjustment</h2><p>Kerangka Dasar Vertikal, pergi-pulang, koreksi tinggi, toleransi, dan perbandingan</p></div><div class="arrow">›</div></div>
+      <div class="menu-card" onclick="openScreen('progressSurvey')"><div class="menu-icon mint">📐</div><div><h2>Progress Survey</h2><p>Stakeout dari BM, panduan maju/mundur, dan analisis cut/fill lapangan</p></div><div class="arrow">›</div></div>
     </div>
   </div>
 </section>
@@ -1730,11 +1792,190 @@ function swRTab(dir, tab, btn) {
     </div>
   </div>
 </section>
+
+<section id="progressSurvey" class="screen submenu-no-header">
+  <div class="content">
+    <div class="ps-hero">
+      <h2>📐 Progress Survey</h2>
+      <p>Stakeout dari BM, panduan maju/mundur, dan analisis cut/fill — Block 3 Gyratory &amp; Jaw Crusher</p>
+      <div class="ps-row">
+        <button class="btn btn-mint" onclick="psLoadSampleDesign()">Muat Sample Desain (VS)</button>
+        <button class="btn btn-purple" onclick="psLoadSampleActual()">Muat Sample Aktual (JC/Gty)</button>
+        <button class="btn btn-gray" onclick="psResetAll()">Reset Data</button>
+      </div>
+    </div>
+
+    <div class="ps-tabs">
+      <button class="ps-tab active" data-ps="bm" onclick="psSwitchTab('bm',this)">BM &amp; Import</button>
+      <button class="ps-tab" data-ps="table" onclick="psSwitchTab('table',this)">Tabel Titik</button>
+      <button class="ps-tab" data-ps="calc" onclick="psSwitchTab('calc',this)">Stakeout Guide</button>
+      <button class="ps-tab" data-ps="sketch2d" onclick="psSwitchTab('sketch2d',this)">Sketsa 2D</button>
+      <button class="ps-tab" data-ps="sketch3d" onclick="psSwitchTab('sketch3d',this)">Sketsa 3D</button>
+      <button class="ps-tab" data-ps="summary" onclick="psSwitchTab('summary',this)">Summary</button>
+      <button class="ps-tab" data-ps="report" onclick="psSwitchTab('report',this)">Laporan</button>
+    </div>
+
+    <div class="ps-pane active" id="psPane-bm">
+      <div class="card"><h2 class="card-title"><span class="badge-icon">📍</span> Benchmark (BM)</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>BM Label</label><input id="psBmLabel" placeholder="BM AG" value="BM AG"></div>
+          <div class="form-group"><label>X BM</label><input id="psBmX" type="number" step="0.001" placeholder="619288.615"></div>
+          <div class="form-group"><label>Y BM</label><input id="psBmY" type="number" step="0.001" placeholder="9344972.521"></div>
+          <div class="form-group"><label>Z BM</label><input id="psBmZ" type="number" step="0.001" placeholder="129.853"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Toleransi XY (m)</label><input id="psTolXY" type="number" step="0.01" value="0.05"></div>
+          <div class="form-group"><label>Toleransi Z (m)</label><input id="psTolZ" type="number" step="0.01" value="0.05"></div>
+        </div>
+        <button class="btn btn-mint" onclick="psSaveBM()">Simpan BM &amp; Toleransi</button>
+      </div>
+      <div class="card"><h2 class="card-title"><span class="badge-icon">📥</span> Import Koordinat Desain</h2>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">Kolom: No, Label, X, Y, Z (Z opsional). Baris pertama dianggap header bila berisi teks.</p>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="document.getElementById('psFileExcel').click()">Import Excel (.xlsx/.xls)</button>
+          <button class="btn btn-outline-purple" onclick="document.getElementById('psFileTxt').click()">Import TXT/CSV</button>
+        </div>
+        <input type="file" id="psFileExcel" accept=".xlsx,.xls" style="display:none" onchange="psImportExcel(this.files[0])">
+        <input type="file" id="psFileTxt" accept=".txt,.csv" style="display:none" onchange="psImportTxt(this.files[0])">
+        <div id="psImportLog"></div>
+      </div>
+      <div class="card"><h2 class="card-title"><span class="badge-icon">➕</span> Tambah Titik Desain Manual</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Label</label><input id="psNewLabel" placeholder="VS 1-2 Pt.1"></div>
+          <div class="form-group"><label>Group</label><input id="psNewGroup" placeholder="VS 1-2"></div>
+          <div class="form-group"><label>X Desain</label><input id="psNewX" type="number" step="0.001"></div>
+          <div class="form-group"><label>Y Desain</label><input id="psNewY" type="number" step="0.001"></div>
+          <div class="form-group"><label>Z Desain (opsional)</label><input id="psNewZ" type="number" step="0.001"></div>
+        </div>
+        <button class="btn btn-purple" onclick="psAddPoint()">Tambah Titik</button>
+      </div>
+    </div>
+
+    <div class="ps-pane" id="psPane-table">
+      <div class="card">
+        <h2 class="card-title"><span class="badge-icon">📋</span> Tabel Titik (Desain &amp; Aktual — bisa diedit langsung)</h2>
+        <div class="ps-filters">
+          <button class="ps-filter active" data-f="ALL" onclick="psSetFilter('ALL',this)">Semua</button>
+          <button class="ps-filter" data-f="CUT" onclick="psSetFilter('CUT',this)">CUT</button>
+          <button class="ps-filter" data-f="FILL" onclick="psSetFilter('FILL',this)">FILL</button>
+          <button class="ps-filter" data-f="OK" onclick="psSetFilter('OK',this)">ON GRADE</button>
+          <button class="ps-filter" data-f="BELUM" onclick="psSetFilter('BELUM',this)">Belum Diukur</button>
+        </div>
+        <div class="ps-table-wrap"><table class="ps-table" id="psTable"><thead><tr><th>No</th><th>Label</th><th>Group</th><th>X Desain</th><th>Y Desain</th><th>Z Desain</th><th>X Aktual</th><th>Y Aktual</th><th>Z Aktual</th><th>ΔZ</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="psTableBody"></tbody></table></div>
+        <div class="empty" id="psTableEmpty">Belum ada titik. Import, muat sample, atau tambah titik manual.</div>
+        <div class="btn-row" style="margin-top:14px;"><button class="btn btn-outline" onclick="psExportCSV()">Export CSV</button></div>
+      </div>
+    </div>
+
+    <div class="ps-pane" id="psPane-calc">
+      <div class="card">
+        <h2 class="card-title"><span class="badge-icon">🎯</span> Stakeout Calculator</h2>
+        <div class="form-group full"><label>Pilih Titik Desain</label><select id="psTargetSelect" onchange="psRenderGuide()"></select></div>
+        <div class="mode-switch" style="margin-bottom:14px;">
+          <button id="psModeB" class="mode-btn active" onclick="psSetMode('B')">JARAK SAJA</button>
+          <button id="psModeA" class="mode-btn" onclick="psSetMode('A')">JARAK + AZIMUTH</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-group"><label>Jarak Stakeout (m)</label><input id="psJarak" type="number" step="0.001" oninput="psRenderGuide()"></div>
+          <div class="form-group" id="psAzimuthGroup" style="display:none"><label>Azimuth Input (derajat)</label><input id="psAzimuthInput" type="number" step="0.01" oninput="psRenderGuide()"></div>
+        </div>
+        <div class="form-group full"><label><input type="checkbox" id="psObstructChk" onchange="psRenderGuide()" style="width:auto;display:inline-block;margin-right:6px;">Terhalang material</label></div>
+        <div class="form-grid" id="psObstructFields" style="display:none">
+          <div class="form-group"><label>Jenis Halangan</label><select id="psObstructType"><option>Batuan</option><option>Tanah</option><option>Dinding Beton</option><option>Lainnya</option></select></div>
+          <div class="form-group"><label>Catatan</label><input id="psObstructNote" placeholder="catatan tambahan"></div>
+        </div>
+        <div class="ps-obstruct-banner" id="psObstructBanner">⚠️ Terhalang — lakukan offset lateral dan re-ukur.</div>
+
+        <div id="psGuideBox"></div>
+
+        <div class="form-group full"><label>Input Z Aktual (opsional, langsung simpan)</label><input id="psZInput" type="number" step="0.001"></div>
+        <div class="btn-row"><button class="btn btn-mint" onclick="psSaveStakeout(false)">💾 Simpan Hasil</button><button class="btn btn-purple" onclick="psSaveStakeout(true)">✓ Simpan &amp; Tandai Selesai</button></div>
+      </div>
+    </div>
+
+    <div class="ps-pane" id="psPane-sketch2d">
+      <div class="card">
+        <h2 class="card-title"><span class="badge-icon">🗺️</span> Sketsa 2D — Desain vs Aktual</h2>
+        <div class="ps-row" style="margin-top:0;margin-bottom:12px;">
+          <label class="ps-chk"><input type="checkbox" id="ps2dLayerDesign" checked onchange="psDraw2D()"> Layer Desain</label>
+          <label class="ps-chk"><input type="checkbox" id="ps2dLayerActual" checked onchange="psDraw2D()"> Layer Aktual</label>
+          <label class="ps-chk"><input type="checkbox" id="ps2dLayerDev" checked onchange="psDraw2D()"> Garis Deviasi</label>
+          <button class="btn btn-gray" onclick="ps2dResetView()" style="flex:0;">Reset View</button>
+          <button class="btn btn-outline" onclick="ps2dExportPNG()" style="flex:0;">Export PNG</button>
+        </div>
+        <div class="ps-canvas-wrap"><canvas id="ps2dCanvas"></canvas><div class="ps-tooltip" id="ps2dTooltip"></div></div>
+        <div class="ps-legend">
+          <span><i class="dot" style="background:#ffca18"></i>BM</span>
+          <span><i class="dot" style="background:#3b82f6"></i>Desain</span>
+          <span><i class="dot" style="background:#ef4444"></i>CUT</span>
+          <span><i class="dot" style="background:#3b82f6;border:2px solid #1d4ed8"></i>FILL</span>
+          <span><i class="dot" style="background:#22c55e"></i>ON GRADE</span>
+          <span><i class="dot" style="background:#9ca3af"></i>Belum Diukur</span>
+          <span><i class="line"></i>Deviasi</span>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px;">Scroll = zoom · Drag = pan · Hover titik untuk lihat XYZ.</p>
+      </div>
+    </div>
+
+    <div class="ps-pane" id="psPane-sketch3d">
+      <div class="card">
+        <h2 class="card-title"><span class="badge-icon">🧊</span> Sketsa 3D — Point Cloud Desain vs Aktual</h2>
+        <div class="ps-row" style="margin-top:0;margin-bottom:12px;">
+          <button class="btn btn-gray" onclick="ps3dResetView()" style="flex:0;">Reset View</button>
+          <button class="btn btn-outline" onclick="ps3dExportPNG()" style="flex:0;">Export PNG</button>
+        </div>
+        <div class="ps-canvas-wrap" id="ps3dContainer" style="height:460px;"></div>
+        <div class="ps-legend">
+          <span><i class="dot" style="background:#ffca18"></i>BM</span>
+          <span><i class="dot" style="background:#3b82f6"></i>Desain</span>
+          <span><i class="dot" style="background:#ef4444"></i>CUT</span>
+          <span><i class="dot" style="background:#22c55e"></i>ON GRADE / FILL</span>
+          <span><i class="dot" style="background:#9ca3af"></i>Belum Diukur</span>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:8px;">Drag = rotate · Scroll = zoom · Klik kanan drag = pan.</p>
+      </div>
+    </div>
+
+    <div class="ps-pane" id="psPane-summary">
+      <div class="card">
+        <h2 class="card-title"><span class="badge-icon">📊</span> Dashboard Summary</h2>
+        <div class="ps-summary-grid">
+          <div><small>Total Titik</small><b id="psSumTotal">0</b></div>
+          <div><small>Selesai Diukur</small><b id="psSumDone">0%</b></div>
+          <div><small>CUT</small><b id="psSumCut">0</b></div>
+          <div><small>FILL</small><b id="psSumFill">0</b></div>
+          <div><small>ON GRADE</small><b id="psSumOk">0</b></div>
+          <div><small>Belum Diukur</small><b id="psSumBelum">0</b></div>
+        </div>
+        <div class="ps-canvas-wrap" id="psBarChartWrap" style="height:220px;margin-top:14px;"><canvas id="psBarChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="ps-pane" id="psPane-report">
+      <div class="card">
+        <h2 class="card-title"><span class="badge-icon">🖨️</span> Header Laporan</h2>
+        <div class="form-grid">
+          <div class="form-group"><label>Nama Proyek</label><input id="psRptProject" value="Block 3 - Gyratory &amp; Jaw Crusher"></div>
+          <div class="form-group"><label>Lokasi</label><input id="psRptLocation" value="Area Crusher Block 3"></div>
+          <div class="form-group"><label>Tanggal</label><input id="psRptDate" type="date"></div>
+          <div class="form-group"><label>Cuaca</label><input id="psRptWeather" placeholder="Cerah / Hujan Deras / dll"></div>
+          <div class="form-group full"><label>Catatan Lapangan (halangan, rekomendasi, joint survey lanjutan)</label><input id="psRptNote" placeholder="contoh: progres check kurang maksimal karena hujan deras, lanjut joint survey besok."></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-mint" onclick="psBuildReport()">Generate / Refresh Laporan</button>
+          <button class="btn btn-outline" onclick="psExportReportPDF()">Export PDF</button>
+          <button class="btn btn-outline-purple" onclick="window.print()">Print</button>
+        </div>
+      </div>
+      <div class="card" id="psReportPreview"></div>
+    </div>
+  </div>
+</section>
 </div>
 
 <script>
 let compassMode='normal';let heading=0,pitch=0,roll=0,lockedBearing=null;let gpsSamples=[],gpsAvg=null,gpsWatch=null;let cameraReady=false,cameraStream=null,orientReady=false;let waypoints=[],readings=[];let rawHeading=0,lastHeading=null,lastSensorMs=0,sensorSource='WAIT',relativeCompass=false;let compassOffset=parseFloat(localStorage.getItem('fieldToolsCompassOffset')||'0');let absSensor=null;let motionReady=false,lastTiltMs=0;
-function openScreen(id,pushState=true){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(pushState&&history&&history.pushState){history.pushState({screen:id},'',location.pathname+location.search+'#'+id);}if(id==='compass'){startGps();startSensors();makeHeadingTape();}}
+function openScreen(id,pushState=true){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');document.body.classList.toggle('ps-active',id==='progressSurvey');if(pushState&&history&&history.pushState){history.pushState({screen:id},'',location.pathname+location.search+'#'+id);}if(id==='compass'){startGps();startSensors();makeHeadingTape();}}
 window.addEventListener('popstate',e=>{const id=(e.state&&e.state.screen)||'home';if(document.getElementById(id))openScreen(id,false);});
 try{history.replaceState({screen:'home'},'',location.pathname+location.search+'#home');}catch(e){}
 function setCompassMode(mode){compassMode=mode;document.getElementById('normalModeBtn').classList.remove('active');document.getElementById('arModeBtn').classList.remove('active');if(mode==='normal'){document.getElementById('normalCompassView').style.display='block';document.getElementById('arCompassView').classList.remove('active');document.getElementById('normalModeBtn').classList.add('active');}else{document.getElementById('normalCompassView').style.display='none';document.getElementById('arCompassView').classList.add('active');document.getElementById('arModeBtn').classList.add('active');startAR();}}
@@ -1909,6 +2150,546 @@ function cardinal(deg){const dirs=['N','NNE','NE','ENE','E','ESE','SE','SSE','S'
 function shortCardinal(deg){if(deg>=337.5||deg<22.5)return'N';if(deg<67.5)return'NE';if(deg<112.5)return'E';if(deg<157.5)return'SE';if(deg<202.5)return'S';if(deg<247.5)return'SW';if(deg<292.5)return'W';return'NW';}
 function norm(v){v=v%360;return v<0?v+360:v;}function clamp(v,min,max){return Math.max(min,Math.min(max,v));}function setText(id,val){const el=document.getElementById(id);if(el)el.textContent=val;}function downloadFile(name,content,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
 renderReadings();calcLevel();makeHeadingTape();startGps();
+
+/* ===================== Progress Survey ===================== */
+let psBM={x:null,y:null,z:null,label:'BM AG'};
+let psTolXY=0.05,psTolZ=0.05;
+let psPoints=JSON.parse(localStorage.getItem('progressSurveyPoints')||'[]');
+let psFilter='ALL';
+let psMode='B';
+
+function psPersist(){localStorage.setItem('progressSurveyPoints',JSON.stringify(psPoints));localStorage.setItem('progressSurveyBM',JSON.stringify({bm:psBM,tolXY:psTolXY,tolZ:psTolZ}));}
+function psLoadState(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('progressSurveyBM')||'null');
+    if(saved){psBM=saved.bm;psTolXY=saved.tolXY;psTolZ=saved.tolZ;}
+  }catch(e){}
+  setVal('psBmLabel',psBM.label||'BM AG');setVal('psBmX',psBM.x);setVal('psBmY',psBM.y);setVal('psBmZ',psBM.z);
+  setVal('psTolXY',psTolXY);setVal('psTolZ',psTolZ);
+}
+function setVal(id,v){const el=document.getElementById(id);if(el&&v!==null&&v!==undefined&&v!=='')el.value=v;}
+
+function psSwitchTab(name,btn){
+  document.querySelectorAll('.ps-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');
+  document.querySelectorAll('.ps-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('psPane-'+name).classList.add('active');
+  if(name==='table')psRenderTable();
+  if(name==='calc')psRenderGuide();
+  if(name==='summary'){psRenderSummary();setTimeout(psDrawBarChart,30);}
+  if(name==='sketch2d')setTimeout(ps2dResetView,30);
+  if(name==='sketch3d')setTimeout(ps3dInit,30);
+  if(name==='report')psBuildReport();
+}
+
+function psSaveBM(){
+  psBM={label:document.getElementById('psBmLabel').value||'BM AG',x:parseFloat(document.getElementById('psBmX').value),y:parseFloat(document.getElementById('psBmY').value),z:parseFloat(document.getElementById('psBmZ').value)||null};
+  psTolXY=parseFloat(document.getElementById('psTolXY').value)||0.05;
+  psTolZ=parseFloat(document.getElementById('psTolZ').value)||0.05;
+  if(isNaN(psBM.x)||isNaN(psBM.y)){alert('X dan Y BM wajib diisi.');return;}
+  psPersist();psPopulateTargetSelect();alert('BM dan toleransi tersimpan.');
+}
+
+function psAddPoint(){
+  const label=document.getElementById('psNewLabel').value.trim();
+  const x=parseFloat(document.getElementById('psNewX').value),y=parseFloat(document.getElementById('psNewY').value);
+  if(!label||isNaN(x)||isNaN(y)){alert('Label, X, dan Y desain wajib diisi.');return;}
+  const zRaw=document.getElementById('psNewZ').value;
+  psPoints.push({id:'P'+(psPoints.length+1)+'-'+Date.now(),label,group:document.getElementById('psNewGroup').value||'-',xd:x,yd:y,zd:zRaw===''?null:parseFloat(zRaw),xa:null,ya:null,za:null,jarak:null,azDeg:null,obstruction:null,obstructionNote:'',status:'pending',timestamp:null});
+  document.getElementById('psNewLabel').value='';document.getElementById('psNewX').value='';document.getElementById('psNewY').value='';document.getElementById('psNewZ').value='';document.getElementById('psNewGroup').value='';
+  psPersist();psPopulateTargetSelect();psRenderTable();psRenderSummary();
+  alert('Titik "'+label+'" ditambahkan.');
+}
+
+function psLoadSampleDesign(){
+  psBM={label:'BM AG',x:619288.615,y:9344972.521,z:129.853};psTolXY=0.05;psTolZ=0.05;
+  const groups={
+    'VS 1-2':[[619148.534,9345062.846],[619140.700,9345050.968],[619148.581,9345045.771],[619156.415,9345057.649]],
+    'VS 3-4':[[619161.047,9345054.593],[619153.213,9345042.715],[619161.093,9345037.518],[619168.928,9345049.396]],
+    'VS 5-6':[[619173.560,9345046.340],[619165.726,9345034.462],[619173.607,9345029.265],[619181.441,9345041.143]],
+    'VS 7-8':[[619186.074,9345038.087],[619178.240,9345026.209],[619186.120,9345021.012],[619193.954,9345032.890]],
+    'VS 9-10':[[619198.589,9345029.833],[619190.755,9345017.955],[619198.635,9345012.757],[619206.469,9345024.635]],
+    'VS 11-12':[[619211.101,9345021.581],[619203.266,9345009.703],[619211.147,9345004.505],[619218.981,9345016.383]],
+    'VS 13-14':[[619223.614,9345013.328],[619215.780,9345001.450],[619223.660,9344996.252],[619231.494,9345008.130]],
+    'VS 15-16':[[619236.127,9345005.074],[619228.293,9344993.196],[619236.173,9344987.999],[619244.008,9344999.877]],
+    'VS 17-18':[[619248.641,9344996.821],[619240.806,9344984.943],[619248.687,9344979.746],[619256.521,9344991.624]],
+    'VS 19-20':[[619261.154,9344988.568],[619253.320,9344976.690],[619261.200,9344971.493],[619269.034,9344983.371]]
+  };
+  const newPts=[];
+  Object.keys(groups).forEach(g=>{groups[g].forEach((c,i)=>{newPts.push({id:'VS-'+g.replace(/\s/g,'')+'-'+(i+1)+'-'+Date.now()+'-'+Math.random().toString(16).slice(2,6),label:g+' Pt.'+(i+1),group:g,xd:c[0],yd:c[1],zd:null,xa:null,ya:null,za:null,jarak:null,azDeg:null,obstruction:null,obstructionNote:'',status:'pending',timestamp:null});});});
+  psPoints=psPoints.filter(p=>!String(p.group).startsWith('VS ')).concat(newPts);
+  psPersist();psLoadState();psPopulateTargetSelect();psRenderTable();psRenderSummary();
+  alert('Sample 40 titik desain (KOORDINAT SCREEN u/ JAW CRUSHER) dimuat.');
+}
+
+function psLoadSampleActual(){
+  const groups={
+    'JC 19-20':[[619191.965,9344917.261,129.074],[619181.112,9344924.419,129.077],[619186.426,9344932.474,null],[619193.379,9344936.903,129.070],[619198.927,9344933.265,132.753],[619197.278,9344925.317,null],[619193.176,9344919.098,null]],
+    'JC 17-18':[[619179.451,9344925.514,132.073],[619168.599,9344932.672,132.053],[619173.912,9344940.727,null],[619180.774,9344945.253,null],[619186.413,9344941.518,null],[619184.764,9344933.570,null]],
+    'JC 15-16':[[619166.938,9344933.767,null],[619156.086,9344940.925,null],[619161.399,9344948.981,null],[619168.160,9344953.536,null],[619173.898,9344949.763,null],[619172.251,9344941.823,null]],
+    'Gty 1':[[619286.097,9344972.117,null],[619248.625,9344915.664,null],[619236.754,9344916.592,null],[619228.505,9344904.183,null],[619246.673,9344892.136,null],[619255.462,9344905.356,null],[619244.654,9344898.491,null],[619234.328,9344905.356,null]],
+    'Gty 2':[[619312.810,9344954.498,null],[619278.149,9344896.174,null],[619266.242,9344896.306,null],[619258.841,9344883.374,null],[619276.894,9344873.042,null],[619284.759,9344886.861,null],[619275.335,9344878.774,null],[619264.572,9344884.933,null]],
+    'Gty 3':[[619344.255,9344951.670,null],[619345.498,9344937.495,null],[619319.127,9344890.990,null],[619307.222,9344890.750,null],[619300.227,9344877.594,null],[619318.593,9344867.830,null],[619325.588,9344880.987,null],[619316.856,9344873.510,null],[619305.907,9344879.331,null]]
+  };
+  const newPts=[];
+  Object.keys(groups).forEach(g=>{groups[g].forEach((c,i)=>{newPts.push({id:'ACT-'+g.replace(/\s/g,'')+'-'+(i+1)+'-'+Date.now()+'-'+Math.random().toString(16).slice(2,6),label:g+' Pt.'+(i+1),group:g,xd:null,yd:null,zd:null,xa:c[0],ya:c[1],za:c[2],jarak:null,azDeg:null,obstruction:null,obstructionNote:'',status:c[2]!==null?'done':'pending',timestamp:c[2]!==null?new Date().toLocaleString('id-ID'):null});});});
+  psPoints=psPoints.filter(p=>!(p.group==='JC 19-20'||p.group==='JC 17-18'||p.group==='JC 15-16'||p.group==='Gty 1'||p.group==='Gty 2'||p.group==='Gty 3')).concat(newPts);
+  psPersist();psPopulateTargetSelect();psRenderTable();psRenderSummary();
+  alert('Sample data aktual lapangan (Jaw Crusher 19-20/17-18/15-16, Gyratory 1-3) dimuat. Catatan: progres check kurang maksimal karena hujan deras, joint survey lanjutan 23-06-2026.');
+}
+
+function psResetAll(){
+  if(!confirm('Hapus semua data Progress Survey (BM, titik, hasil stakeout)?'))return;
+  psPoints=[];psBM={x:null,y:null,z:null,label:'BM AG'};psTolXY=0.05;psTolZ=0.05;
+  localStorage.removeItem('progressSurveyPoints');localStorage.removeItem('progressSurveyBM');
+  psLoadState();psPopulateTargetSelect();psRenderTable();psRenderSummary();
+}
+
+function psBearingFromBM(bm,pt){const dX=pt.xd-bm.x,dY=pt.yd-bm.y;let b=Math.atan2(dX,dY)*(180/Math.PI);if(b<0)b+=360;return b;}
+function psDesignDistFromBM(bm,pt){return Math.sqrt(Math.pow(pt.xd-bm.x,2)+Math.pow(pt.yd-bm.y,2));}
+function psToDMS(deg){const d=Math.floor(deg);const mFull=(deg-d)*60;const m=Math.floor(mFull);const s=((mFull-m)*60).toFixed(1);return d+'°'+m+"'"+s+'"';}
+
+function psCutFillStatus(pt){
+  if(pt.zd===null||pt.zd===undefined||pt.za===null||pt.za===undefined)return 'BELUM';
+  const dz=pt.za-pt.zd;
+  if(Math.abs(dz)<=psTolZ)return 'OK';
+  return dz<0?'CUT':'FILL';
+}
+
+function psStatusBadge(status){
+  if(status==='CUT')return '<span class="ps-badge cut">⛏️ CUT</span>';
+  if(status==='FILL')return '<span class="ps-badge fill">🏗️ FILL</span>';
+  if(status==='OK')return '<span class="ps-badge ok">✅ ON GRADE</span>';
+  return '<span class="ps-badge belum">⏳ BELUM</span>';
+}
+
+function psPopulateTargetSelect(){
+  const sel=document.getElementById('psTargetSelect');if(!sel)return;
+  const designPts=psPoints.filter(p=>p.xd!==null&&p.xd!==undefined);
+  sel.innerHTML=designPts.length?designPts.map(p=>'<option value="'+p.id+'">'+p.label+' ('+p.group+')</option>').join(''):'<option value="">Belum ada titik desain</option>';
+  psRenderGuide();
+}
+
+function psSetFilter(f,btn){psFilter=f;document.querySelectorAll('.ps-filter').forEach(b=>b.classList.remove('active'));btn.classList.add('active');psRenderTable();}
+
+function psRenderTable(){
+  const body=document.getElementById('psTableBody');const empty=document.getElementById('psTableEmpty');
+  let rows=psPoints.map((p,i)=>({...p,_idx:i,_status:psCutFillStatus(p)}));
+  if(psFilter!=='ALL')rows=rows.filter(r=>r._status===psFilter);
+  if(!rows.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  const xyin=(idx,field,val)=>'<input class="ps-zin ps-xyin" type="number" step="0.001" value="'+(val!==null&&val!==undefined?val:'')+'" onchange="psUpdateField('+idx+',\''+field+'\',this.value)">';
+  body.innerHTML=rows.map((p,n)=>{
+    const dz=(p.zd!==null&&p.za!==null&&p.zd!==undefined&&p.za!==undefined)?(p.za-p.zd).toFixed(3):'-';
+    return '<tr><td>'+(n+1)+'</td><td>'+p.label+'</td><td>'+p.group+'</td>'+
+      '<td>'+xyin(p._idx,'xd',p.xd)+'</td><td>'+xyin(p._idx,'yd',p.yd)+'</td><td>'+xyin(p._idx,'zd',p.zd)+'</td>'+
+      '<td>'+xyin(p._idx,'xa',p.xa)+'</td><td>'+xyin(p._idx,'ya',p.ya)+'</td>'+
+      '<td><input class="ps-zin" type="number" step="0.001" value="'+(p.za!==null&&p.za!==undefined?p.za:'')+'" onchange="psUpdateZAktual('+p._idx+',this.value)"></td>'+
+      '<td>'+dz+'</td><td>'+psStatusBadge(p._status)+'</td>'+
+      '<td><button class="btn btn-gray" style="padding:6px 10px;font-size:11px;" onclick="psRemovePoint('+p._idx+')">Hapus</button></td></tr>';
+  }).join('');
+}
+
+function psUpdateField(idx,field,val){
+  psPoints[idx][field]=val===''?null:parseFloat(val);
+  psPersist();psRenderTable();psRenderSummary();psPopulateTargetSelect();
+}
+
+function psUpdateZAktual(idx,val){
+  psPoints[idx].za=val===''?null:parseFloat(val);
+  if(psPoints[idx].za!==null&&psPoints[idx].status==='pending')psPoints[idx].status='done';
+  psPersist();psRenderTable();psRenderSummary();
+}
+
+function psRemovePoint(idx){
+  if(!confirm('Hapus titik "'+psPoints[idx].label+'"?'))return;
+  psPoints.splice(idx,1);psPersist();psPopulateTargetSelect();psRenderTable();psRenderSummary();
+}
+
+function psSetMode(mode){
+  psMode=mode;
+  document.getElementById('psModeA').classList.toggle('active',mode==='A');
+  document.getElementById('psModeB').classList.toggle('active',mode==='B');
+  document.getElementById('psAzimuthGroup').style.display=mode==='A'?'block':'none';
+  psRenderGuide();
+}
+
+function psRenderGuide(){
+  const box=document.getElementById('psGuideBox');if(!box)return;
+  const obstructFields=document.getElementById('psObstructFields'),banner=document.getElementById('psObstructBanner');
+  const chk=document.getElementById('psObstructChk').checked;
+  obstructFields.style.display=chk?'grid':'none';
+  banner.classList.toggle('on',chk);
+  if(chk)banner.textContent='⚠️ Terhalang '+document.getElementById('psObstructType').value+' — lakukan offset lateral dan re-ukur.';
+  const sel=document.getElementById('psTargetSelect');
+  const pt=psPoints.find(p=>p.id===sel.value);
+  if(!pt||isNaN(psBM.x)||psBM.x===null){box.innerHTML='<div class="ps-guide wait"><div class="arrow">⏳</div><div class="lbl">Set BM dan pilih titik desain untuk memulai panduan stakeout.</div></div>';return;}
+  const jarak=parseFloat(document.getElementById('psJarak').value);
+  const designDist=psDesignDistFromBM(psBM,pt);
+  const azAuto=psBearingFromBM(psBM,pt);
+  const azUsed=(psMode==='A'&&document.getElementById('psAzimuthInput').value!=='')?parseFloat(document.getElementById('psAzimuthInput').value):azAuto;
+  if(isNaN(jarak)){
+    box.innerHTML='<div class="ps-kv"><div><small>Jarak Desain dari BM</small><b>'+designDist.toFixed(3)+' m</b></div><div><small>Azimuth Desain</small><b>'+psToDMS(azAuto)+'</b></div></div><div class="ps-guide wait"><div class="arrow">✏️</div><div class="lbl">Masukkan jarak stakeout untuk menghitung panduan.</div></div>';
+    return;
+  }
+  const az=azUsed*(Math.PI/180);
+  const xa=psBM.x+jarak*Math.sin(az),ya=psBM.y+jarak*Math.cos(az);
+  const delta=jarak-designDist;
+  let cls='ok',arrow='✅',label='SIAP PATOK',val='0.000 m';
+  if(Math.abs(delta)>psTolXY){
+    if(delta<0){cls='maju';arrow='▲';label='MAJU';val=Math.abs(delta).toFixed(3)+' m';}
+    else{cls='mundur';arrow='▼';label='MUNDUR';val=Math.abs(delta).toFixed(3)+' m';}
+  }
+  psLastGuide={pt,xa,ya,delta,azUsed,jarak};
+  box.innerHTML='<div class="ps-kv"><div><small>Jarak Desain dari BM</small><b>'+designDist.toFixed(3)+' m</b></div><div><small>Jarak Stakeout (input)</small><b>'+jarak.toFixed(3)+' m</b></div><div><small>X Aktual / Y Aktual</small><b>'+xa.toFixed(3)+', '+ya.toFixed(3)+'</b></div><div><small>Azimuth</small><b>'+psToDMS(azUsed)+'</b></div></div>'+
+    '<div class="ps-guide '+cls+'"><div class="arrow">'+arrow+'</div><div class="val">'+val+'</div><div class="lbl">'+label+'</div></div>';
+}
+
+let psLastGuide=null;
+
+function psSaveStakeout(markDone){
+  const sel=document.getElementById('psTargetSelect');
+  const idx=psPoints.findIndex(p=>p.id===sel.value);
+  if(idx<0){alert('Pilih titik desain terlebih dahulu.');return;}
+  if(!psLastGuide||psLastGuide.pt.id!==sel.value){alert('Isi jarak stakeout terlebih dahulu agar hasil terhitung.');return;}
+  const chk=document.getElementById('psObstructChk').checked;
+  psPoints[idx].xa=psLastGuide.xa;psPoints[idx].ya=psLastGuide.ya;psPoints[idx].jarak=psLastGuide.jarak;psPoints[idx].azDeg=psLastGuide.azUsed;
+  psPoints[idx].obstruction=chk?document.getElementById('psObstructType').value:null;
+  psPoints[idx].obstructionNote=chk?document.getElementById('psObstructNote').value:'';
+  const zVal=document.getElementById('psZInput').value;
+  if(zVal!=='')psPoints[idx].za=parseFloat(zVal);
+  psPoints[idx].status=chk?'obstructed':(markDone?'done':'staked');
+  if(markDone)psPoints[idx].timestamp=new Date().toLocaleString('id-ID');
+  psPersist();psRenderTable();psRenderSummary();
+  alert('Hasil stakeout untuk "'+psPoints[idx].label+'" tersimpan.');
+}
+
+function psRenderSummary(){
+  const total=psPoints.length;
+  const statuses=psPoints.map(p=>psCutFillStatus(p));
+  const cut=statuses.filter(s=>s==='CUT').length;
+  const fill=statuses.filter(s=>s==='FILL').length;
+  const ok=statuses.filter(s=>s==='OK').length;
+  const belum=statuses.filter(s=>s==='BELUM').length;
+  const donePct=total?Math.round(((total-belum)/total)*100):0;
+  setText('psSumTotal',total);setText('psSumDone',donePct+'%');
+  setText('psSumCut',cut);setText('psSumFill',fill);setText('psSumOk',ok);setText('psSumBelum',belum);
+}
+
+function psExportCSV(){
+  if(!psPoints.length){alert('Belum ada data untuk diexport.');return;}
+  const rows=[['No','Label','Group','X_Desain','Y_Desain','Z_Desain','X_Aktual','Y_Aktual','Z_Aktual','DeltaZ','Status','Jarak_Stakeout','Azimuth_deg','Obstruction','Note','Timestamp']];
+  psPoints.forEach((p,i)=>{
+    const dz=(p.zd!==null&&p.za!==null&&p.zd!==undefined&&p.za!==undefined)?(p.za-p.zd).toFixed(3):'';
+    rows.push([i+1,p.label,p.group,p.xd??'',p.yd??'',p.zd??'',p.xa??'',p.ya??'',p.za??'',dz,psCutFillStatus(p),p.jarak??'',p.azDeg??'',p.obstruction??'',p.obstructionNote??'',p.timestamp??'']);
+  });
+  downloadFile('progress-survey-export.csv',rows.map(r=>r.join(',')).join('\n'),'text/csv');
+}
+
+/* ===== Import Excel/TXT ===== */
+function psParseRowsCommon(rows){
+  let added=0;const errors=[];
+  rows.forEach((r,i)=>{
+    const label=String(r.label||'').trim();
+    const x=parseFloat(r.x),y=parseFloat(r.y);
+    const zRaw=r.z;
+    if(!label||isNaN(x)||isNaN(y)){errors.push('Baris '+(i+1)+': '+(!label?'label kosong':'X/Y tidak valid'));return;}
+    const z=(zRaw===undefined||zRaw===null||zRaw==='')?null:parseFloat(zRaw);
+    const gm=label.match(/^([A-Za-z]+\s*\d+-\d+)/);
+    psPoints.push({id:'IMP-'+Date.now()+'-'+Math.random().toString(16).slice(2,6),label,group:gm?gm[1]:'-',xd:x,yd:y,zd:(z!==null&&!isNaN(z))?z:null,xa:null,ya:null,za:null,jarak:null,azDeg:null,obstruction:null,obstructionNote:'',status:'pending',timestamp:null});
+    added++;
+  });
+  psPersist();psPopulateTargetSelect();psRenderTable();psRenderSummary();
+  const log=document.getElementById('psImportLog');
+  log.innerHTML='<div style="margin-top:10px;font-size:13px;"><b>'+added+'</b> titik berhasil diimport.'+(errors.length?(' <span style="color:#ef4444">'+errors.length+' baris error:</span><br>'+errors.slice(0,15).join('<br>')+(errors.length>15?'<br>...':'')):'')+'</div>';
+}
+function psImportExcel(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const arr=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+      let start=0;
+      if(arr.length&&isNaN(parseFloat(arr[0][2])))start=1;
+      const rows=arr.slice(start).filter(r=>r&&r.length).map(r=>({no:r[0],label:r[1],x:r[2],y:r[3],z:r[4]}));
+      psParseRowsCommon(rows);
+    }catch(err){alert('Gagal membaca file Excel: '+err.message);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+function psImportTxt(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const text=String(e.target.result);
+      const lines=text.split(/\r?\n/).filter(l=>l.trim()!=='');
+      if(!lines.length){alert('File kosong.');return;}
+      const delim=lines[0].includes('\t')?'\t':',';
+      const firstCols=lines[0].split(delim);
+      let start=0;
+      if(isNaN(parseFloat(firstCols[2])))start=1;
+      const rows=lines.slice(start).map(l=>{
+        let c=l.split(delim).map(s=>s.trim());
+        if(delim==='\t')c=c.map(s=>s.replace(',','.'));
+        return {no:c[0],label:c[1],x:c[2],y:c[3],z:c[4]};
+      });
+      psParseRowsCommon(rows);
+    }catch(err){alert('Gagal membaca file TXT/CSV: '+err.message);}
+  };
+  reader.readAsText(file);
+}
+
+/* ===== Sketsa 2D ===== */
+let ps2d={scale:1,offsetX:0,offsetY:0};
+let ps2dBase=null,ps2dListeners=false,ps2dHits=[];
+function ps2dCollectBBox(){
+  const xs=[],ys=[];
+  if(psBM.x!=null&&!isNaN(psBM.x)){xs.push(psBM.x);ys.push(psBM.y);}
+  psPoints.forEach(p=>{
+    if(p.xd!=null&&!isNaN(p.xd)){xs.push(p.xd);ys.push(p.yd);}
+    if(p.xa!=null&&!isNaN(p.xa)){xs.push(p.xa);ys.push(p.ya);}
+  });
+  if(!xs.length)return null;
+  return {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)};
+}
+function ps2dResetView(){
+  ps2dAttachListeners();
+  const bb=ps2dCollectBBox();
+  if(!bb){ps2dBase=null;psDraw2D();return;}
+  ps2dBase={cx:(bb.minX+bb.maxX)/2,cy:(bb.minY+bb.maxY)/2,w:Math.max(bb.maxX-bb.minX,1),h:Math.max(bb.maxY-bb.minY,1)};
+  ps2d.scale=1;ps2d.offsetX=0;ps2d.offsetY=0;
+  psDraw2D();
+}
+function ps2dProject(canvas,x,y){
+  const fitScale=Math.min(canvas.width/ps2dBase.w,canvas.height/ps2dBase.h)*0.9;
+  const scale=fitScale*ps2d.scale;
+  return [canvas.width/2+(x-ps2dBase.cx)*scale+ps2d.offsetX, canvas.height/2-(y-ps2dBase.cy)*scale+ps2d.offsetY];
+}
+function psDraw2D(){
+  const canvas=document.getElementById('ps2dCanvas');if(!canvas)return;
+  const wrap=canvas.parentElement;
+  canvas.width=wrap.clientWidth||760;canvas.height=wrap.clientHeight||440;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#f8f6fb';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ps2dHits=[];
+  if(!ps2dBase){ctx.fillStyle='#9ca3af';ctx.font='14px sans-serif';ctx.fillText('Belum ada data titik untuk disketsa. Muat sample / import data dahulu.',16,30);return;}
+  const showDesign=document.getElementById('ps2dLayerDesign')?document.getElementById('ps2dLayerDesign').checked:true;
+  const showActual=document.getElementById('ps2dLayerActual')?document.getElementById('ps2dLayerActual').checked:true;
+  const showDev=document.getElementById('ps2dLayerDev')?document.getElementById('ps2dLayerDev').checked:true;
+  if(showDesign){
+    const byGroup={};
+    psPoints.forEach(p=>{if(p.xd!=null)(byGroup[p.group]=byGroup[p.group]||[]).push(p);});
+    ctx.strokeStyle='rgba(59,130,246,.35)';ctx.lineWidth=1.5;
+    Object.values(byGroup).forEach(arr=>{
+      if(arr.length<2)return;
+      ctx.beginPath();
+      arr.forEach((p,i)=>{const[px,py]=ps2dProject(canvas,p.xd,p.yd);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);});
+      ctx.closePath();ctx.stroke();
+    });
+  }
+  if(showDev){
+    ctx.strokeStyle='#ef4444';ctx.lineWidth=1;
+    psPoints.forEach(p=>{
+      if(p.xd!=null&&p.xa!=null){
+        const[dx,dy]=ps2dProject(canvas,p.xd,p.yd),[ax,ay]=ps2dProject(canvas,p.xa,p.ya);
+        ctx.beginPath();ctx.moveTo(dx,dy);ctx.lineTo(ax,ay);ctx.stroke();
+      }
+    });
+  }
+  if(psBM.x!=null&&!isNaN(psBM.x)){
+    const[bx,by]=ps2dProject(canvas,psBM.x,psBM.y);
+    ctx.fillStyle='#ffca18';ctx.strokeStyle='#b8860b';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(bx,by-9);ctx.lineTo(bx+9,by);ctx.lineTo(bx,by+9);ctx.lineTo(bx-9,by);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle='#111827';ctx.font='bold 11px sans-serif';ctx.fillText(psBM.label||'BM',bx+12,by+4);
+    ps2dHits.push({x:bx,y:by,info:'BM: '+(psBM.label||'BM')+'\nX:'+psBM.x.toFixed(3)+' Y:'+psBM.y.toFixed(3)+(psBM.z!=null?' Z:'+psBM.z.toFixed(3):'')});
+  }
+  if(showDesign){
+    psPoints.forEach(p=>{
+      if(p.xd==null)return;
+      const[px,py]=ps2dProject(canvas,p.xd,p.yd);
+      ctx.globalAlpha=p.za!=null?1:0.5;
+      ctx.fillStyle='#3b82f6';ctx.beginPath();ctx.arc(px,py,4.5,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+      ps2dHits.push({x:px,y:py,info:p.label+' (Desain)\nX:'+p.xd.toFixed(3)+' Y:'+p.yd.toFixed(3)+(p.zd!=null?' Z:'+p.zd.toFixed(3):'')});
+    });
+  }
+  if(showActual){
+    psPoints.forEach(p=>{
+      if(p.xa==null)return;
+      const[px,py]=ps2dProject(canvas,p.xa,p.ya);
+      const st=psCutFillStatus(p);
+      const color=st==='CUT'?'#ef4444':st==='FILL'?'#3b82f6':st==='OK'?'#22c55e':'#9ca3af';
+      ctx.fillStyle=color;ctx.strokeStyle='#fff';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ps2dHits.push({x:px,y:py,info:p.label+' (Aktual — '+st+')\nX:'+p.xa.toFixed(3)+' Y:'+p.ya.toFixed(3)+(p.za!=null?' Z:'+p.za.toFixed(3):'')});
+    });
+  }
+}
+function ps2dAttachListeners(){
+  if(ps2dListeners)return;ps2dListeners=true;
+  const canvas=document.getElementById('ps2dCanvas');const tooltip=document.getElementById('ps2dTooltip');
+  let dragging=false,lastX=0,lastY=0;
+  canvas.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.12:0.89;ps2d.scale=Math.min(10,Math.max(0.2,ps2d.scale*f));psDraw2D();},{passive:false});
+  canvas.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.style.cursor='grabbing';});
+  window.addEventListener('mouseup',()=>{dragging=false;canvas.style.cursor='grab';});
+  canvas.addEventListener('mousemove',e=>{
+    if(dragging){ps2d.offsetX+=(e.clientX-lastX);ps2d.offsetY+=(e.clientY-lastY);lastX=e.clientX;lastY=e.clientY;psDraw2D();return;}
+    const rect=canvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*(canvas.width/rect.width),my=(e.clientY-rect.top)*(canvas.height/rect.height);
+    let hit=null,best=12;
+    ps2dHits.forEach(h=>{const d=Math.hypot(h.x-mx,h.y-my);if(d<best){best=d;hit=h;}});
+    if(hit){tooltip.style.display='block';tooltip.style.left=(e.clientX-rect.left+12)+'px';tooltip.style.top=(e.clientY-rect.top+12)+'px';tooltip.innerHTML=hit.info.replace(/\n/g,'<br>');}
+    else tooltip.style.display='none';
+  });
+  canvas.addEventListener('mouseleave',()=>{tooltip.style.display='none';dragging=false;});
+  window.addEventListener('resize',()=>{const pane=document.getElementById('psPane-sketch2d');if(pane&&pane.classList.contains('active'))psDraw2D();});
+}
+function ps2dExportPNG(){
+  const canvas=document.getElementById('ps2dCanvas');
+  if(!canvas||!ps2dBase){alert('Belum ada sketsa untuk diexport.');return;}
+  const a=document.createElement('a');a.download='sketsa-2d-progress-survey.png';a.href=canvas.toDataURL('image/png');a.click();
+}
+
+/* ===== Sketsa 3D ===== */
+let ps3d={inited:false,scene:null,camera:null,renderer:null,controls:null,group:null};
+function ps3dCollect(){
+  const pts=[];
+  if(psBM.x!=null&&!isNaN(psBM.x))pts.push({x:psBM.x,y:psBM.y,z:psBM.z||0,type:'bm'});
+  psPoints.forEach(p=>{
+    if(p.xd!=null)pts.push({x:p.xd,y:p.yd,z:p.zd!=null?p.zd:0,type:'design'});
+    if(p.xa!=null)pts.push({x:p.xa,y:p.ya,z:p.za!=null?p.za:0,type:'actual',status:psCutFillStatus(p)});
+  });
+  return pts;
+}
+function ps3dInit(){
+  const container=document.getElementById('ps3dContainer');if(!container)return;
+  if(typeof THREE==='undefined'){container.innerHTML='<div class="empty">Library 3D gagal dimuat (cek koneksi internet).</div>';return;}
+  const pts=ps3dCollect();
+  if(!pts.length){container.innerHTML='<div class="empty">Belum ada data titik untuk disketsa 3D. Muat sample / import data dahulu.</div>';ps3d.inited=false;return;}
+  const cx=pts.reduce((a,p)=>a+p.x,0)/pts.length,cy=pts.reduce((a,p)=>a+p.y,0)/pts.length,cz=pts.reduce((a,p)=>a+p.z,0)/pts.length;
+  if(!ps3d.inited){
+    container.innerHTML='';
+    ps3d.scene=new THREE.Scene();ps3d.scene.background=new THREE.Color(0xf4f1fa);
+    ps3d.camera=new THREE.PerspectiveCamera(55,container.clientWidth/container.clientHeight,0.1,10000);
+    ps3d.renderer=new THREE.WebGLRenderer({antialias:true});
+    ps3d.renderer.setSize(container.clientWidth,container.clientHeight);
+    container.appendChild(ps3d.renderer.domElement);
+    ps3d.scene.add(new THREE.AmbientLight(0xffffff,0.9));
+    const dl=new THREE.DirectionalLight(0xffffff,0.6);dl.position.set(50,80,50);ps3d.scene.add(dl);
+    ps3d.controls=new THREE.OrbitControls(ps3d.camera,ps3d.renderer.domElement);
+    ps3d.controls.enableDamping=true;
+    ps3d.group=new THREE.Group();ps3d.scene.add(ps3d.group);
+    ps3d.inited=true;
+    const animate=()=>{requestAnimationFrame(animate);ps3d.controls.update();ps3d.renderer.render(ps3d.scene,ps3d.camera);};
+    animate();
+    window.addEventListener('resize',()=>{const pane=document.getElementById('psPane-sketch3d');if(pane&&pane.classList.contains('active')){ps3d.renderer.setSize(container.clientWidth,container.clientHeight);ps3d.camera.aspect=container.clientWidth/container.clientHeight;ps3d.camera.updateProjectionMatrix();}});
+  }else{
+    ps3d.renderer.setSize(container.clientWidth,container.clientHeight);
+    ps3d.camera.aspect=container.clientWidth/container.clientHeight;ps3d.camera.updateProjectionMatrix();
+  }
+  while(ps3d.group.children.length)ps3d.group.remove(ps3d.group.children[0]);
+  const ZEXAG=4;
+  ps3d.group.add(new THREE.GridHelper(400,20,0xcccccc,0xe5e5e5));
+  pts.forEach(p=>{
+    const lx=p.x-cx,ly=(p.z-cz)*ZEXAG,lz=-(p.y-cy);
+    let color=0x3b82f6,size=2.2;
+    if(p.type==='bm'){color=0xffca18;size=4;}
+    else if(p.type==='actual'){color=p.status==='CUT'?0xef4444:p.status==='FILL'?0x3b82f6:p.status==='OK'?0x22c55e:0x9ca3af;size=2.6;}
+    const mesh=new THREE.Mesh(new THREE.SphereGeometry(size,16,16),new THREE.MeshStandardMaterial({color}));
+    mesh.position.set(lx,ly,lz);
+    ps3d.group.add(mesh);
+  });
+  ps3dResetView();
+}
+function ps3dResetView(){
+  if(!ps3d.inited)return;
+  ps3d.camera.position.set(120,100,120);
+  ps3d.controls.target.set(0,0,0);
+  ps3d.controls.update();
+}
+function ps3dExportPNG(){
+  if(!ps3d.inited){alert('Sketsa 3D belum tersedia.');return;}
+  ps3d.renderer.render(ps3d.scene,ps3d.camera);
+  const a=document.createElement('a');a.download='sketsa-3d-progress-survey.png';a.href=ps3d.renderer.domElement.toDataURL('image/png');a.click();
+}
+
+/* ===== Bar chart (Summary) ===== */
+function psDrawBarChart(){
+  const canvas=document.getElementById('psBarChart');if(!canvas)return;
+  const wrap=canvas.parentElement;canvas.width=wrap.clientWidth||400;canvas.height=wrap.clientHeight||200;
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+  const statuses=psPoints.map(p=>psCutFillStatus(p));
+  const data=[['CUT',statuses.filter(s=>s==='CUT').length,'#ef4444'],['FILL',statuses.filter(s=>s==='FILL').length,'#3b82f6'],['ON GRADE',statuses.filter(s=>s==='OK').length,'#22c55e'],['BELUM',statuses.filter(s=>s==='BELUM').length,'#9ca3af']];
+  const max=Math.max(1,...data.map(d=>d[1]));
+  const padL=30,padB=24,w=canvas.width-padL-20,h=canvas.height-padB-16;
+  const bw=w/data.length*0.55;
+  ctx.strokeStyle='#e5e7eb';ctx.beginPath();ctx.moveTo(padL,10);ctx.lineTo(padL,canvas.height-padB);ctx.lineTo(canvas.width-10,canvas.height-padB);ctx.stroke();
+  data.forEach((d,i)=>{
+    const bh=(d[1]/max)*h;
+    const x=padL+(w/data.length)*i+(w/data.length-bw)/2;
+    const y=canvas.height-padB-bh;
+    ctx.fillStyle=d[2];ctx.fillRect(x,y,bw,bh);
+    ctx.fillStyle='#111827';ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+    ctx.fillText(String(d[1]),x+bw/2,y-6);
+    ctx.fillStyle='#6b7280';ctx.font='11px sans-serif';
+    ctx.fillText(d[0],x+bw/2,canvas.height-padB+14);
+  });
+  ctx.textAlign='left';
+}
+
+/* ===== Report ===== */
+function psBuildReport(){
+  const total=psPoints.length;
+  const statuses=psPoints.map(p=>psCutFillStatus(p));
+  const cut=statuses.filter(s=>s==='CUT').length,fill=statuses.filter(s=>s==='FILL').length,ok=statuses.filter(s=>s==='OK').length,belum=statuses.filter(s=>s==='BELUM').length;
+  const donePct=total?Math.round(((total-belum)/total)*100):0;
+  const proj=document.getElementById('psRptProject').value,loc=document.getElementById('psRptLocation').value;
+  const date=document.getElementById('psRptDate').value||new Date().toISOString().slice(0,10);
+  const weather=document.getElementById('psRptWeather').value||'-',note=document.getElementById('psRptNote').value||'-';
+  const rows=psPoints.map((p,i)=>{
+    const dz=(p.zd!=null&&p.za!=null)?(p.za-p.zd).toFixed(3):'-';
+    return '<tr><td>'+(i+1)+'</td><td>'+p.label+'</td><td>'+(p.xd!=null?p.xd.toFixed(3):'-')+'</td><td>'+(p.yd!=null?p.yd.toFixed(3):'-')+'</td><td>'+(p.zd!=null?p.zd.toFixed(3):'-')+'</td><td>'+(p.xa!=null?p.xa.toFixed(3):'-')+'</td><td>'+(p.ya!=null?p.ya.toFixed(3):'-')+'</td><td>'+(p.za!=null?p.za.toFixed(3):'-')+'</td><td>'+dz+'</td><td>'+psCutFillStatus(p)+'</td><td>'+(p.obstruction||'-')+'</td></tr>';
+  }).join('');
+  let sketchImg='';
+  try{if(ps2dBase){psDraw2D();sketchImg=document.getElementById('ps2dCanvas').toDataURL('image/png');}}catch(e){}
+  document.getElementById('psReportPreview').innerHTML=
+    '<h2 class="card-title">LAPORAN PROGRES SURVEI</h2>'+
+    '<div class="ps-kv"><div><small>Proyek</small><b>'+proj+'</b></div><div><small>Lokasi</small><b>'+loc+'</b></div><div><small>Tanggal</small><b>'+date+'</b></div><div><small>Cuaca</small><b>'+weather+'</b></div></div>'+
+    '<h3>1. Executive Summary</h3><div class="ps-summary-grid"><div><small>Total Titik</small><b>'+total+'</b></div><div><small>Selesai Diukur</small><b>'+donePct+'%</b></div><div><small>CUT</small><b>'+cut+'</b></div><div><small>FILL</small><b>'+fill+'</b></div><div><small>ON GRADE</small><b>'+ok+'</b></div><div><small>Belum Diukur</small><b>'+belum+'</b></div></div>'+
+    '<h3>2. Tabel Data Koordinat</h3><div class="ps-table-wrap"><table class="ps-table"><thead><tr><th>No</th><th>Label</th><th>X Des</th><th>Y Des</th><th>Z Des</th><th>X Akt</th><th>Y Akt</th><th>Z Akt</th><th>ΔZ</th><th>Status</th><th>Halangan</th></tr></thead><tbody>'+(rows||'<tr><td colspan="11" class="empty">Belum ada data</td></tr>')+'</tbody></table></div>'+
+    '<h3>3. Sketsa 2D Plan</h3>'+(sketchImg?'<img src="'+sketchImg+'" style="max-width:100%;border-radius:14px;border:1px solid #e5e7eb;">':'<p class="empty">Buka tab Sketsa 2D minimal sekali agar sketsa muncul di laporan.</p>')+
+    '<h3>4. Catatan Lapangan</h3><p>'+note+'</p>'+
+    '<h3>5. Tanda Tangan</h3><div class="ps-sign-grid"><div>Surveyor<br><br><br>____________________</div><div>Engineer<br><br><br>____________________</div><div>Site Manager<br><br><br>____________________</div></div>';
+}
+function psExportReportPDF(){
+  psBuildReport();
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const proj=document.getElementById('psRptProject').value,loc=document.getElementById('psRptLocation').value;
+  const date=document.getElementById('psRptDate').value||'-',weather=document.getElementById('psRptWeather').value||'-';
+  doc.setFontSize(16);doc.text('LAPORAN PROGRES SURVEI',14,14);
+  doc.setFontSize(10);doc.text('Proyek: '+proj+'   Lokasi: '+loc+'   Tanggal: '+date+'   Cuaca: '+weather,14,21);
+  const statuses=psPoints.map(p=>psCutFillStatus(p));
+  const cut=statuses.filter(s=>s==='CUT').length,fill=statuses.filter(s=>s==='FILL').length,ok=statuses.filter(s=>s==='OK').length,belum=statuses.filter(s=>s==='BELUM').length;
+  doc.text('Total: '+psPoints.length+'  CUT: '+cut+'  FILL: '+fill+'  ON GRADE: '+ok+'  Belum: '+belum,14,27);
+  doc.autoTable({startY:32,styles:{fontSize:7},head:[['No','Label','X Des','Y Des','Z Des','X Akt','Y Akt','Z Akt','ΔZ','Status']],body:psPoints.map((p,i)=>{const dz=(p.zd!=null&&p.za!=null)?(p.za-p.zd).toFixed(3):'';return [i+1,p.label,p.xd!=null?p.xd.toFixed(3):'',p.yd!=null?p.yd.toFixed(3):'',p.zd!=null?p.zd.toFixed(3):'',p.xa!=null?p.xa.toFixed(3):'',p.ya!=null?p.ya.toFixed(3):'',p.za!=null?p.za.toFixed(3):'',dz,psCutFillStatus(p)];})});
+  try{
+    if(ps2dBase){
+      psDraw2D();
+      const img=document.getElementById('ps2dCanvas').toDataURL('image/png');
+      doc.addPage();
+      doc.setFontSize(13);doc.text('Sketsa 2D Plan',14,14);
+      doc.addImage(img,'PNG',14,20,260,140);
+    }
+  }catch(e){}
+  doc.save('laporan-progress-survey.pdf');
+}
+
+psLoadState();psPopulateTargetSelect();psRenderTable();psRenderSummary();
 </script>
 <!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
 <style id="survai-embed-style">
@@ -1954,7 +2735,7 @@ renderReadings();calcLevel();makeHeadingTape();startGps();
       window.addEventListener('load', function(){
         setTimeout(function(){
           try{
-            var screenMap = {'compass':'compass', 'levelbook':'levelBook'};
+            var screenMap = {'compass':'compass', 'levelbook':'levelBook', 'progresssurvey':'progressSurvey'};
             var screen = screenMap[openParam];
             if(screen && typeof openScreen === 'function') openScreen(screen);
           }catch(e){}

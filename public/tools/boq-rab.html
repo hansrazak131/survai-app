@@ -5,14 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>BOQ &amp; RAB</title>
 <!--
-  Civil Construction Engineering Suite — Modul "BOQ & RAB Awal".
+  Civil Construction Engineering Suite — Modul "BOQ & RAB".
   Membaca volume pekerjaan dari Foundation Advisor (localStorage key:
   civilhub_design_result), menghitung harga satuan pekerjaan dengan
-  pendekatan AHSP (koefisien tenaga/bahan/alat x harga satuan dasar/HSD),
-  lalu menjumlahkan menjadi RAB awal. Koefisien default bersifat INDIKATIF
-  (mengikuti pola umum AHSP PUPR/Bina Marga) — wajib disesuaikan dengan
-  AHSP edisi resmi yang berlaku di lokasi proyek sebelum dipakai untuk RAB
-  kontraktual.
+  pendekatan AHSP (koefisien tenaga/bahan x harga satuan dasar/HSD),
+  lalu menjumlahkan menjadi RAB & Rekapitulasi.
+
+  Pustaka AHSP, Harga Satuan Dasar (HSD) default, dan contoh proyek
+  "Rumah Tinggal 2 Lantai" pada modul ini diintegrasikan dari:
+    - Materi & file kerja "Pelatihan Penyusunan RAB" (Kelas Ilmu Proyek):
+      LATIHAN_RAB_KIP_FINAL.xlsx (sheet: Rekapitulasi, RAB, Volume, Persiapan,
+      Tanah, Pondasi, Beton, Pasangan, Plesteran, Lantai, Cat, Plumb, Plafon,
+      ME, Atap, An. Footplat/Sloof/Kolom/Balok/Pelat/Pintu Jendela, Material, Upah)
+    - Modul_Pelatihan_RAB.pdf (Tingkat Dasar) — kaidah pemilihan satuan volume
+      (m3/m2/m'/satuan) dan tata cara hitung volume elemen struktur, sebagai
+      dasar fitur "Bantuan Hitung Volume" pada modul ini.
+  Koefisien AHSP mengacu pola umum SNI 2835/2836/2837/2839/3434/6897/7394/7395:2008
+  dan Pedoman AHS Balitbang/Kementerian PUPR — bersifat INDIKATIF dan WAJIB
+  disesuaikan dengan AHSP edisi resmi & survei harga setempat sebelum dipakai
+  untuk RAB kontraktual.
 -->
 <style>
   .boq-root{
@@ -27,7 +38,7 @@
     -webkit-font-smoothing:antialiased;
   }
   .boq-root *{box-sizing:border-box;}
-  .boq-shell{max-width:1040px;margin:0 auto;padding:14px 14px 64px;}
+  .boq-shell{max-width:1120px;margin:0 auto;padding:14px 14px 64px;}
   .boq-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--c-muted);margin-bottom:10px;}
   .boq-breadcrumb b{color:var(--c-text);font-weight:600;}
   .boq-breadcrumb .sep{color:var(--c-faint);}
@@ -38,6 +49,7 @@
   .boq-tab.active{background:var(--c-blue);color:#fff;border-color:var(--c-blue);}
   .boq-card{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--c-shadow-sm);}
   .boq-card h2{font-size:15px;font-weight:700;margin:0 0 10px;}
+  .boq-card h3{font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.02em;}
   .boq-hidden{display:none;}
   .boq-note{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-blue-light);color:#1D4ED8;}
   .boq-btn{border:1px solid var(--c-border);background:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--c-text);}
@@ -49,13 +61,18 @@
   table.boq-table th{color:var(--c-muted);font-weight:600;font-size:11.5px;text-transform:uppercase;}
   table.boq-table input,table.boq-table select{width:100%;border:1px solid var(--c-border);border-radius:8px;padding:5px 7px;font-size:12.5px;}
   .boq-num{text-align:right;}
+  .boq-subtag{display:inline-block;font-size:10.5px;color:var(--c-muted);background:var(--c-border-soft);border-radius:999px;padding:1px 7px;margin-left:6px;}
+  .boq-kat-row td{background:#F0F4FA;font-weight:700;color:#1D4ED8;font-size:12px;padding:8px 8px;}
+  .boq-sub-row td{text-align:right;font-weight:700;background:#FAFBFC;}
   .boq-pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#0B1220;color:#D7E2F2;border-radius:12px;padding:14px;max-height:420px;overflow:auto;}
   .boq-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#101828;color:#fff;padding:9px 16px;border-radius:10px;font-size:12.5px;z-index:50;}
   .boq-disclaimer{font-size:11.5px;color:var(--c-faint);border-top:1px dashed var(--c-border);padding-top:10px;margin-top:10px;line-height:1.5;}
   .boq-kpi{border:1px solid var(--c-border-soft);border-radius:14px;padding:10px 12px;background:#FAFBFC;}
   .boq-kpi small{display:block;color:var(--c-muted);font-size:11px;}
   .boq-kpi b{font-size:16px;}
-  .boq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+  .boq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;}
+  .boq-grid label{display:block;font-size:11.5px;color:var(--c-muted);margin-bottom:4px;}
+  .boq-grid input,.boq-grid select{width:100%;border:1px solid var(--c-border);border-radius:8px;padding:7px 9px;font-size:12.5px;}
 </style>
 </head>
 <body>
@@ -63,14 +80,16 @@
   <div class="boq-shell">
     <div class="boq-breadcrumb"><span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span><span>Civil</span><span class="sep">/</span><b>BOQ &amp; RAB</b></div>
     <div class="boq-title">
-      <h1>BOQ &amp; RAB Awal</h1>
-      <p>Volume pekerjaan otomatis dari Foundation Advisor, dihitung dengan pendekatan AHSP menjadi RAB awal.</p>
+      <h1>BOQ &amp; RAB</h1>
+      <p>Volume pekerjaan dari Foundation Advisor atau contoh proyek pelatihan, dihitung dengan pendekatan AHSP menjadi BOQ, RAB, dan Rekapitulasi anggaran.</p>
     </div>
 
     <div class="boq-tabs">
       <button class="boq-tab active" data-tab="boq">BOQ</button>
-      <button class="boq-tab" data-tab="hsd">AHSP &amp; Harga Satuan</button>
+      <button class="boq-tab" data-tab="hsd">AHSP &amp; HSD</button>
       <button class="boq-tab" data-tab="rab">RAB</button>
+      <button class="boq-tab" data-tab="rekap">Rekapitulasi</button>
+      <button class="boq-tab" data-tab="volume">Bantuan Volume</button>
       <button class="boq-tab" data-tab="report">Report</button>
     </div>
 
@@ -85,6 +104,18 @@
         <div class="boq-btn-row">
           <button class="boq-btn" id="boqAddRow">+ Tambah Item Manual</button>
           <button class="boq-btn" id="boqReloadSource">Muat Ulang dari Foundation Advisor</button>
+          <button class="boq-btn primary" id="boqLoadSample">Muat Contoh Proyek (Rumah Tinggal 2 Lantai)</button>
+        </div>
+      </div>
+      <div class="boq-card">
+        <div class="boq-disclaimer">
+          Contoh proyek "Rumah Tinggal 2 Lantai" berisi 171 item pekerjaan dalam 11 kategori
+          (Persiapan, Tanah, Pondasi &amp; Beton, Pasangan/Plesteran/Acian, Penutup Lantai &amp; Dinding,
+          Plafon, Atap, Pengecatan, Sanitair &amp; Plumbing, Pintu &amp; Jendela, Elektrikal) — diadaptasi dari
+          file latihan RAB Kelas Ilmu Proyek. Item pekerjaan struktur/finishing umum sudah terhubung ke
+          AHSP (koefisien x HSD dapat diubah), sedangkan item katalog seperti sanitair, kusen pintu/jendela,
+          dan titik instalasi listrik menggunakan harga satuan langsung (borongan) sesuai modul pelatihan,
+          karena item tersebut secara umum dihitung per satuan/unit terpasang, bukan dari rincian AHSP.
         </div>
       </div>
     </section>
@@ -93,10 +124,12 @@
     <section id="boq-view-hsd" class="boq-hidden">
       <div class="boq-card">
         <h2>Harga Satuan Dasar (HSD)</h2>
-        <div class="boq-note">Isi harga satuan dasar tenaga kerja, bahan, dan alat sesuai lokasi proyek. Koefisien AHSP pada tiap item BOQ bersifat indikatif (pola umum AHSP PUPR/Bina Marga) dan otomatis dikalikan dengan HSD ini untuk mendapatkan harga satuan pekerjaan.</div>
-        <div style="overflow-x:auto;">
-          <table class="boq-table" id="hsdTable"></table>
-        </div>
+        <div class="boq-note">Daftar ini hanya menampilkan komponen tenaga/bahan yang dipakai oleh item BOQ Anda saat ini. Nilai default mengikuti contoh proyek pelatihan RAB — silakan sesuaikan dengan harga pasar/upah di lokasi proyek Anda. Mengubah nilai di sini otomatis memperbarui harga satuan seluruh item AHSP terkait.</div>
+        <div class="boq-btn-row"><button class="boq-btn" id="hsdReset">Reset ke Harga Default (Contoh Proyek)</button></div>
+        <h3>Tenaga Kerja</h3>
+        <div style="overflow-x:auto;"><table class="boq-table" id="hsdLaborTable"></table></div>
+        <h3>Bahan / Material</h3>
+        <div style="overflow-x:auto;"><table class="boq-table" id="hsdMaterialTable"></table></div>
       </div>
     </section>
 
@@ -112,15 +145,74 @@
           <table class="boq-table" id="rabTable"></table>
         </div>
         <div class="boq-grid" style="margin-top:10px;">
-          <div class="boq-kpi"><small>Subtotal Pekerjaan</small><b id="rabSubtotal">–</b></div>
-          <div class="boq-kpi"><small>Overhead &amp; Profit</small><b id="rabOverheadVal">–</b></div>
-          <div class="boq-kpi"><small>PPN</small><b id="rabPpnVal">–</b></div>
-          <div class="boq-kpi"><small>Total RAB</small><b id="rabTotal">–</b></div>
+          <div class="boq-kpi"><small>Subtotal Pekerjaan</small><b id="rabSubtotal">—</b></div>
+          <div class="boq-kpi"><small>Overhead &amp; Profit</small><b id="rabOverheadVal">—</b></div>
+          <div class="boq-kpi"><small>PPN</small><b id="rabPpnVal">—</b></div>
+          <div class="boq-kpi"><small>Total RAB</small><b id="rabTotal">—</b></div>
         </div>
         <div class="boq-disclaimer">
-          Estimasi ini adalah RAB awal (tahap konsep) berbasis koefisien AHSP indikatif dan volume preliminary
-          dari Foundation Advisor. Untuk RAB kontraktual gunakan AHSP resmi (Permen PUPR / SE terbaru) dan
-          volume hasil gambar kerja/shop drawing final, serta survei harga pasar setempat.
+          Harga satuan AHSP di atas adalah jumlah tenaga + bahan (belum termasuk Overhead &amp; Profit);
+          Overhead &amp; Profit dan PPN diterapkan satu kali secara global di atas, sesuai metode SNI
+          (Harga Satuan Pekerjaan = (A+B) + Overhead &amp; Profit). Estimasi ini adalah RAB tahap konsep
+          berbasis koefisien AHSP indikatif. Untuk RAB kontraktual gunakan AHSP resmi (SNI/Permen PUPR
+          edisi terbaru) dan volume hasil gambar kerja/shop drawing final, serta survei harga pasar setempat.
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: REKAPITULASI ===================== -->
+    <section id="boq-view-rekap" class="boq-hidden">
+      <div class="boq-card">
+        <h2>Rekapitulasi Anggaran</h2>
+        <div class="boq-note">Rekapitulasi mengelompokkan RAB menjadi 11 kategori pekerjaan (mengikuti format baku Rekapitulasi RAB rumah tinggal: Persiapan s.d. Elektrikal), menampilkan bobot (%) tiap kategori terhadap nilai total pekerjaan.</div>
+        <div style="overflow-x:auto;">
+          <table class="boq-table" id="rekapTable"></table>
+        </div>
+        <div class="boq-grid" style="margin-top:10px;">
+          <div class="boq-kpi"><small>Total Nilai Pekerjaan</small><b id="rekapTotal">—</b></div>
+        </div>
+        <div class="boq-disclaimer" id="rekapNote"></div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB: BANTUAN VOLUME ===================== -->
+    <section id="boq-view-volume" class="boq-hidden">
+      <div class="boq-card">
+        <h2>Bantuan Hitung Volume Elemen Struktur</h2>
+        <div class="boq-note">
+          Kaidah pemilihan satuan volume (mengacu materi Pelatihan Penyusunan RAB): pekerjaan dengan
+          luas &amp; tebal/penampang dihitung m³ (galian, beton, pasangan pondasi), pekerjaan permukaan
+          tipis dihitung m² (dinding, plesteran, acian, plafon, lantai), pekerjaan memanjang dihitung m'
+          (kolom/balok praktis, lisplang, pipa), dan komponen rakitan dihitung satuan/buah/kg
+          (besi tulangan, lampu, sakelar, kusen). Kalkulator di bawah membantu menghitung volume beton,
+          pembesian, dan bekisting untuk elemen kolom/balok/sloof secara cepat, lalu mengirim hasilnya
+          langsung sebagai item BOQ baru.
+        </div>
+        <div class="boq-grid">
+          <div><label>Jenis Elemen</label>
+            <select id="volJenis">
+              <option value="kolom">Kolom</option>
+              <option value="balok">Balok</option>
+              <option value="sloof">Sloof</option>
+            </select>
+          </div>
+          <div><label>Lebar b (cm)</label><input type="number" id="volB" value="15"></div>
+          <div><label>Tinggi h (cm)</label><input type="number" id="volH" value="50"></div>
+          <div><label>Panjang/Tinggi Total (m)</label><input type="number" id="volP" value="3.5"></div>
+          <div><label>Jumlah (buah)</label><input type="number" id="volJml" value="8"></div>
+          <div><label>Jml Tulangan Pokok (buah)</label><input type="number" id="volNTul" value="8"></div>
+          <div><label>Diameter Tul. Pokok (mm)</label><input type="number" id="volDpokok" value="13"></div>
+          <div><label>Diameter Sengkang (mm)</label><input type="number" id="volDseng" value="8"></div>
+          <div><label>Jarak Sengkang (cm)</label><input type="number" id="volJarakSeng" value="12"></div>
+          <div><label>Selimut Beton (cm)</label><input type="number" id="volSelimut" value="1.5"></div>
+          <div><label>Berat Jenis Besi (kg/m3)</label><input type="number" id="volBJBesi" value="7850"></div>
+        </div>
+        <div class="boq-btn-row"><button class="boq-btn primary" id="volHitung">Hitung Volume</button></div>
+        <div id="volHasil" style="margin-top:10px;"></div>
+        <div class="boq-disclaimer">
+          Rumus bekisting kolom memakai keliling penuh penampang (4 sisi); rumus bekisting balok/sloof
+          memakai 2 sisi tegak + 1 sisi bawah (3 sisi), sesuai metode pelaksanaan umum. Hasil adalah
+          pendekatan teknik sipil standar — sesuaikan dengan detail tulangan pada gambar kerja aktual.
         </div>
       </div>
     </section>
@@ -136,7 +228,7 @@
           <button class="boq-btn" id="boqDownloadJson">Export JSON</button>
           <button class="boq-btn primary" id="boqToSchedule">Kirim ke Schedule/Kurva S</button>
         </div>
-        <div class="boq-pre" id="boqReportBox">Klik "Generate Report" untuk membuat ringkasan BOQ &amp; RAB.</div>
+        <div class="boq-pre" id="boqReportBox">Klik "Generate Report" untuk membuat ringkasan BOQ, RAB &amp; Rekapitulasi.</div>
       </div>
     </section>
 
@@ -146,8 +238,8 @@
 <script>
 (function(){
   var $ = function(id){ return document.getElementById(id); };
-  function fmt(n,d){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '–'; d=(d===undefined)?2:d; return Number(n).toFixed(d); }
-  function rp(n){ if(n===null||n===undefined||isNaN(n)) return '–'; return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '—'; d=(d===undefined)?2:d; return Number(n).toFixed(d); }
+  function rp(n){ if(n===null||n===undefined||isNaN(n)) return '—'; return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
   function toast(msg){
     var t=document.createElement('div'); t.className='boq-toast'; t.textContent=msg;
     document.body.appendChild(t); setTimeout(function(){ t.remove(); },1800);
@@ -158,39 +250,55 @@
     setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },200);
   }
   function uid(){ return 'r'+Math.random().toString(36).slice(2,9); }
+  function round4(n){ return Math.round((n||0)*10000)/10000; }
+
+  /* =========================== KATEGORI =========================== */
+  var KATEGORI = [{"id":"I","label":"Pekerjaan Persiapan"},{"id":"II","label":"Pekerjaan Tanah"},{"id":"III","label":"Pekerjaan Pondasi & Beton"},{"id":"IV","label":"Pekerjaan Pasangan, Plesteran & Acian"},{"id":"V","label":"Pekerjaan Penutup Lantai & Dinding"},{"id":"VI","label":"Pekerjaan Langit-Langit (Plafon)"},{"id":"VII","label":"Pekerjaan Atap"},{"id":"VIII","label":"Pekerjaan Pengecatan"},{"id":"IX","label":"Pekerjaan Sanitair & Plumbing"},{"id":"X","label":"Pekerjaan Pintu & Jendela"},{"id":"XI","label":"Pekerjaan Elektrikal"}];
+  var KAT_LABEL = {}; KATEGORI.forEach(function(k){ KAT_LABEL[k.id]=k.label; });
+  function katLabelOf(k){ return KAT_LABEL[k] || 'Lainnya / Belum Dikategorikan'; }
+  function sortKatFn(a,b){
+    var ia = KATEGORI.findIndex(function(x){return x.id===a;});
+    var ib = KATEGORI.findIndex(function(x){return x.id===b;});
+    if(ia<0) ia=999; if(ib<0) ib=999;
+    return ia-ib;
+  }
 
   /* =========================== AHSP LIBRARY (INDIKATIF) =========================== */
-  // Koefisien per satuan pekerjaan, pola umum AHSP PUPR/Bina Marga.
+  // Koefisien tenaga/bahan per satuan pekerjaan, diintegrasikan dari file kerja & materi
+  // "Pelatihan Penyusunan RAB" (Kelas Ilmu Proyek) — mengikuti pola SNI 2835/2836/2837/2839/
+  // 3434/6897/7394/7395:2008 dan Pedoman AHS Balitbang/Kementerian PUPR.
   // WAJIB disesuaikan dengan AHSP edisi resmi yang berlaku sebelum dipakai untuk RAB kontrak.
-  var AHSP = {
-    beton: { label:'Beton Pondasi (per m3)', unit:'m3',
-      labor:[{name:'Pekerja',coef:1.65,unit:'OH'},{name:'Tukang Batu',coef:0.275,unit:'OH'},{name:'Kepala Tukang',coef:0.028,unit:'OH'},{name:'Mandor',coef:0.083,unit:'OH'}],
-      material:[{name:'Semen PC',coef:336,unit:'kg'},{name:'Pasir Beton',coef:0.54,unit:'m3'},{name:'Kerikil/Split',coef:0.81,unit:'m3'},{name:'Air Kerja',coef:215,unit:'liter'}],
-      equipment:[{name:'Concrete Mixer',coef:0.083,unit:'jam'},{name:'Concrete Vibrator',coef:0.083,unit:'jam'}]
-    },
-    bekisting: { label:'Bekisting Pondasi (per m2)', unit:'m2',
-      labor:[{name:'Pekerja',coef:0.66,unit:'OH'},{name:'Tukang Kayu',coef:0.33,unit:'OH'},{name:'Kepala Tukang',coef:0.033,unit:'OH'},{name:'Mandor',coef:0.033,unit:'OH'}],
-      material:[{name:'Kayu Bekisting',coef:0.04,unit:'m3'},{name:'Paku',coef:0.4,unit:'kg'},{name:'Minyak Bekisting',coef:0.2,unit:'liter'},{name:'Plywood 9mm',coef:0.35,unit:'lbr'}],
-      equipment:[]
-    },
-    besi: { label:'Pembesian Pondasi (per kg)', unit:'kg',
-      labor:[{name:'Pekerja',coef:0.007,unit:'OH'},{name:'Tukang Besi',coef:0.007,unit:'OH'},{name:'Kepala Tukang',coef:0.0007,unit:'OH'},{name:'Mandor',coef:0.0004,unit:'OH'}],
-      material:[{name:'Besi Beton',coef:1.05,unit:'kg'},{name:'Kawat Bendrat',coef:0.015,unit:'kg'}],
-      equipment:[]
-    },
-    galian: { label:'Galian Tanah Manual (per m3)', unit:'m3',
-      labor:[{name:'Pekerja',coef:0.75,unit:'OH'},{name:'Mandor',coef:0.025,unit:'OH'}],
-      material:[], equipment:[]
-    },
-    urugan: { label:'Urugan Pasir Dipadatkan (per m3)', unit:'m3',
-      labor:[{name:'Pekerja',coef:0.3,unit:'OH'},{name:'Mandor',coef:0.01,unit:'OH'}],
-      material:[{name:'Pasir Urug',coef:1.2,unit:'m3'}], equipment:[{name:'Stamper',coef:0.1,unit:'jam'}]
-    },
-    manual: { label:'Item Manual (harga satuan langsung)', unit:'-', labor:[], material:[], equipment:[] }
-  };
+  var AHSP = {"bouwplank":{"label":"Pengukuran & Pemasangan Bouwplank","unit":"m'","kategori":"I","ref":"Pedoman AHS Balitbang PU A.2.2.1.4","labor":[{"name":"Pekerja","coef":0.1,"unit":"OH"},{"name":"Tukang","coef":0.1,"unit":"OH"},{"name":"Kepala Tukang","coef":0.01,"unit":"OH"},{"name":"Mandor","coef":0.005,"unit":"OH"}],"material":[{"name":"Bingkai Kayu Kelas I 5/7","coef":0.12,"unit":"m3"},{"name":"Paku Besar/Sedang","coef":0.02,"unit":"kg"},{"name":"Papan Kayu Kelas I 2/30","coef":0.007,"unit":"m3"}]},"bersih_lahan":{"label":"Pembersihan Lapangan & Perataan","unit":"m2","kategori":"I","ref":"Pedoman AHS Balitbang PU A.2.2.1.9","labor":[{"name":"Pekerja","coef":0.1,"unit":"OH"},{"name":"Mandor","coef":0.05,"unit":"OH"}],"material":[]},"galian_tanah":{"label":"Galian Tanah Biasa Sedalam 1 m","unit":"m3","kategori":"II","ref":"SNI 2835:2008-6.1","labor":[{"name":"Pekerja","coef":0.75,"unit":"OH"},{"name":"Mandor","coef":0.025,"unit":"OH"}],"material":[]},"urugan_kembali":{"label":"Urugan Kembali Galian Tanah","unit":"m3","kategori":"II","ref":"SNI 2835:2008-6.9(a)","labor":[{"name":"Pekerja","coef":0.25,"unit":"OH"},{"name":"Mandor","coef":0.008333,"unit":"OH"}],"material":[]},"pemadatan_tanah":{"label":"Pemadatan Tanah (per 20 cm)","unit":"m3","kategori":"II","ref":"SNI 2835:2008-6.10","labor":[{"name":"Pekerja","coef":0.5,"unit":"OH"},{"name":"Mandor","coef":0.05,"unit":"OH"}],"material":[]},"urugan_pasir":{"label":"Urugan Pasir Bawah Lantai/Pondasi","unit":"m3","kategori":"II","ref":"SNI 2835:2008-6.11","labor":[{"name":"Pekerja","coef":0.3,"unit":"OH"},{"name":"Mandor","coef":0.01,"unit":"OH"}],"material":[{"name":"Pasir Urug","coef":1.2,"unit":"m3"}]},"pasangan_batu_belah":{"label":"Pasangan Pondasi Batu Belah 1PC:6PP","unit":"m3","kategori":"III","ref":"SNI 2836:2008-6.4","labor":[{"name":"Pekerja","coef":1.5,"unit":"OH"},{"name":"Tukang Batu","coef":0.75,"unit":"OH"},{"name":"Kepala Tukang","coef":0.075,"unit":"OH"},{"name":"Mandor","coef":0.075,"unit":"OH"}],"material":[{"name":"Batu Belah Putih","coef":1.2,"unit":"m3"},{"name":"Portland Cement (PC)","coef":117,"unit":"kg"},{"name":"Pasir Pasang","coef":0.561,"unit":"m3"}]},"beton_k100_lantai_kerja":{"label":"Lantai Kerja Beton f'c=7.4 MPa (K100)","unit":"m3","kategori":"III","ref":"SNI 7394:2008-6.4","labor":[{"name":"Pekerja","coef":1.2,"unit":"OH"},{"name":"Tukang Batu","coef":0.2,"unit":"OH"},{"name":"Kepala Tukang","coef":0.02,"unit":"OH"},{"name":"Mandor","coef":0.06,"unit":"OH"}],"material":[{"name":"Portland Cement (PC)","coef":230,"unit":"kg"},{"name":"Pasir Beton","coef":893,"unit":"kg"},{"name":"Batu Split 1/2","coef":1027,"unit":"kg"},{"name":"Air Kerja","coef":200,"unit":"liter"}]},"beton_k100":{"label":"Beton Rabat f'c=7.4 MPa (K100)","unit":"m3","kategori":"III","ref":"SNI 7394:2008-6.1","labor":[{"name":"Pekerja","coef":1.65,"unit":"OH"},{"name":"Tukang Batu","coef":0.275,"unit":"OH"},{"name":"Kepala Tukang","coef":0.028,"unit":"OH"},{"name":"Mandor","coef":0.083,"unit":"OH"}],"material":[{"name":"Portland Cement (PC)","coef":247,"unit":"kg"},{"name":"Pasir Beton","coef":869,"unit":"kg"},{"name":"Batu Split 1/2","coef":999,"unit":"kg"},{"name":"Air Kerja","coef":215,"unit":"liter"}]},"beton_k300":{"label":"Beton Struktur f'c=26.4 MPa (K300)","unit":"m3","kategori":"III","ref":"SNI 7394:2008-6.10","labor":[{"name":"Pekerja","coef":1.65,"unit":"OH"},{"name":"Tukang Batu","coef":0.275,"unit":"OH"},{"name":"Kepala Tukang","coef":0.028,"unit":"OH"},{"name":"Mandor","coef":0.083,"unit":"OH"}],"material":[{"name":"Portland Cement (PC)","coef":413,"unit":"kg"},{"name":"Pasir Beton","coef":681,"unit":"kg"},{"name":"Batu Split 1/2","coef":1021,"unit":"kg"},{"name":"Air Kerja","coef":215,"unit":"liter"}]},"pembesian":{"label":"Pembesian Besi Polos/Ulir (per kg)","unit":"kg","kategori":"III","ref":"SNI 7394:2008-6.17","labor":[{"name":"Pekerja","coef":0.007,"unit":"OH"},{"name":"Tukang Besi","coef":0.007,"unit":"OH"},{"name":"Kepala Tukang","coef":0.0007,"unit":"OH"},{"name":"Mandor","coef":0.0004,"unit":"OH"}],"material":[{"name":"Besi Beton","coef":1.05,"unit":"kg"},{"name":"Kawat Beton/Bindrat","coef":0.015,"unit":"kg"}]},"bekisting_pondasi":{"label":"Bekisting untuk Pondasi/Footplat","unit":"m2","kategori":"III","ref":"SNI 7394:2008-6.20","labor":[{"name":"Pekerja","coef":0.52,"unit":"OH"},{"name":"Tukang","coef":0.26,"unit":"OH"},{"name":"Kepala Tukang","coef":0.026,"unit":"OH"},{"name":"Mandor","coef":0.026,"unit":"OH"}],"material":[{"name":"Kayu Glugu","coef":0.04,"unit":"m3"},{"name":"Paku Besar/Sedang","coef":0.3,"unit":"kg"},{"name":"Minyak Bekisting","coef":0.1,"unit":"liter"}]},"bekisting_sloof":{"label":"Bekisting untuk Sloof","unit":"m2","kategori":"III","ref":"SNI 7394:2008-6.21","labor":[{"name":"Pekerja","coef":0.52,"unit":"OH"},{"name":"Tukang","coef":0.26,"unit":"OH"},{"name":"Kepala Tukang","coef":0.026,"unit":"OH"},{"name":"Mandor","coef":0.026,"unit":"OH"}],"material":[{"name":"Kayu Glugu","coef":0.045,"unit":"m3"},{"name":"Paku Besar/Sedang","coef":0.3,"unit":"kg"},{"name":"Minyak Bekisting","coef":0.1,"unit":"liter"}]},"bekisting_kolom":{"label":"Bekisting untuk Kolom","unit":"m2","kategori":"III","ref":"SNI 7394:2008-6.22","labor":[{"name":"Pekerja","coef":0.66,"unit":"OH"},{"name":"Tukang","coef":0.33,"unit":"OH"},{"name":"Kepala Tukang","coef":0.033,"unit":"OH"},{"name":"Mandor","coef":0.033,"unit":"OH"}],"material":[{"name":"Kayu Glugu Balok","coef":0.04,"unit":"m3"},{"name":"Paku Besar/Sedang","coef":0.4,"unit":"kg"},{"name":"Minyak Bekisting","coef":0.2,"unit":"liter"},{"name":"Kayu Kruing Balok","coef":0.015,"unit":"m3"},{"name":"Kayu Lapis 122x244x0.9cm","coef":0.35,"unit":"lbr"},{"name":"Kayu Dolken D8-10/400cm","coef":2,"unit":"btg"}]},"bekisting_balok":{"label":"Bekisting untuk Balok","unit":"m2","kategori":"III","ref":"SNI 7394:2008-6.23","labor":[{"name":"Pekerja","coef":0.66,"unit":"OH"},{"name":"Tukang","coef":0.33,"unit":"OH"},{"name":"Kepala Tukang","coef":0.033,"unit":"OH"},{"name":"Mandor","coef":0.033,"unit":"OH"}],"material":[{"name":"Kayu Glugu Balok","coef":0.04,"unit":"m3"},{"name":"Paku Besar/Sedang","coef":0.4,"unit":"kg"},{"name":"Minyak Bekisting","coef":0.2,"unit":"liter"},{"name":"Kayu Kruing Balok","coef":0.018,"unit":"m3"},{"name":"Kayu Lapis 122x244x0.9cm","coef":0.35,"unit":"lbr"},{"name":"Kayu Dolken D8-10/400cm","coef":2,"unit":"btg"}]},"bekisting_pelat":{"label":"Bekisting untuk Pelat Lantai/Atap","unit":"m2","kategori":"III","ref":"SNI 7394:2008-6.24","labor":[{"name":"Pekerja","coef":0.66,"unit":"OH"},{"name":"Tukang Besi","coef":0.33,"unit":"OH"},{"name":"Kepala Tukang","coef":0.033,"unit":"OH"},{"name":"Mandor","coef":0.033,"unit":"OH"}],"material":[{"name":"Kayu Glugu Balok","coef":0.04,"unit":"m3"},{"name":"Paku Besar/Sedang","coef":0.4,"unit":"kg"},{"name":"Minyak Bekisting","coef":0.2,"unit":"liter"},{"name":"Kayu Kruing Balok","coef":0.015,"unit":"m3"},{"name":"Kayu Lapis 122x244x0.9cm","coef":0.35,"unit":"lbr"},{"name":"Kayu Dolken D8-10/400cm","coef":6,"unit":"btg"}]},"pasangan_bata":{"label":"Pasangan Dinding Bata Merah 1/2 Bata","unit":"m2","kategori":"IV","ref":"SNI 6897:2008","labor":[{"name":"Pekerja","coef":0.3,"unit":"OH"},{"name":"Tukang","coef":0.1,"unit":"OH"},{"name":"Kepala Tukang","coef":0.01,"unit":"OH"},{"name":"Mandor","coef":0.015,"unit":"OH"}],"material":[{"name":"Bata Merah","coef":70,"unit":"bh"},{"name":"Portland Cement (PC)","coef":11.5,"unit":"kg"},{"name":"Pasir Pasang","coef":0.043,"unit":"m3"}]},"pasangan_roster":{"label":"Dinding Terawang (Roster) 12x11x24cm","unit":"m2","kategori":"IV","ref":"SNI 6897:2008-6.23","labor":[{"name":"Pekerja","coef":0.3,"unit":"OH"},{"name":"Tukang","coef":0.1,"unit":"OH"},{"name":"Kepala Tukang","coef":0.01,"unit":"OH"},{"name":"Mandor","coef":0.015,"unit":"OH"}],"material":[{"name":"Roster 12x11x24","coef":30,"unit":"bh"},{"name":"Portland Cement (PC)","coef":11,"unit":"kg"},{"name":"Pasir Pasang","coef":0.035,"unit":"m3"}]},"plesteran":{"label":"Plesteran 1PC:6PP Tebal 15mm","unit":"m2","kategori":"IV","ref":"SNI 2837:2008-6.6","labor":[{"name":"Pekerja","coef":0.3,"unit":"OH"},{"name":"Tukang","coef":0.15,"unit":"OH"},{"name":"Kepala Tukang","coef":0.015,"unit":"OH"},{"name":"Mandor","coef":0.015,"unit":"OH"}],"material":[{"name":"Portland Cement (PC)","coef":4.416,"unit":"kg"},{"name":"Pasir Pasang","coef":0.027,"unit":"m3"}]},"plesteran_skoning":{"label":"Plesteran Skoning Lebar 10mm","unit":"m'","kategori":"IV","ref":"SNI 2837:2008-6.20","labor":[{"name":"Pekerja","coef":0.08,"unit":"OH"},{"name":"Tukang","coef":0.4,"unit":"OH"},{"name":"Kepala Tukang","coef":0.04,"unit":"OH"},{"name":"Mandor","coef":0.004,"unit":"OH"}],"material":[{"name":"Portland Cement (PC)","coef":0.5,"unit":"kg"},{"name":"Pasir Pasang","coef":0.013,"unit":"m3"}]},"acian":{"label":"Acian","unit":"m2","kategori":"IV","ref":"SNI 2837:2008-6.27","labor":[{"name":"Pekerja","coef":0.2,"unit":"OH"},{"name":"Tukang Batu","coef":0.1,"unit":"OH"},{"name":"Kepala Tukang","coef":0.01,"unit":"OH"},{"name":"Mandor","coef":0.01,"unit":"OH"}],"material":[{"name":"Portland Cement (PC)","coef":3.25,"unit":"kg"}]},"lantai_granit_60":{"label":"Lantai Granit Tile 60x60 cm","unit":"m2","kategori":"V","ref":"SNI 7395:2008-6.13","labor":[{"name":"Pekerja","coef":0.24,"unit":"OH"},{"name":"Tukang","coef":0.12,"unit":"OH"},{"name":"Kepala Tukang","coef":0.012,"unit":"OH"},{"name":"Mandor","coef":0.012,"unit":"OH"}],"material":[{"name":"Granit Tile 60x60","coef":3.1,"unit":"bh"},{"name":"Portland Cement (PC)","coef":9.6,"unit":"kg"},{"name":"Pasir Pasang","coef":0.045,"unit":"m3"},{"name":"Semen Warna","coef":1.5,"unit":"kg"}]},"lantai_granit_40":{"label":"Lantai Granit/Keramik 40x40 cm","unit":"m2","kategori":"V","ref":"SNI 7395:2008-6.14","labor":[{"name":"Pekerja","coef":0.25,"unit":"OH"},{"name":"Tukang","coef":0.125,"unit":"OH"},{"name":"Kepala Tukang","coef":0.013,"unit":"OH"},{"name":"Mandor","coef":0.013,"unit":"OH"}],"material":[{"name":"Granit/Keramik 40x40","coef":6.63,"unit":"bh"},{"name":"Portland Cement (PC)","coef":9.8,"unit":"kg"},{"name":"Pasir Pasang","coef":0.045,"unit":"m3"},{"name":"Semen Warna","coef":1.3,"unit":"kg"}]},"dinding_keramik_10x20":{"label":"Dinding Keramik 10x20 cm","unit":"m2","kategori":"V","ref":"SNI 7395:2008-6.51","labor":[{"name":"Pekerja","coef":0.9,"unit":"OH"},{"name":"Tukang","coef":0.45,"unit":"OH"},{"name":"Kepala Tukang","coef":0.045,"unit":"OH"},{"name":"Mandor","coef":0.045,"unit":"OH"}],"material":[{"name":"Keramik 10x20","coef":53,"unit":"bh"},{"name":"Portland Cement (PC)","coef":9.3,"unit":"kg"},{"name":"Pasir Pasang","coef":0.018,"unit":"m3"},{"name":"Semen Warna","coef":2.75,"unit":"kg"}]},"plint_keramik":{"label":"Plint Keramik/Granit 10x60 cm","unit":"m'","kategori":"V","ref":"SNI 7395:2008-6.28","labor":[{"name":"Pekerja","coef":0.09,"unit":"OH"},{"name":"Tukang","coef":0.09,"unit":"OH"},{"name":"Kepala Tukang","coef":0.009,"unit":"OH"},{"name":"Mandor","coef":0.005,"unit":"OH"}],"material":[{"name":"Plint 10x40","coef":1.7,"unit":"bh"},{"name":"Portland Cement (PC)","coef":1.14,"unit":"kg"},{"name":"Pasir Pasang","coef":0.003,"unit":"m3"},{"name":"Semen Warna","coef":0.1,"unit":"kg"}]},"plafon_gypsum":{"label":"Langit-Langit Gypsum Board 120x240cm","unit":"m2","kategori":"VI","ref":"SNI 2839:2008-6.7(a)","labor":[{"name":"Pekerja","coef":0.1,"unit":"OH"},{"name":"Tukang","coef":0.05,"unit":"OH"},{"name":"Kepala Tukang","coef":0.005,"unit":"OH"},{"name":"Mandor","coef":0.005,"unit":"OH"}],"material":[{"name":"Gypsum Board","coef":0.364,"unit":"lbr"},{"name":"Paku Gypsum","coef":0.11,"unit":"kg"}]},"plafon_list_gypsum":{"label":"List/Cornice Gypsum Profil","unit":"m'","kategori":"VI","ref":"SNI 2839:2008-6.8","labor":[{"name":"Pekerja","coef":0.06,"unit":"OH"},{"name":"Tukang","coef":0.06,"unit":"OH"},{"name":"Kepala Tukang","coef":0.006,"unit":"OH"},{"name":"Mandor","coef":0.003,"unit":"OH"}],"material":[{"name":"List Profil Gypsum s/d 5cm","coef":1.05,"unit":"m'"},{"name":"Paku Gypsum","coef":0.15,"unit":"kg"}]},"plafon_rangka_hollow":{"label":"Rangka Hollow 40.40.2mm Modul 60x60 (Plafon)","unit":"m2","kategori":"VI","ref":"AHS Balitbang PU A.4.2.1.21","labor":[{"name":"Pekerja","coef":0.35,"unit":"OH"},{"name":"Tukang","coef":0.35,"unit":"OH"},{"name":"Kepala Tukang","coef":0.035,"unit":"OH"},{"name":"Mandor","coef":0.018,"unit":"OH"}],"material":[{"name":"Hollow 4x4 1.2mm","coef":4,"unit":"m'"},{"name":"Assesoris Rangka Plafon","coef":1,"unit":"Ls"}]},"plafon_rangka_partisi":{"label":"Rangka Hollow 40.40.2mm Modul 60x120 (Partisi)","unit":"m2","kategori":"VI","ref":"AHS Balitbang PU A.4.2.1.20","labor":[{"name":"Pekerja","coef":0.25,"unit":"OH"},{"name":"Tukang","coef":0.25,"unit":"OH"},{"name":"Kepala Tukang","coef":0.025,"unit":"OH"},{"name":"Mandor","coef":0.013,"unit":"OH"}],"material":[{"name":"Hollow 4x4 1.2mm","coef":1.05,"unit":"m'"},{"name":"Assesoris Rangka Partisi","coef":1,"unit":"Ls"}]},"atap_rangka_baja_ringan":{"label":"Rangka Atap Baja Ringan C75 (kuda-kuda 120cm)","unit":"m2","kategori":"VII","ref":"AHS Pelatihan RAB","labor":[{"name":"Pekerja Baja Ringan","coef":0.085,"unit":"OH"},{"name":"Tukang Baja Ringan","coef":0.093,"unit":"OH"},{"name":"Kepala Tukang Baja Ringan","coef":0.0093,"unit":"OH"},{"name":"Mandor Baja Ringan","coef":0.0093,"unit":"OH"}],"material":[{"name":"Canal C75","coef":0.683,"unit":"batang"},{"name":"Reng Baja Ringan","coef":0.783,"unit":"batang"},{"name":"Baut Baja Ringan","coef":11.21,"unit":"biji"},{"name":"Dynabolt","coef":2.92,"unit":"biji"}]},"atap_genteng_metal":{"label":"Penutup Atap Genteng Metal 0.76x0.80","unit":"m2","kategori":"VII","ref":"AHS Pelatihan RAB","labor":[{"name":"Pekerja Baja Ringan","coef":0.08,"unit":"OH"},{"name":"Tukang Baja Ringan","coef":0.05,"unit":"OH"},{"name":"Kepala Tukang Baja Ringan","coef":0.005,"unit":"OH"},{"name":"Mandor Baja Ringan","coef":0.005,"unit":"OH"}],"material":[{"name":"Genteng Metal 0.76x0.80","coef":1.727,"unit":"lbr"},{"name":"Baut Genteng","coef":4,"unit":"biji"}]},"cat_interior":{"label":"Pengecatan Tembok Dalam Baru (Plamur+Dasar+2xPenutup)","unit":"m2","kategori":"VIII","ref":"AHS Balitbang PU A.4.7.1.10(a)","labor":[{"name":"Pekerja","coef":0.02,"unit":"OH"},{"name":"Tukang Cat","coef":0.063,"unit":"OH"},{"name":"Kepala Tukang","coef":0.0063,"unit":"OH"},{"name":"Mandor","coef":0.003,"unit":"OH"}],"material":[{"name":"Plamur","coef":0.1,"unit":"kg"},{"name":"Cat Dasar","coef":0.1,"unit":"kg"},{"name":"Cat Tembok Dalam","coef":0.26,"unit":"kg"}]},"cat_exterior":{"label":"Pengecatan Tembok Luar Baru (Plamur+Dasar+2xPenutup)","unit":"m2","kategori":"VIII","ref":"AHS Balitbang PU A.4.7.1.10(b)","labor":[{"name":"Pekerja","coef":0.02,"unit":"OH"},{"name":"Tukang Cat","coef":0.063,"unit":"OH"},{"name":"Kepala Tukang","coef":0.0063,"unit":"OH"},{"name":"Mandor","coef":0.003,"unit":"OH"}],"material":[{"name":"Plamur","coef":0.1,"unit":"kg"},{"name":"Cat Dasar","coef":0.1,"unit":"kg"},{"name":"Cat Tembok Luar","coef":0.26,"unit":"kg"}]},"pipa_pvc_12":{"label":"Pasang Pipa PVC AW Dia. 1/2\"","unit":"m'","kategori":"IX","ref":"AHS Balitbang PU A.5.1.1.25","labor":[{"name":"Pekerja","coef":0.036,"unit":"OH"},{"name":"Tukang Pipa","coef":0.06,"unit":"OH"},{"name":"Kepala Tukang","coef":0.006,"unit":"OH"},{"name":"Mandor","coef":0.002,"unit":"OH"}],"material":[{"name":"Pipa PVC 1/2\"","coef":1.2,"unit":"bh"},{"name":"Perlengkapan Pipa 1/2\"","coef":1,"unit":"ls"}]},"pipa_pvc_34":{"label":"Pasang Pipa PVC AW Dia. 3/4\"","unit":"m'","kategori":"IX","ref":"AHS Balitbang PU A.5.1.1.26","labor":[{"name":"Pekerja","coef":0.036,"unit":"OH"},{"name":"Tukang Pipa","coef":0.06,"unit":"OH"},{"name":"Kepala Tukang","coef":0.006,"unit":"OH"},{"name":"Mandor","coef":0.002,"unit":"OH"}],"material":[{"name":"Pipa PVC 3/4\"","coef":1.2,"unit":"bh"},{"name":"Perlengkapan Pipa 3/4\"","coef":1,"unit":"ls"}]},"pipa_pvc_3":{"label":"Pasang Pipa PVC AW Dia. 3\"","unit":"m'","kategori":"IX","ref":"AHS Balitbang PU A.5.1.1.32","labor":[{"name":"Pekerja","coef":0.081,"unit":"OH"},{"name":"Tukang Pipa","coef":0.135,"unit":"OH"},{"name":"Kepala Tukang","coef":0.0135,"unit":"OH"},{"name":"Mandor","coef":0.004,"unit":"OH"}],"material":[{"name":"Pipa PVC 3\"","coef":1.2,"unit":"bh"},{"name":"Perlengkapan Pipa 3\"","coef":1,"unit":"ls"}]},"pipa_pvc_4":{"label":"Pasang Pipa PVC AW Dia. 4\"","unit":"m'","kategori":"IX","ref":"AHS Balitbang PU A.5.1.1.31","labor":[{"name":"Pekerja","coef":0.081,"unit":"OH"},{"name":"Tukang Pipa","coef":0.135,"unit":"OH"},{"name":"Kepala Tukang","coef":0.0135,"unit":"OH"},{"name":"Mandor","coef":0.004,"unit":"OH"}],"material":[{"name":"Pipa PVC 4\"","coef":1.2,"unit":"bh"},{"name":"Perlengkapan Pipa 4\"","coef":1,"unit":"ls"}]},"pipa_ppr_12":{"label":"Pasang Pipa PPR 1/2\"","unit":"m'","kategori":"IX","ref":"AHS Balitbang PU A.5.1.1.25","labor":[{"name":"Pekerja","coef":0.036,"unit":"OH"},{"name":"Tukang Pipa","coef":0.06,"unit":"OH"},{"name":"Kepala Tukang","coef":0.006,"unit":"OH"},{"name":"Mandor","coef":0.002,"unit":"OH"}],"material":[{"name":"Pipa PPR 1/2\"","coef":1.2,"unit":"bh"},{"name":"Perlengkapan PPR 1/2\"","coef":1,"unit":"ls"}]}};
+  AHSP.manual = {label:'Item Manual / Harga Satuan Langsung (Borongan)', unit:'-', kategori:'', ref:'', labor:[], material:[]};
+
+  var COMPONENT_TYPE = {};
+  Object.keys(AHSP).forEach(function(k){
+    var a = AHSP[k];
+    (a.labor||[]).forEach(function(r){ COMPONENT_TYPE[r.name]='labor'; });
+    (a.material||[]).forEach(function(r){ if(!COMPONENT_TYPE[r.name]) COMPONENT_TYPE[r.name]='material'; });
+  });
+
+  /* =========================== HSD DEFAULT =========================== */
+  var HSD_DEFAULT = {"Pekerja":65000,"Tukang":80000,"Tukang Batu":80000,"Tukang Besi":80000,"Tukang Cat":80000,"Tukang Pipa":80000,"Kepala Tukang":80000,"Mandor":90000,"Pekerja Baja Ringan":55000,"Tukang Baja Ringan":95000,"Kepala Tukang Baja Ringan":100000,"Mandor Baja Ringan":80000,"Bingkai Kayu Kelas I 5/7":392600,"Papan Kayu Kelas I 2/30":81950,"Pasir Urug":141400,"Batu Belah Putih":275750,"Portland Cement (PC)":1100,"Pasir Pasang":275000,"Pasir Beton":174.82,"Batu Split 1/2":144.44,"Air Kerja":100,"Besi Beton":10000,"Kawat Beton/Bindrat":16900,"Kayu Glugu":2387500,"Kayu Glugu Balok":2387500,"Kayu Kruing Balok":9847500,"Kayu Lapis 122x244x0.9cm":132000,"Kayu Dolken D8-10/400cm":17075,"Paku Besar/Sedang":17850,"Minyak Bekisting":15000,"Bata Merah":800,"Roster 12x11x24":17000,"Granit Tile 60x60":121916.33,"Granit/Keramik 40x40":13166.67,"Keramik 10x20":4000,"Plint 10x40":20319.39,"Semen Warna":13100,"Plamur":18800,"Cat Dasar":50000,"Cat Tembok Dalam":66875,"Cat Tembok Luar":472500,"Hollow 4x4 1.2mm":7500,"Assesoris Rangka Plafon":3000,"Assesoris Rangka Partisi":7875,"Gypsum Board":68000,"Paku Gypsum":31500,"List Profil Gypsum s/d 5cm":13900,"Canal C75":130000,"Reng Baja Ringan":50000,"Baut Baja Ringan":100,"Dynabolt":1500,"Genteng Metal 0.76x0.80":50000,"Baut Genteng":100,"Pipa PVC 1/2\"":6037.5,"Perlengkapan Pipa 1/2\"":2535.75,"Pipa PVC 3/4\"":7875,"Perlengkapan Pipa 3/4\"":3307.5,"Pipa PVC 3\"":28750,"Perlengkapan Pipa 3\"":12075,"Pipa PVC 4\"":68750,"Perlengkapan Pipa 4\"":28875,"Pipa PPR 1/2\"":20000,"Perlengkapan PPR 1/2\"":2535.75};
+
+  /* =========================== CONTOH PROYEK (SAMPLE) =========================== */
+  var SAMPLE_ITEMS = [{"kat":"I","sub":null,"uraian":"Pagar sementara","satuan":"m2","volume":84,"ahsp":"manual","manualPrice":75000},{"kat":"I","sub":null,"uraian":"Pembersihan Lahan","satuan":"m2","volume":104,"ahsp":"bersih_lahan"},{"kat":"I","sub":null,"uraian":"Uitzet dan Pemasangan Bowplank","satuan":"m'","volume":63.55,"ahsp":"bouwplank"},{"kat":"I","sub":null,"uraian":"Pengadaan Air Kerja","satuan":"Ls","volume":1,"ahsp":"manual","manualPrice":1000000},{"kat":"I","sub":null,"uraian":"Barak Kerja","satuan":"Ls","volume":1,"ahsp":"manual","manualPrice":2500000},{"kat":"II","sub":null,"uraian":"Galian Tanah Pondasi Batu Belah","satuan":"m3","volume":59.4193,"ahsp":"galian_tanah"},{"kat":"II","sub":null,"uraian":"Galian Tanah Footplate","satuan":"m3","volume":24,"ahsp":"galian_tanah"},{"kat":"II","sub":null,"uraian":"Urugan Tanah Kembali","satuan":"m3","volume":54.9114,"ahsp":"urugan_kembali"},{"kat":"II","sub":null,"uraian":"Urugan Tanah Peninggi Lantai","satuan":"m3","volume":14.574,"ahsp":"urugan_kembali"},{"kat":"II","sub":null,"uraian":"Pemadatan","satuan":"m3","volume":69.4854,"ahsp":"pemadatan_tanah"},{"kat":"II","sub":null,"uraian":"Urugan Pasir Bawah Lantai","satuan":"m3","volume":2.7845,"ahsp":"urugan_pasir"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Rabat Lantai Beton t: 5 cm","satuan":"m3","volume":55.7975,"ahsp":"beton_k100"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Lantai Kerja t: 5 cm","satuan":"m3","volume":0.9978,"ahsp":"beton_k100_lantai_kerja"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Footplat  uk 100x100x30 cm, K-300 -Beton","satuan":"m3","volume":4.2,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Footplat  uk 100x100x30 cm, K-300 -Pembesian","satuan":"kg","volume":504.8115,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Footplat  uk 100x100x30 cm, K-300 -Bekisting","satuan":"m2","volume":14.4,"ahsp":"bekisting_pondasi"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Sloof SL - 15/25 cm, K-300 -Beton","satuan":"m3","volume":1.989,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Sloof SL - 15/25 cm, K-300 -Pembesian","satuan":"kg","volume":386.9597,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Sloof SL - 15/25 cm, K-300 -Bekisting","satuan":"m2","volume":26.52,"ahsp":"bekisting_sloof"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Kolom K1 - 15x50 cm, K-300 -Beton","satuan":"m3","volume":5.4795,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Kolom K1 - 15x50 cm, K-300 -Pembesian","satuan":"kg","volume":1111.5783,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Kolom K1 - 15x50 cm, K-300 -Bekisting","satuan":"m2","volume":94.978,"ahsp":"bekisting_kolom"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Kolom Praktis KP - 15 x 15 cm","satuan":"m'","volume":24.29,"ahsp":"manual","manualPrice":67883.75},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B1 - 20/40 cm, K-300 -Beton","satuan":"m3","volume":0.336,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B1 - 20/40 cm, K-300 -Pembesian","satuan":"kg","volume":69.1669,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B1 - 20/40 cm, K-300 -Bekisting","satuan":"m2","volume":1.68,"ahsp":"bekisting_balok"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B2 - 15/30 cm, K-300 -Beton","satuan":"m3","volume":1.2379,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B2 - 15/30 cm, K-300 -Pembesian","satuan":"kg","volume":4292.8438,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B2 - 15/30 cm, K-300 -Bekisting","satuan":"m2","volume":20.6325,"ahsp":"bekisting_balok"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B3 - 15/30 cm, K-250 -Beton","satuan":"m3","volume":1.3423,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B3 - 15/30 cm, K-250 -Pembesian","satuan":"kg","volume":226.6924,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B3 - 15/30 cm, K-250 -Bekisting","satuan":"m2","volume":22.3725,"ahsp":"bekisting_balok"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B4 - 15/25 cm, K-300 -Beton","satuan":"m3","volume":0.1481,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B4 - 15/25 cm, K-300 -Pembesian","satuan":"kg","volume":25.4374,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok B4 - 15/25 cm, K-300 -Bekisting","satuan":"m2","volume":1.34,"ahsp":"bekisting_balok"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Balok Lateu","satuan":"m'","volume":18.99,"ahsp":"manual","manualPrice":94481.48},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Pelat Lantai t:12cm, K-300 -Beton","satuan":"m3","volume":5.3578,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Pelat Lantai t:12cm, K-300 -Pembesian","satuan":"kg","volume":973.7545,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI BAWAH","uraian":"Pelat Lantai t:12cm, K-300 -Bekisting","satuan":"m2","volume":44.6485,"ahsp":"bekisting_pelat"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Kolom K2 - 15x40 cm, K-300 -Beton","satuan":"m3","volume":2.448,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Kolom K2 - 15x40 cm, K-300 -Pembesian","satuan":"kg","volume":518.7293,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Kolom K2 - 15x40 cm, K-300 -Bekisting","satuan":"m2","volume":44.88,"ahsp":"bekisting_kolom"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Kolom Praktis KP - 15 x 15 cm","satuan":"m'","volume":101.97,"ahsp":"manual","manualPrice":67883.75},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B3 - 15/30 cm, K-300 -Beton","satuan":"m3","volume":1.7748,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B3 - 15/30 cm, K-300 -Pembesian","satuan":"kg","volume":242.4233,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B3 - 15/30 cm, K-300 -Bekisting","satuan":"m2","volume":29.58,"ahsp":"bekisting_balok"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B4 - 15/25 cm, K-300 -Beton","satuan":"m3","volume":0.3255,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B4 - 15/25 cm, K-300 -Pembesian","satuan":"kg","volume":70.7692,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B4 - 15/25 cm, K-300 -Bekisting","satuan":"m2","volume":5.642,"ahsp":"bekisting_balok"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B5 - 15/20 cm, K-300 -Beton","satuan":"m3","volume":0.3723,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B5 - 15/20 cm, K-300 -Pembesian","satuan":"kg","volume":79.119,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok B5 - 15/20 cm, K-300 -Bekisting","satuan":"m2","volume":6.8255,"ahsp":"bekisting_balok"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Balok Lateu","satuan":"m'","volume":14.24,"ahsp":"manual","manualPrice":94481.48},{"kat":"III","sub":"LANTAI ATAS","uraian":"Pelat Atap t:10cm, K-300 -Beton","satuan":"m3","volume":1.2677,"ahsp":"beton_k300"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Pelat Atap t:10cm, K-300 -Pembesian","satuan":"kg","volume":189.3043,"ahsp":"pembesian"},{"kat":"III","sub":"LANTAI ATAS","uraian":"Pelat Atap t:10cm, K-300 -Bekisting","satuan":"m2","volume":10.564,"ahsp":"bekisting_pelat"},{"kat":"IV","sub":"LANTAI BAWAH","uraian":"Pasangan Pondasi Batu Belah","satuan":"m3","volume":24.3079,"ahsp":"pasangan_batu_belah"},{"kat":"IV","sub":"LANTAI BAWAH","uraian":"Pasangan Bata","satuan":"m2","volume":74.507,"ahsp":"pasangan_bata"},{"kat":"IV","sub":"LANTAI BAWAH","uraian":"Pasangan Roster Beton","satuan":"m2","volume":3.6,"ahsp":"pasangan_roster"},{"kat":"IV","sub":"LANTAI BAWAH","uraian":"Plasteran","satuan":"m2","volume":126.5508,"ahsp":"plesteran"},{"kat":"IV","sub":"LANTAI BAWAH","uraian":"Plesteran Skoning","satuan":"m'","volume":71.16,"ahsp":"plesteran_skoning"},{"kat":"IV","sub":"LANTAI BAWAH","uraian":"Acian","satuan":"m2","volume":126.5508,"ahsp":"acian"},{"kat":"IV","sub":"LANTAI ATAS","uraian":"Pasangan Bata","satuan":"m2","volume":182.2734,"ahsp":"pasangan_bata"},{"kat":"IV","sub":"LANTAI ATAS","uraian":"Pasangan Roster Beton","satuan":"m2","volume":3.36,"ahsp":"pasangan_roster"},{"kat":"IV","sub":"LANTAI ATAS","uraian":"Plasteran","satuan":"m2","volume":364.5468,"ahsp":"plesteran"},{"kat":"IV","sub":"LANTAI ATAS","uraian":"Plesteran Skoning","satuan":"m'","volume":76.34,"ahsp":"plesteran_skoning"},{"kat":"IV","sub":"LANTAI ATAS","uraian":"Acian","satuan":"m2","volume":364.5468,"ahsp":"acian"},{"kat":"V","sub":"LANTAI BAWAH","uraian":"Papan GRC Plank","satuan":"m2","volume":38.12,"ahsp":"manual","manualPrice":325000},{"kat":"V","sub":"LANTAI BAWAH","uraian":"Granit Tile 60 x 60 (A1)","satuan":"m2","volume":32.7,"ahsp":"lantai_granit_60"},{"kat":"V","sub":"LANTAI BAWAH","uraian":"Keramik Kamar Mandi 40 x40 (A3)","satuan":"m2","volume":2.4975,"ahsp":"lantai_granit_40"},{"kat":"V","sub":"LANTAI BAWAH","uraian":"Lantai Unfinish (A4)","satuan":"m2","volume":20.6,"ahsp":"acian"},{"kat":"V","sub":"LANTAI BAWAH","uraian":"Plint Keramik","satuan":"m'","volume":34.8,"ahsp":"plint_keramik"},{"kat":"V","sub":"LANTAI BAWAH","uraian":"Keramik Dinding 10 x 20","satuan":"m2","volume":21.1392,"ahsp":"dinding_keramik_10x20"},{"kat":"V","sub":"LANTAI BAWAH","uraian":"Papan Kayu Solid Tangga (A8)","satuan":"m3","volume":0.103,"ahsp":"manual","manualPrice":15000000},{"kat":"V","sub":"LANTAI ATAS","uraian":"Papan GRC Plank","satuan":"m2","volume":54.85,"ahsp":"manual","manualPrice":325000},{"kat":"V","sub":"LANTAI ATAS","uraian":"Granit Tile 60 x 60 (A1)","satuan":"m2","volume":24.7,"ahsp":"lantai_granit_60"},{"kat":"V","sub":"LANTAI ATAS","uraian":"Granit Tile KM 60 x 60 Unpholised (A2)","satuan":"m2","volume":6.59,"ahsp":"lantai_granit_60"},{"kat":"V","sub":"LANTAI ATAS","uraian":"Keramik Kamar Mandi 40 x40 (A3)","satuan":"m2","volume":2.9,"ahsp":"lantai_granit_40"},{"kat":"V","sub":"LANTAI ATAS","uraian":"Keramik Dinding 10 x 20","satuan":"m2","volume":11.4072,"ahsp":"dinding_keramik_10x20"},{"kat":"V","sub":"LANTAI ATAS","uraian":"Lantai Unfinish (A4)","satuan":"m2","volume":5.4,"ahsp":"acian"},{"kat":"V","sub":"LANTAI ATAS","uraian":"Rumput Sintetis (A6)","satuan":"m2","volume":8.3,"ahsp":"manual","manualPrice":250000},{"kat":"V","sub":"LANTAI ATAS","uraian":"Papan Kayu Solid Tangga (A8)","satuan":"m3","volume":0.1158,"ahsp":"manual","manualPrice":15000000},{"kat":"V","sub":"LANTAI ATAS","uraian":"Plint Keramik","satuan":"m'","volume":30.76,"ahsp":"plint_keramik"},{"kat":"VI","sub":"LANTAI BAWAH","uraian":"Plafon Gypsum + Rangka Hollo + Finishing","satuan":"m2","volume":23.7375,"ahsp":"manual","manualPrice":104210.7},{"kat":"VI","sub":"LANTAI BAWAH","uraian":"Lis Plafon (Cornice)","satuan":"m'","volume":45.89,"ahsp":"plafon_list_gypsum"},{"kat":"VI","sub":"LANTAI ATAS","uraian":"Plafon Gypsum + Rangka Hollo + Finishing","satuan":"m2","volume":37.52,"ahsp":"manual","manualPrice":104210.7},{"kat":"VI","sub":"LANTAI ATAS","uraian":"Lis Plafon (Cornice)","satuan":"m'","volume":57.57,"ahsp":"plafon_list_gypsum"},{"kat":"VII","sub":null,"uraian":"Rangka Atap Baja Ringan","satuan":"m2","volume":69.7379,"ahsp":"atap_rangka_baja_ringan"},{"kat":"VII","sub":null,"uraian":"Penutup Atap Bitument","satuan":"m2","volume":69.7379,"ahsp":"atap_genteng_metal"},{"kat":"VII","sub":null,"uraian":"Nok / Kerpus Bitument","satuan":"m'","volume":14.05,"ahsp":"manual","manualPrice":75000},{"kat":"VII","sub":null,"uraian":"Talang Jurai Galvalum","satuan":"m'","volume":14.32,"ahsp":"manual","manualPrice":75000},{"kat":"VII","sub":null,"uraian":"Lisplang GRC","satuan":"m'","volume":35.0,"ahsp":"manual","manualPrice":65000},{"kat":"VIII","sub":"LANTAI BAWAH","uraian":"Cat Interior","satuan":"m2","volume":25.9908,"ahsp":"cat_interior"},{"kat":"VIII","sub":"LANTAI BAWAH","uraian":"Cat Exterior","satuan":"m2","volume":100.56,"ahsp":"cat_exterior"},{"kat":"VIII","sub":"LANTAI ATAS","uraian":"Cat Interior","satuan":"m2","volume":38.1108,"ahsp":"cat_interior"},{"kat":"VIII","sub":"LANTAI ATAS","uraian":"Cat Exterior","satuan":"m2","volume":88.44,"ahsp":"cat_exterior"},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Saptictank Biofil","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":5000},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Sumur Resapan","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":750000},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Bak Penangkap Lemak","satuan":"bh","volume":3,"ahsp":"manual","manualPrice":350000},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Pompa Air","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":2500000},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Pasang jaringan air bersih Pipa AW Ø 3/4\"","satuan":"m'","volume":34.81,"ahsp":"pipa_pvc_34"},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Pasang jaringan air kotor Ø 3\"","satuan":"m'","volume":21.8,"ahsp":"pipa_pvc_3"},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Pasang jaringan air kotor Ø 4\"","satuan":"m'","volume":7.21,"ahsp":"pipa_pvc_4"},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Pasang jaringan air hujan Ø 3\"","satuan":"m'","volume":14,"ahsp":"pipa_pvc_3"},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Pipa PPR","satuan":"m'","volume":23.86,"ahsp":"pipa_ppr_12"},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Kloset Duduk","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":4093320},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Wastafle","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":1500000},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Kitchen Zink","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":500000},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Kran","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":150342.5},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Shower","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":2500000},{"kat":"IX","sub":"LANTAI BAWAH","uraian":"Floor Drain","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":115390},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Pasang jaringan air bersih Pipa AW Ø 3/4\"","satuan":"m'","volume":49.87,"ahsp":"pipa_pvc_34"},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Pasang jaringan air kotor Ø 3\"","satuan":"m'","volume":43.02,"ahsp":"pipa_pvc_3"},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Pasang jaringan air kotor Ø 4\"","satuan":"m'","volume":34.29,"ahsp":"pipa_pvc_4"},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Pasang jaringan air hujan Ø 3\"","satuan":"m'","volume":24,"ahsp":"pipa_pvc_3"},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Pipa PPR","satuan":"m'","volume":42.57,"ahsp":"pipa_ppr_12"},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Waterheater 15L","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":5000000},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Kloset Duduk","satuan":"unit","volume":2,"ahsp":"manual","manualPrice":4093320},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Wastafle","satuan":"unit","volume":2,"ahsp":"manual","manualPrice":1500000},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Bathup","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":8500000},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Kran","satuan":"bh","volume":5,"ahsp":"manual","manualPrice":150342.5},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Shower","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":2500000},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Floor Drain","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":115390},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Roof Drain","satuan":"bh","volume":3,"ahsp":"manual","manualPrice":115390},{"kat":"IX","sub":"LANTAI ATAS","uraian":"Tandon Air","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":2000000},{"kat":"X","sub":null,"uraian":"Pintu Garasi","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":17879205.03},{"kat":"X","sub":null,"uraian":"Pintu P1","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":3590235.36},{"kat":"X","sub":null,"uraian":"Pintu P2","satuan":"unit","volume":3,"ahsp":"manual","manualPrice":3479969.53},{"kat":"X","sub":null,"uraian":"Pintu P3","satuan":"unit","volume":2,"ahsp":"manual","manualPrice":2482593.7},{"kat":"X","sub":null,"uraian":"Pintu P4","satuan":"unit","volume":2,"ahsp":"manual","manualPrice":3179551.24},{"kat":"X","sub":null,"uraian":"Jendela J1","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":3414878.98},{"kat":"X","sub":null,"uraian":"Jendela J1'","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":3429686.76},{"kat":"X","sub":null,"uraian":"Jendela J2","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":2270139.82},{"kat":"X","sub":null,"uraian":"Jendela J3","satuan":"unit","volume":2,"ahsp":"manual","manualPrice":1744978.4},{"kat":"X","sub":null,"uraian":"Jendela J4","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":3361734.65},{"kat":"X","sub":null,"uraian":"Jendela J5","satuan":"unit","volume":2,"ahsp":"manual","manualPrice":83460366.95},{"kat":"X","sub":null,"uraian":"Jendela J6","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":349925.47},{"kat":"X","sub":null,"uraian":"BV 1","satuan":"unit","volume":3,"ahsp":"manual","manualPrice":349925.47},{"kat":"X","sub":null,"uraian":"BV 2","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":267689.58},{"kat":"X","sub":null,"uraian":"BV 3","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":267689.58},{"kat":"X","sub":null,"uraian":"Railing Hollow Tangga","satuan":"m'","volume":10,"ahsp":"manual","manualPrice":650000},{"kat":"X","sub":null,"uraian":"Railing Beton Balkon","satuan":"m'","volume":3,"ahsp":"manual","manualPrice":550000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Pengadaan Daya 2200 VA","satuan":"unit","volume":1,"ahsp":"manual","manualPrice":3000000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Instalasi Listrik","satuan":"ttk","volume":15,"ahsp":"manual","manualPrice":231618.36},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"MCB","satuan":"bh","volume":4,"ahsp":"manual","manualPrice":250000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Box MCB","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":450000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Saklar Tunggal","satuan":"bh","volume":5,"ahsp":"manual","manualPrice":38453.8},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Saklar Ganda","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":57049.3},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"TV Line","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":48469.3},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Stop Kontak","satuan":"bh","volume":9,"ahsp":"manual","manualPrice":49206.3},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Stop Kontak AC","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":258701.3},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Stop Kontak Pompa","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":49206.3},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"AC 1/2 PK","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":5000000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Exhaust Fan","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":750000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Lampu TL2x18w","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":250000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Lampu Tempel 8w","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":250000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Lampu Down Light LED 12w","satuan":"bh","volume":10,"ahsp":"manual","manualPrice":150000},{"kat":"XI","sub":"LANTAI BAWAH","uraian":"Lampu Taman LED 13w","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":200000},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Instalasi Listrik","satuan":"ttk","volume":17,"ahsp":"manual","manualPrice":231618.36},{"kat":"XI","sub":"LANTAI ATAS","uraian":"MCB","satuan":"bh","volume":3,"ahsp":"manual","manualPrice":250000},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Box MCB","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":450000},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Saklar Tunggal","satuan":"bh","volume":5,"ahsp":"manual","manualPrice":38453.8},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Saklar Ganda","satuan":"bh","volume":3,"ahsp":"manual","manualPrice":57049.3},{"kat":"XI","sub":"LANTAI ATAS","uraian":"TV Line","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":48469.3},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Stop Kontak","satuan":"bh","volume":12,"ahsp":"manual","manualPrice":49206.3},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Stop Kontak AC","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":258701.3},{"kat":"XI","sub":"LANTAI ATAS","uraian":"AC 1/2 PK","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":5000000},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Exhaust Fan","satuan":"bh","volume":2,"ahsp":"manual","manualPrice":750000},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Lampu Tempel 8w","satuan":"bh","volume":4,"ahsp":"manual","manualPrice":250000},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Lampu Down Light LED 12w","satuan":"bh","volume":12,"ahsp":"manual","manualPrice":150000},{"kat":"XI","sub":"LANTAI ATAS","uraian":"Lampu SL","satuan":"bh","volume":1,"ahsp":"manual","manualPrice":200000}];
 
   /* =========================== STATE =========================== */
-  var state = { items: [], hsd: {} };
+  var state = { items: [], hsd: {}, _lastRab: null };
+  function resetHsdDefault(){
+    state.hsd = {};
+    Object.keys(HSD_DEFAULT).forEach(function(k){ state.hsd[k] = HSD_DEFAULT[k]; });
+  }
+  resetHsdDefault();
+
+  function mk(kat, uraian, satuan, volume, ahsp, manualPrice, sub){
+    return {
+      id: uid(), kat: kat||'', sub: sub||null, uraian: uraian, satuan: satuan,
+      volume: volume, ahsp: ahsp||'manual',
+      manualPrice: (manualPrice!==undefined && manualPrice!==null) ? manualPrice : null
+    };
+  }
 
   function loadSourceData(){
     var d = null;
@@ -201,10 +309,16 @@
   function defaultItemsFromSource(d){
     if(!d) return [];
     var items = [];
-    if(d.concreteVolumeM3) items.push({id:uid(), uraian:'Pekerjaan Beton Pondasi ('+(d.concreteGrade||'')+')', satuan:'m3', volume:d.concreteVolumeM3, ahsp:'beton', manualPrice:null});
-    if(d.formworkAreaM2) items.push({id:uid(), uraian:'Pekerjaan Bekisting Pondasi', satuan:'m2', volume:d.formworkAreaM2, ahsp:'bekisting', manualPrice:null});
-    if(d.rebarWeightKg) items.push({id:uid(), uraian:'Pekerjaan Pembesian Pondasi', satuan:'kg', volume:d.rebarWeightKg, ahsp:'besi', manualPrice:null});
+    if(d.concreteVolumeM3) items.push(mk('III','Pekerjaan Beton Pondasi ('+(d.concreteGrade||'K-300')+')','m3',d.concreteVolumeM3,'beton_k300'));
+    if(d.formworkAreaM2) items.push(mk('III','Pekerjaan Bekisting Pondasi','m2',d.formworkAreaM2,'bekisting_pondasi'));
+    if(d.rebarWeightKg) items.push(mk('III','Pekerjaan Pembesian Pondasi','kg',d.rebarWeightKg,'pembesian'));
     return items;
+  }
+
+  function loadSampleProject(){
+    return SAMPLE_ITEMS.map(function(s){
+      return mk(s.kat, s.uraian, s.satuan, s.volume, s.ahsp, s.ahsp==='manual'?s.manualPrice:null, s.sub);
+    });
   }
 
   function collectHsdKeys(){
@@ -212,32 +326,70 @@
     state.items.forEach(function(it){
       var lib = AHSP[it.ahsp];
       if(!lib) return;
-      ['labor','material','equipment'].forEach(function(grp){
+      ['labor','material'].forEach(function(grp){
         (lib[grp]||[]).forEach(function(r){ keys[r.name] = r.unit; });
       });
     });
     return keys;
   }
 
+  /* =========================== OPTIONS HTML HELPERS =========================== */
+  function kategoriOptionsHtml(selected){
+    var html = '<option value=""'+(!selected?' selected':'')+'>-</option>';
+    KATEGORI.forEach(function(k){
+      html += '<option value="'+k.id+'"'+(selected===k.id?' selected':'')+'>'+k.id+'</option>';
+    });
+    return html;
+  }
+  function ahspOptionsHtml(selected){
+    var html = '<option value="manual"'+(selected==='manual'?' selected':'')+'>Manual / Harga Langsung</option>';
+    KATEGORI.forEach(function(k){
+      var opts = Object.keys(AHSP).filter(function(key){ return AHSP[key].kategori===k.id; });
+      if(!opts.length) return;
+      html += '<optgroup label="'+k.id+'. '+k.label+'">';
+      opts.forEach(function(key){
+        html += '<option value="'+key+'"'+(selected===key?' selected':'')+'>'+AHSP[key].label+'</option>';
+      });
+      html += '</optgroup>';
+    });
+    return html;
+  }
+
   /* =========================== RENDER: BOQ =========================== */
+  function rowHtml(it){
+    return '<tr data-id="'+it.id+'">'+
+      '<td><select class="boq-f-kat">'+kategoriOptionsHtml(it.kat)+'</select></td>'+
+      '<td><input type="text" class="boq-f-sub" value="'+(it.sub||'').replace(/"/g,'&quot;')+'" placeholder="-" style="width:88px;"></td>'+
+      '<td><input type="text" class="boq-f-uraian" value="'+(it.uraian||'').replace(/"/g,'&quot;')+'"></td>'+
+      '<td><input type="text" class="boq-f-satuan" value="'+(it.satuan||'')+'" style="width:62px;"></td>'+
+      '<td><input type="number" step="0.0001" class="boq-f-volume" value="'+(it.volume!==null&&it.volume!==undefined?it.volume:'')+'" style="width:92px;"></td>'+
+      '<td><select class="boq-f-ahsp">'+ahspOptionsHtml(it.ahsp)+'</select></td>'+
+      '<td><input type="number" step="100" class="boq-f-manual" value="'+(it.manualPrice!==null&&it.manualPrice!==undefined?it.manualPrice:'')+'" placeholder="opsional" style="width:110px;"></td>'+
+      '<td><button class="boq-btn sm boq-f-del" type="button">Hapus</button></td>'+
+    '</tr>';
+  }
+
   function renderBoqTab(){
     var src = loadSourceData();
     $('boqSourceNote').innerHTML = src
-      ? '<div class="boq-note">Volume dimuat dari Foundation Advisor, disimpan '+(src.savedAt? new Date(src.savedAt).toLocaleString('id-ID'):'–')+'. Anda tetap dapat mengubah/menambah item di bawah.</div>'
-      : '<div class="boq-note">Belum ada volume dari Foundation Advisor. Buka modul tersebut, lalu klik "Kirim Volume ke BOQ/RAB" pada tab Report. Anda juga bisa menambah item manual di sini.</div>';
+      ? '<div class="boq-note">Volume dimuat dari Foundation Advisor, disimpan '+(src.savedAt? new Date(src.savedAt).toLocaleString('id-ID'):'—')+'. Anda tetap dapat mengubah/menambah item di bawah.</div>'
+      : '<div class="boq-note">Belum ada volume dari Foundation Advisor. Buka modul tersebut lalu kirim volume ke BOQ/RAB, klik "Muat Contoh Proyek" untuk memuat contoh Rumah Tinggal 2 Lantai, atau tambah item manual di sini.</div>';
 
-    var rows = '<tr><th style="width:28%;">Uraian Pekerjaan</th><th>Satuan</th><th>Volume</th><th>AHSP</th><th style="width:120px;">Harga Manual (Rp)</th><th></th></tr>';
+    var groups = {}; var order = [];
     state.items.forEach(function(it){
-      rows += '<tr data-id="'+it.id+'">'+
-        '<td><input type="text" class="boq-f-uraian" value="'+(it.uraian||'').replace(/"/g,'&quot;')+'"></td>'+
-        '<td><input type="text" class="boq-f-satuan" value="'+(it.satuan||'')+'" style="width:70px;"></td>'+
-        '<td><input type="number" step="0.01" class="boq-f-volume" value="'+(it.volume!==null&&it.volume!==undefined?it.volume:'')+'" style="width:90px;"></td>'+
-        '<td><select class="boq-f-ahsp">'+Object.keys(AHSP).map(function(k){
-          return '<option value="'+k+'"'+(it.ahsp===k?' selected':'')+'>'+AHSP[k].label+'</option>';
-        }).join('')+'</select></td>'+
-        '<td><input type="number" step="100" class="boq-f-manual" value="'+(it.manualPrice!==null&&it.manualPrice!==undefined?it.manualPrice:'')+'" placeholder="opsional" style="width:110px;"></td>'+
-        '<td><button class="boq-btn sm boq-f-del" type="button">Hapus</button></td>'+
-      '</tr>';
+      var k = it.kat || '-';
+      if(!groups[k]){ groups[k]=[]; order.push(k); }
+      groups[k].push(it);
+    });
+    order.sort(sortKatFn);
+
+    var rows = '<tr><th style="width:60px;">Kat.</th><th style="width:90px;">Bagian</th><th style="width:24%;">Uraian Pekerjaan</th><th style="width:60px;">Satuan</th><th style="width:96px;">Volume</th><th>Cara Hitung (AHSP)</th><th style="width:120px;">Harga Manual (Rp)</th><th></th></tr>';
+    if(!order.length){
+      rows += '<tr><td colspan="8" style="color:var(--c-muted);">Belum ada item BOQ.</td></tr>';
+    }
+    order.forEach(function(k){
+      rows += '<tr class="boq-kat-row"><td colspan="8">'+(k!=='-'?k+'. ':'')+katLabelOf(k)+'</td></tr>';
+      groups[k].forEach(function(it){ rows += rowHtml(it); });
     });
     $('boqTable').innerHTML = rows;
 
@@ -247,37 +399,51 @@
       function bind(sel, field, isNum){
         tr.querySelector(sel).addEventListener('input', function(e){
           it[field] = isNum ? (e.target.value===''?null:parseFloat(e.target.value)) : e.target.value;
+          renderRabTab();
         });
       }
+      bind('.boq-f-sub','sub',false);
       bind('.boq-f-uraian','uraian',false);
       bind('.boq-f-satuan','satuan',false);
       bind('.boq-f-volume','volume',true);
       bind('.boq-f-manual','manualPrice',true);
-      tr.querySelector('.boq-f-ahsp').addEventListener('change', function(e){ it.ahsp = e.target.value; });
+      tr.querySelector('.boq-f-kat').addEventListener('change', function(e){ it.kat = e.target.value; renderBoqTab(); });
+      tr.querySelector('.boq-f-ahsp').addEventListener('change', function(e){ it.ahsp = e.target.value; renderRabTab(); });
       tr.querySelector('.boq-f-del').addEventListener('click', function(){
         state.items = state.items.filter(function(x){ return x.id!==id; });
         renderBoqTab();
       });
     });
+
+    renderRabTab();
   }
 
   /* =========================== RENDER: HSD =========================== */
+  function hsdRowsHtml(names, keys){
+    if(!names.length) return '<tr><td style="color:var(--c-muted);">Tidak ada komponen pada kategori ini.</td></tr>';
+    var rows = '<tr><th>Komponen</th><th style="width:80px;">Satuan</th><th style="width:170px;">Harga Satuan Dasar (Rp)</th></tr>';
+    names.forEach(function(n){
+      var val = state.hsd[n]!==undefined ? state.hsd[n] : '';
+      rows += '<tr><td>'+n+'</td><td>'+keys[n]+'</td><td><input type="number" step="1" class="hsd-input" data-name="'+n.replace(/"/g,'&quot;')+'" value="'+val+'"></td></tr>';
+    });
+    return rows;
+  }
   function renderHsdTab(){
     var keys = collectHsdKeys();
     var names = Object.keys(keys).sort();
     if(!names.length){
-      $('hsdTable').innerHTML = '<tr><td style="color:var(--c-muted);">Belum ada item BOQ yang memakai AHSP — tambah item di tab BOQ terlebih dahulu.</td></tr>';
+      $('hsdLaborTable').innerHTML = '<tr><td style="color:var(--c-muted);">Belum ada item BOQ yang memakai AHSP — tambah item pada tab BOQ atau klik "Muat Contoh Proyek" terlebih dahulu.</td></tr>';
+      $('hsdMaterialTable').innerHTML = '';
       return;
     }
-    var rows = '<tr><th>Komponen</th><th>Satuan</th><th style="width:160px;">Harga Satuan Dasar (Rp)</th></tr>';
-    names.forEach(function(n){
-      var val = state.hsd[n]!==undefined ? state.hsd[n] : '';
-      rows += '<tr><td>'+n+'</td><td>'+keys[n]+'</td><td><input type="number" step="100" class="hsd-input" data-name="'+n+'" value="'+val+'"></td></tr>';
-    });
-    $('hsdTable').innerHTML = rows;
-    Array.prototype.forEach.call($('hsdTable').querySelectorAll('.hsd-input'), function(inp){
+    var laborNames = names.filter(function(n){ return COMPONENT_TYPE[n]==='labor'; });
+    var matNames = names.filter(function(n){ return COMPONENT_TYPE[n]!=='labor'; });
+    $('hsdLaborTable').innerHTML = hsdRowsHtml(laborNames, keys);
+    $('hsdMaterialTable').innerHTML = hsdRowsHtml(matNames, keys);
+    Array.prototype.forEach.call(document.querySelectorAll('.hsd-input'), function(inp){
       inp.addEventListener('input', function(){
         state.hsd[inp.getAttribute('data-name')] = inp.value===''?0:parseFloat(inp.value);
+        renderRabTab();
       });
     });
   }
@@ -290,9 +456,10 @@
     var lib = AHSP[it.ahsp];
     if(!lib) return 0;
     var total = 0;
-    ['labor','material','equipment'].forEach(function(grp){
+    ['labor','material'].forEach(function(grp){
       (lib[grp]||[]).forEach(function(r){
-        var hsd = state.hsd[r.name] || 0;
+        var hsd = state.hsd[r.name];
+        if(hsd===undefined) hsd = HSD_DEFAULT[r.name]||0;
         total += r.coef * hsd;
       });
     });
@@ -304,8 +471,8 @@
       var unitPrice = unitPriceFor(it);
       var vol = it.volume || 0;
       return {
-        uraian: it.uraian, satuan: it.satuan, volume: vol,
-        unitPrice: unitPrice, total: vol*unitPrice,
+        id: it.id, kat: it.kat||'-', sub: it.sub, uraian: it.uraian, satuan: it.satuan,
+        volume: vol, unitPrice: unitPrice, total: vol*unitPrice,
         ahspLabel: AHSP[it.ahsp] ? AHSP[it.ahsp].label : it.ahsp
       };
     });
@@ -314,13 +481,31 @@
   /* =========================== RENDER: RAB =========================== */
   function renderRabTab(){
     var rows = computeRab();
-    var html = '<tr><th>Uraian</th><th>Satuan</th><th class="boq-num">Volume</th><th class="boq-num">Harga Satuan</th><th class="boq-num">Jumlah</th></tr>';
+    var groups = {}; var order = [];
     rows.forEach(function(r){
-      html += '<tr><td>'+r.uraian+'</td><td>'+r.satuan+'</td><td class="boq-num">'+fmt(r.volume,2)+'</td><td class="boq-num">'+rp(r.unitPrice)+'</td><td class="boq-num">'+rp(r.total)+'</td></tr>';
+      var k = r.kat||'-';
+      if(!groups[k]){ groups[k]=[]; order.push(k); }
+      groups[k].push(r);
+    });
+    order.sort(sortKatFn);
+
+    var html = '<tr><th style="width:34%;">Uraian</th><th style="width:60px;">Satuan</th><th class="boq-num">Volume</th><th class="boq-num">Harga Satuan</th><th class="boq-num">Jumlah</th></tr>';
+    var subtotal = 0;
+    if(!order.length){
+      html += '<tr><td colspan="5" style="color:var(--c-muted);">Belum ada item RAB.</td></tr>';
+    }
+    order.forEach(function(k){
+      html += '<tr class="boq-kat-row"><td colspan="5">'+(k!=='-'?k+'. ':'')+katLabelOf(k)+'</td></tr>';
+      var katTotal = 0;
+      groups[k].forEach(function(r){
+        katTotal += r.total;
+        html += '<tr><td>'+r.uraian+(r.sub?' <span class="boq-subtag">'+r.sub+'</span>':'')+'</td><td>'+(r.satuan||'')+'</td><td class="boq-num">'+fmt(r.volume,2)+'</td><td class="boq-num">'+rp(r.unitPrice)+'</td><td class="boq-num">'+rp(r.total)+'</td></tr>';
+      });
+      subtotal += katTotal;
+      html += '<tr class="boq-sub-row"><td colspan="4">SUBTOTAL '+(k!=='-'?k+'. '+katLabelOf(k):'')+'</td><td class="boq-num">'+rp(katTotal)+'</td></tr>';
     });
     $('rabTable').innerHTML = html;
 
-    var subtotal = rows.reduce(function(s,r){ return s+r.total; },0);
     var ohPct = parseFloat($('rabOverhead').value)||0;
     var ppnPct = parseFloat($('rabPpn').value)||0;
     var ohVal = subtotal*ohPct/100;
@@ -332,48 +517,142 @@
     $('rabPpnVal').textContent = rp(ppnVal);
     $('rabTotal').textContent = rp(grand);
 
-    state._lastRab = {rows:rows, subtotal:subtotal, overheadPct:ohPct, overheadVal:ohVal, ppnPct:ppnPct, ppnVal:ppnVal, grandTotal:grand};
+    state._lastRab = {rows:rows, byKategori:groups, order:order, subtotal:subtotal, overheadPct:ohPct, overheadVal:ohVal, ppnPct:ppnPct, ppnVal:ppnVal, grandTotal:grand};
+    renderRekapTab();
+  }
+
+  /* =========================== RENDER: REKAPITULASI =========================== */
+  function renderRekapTab(){
+    var r = state._lastRab;
+    if(!r || !r.order.length){
+      $('rekapTable').innerHTML = '<tr><td style="color:var(--c-muted);">Belum ada item RAB. Tambahkan item pada tab BOQ atau klik "Muat Contoh Proyek".</td></tr>';
+      $('rekapTotal').textContent = '—';
+      $('rekapNote').textContent = '';
+      return;
+    }
+    var ohPct = r.overheadPct;
+    var vals = []; var grand = 0;
+    r.order.forEach(function(k){
+      var raw = r.byKategori[k].reduce(function(s,row){ return s+row.total; },0);
+      var nilai = raw*(1+ohPct/100);
+      vals.push({k:k, nilai:nilai});
+      grand += nilai;
+    });
+    var rows = '<tr><th style="width:60px;">No.</th><th>Item Pekerjaan</th><th class="boq-num" style="width:100px;">Bobot</th><th class="boq-num" style="width:180px;">Nilai Pekerjaan (Rp)</th></tr>';
+    vals.forEach(function(v){
+      var bobot = grand ? (v.nilai/grand*100) : 0;
+      rows += '<tr><td>'+(v.k!=='-'?v.k:'-')+'</td><td>'+katLabelOf(v.k)+'</td><td class="boq-num">'+fmt(bobot,2)+'%</td><td class="boq-num">'+rp(v.nilai)+'</td></tr>';
+    });
+    rows += '<tr class="boq-sub-row"><td colspan="3">TOTAL NILAI PEKERJAAN</td><td class="boq-num">'+rp(grand)+'</td></tr>';
+    $('rekapTable').innerHTML = rows;
+    $('rekapTotal').textContent = rp(grand);
+    $('rekapNote').textContent = 'Nilai pekerjaan sudah termasuk Overhead & Profit ('+ohPct+'%), belum termasuk PPN ('+r.ppnPct+'%). Lihat tab RAB untuk Total RAB akhir termasuk PPN.';
+  }
+
+  /* =========================== BANTUAN HITUNG VOLUME =========================== */
+  function hitungVolumeStruktur(){
+    var jenis = $('volJenis').value;
+    var b = (parseFloat($('volB').value)||0)/100, h = (parseFloat($('volH').value)||0)/100;
+    var p = parseFloat($('volP').value)||0, jml = parseFloat($('volJml').value)||0;
+    var nTul = parseFloat($('volNTul').value)||0;
+    var dPokok = (parseFloat($('volDpokok').value)||0)/1000;
+    var dSeng = (parseFloat($('volDseng').value)||0)/1000;
+    var jarakSeng = (parseFloat($('volJarakSeng').value)||0)/100;
+    var selimut = (parseFloat($('volSelimut').value)||0)/100;
+    var bj = parseFloat($('volBJBesi').value)||7850;
+
+    var volBeton = b*h*p*jml;
+    var luasPokok = Math.PI/4*dPokok*dPokok;
+    var beratPokok = nTul*luasPokok*p*jml*bj;
+
+    var kelilingSengkang = 2*((b-2*selimut)+(h-2*selimut));
+    var jumlahSengkangTotal = jarakSeng>0 ? (p*jml)/jarakSeng : 0;
+    var luasSengkang = Math.PI/4*dSeng*dSeng;
+    var beratSengkang = jumlahSengkangTotal*Math.max(kelilingSengkang,0)*luasSengkang*bj;
+
+    var totalBesi = beratPokok+beratSengkang;
+
+    var luasBekisting = (jenis==='kolom') ? 2*(b+h)*p*jml : (2*h+b)*p*jml;
+    var bekistingKey = (jenis==='kolom') ? 'bekisting_kolom' : (jenis==='sloof' ? 'bekisting_sloof' : 'bekisting_balok');
+
+    $('volHasil').innerHTML =
+      '<div class="boq-grid">'+
+        '<div class="boq-kpi"><small>Volume Beton</small><b>'+fmt(volBeton,3)+' m3</b></div>'+
+        '<div class="boq-kpi"><small>Berat Besi Pokok</small><b>'+fmt(beratPokok,2)+' kg</b></div>'+
+        '<div class="boq-kpi"><small>Berat Besi Sengkang</small><b>'+fmt(beratSengkang,2)+' kg</b></div>'+
+        '<div class="boq-kpi"><small>Total Pembesian</small><b>'+fmt(totalBesi,2)+' kg</b></div>'+
+        '<div class="boq-kpi"><small>Luas Bekisting</small><b>'+fmt(luasBekisting,3)+' m2</b></div>'+
+      '</div>'+
+      '<div class="boq-btn-row"><button class="boq-btn primary" id="volTambahBoq" type="button">+ Tambahkan 3 Item ke BOQ</button></div>';
+
+    $('volTambahBoq').addEventListener('click', function(){
+      var jenisLabel = jenis.charAt(0).toUpperCase()+jenis.slice(1);
+      var label = jenisLabel+' '+($('volB').value)+'x'+($('volH').value)+' cm';
+      state.items.push(mk('III', label+' - Beton', 'm3', round4(volBeton), 'beton_k300'));
+      state.items.push(mk('III', label+' - Pembesian', 'kg', round4(totalBesi), 'pembesian'));
+      state.items.push(mk('III', label+' - Bekisting', 'm2', round4(luasBekisting), bekistingKey));
+      renderBoqTab();
+      toast('3 item ('+label+') berhasil ditambahkan ke BOQ.');
+    });
   }
 
   /* =========================== REPORT =========================== */
   function buildReportText(){
     var r = state._lastRab;
     var lines = [];
-    lines.push('BILL OF QUANTITY & RENCANA ANGGARAN BIAYA (RAB) AWAL');
+    lines.push('BILL OF QUANTITY, RAB & REKAPITULASI ANGGARAN');
     lines.push('Civil Construction Engineering Suite');
     lines.push('======================================================');
     lines.push('');
-    lines.push('1. BILL OF QUANTITY');
-    (r?r.rows:[]).forEach(function(row){
-      lines.push('  '+row.uraian+' : '+fmt(row.volume,2)+' '+row.satuan+' ('+row.ahspLabel+')');
-    });
+    lines.push('1. REKAPITULASI ANGGARAN');
+    var grand = 0;
+    if(r && r.order.length){
+      var vals = [];
+      r.order.forEach(function(k){
+        var raw = r.byKategori[k].reduce(function(s,row){ return s+row.total; },0);
+        var nilai = raw*(1+r.overheadPct/100);
+        vals.push({k:k, nilai:nilai}); grand += nilai;
+      });
+      vals.forEach(function(v){
+        var bobot = grand ? (v.nilai/grand*100) : 0;
+        lines.push('  '+(v.k!=='-'?v.k:'-')+'. '+katLabelOf(v.k)+' : '+fmt(bobot,2)+'%  = '+rp(v.nilai));
+      });
+      lines.push('  TOTAL NILAI PEKERJAAN (term. OH&P, belum PPN) = '+rp(grand));
+    }
     lines.push('');
-    lines.push('2. RENCANA ANGGARAN BIAYA');
-    (r?r.rows:[]).forEach(function(row){
-      lines.push('  '+row.uraian+' = '+fmt(row.volume,2)+' x '+rp(row.unitPrice)+' = '+rp(row.total));
+    lines.push('2. RINCIAN BOQ & RAB PER KATEGORI');
+    (r?r.order:[]).forEach(function(k){
+      lines.push('  '+(k!=='-'?k+'. ':'')+katLabelOf(k));
+      r.byKategori[k].forEach(function(row){
+        lines.push('    - '+row.uraian+(row.sub?(' ['+row.sub+']'):'')+' = '+fmt(row.volume,2)+' '+(row.satuan||'')+' x '+rp(row.unitPrice)+' = '+rp(row.total));
+      });
     });
     lines.push('  ---');
-    lines.push('  Subtotal              : '+rp(r?r.subtotal:0));
-    lines.push('  Overhead & Profit ('+(r?r.overheadPct:0)+'%) : '+rp(r?r.overheadVal:0));
-    lines.push('  PPN ('+(r?r.ppnPct:0)+'%)            : '+rp(r?r.ppnVal:0));
-    lines.push('  TOTAL RAB             : '+rp(r?r.grandTotal:0));
+    lines.push('  Subtotal Pekerjaan        : '+rp(r?r.subtotal:0));
+    lines.push('  Overhead & Profit ('+(r?r.overheadPct:0)+'%)   : '+rp(r?r.overheadVal:0));
+    lines.push('  PPN ('+(r?r.ppnPct:0)+'%)              : '+rp(r?r.ppnVal:0));
+    lines.push('  TOTAL RAB                 : '+rp(r?r.grandTotal:0));
     lines.push('');
     lines.push('REFERENSI');
-    lines.push('  Pendekatan AHSP (Analisa Harga Satuan Pekerjaan) mengacu pola umum AHSP PUPR/Bina Marga.');
-    lines.push('  Volume pekerjaan dari modul Foundation Advisor (Civil Construction Engineering Suite).');
+    lines.push('  Koefisien AHSP & HSD mengacu pola umum SNI 2835:2008, SNI 2836:2008,');
+    lines.push('  SNI 2837:2008, SNI 2839:2008, SNI 6897:2008, SNI 7394:2008, SNI 7395:2008,');
+    lines.push('  Pedoman AHS Balitbang/Kementerian PUPR, serta materi & file kerja Pelatihan');
+    lines.push('  Penyusunan RAB (Kelas Ilmu Proyek).');
     lines.push('');
     lines.push('DISCLAIMER');
-    lines.push('RAB ini adalah estimasi awal tahap konsep. Koefisien AHSP bersifat indikatif dan harus');
-    lines.push('disesuaikan dengan AHSP resmi (Permen PUPR/SE terbaru) serta survei harga pasar setempat');
-    lines.push('sebelum digunakan sebagai dasar kontrak atau pengadaan.');
+    lines.push('RAB ini adalah estimasi berbasis koefisien AHSP indikatif dan harga satuan');
+    lines.push('dasar (HSD) yang dapat diubah sesuai kondisi pasar setempat. Untuk RAB');
+    lines.push('kontraktual, sesuaikan dengan AHSP resmi terbaru, volume hasil gambar kerja/');
+    lines.push('shop drawing final, serta survei harga pasar setempat sebelum digunakan');
+    lines.push('sebagai dasar kontrak atau pengadaan.');
     return lines.join('\n');
   }
 
   function buildReportCsv(){
     var r = state._lastRab;
-    var rows = [['Uraian','Satuan','Volume','Harga Satuan','Jumlah']];
+    var rows = [['Kategori','Bagian','Uraian','Satuan','Volume','Harga Satuan','Jumlah']];
     (r?r.rows:[]).forEach(function(row){
-      rows.push([row.uraian, row.satuan, fmt(row.volume,2), Math.round(row.unitPrice), Math.round(row.total)]);
+      rows.push([row.kat, row.sub||'', row.uraian, row.satuan, fmt(row.volume,2), Math.round(row.unitPrice), Math.round(row.total)]);
     });
     return rows.map(function(row){ return row.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
   }
@@ -384,7 +663,7 @@
 
   /* =========================== TAB SWITCH =========================== */
   function showTab(key){
-    ['boq','hsd','rab','report'].forEach(function(k){
+    ['boq','hsd','rab','rekap','volume','report'].forEach(function(k){
       $('boq-view-'+k).classList.toggle('boq-hidden', k!==key);
     });
     Array.prototype.forEach.call(document.querySelectorAll('.boq-tab'), function(btn){
@@ -392,26 +671,42 @@
     });
     if(key==='hsd') renderHsdTab();
     if(key==='rab') renderRabTab();
+    if(key==='rekap') renderRekapTab();
   }
   Array.prototype.forEach.call(document.querySelectorAll('.boq-tab'), function(btn){
     btn.addEventListener('click', function(){ showTab(btn.getAttribute('data-tab')); });
   });
 
   $('boqAddRow').addEventListener('click', function(){
-    state.items.push({id:uid(), uraian:'Item baru', satuan:'m3', volume:0, ahsp:'manual', manualPrice:0});
+    state.items.push(mk('', 'Item baru', 'm3', 0, 'manual', 0));
     renderBoqTab();
   });
   $('boqReloadSource').addEventListener('click', function(){
     var src = loadSourceData();
     var newItems = defaultItemsFromSource(src);
     if(!newItems.length){ toast('Tidak ada data baru dari Foundation Advisor.'); return; }
-    state.items = newItems.concat(state.items.filter(function(it){ return it.ahsp==='manual'; }));
+    state.items = newItems.concat(state.items.filter(function(it){ return it.ahsp==='manual' && it.kat===''; }));
     renderBoqTab();
     toast('BOQ dimuat ulang dari Foundation Advisor.');
+  });
+  $('boqLoadSample').addEventListener('click', function(){
+    if(state.items.length && !window.confirm('Item BOQ saat ini akan diganti dengan contoh proyek "Rumah Tinggal 2 Lantai" (171 item). Lanjutkan?')) return;
+    state.items = loadSampleProject();
+    renderBoqTab();
+    toast('Contoh proyek "Rumah Tinggal 2 Lantai" dimuat: 171 item dalam 11 kategori.');
+  });
+
+  $('hsdReset').addEventListener('click', function(){
+    resetHsdDefault();
+    renderHsdTab();
+    renderRabTab();
+    toast('Harga Satuan Dasar dikembalikan ke nilai default contoh proyek.');
   });
 
   $('rabOverhead').addEventListener('input', renderRabTab);
   $('rabPpn').addEventListener('input', renderRabTab);
+
+  $('volHitung').addEventListener('click', hitungVolumeStruktur);
 
   $('boqGenReport').addEventListener('click', function(){
     renderRabTab();
@@ -433,7 +728,7 @@
     var payload = {
       savedAt: new Date().toISOString(),
       source: 'boq-rab',
-      items: r.rows.map(function(row){ return {uraian:row.uraian, satuan:row.satuan, volume:row.volume, total:row.total}; }),
+      items: r.rows.map(function(row){ return {kategori:row.kat, uraian:row.uraian, satuan:row.satuan, volume:row.volume, total:row.total}; }),
       grandTotal: r.grandTotal
     };
     try{
