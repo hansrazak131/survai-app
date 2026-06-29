@@ -690,6 +690,7 @@ const CALC_ITEMS = [
   {file:'kdh.html',              title:'K.D. Horizontal', desc:'Perataan jaring kontrol horizontal.', icon:icoBars()},
   {file:'volume.html',           title:'Volume',          desc:'Kapasitas stockpile atau galian.', icon:icoCube()},
   {file:'settlement-sensor.html',title:'Settlement Sensor',desc:'Monitoring penurunan struktur dari koordinat XYZ.', icon:icoSettlement()},
+  {file:'survey-verticality.html',title:'Survey Verticality',desc:'Analisis ketegakan struktur dari koordinat XYZ.', icon:icoVerticality()},
 ];
 
 /* ---- DATA: Tools menu ---- */
@@ -731,6 +732,7 @@ const ALL_QA = [
   {tab:'calc',  file:'advance-survey.html',   title:'Advance Survey'},
   {tab:'calc',  file:'kdv.html',              title:'K.D. Vertikal'},
   {tab:'calc',  file:'settlement-sensor.html',title:'Settlement Sensor'},
+  {tab:'calc',  file:'survey-verticality.html',title:'Survey Verticality'},
   {tab:'tools', file:'utility-tools.html',    title:'Utility Tools'},
   {tab:'tools', file:'tools-curve.html',      title:'Curve Tools'},
   {tab:'tools', file:'geoai.html',            title:'GeoAI'},
@@ -780,6 +782,7 @@ function qaIcon(title){
     'Utility Tools':icoTools(), 'Curve Tools':icoTrend(), 'Produktivitas':icoChartUp(),
     'GeoAI':icoGeoAI(),
     'Settlement Sensor':icoSettlement(),
+    'Survey Verticality':icoVerticality(),
     'Maps':icoMap(),
   };
   return m[title] || icoTools();
@@ -1185,6 +1188,7 @@ function icoBulldozer(){return svg('<rect x="2" y="9" width="13" height="8" rx="
 function icoOre(){return svg('<path d="M12 3l8 5v8l-8 5-8-5V8z"/><path d="M12 8l4 2.5v5L12 18l-4-2.5v-5z"/>');}
 function icoCivil(){return svg('<path d="M4 21h16M5 21V9.5L12 5l7 4.5V21"/><path d="M9 21v-6h6v6"/><path d="M9 12h.01M12 12h.01M15 12h.01"/>');}
 function icoSettlement(){return svg('<path d="M3 5h18M3 5v6M21 5v6"/><path d="M6 11v8M12 11v5M18 11v8"/><path d="M3 19h7M14 16h7"/><path d="M12 16l-2 3M12 16l2 3"/>');}
+function icoVerticality(){return svg('<path d="M12 2v20"/><path d="M9 5l3-3 3 3"/><path d="M9 19l3 3 3-3"/><path d="M7 8h2M7 12h2M7 16h2M15 8h2M15 12h2M15 16h2"/>');}
 
 /* =================== GNSS STATUS =================== */
 let gnssLoaded = false;

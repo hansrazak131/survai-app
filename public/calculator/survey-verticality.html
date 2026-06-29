@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Survey Verticality</title>
+<!--
+  Survey & Geodetic Engineering Suite – Modul "Survey Verticality (Ketegakan Struktur)".
+  Mengolah hasil pengukuran koordinat XYZ progres monitoring lapangan (Total
+  Station/Theodolite/GNSS) menjadi analisis ketegakan (plumbness) struktur:
+  kolom bangunan, tower telekomunikasi, cerobong/tangki, dinding struktur/
+  precast, core wall, tiang pancang/shear wall, dan pilar jembatan.
+
+  Metodologi mengacu pada:
+  - AISC 303 (Code of Standard Practice for Steel Buildings and Bridges),
+    Section 7.13.1.1: toleransi kolom baja 1/500 dari jarak antar titik
+    kerja, dibatasi maksimum total kemiringan 50mm.
+  - Standar umum industri menara telekomunikasi: toleransi 1/2000 dari
+    tinggi tower (tinggi(cm)/2000 = batas kemiringan maksimum dalam cm).
+  - Metode lapangan: pengukuran offset dua arah dari Total Station/
+    Theodolite terhadap garis vertikal acuan (centerline) melalui titik
+    kerja bawah & atas (working line), sebagaimana lazim dipakai pada
+    praktik survei ketegakan bangunan dan tower di Indonesia.
+  - Pendekatan regresi linier (least-squares best-fit line) sebagai opsi
+    analisis statistik tambahan, sejalan dengan metode analisis deformasi
+    pada literatur survei geodesi (tren kemiringan keseluruhan + residual
+    lokal per titik).
+
+  Engine kalkulasi: lihat engine.js (VertEngine) – diuji terpisah dengan
+  data referensi nyata (Tabel hasil pengukuran kemiringan bangunan) dan
+  cocok hingga 3 desimal.
+-->
+<style>
+  .vert-root{
+    --c-bg:#F7F6F4; --c-card:#FFFFFF; --c-border:#E7E2DC; --c-border-soft:#F0ECE6;
+    --c-text:#1C1917; --c-muted:#6B6356; --c-faint:#A39A8A;
+    --c-accent:#EA580C; --c-accent-light:#FFF1E8; --c-accent-dark:#C2410C;
+    --c-navy:#1E293B; --c-navy-light:#EEF2F6;
+    --c-green:#15803D; --c-green-light:#EDF9F0;
+    --c-red:#DC2626; --c-red-light:#FEF0EE;
+    --c-radius-lg:20px; --c-radius-md:14px;
+    --c-shadow-sm:0 1px 2px rgba(28,25,23,.05);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--c-bg); color:var(--c-text); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .vert-root *{box-sizing:border-box;}
+  .vert-shell{max-width:1180px;margin:0 auto;padding:14px 14px 64px;}
+  .vert-breadcrumb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12.5px;color:var(--c-muted);margin-bottom:10px;}
+  .vert-breadcrumb b{color:var(--c-text);font-weight:600;}
+  .vert-breadcrumb .sep{color:var(--c-faint);}
+  .vert-title h1{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;}
+  .vert-title p{margin:0 0 16px;color:var(--c-muted);font-size:13px;max-width:760px;}
+  .vert-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .vert-tab{border:1px solid var(--c-border);background:var(--c-card);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--c-muted);cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .vert-tab .vert-tabnum{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--c-border-soft);font-size:10px;color:var(--c-muted);}
+  .vert-tab.active{background:var(--c-navy);color:#fff;border-color:var(--c-navy);}
+  .vert-tab.active .vert-tabnum{background:rgba(255,255,255,.2);color:#fff;}
+  .vert-card{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--c-shadow-sm);}
+  .vert-card h2{font-size:15px;font-weight:700;margin:0 0 10px;}
+  .vert-card h3{font-size:12.5px;font-weight:700;margin:14px 0 8px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.02em;}
+  .vert-hidden{display:none;}
+  .vert-note{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-navy-light);color:#334155;line-height:1.5;}
+  .vert-warn{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-accent-light);color:var(--c-accent-dark);line-height:1.5;}
+  .vert-btn{border:1px solid var(--c-border);background:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--c-text);}
+  .vert-btn.primary{background:var(--c-accent);border-color:var(--c-accent);color:#fff;}
+  .vert-btn.navy{background:var(--c-navy);border-color:var(--c-navy);color:#fff;}
+  .vert-btn.danger{color:#B42318;border-color:#FDA29B;}
+  .vert-btn.sm{padding:5px 10px;font-size:12px;}
+  .vert-btn:disabled{opacity:.45;cursor:not-allowed;}
+  .vert-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+  .vert-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;}
+  .vert-grid label{display:block;font-size:11.5px;color:var(--c-muted);margin-bottom:4px;}
+  .vert-grid input,.vert-grid select,.vert-grid textarea{width:100%;border:1px solid var(--c-border);border-radius:8px;padding:7px 9px;font-size:12.5px;font-family:inherit;}
+  .vert-kpi{border:1px solid var(--c-border-soft);border-radius:14px;padding:10px 12px;background:#FDFCFB;}
+  .vert-kpi small{display:block;color:var(--c-muted);font-size:11px;}
+  .vert-kpi b{font-size:16px;}
+  .vert-kpi.ok b{color:var(--c-green);}
+  .vert-kpi.bad b{color:var(--c-red);}
+  table.vert-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.vert-table th,table.vert-table td{border-bottom:1px solid var(--c-border-soft);padding:7px 8px;text-align:left;vertical-align:middle;}
+  table.vert-table th{color:var(--c-muted);font-weight:600;font-size:11px;text-transform:uppercase;}
+  table.vert-table input,table.vert-table select{width:100%;border:1px solid var(--c-border);border-radius:8px;padding:5px 7px;font-size:12.5px;}
+  .vert-num{text-align:right;}
+  .vert-tag{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;}
+  .vert-tag.ok{background:var(--c-green-light);color:var(--c-green);}
+  .vert-tag.bad{background:var(--c-red-light);color:var(--c-red);}
+  .vert-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1C1917;color:#fff;padding:9px 16px;border-radius:10px;font-size:12.5px;z-index:80;max-width:90vw;text-align:center;}
+  .vert-disclaimer{font-size:11.5px;color:var(--c-faint);border-top:1px dashed var(--c-border);padding-top:10px;margin-top:10px;line-height:1.5;}
+  .vert-chiprow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+  .vert-chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--c-border);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:var(--c-muted);}
+  .vert-chip.active{border-color:var(--c-navy);background:var(--c-navy);color:#fff;}
+  .vert-examplecard{border:1px solid var(--c-border);border-radius:14px;padding:12px;cursor:pointer;background:#fff;transition:transform .1s;flex:1;min-width:200px;}
+  .vert-examplecard:hover{transform:translateY(-2px);border-color:var(--c-accent);}
+  .vert-examplecard b{font-size:13px;display:block;margin-bottom:3px;}
+  .vert-examplecard small{color:var(--c-muted);font-size:11.5px;}
+  .vert-svgwrap{background:#fff;border:1px solid var(--c-border-soft);border-radius:14px;padding:10px;}
+  .vert-pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#1C1917;color:#F0ECE6;border-radius:12px;padding:14px;max-height:420px;overflow:auto;}
+  .vert-radiogroup{display:flex;gap:14px;flex-wrap:wrap;}
+  .vert-radiogroup label{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--c-text);cursor:pointer;}
+
+  /* Report / print layout */
+  .vert-report{background:#fff;border:1px solid var(--c-border);padding:26px;font-size:12px;color:#111;}
+  .vert-report h1{font-size:16px;text-align:center;margin:0 0 4px;}
+  .vert-report .sub{text-align:center;font-size:11px;color:#555;margin-bottom:14px;}
+  .vert-report table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;}
+  .vert-report table.meta td{border:1px solid #999;padding:4px 6px;}
+  .vert-report table.data th, .vert-report table.data td{border:1px solid #999;padding:4px 6px;}
+  .vert-report table.data th{background:#EEE;}
+  .vert-report .sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:30px;text-align:center;font-size:11px;}
+  .vert-report .sign-grid .line{margin-top:50px;border-top:1px solid #333;padding-top:4px;}
+  @media print{
+    body *{visibility:hidden;}
+    #vertReportPrintArea, #vertReportPrintArea *{visibility:visible;}
+    #vertReportPrintArea{position:absolute;left:0;top:0;width:100%;}
+  }
+
+  @media (max-width:640px){
+    .vert-shell{padding:10px;}
+  }
+</style>
+</head>
+<body>
+<div class="vert-root">
+  <div class="vert-shell">
+    <div class="vert-breadcrumb"><span>Home</span><span class="sep">/</span><span>Tools</span><span class="sep">/</span><span>Survey</span><span class="sep">/</span><b>Verticality</b></div>
+    <div class="vert-title">
+      <h1>Survey Verticality &ndash; Analisis Ketegakan Struktur</h1>
+      <p>Olah hasil pengukuran koordinat XYZ progres monitoring lapangan menjadi visual kondisi vertikal struktur (kolom, tower, dinding, cerobong) lengkap dengan analisis toleransi dan laporan inspeksi siap cetak.</p>
+    </div>
+
+    <div class="vert-tabs" id="vertTabs">
+      <button class="vert-tab active" data-tab="proyek"><span class="vert-tabnum">1</span>Proyek &amp; Standar</button>
+      <button class="vert-tab" data-tab="data"><span class="vert-tabnum">2</span>Data Pengukuran (XYZ)</button>
+      <button class="vert-tab" data-tab="visual"><span class="vert-tabnum">3</span>Visualisasi</button>
+      <button class="vert-tab" data-tab="analisis"><span class="vert-tabnum">4</span>Analisis Ketegakan</button>
+      <button class="vert-tab" data-tab="laporan"><span class="vert-tabnum">5</span>Laporan</button>
+    </div>
+
+    <!-- ===================== TAB 1: PROYEK & STANDAR ===================== -->
+    <section id="vert-view-proyek">
+      <div class="vert-card">
+        <h2>1. Informasi Proyek &amp; Objek Ukur</h2>
+        <div class="vert-note">Tentukan jenis struktur, dimensi, dan standar toleransi yang dipakai. Pilihan standar akan otomatis mengisi rasio toleransi (1/n) dan batas maksimum (cap), namun tetap dapat disesuaikan secara manual.</div>
+        <div class="vert-grid">
+          <div><label>Nama Proyek</label><input type="text" id="vpNama" value="Pembangunan Gedung Kantor"></div>
+          <div><label>Lokasi</label><input type="text" id="vpLokasi" value="Jakarta"></div>
+          <div><label>No. Referensi</label><input type="text" id="vpReferensi" value="VRT-001"></div>
+          <div><label>Tanggal</label><input type="date" id="vpTanggal"></div>
+          <div><label>Surveyor</label><input type="text" id="vpSurveyor" value=""></div>
+          <div><label>Alat Ukur</label>
+            <select id="vpAlat">
+              <option>Total Station</option>
+              <option>Theodolite</option>
+              <option>Total Station + Waterpass</option>
+              <option>GNSS RTK</option>
+              <option>Terrestrial Laser Scanner</option>
+              <option>Lainnya</option>
+            </select>
+          </div>
+        </div>
+        <h3>Objek Struktur</h3>
+        <div class="vert-grid">
+          <div><label>Jenis Struktur</label>
+            <select id="vpJenis">
+              <option value="kolom">Kolom Bangunan</option>
+              <option value="tower">Menara / Tower Telekomunikasi</option>
+              <option value="silo">Tangki / Silo Penyimpanan</option>
+              <option value="cerobong">Cerobong Asap Industri</option>
+              <option value="pagar">Pagar / Dinding Pembatas</option>
+              <option value="dinding">Dinding Struktur / Precast</option>
+              <option value="core">Core Wall (Inti Bangunan)</option>
+              <option value="tiang">Tiang Pancang / Shear Wall</option>
+              <option value="pilar">Pilar Jembatan</option>
+              <option value="lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div><label>Tinggi Total Objek (m)</label><input type="number" id="vpTinggi" value="20" step="0.1" min="0.1"></div>
+          <div><label>Jumlah Sisi/Kaki Diukur</label><input type="number" id="vpJumlahSisi" value="2" min="1" max="8"></div>
+        </div>
+        <h3>Standar Toleransi</h3>
+        <div class="vert-grid">
+          <div style="grid-column:1/-1;"><label>Preset Standar</label>
+            <select id="vpTolPreset">
+              <option value="aisc303">AISC 303-10 &ndash; Kolom Baja (1/500, maks 50mm)</option>
+              <option value="tower2000">Tower Telekomunikasi (1/2000)</option>
+              <option value="tank200">API 650 &ndash; Tangki/Silo &amp; Kolom/Dinding Beton (1/200)</option>
+              <option value="ketat1000">Ketat &ndash; Core Wall / Presisi Tinggi (1/1000, maks 25mm)</option>
+              <option value="cerobong600">CICIND &ndash; Cerobong Industri (1/600, min 25mm)</option>
+              <option value="pagar100">Pagar / Railing &ndash; Toleransi Umum (1/100)</option>
+              <option value="manual">Kustom (atur manual)</option>
+            </select>
+          </div>
+          <div><label>Rasio Toleransi (1 / n)</label><input type="number" id="vpTolRatio" value="500" min="10"></div>
+          <div><label>Batas (mm) &ndash; kosongkan jika tidak ada</label><input type="number" id="vpTolCap" value="50" min="0"></div>
+          <div><label>Mode Batas</label>
+            <select id="vpTolCapMode">
+              <option value="ceiling">Maksimum (tidak boleh lebih dari batas)</option>
+              <option value="floor">Minimum (tidak boleh kurang dari batas)</option>
+            </select>
+          </div>
+        </div>
+        <div class="vert-note" id="vpTolFormula"></div>
+        <h3>Titik Ikat / Benchmark (BM) &ndash; Opsional</h3>
+        <div class="vert-note">Jika diisi, sistem akan menghitung jarak dari setiap titik ukur ke BM (dari koordinat) dan membandingkannya dengan jarak hasil ukur langsung di lapangan (jika diisi pada tabel data) &ndash; berguna sebagai cross-check untuk mendeteksi indikasi blunder/kesalahan baca alat.</div>
+        <div class="vert-grid">
+          <div><label><input type="checkbox" id="vpBmAktif"> Gunakan Cross-Check BM</label></div>
+          <div><label>Northing BM (m)</label><input type="number" id="vpBmN" value="0" step="0.001"></div>
+          <div><label>Easting BM (m)</label><input type="number" id="vpBmE" value="0" step="0.001"></div>
+          <div><label>Nama/Kode BM</label><input type="text" id="vpBmNama" value="BM-1"></div>
+        </div>
+        <h3>Metode Referensi Vertikal</h3>
+        <div class="vert-radiogroup">
+          <label><input type="radio" name="vpMetode" value="base" checked> Terhadap Titik Dasar (kumulatif, umum dipakai di lapangan)</label>
+          <label><input type="radio" name="vpMetode" value="incremental"> Terhadap Titik Sebelumnya (per section/level)</label>
+          <label><input type="radio" name="vpMetode" value="bestfit"> Regresi Linier Best-Fit (tren &amp; residual statistik)</label>
+        </div>
+        <div class="vert-note" id="vpMetodeNote"></div>
+      </div>
+      <div class="vert-card">
+        <h3 style="margin-top:0;">Muat Contoh Proyek</h3>
+        <div class="vert-btn-row" id="vertExampleRow"></div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB 2: DATA PENGUKURAN ===================== -->
+    <section id="vert-view-data" class="vert-hidden">
+      <div class="vert-card">
+        <h2>2. Data Pengukuran Koordinat Lapangan</h2>
+        <div class="vert-note">Masukkan hasil bacaan <b>langsung</b> dari alat ukur per titik: <b>Elevasi (Z)</b> dalam meter, <b>Northing (N)</b> dan <b>Easting (E)</b> dalam meter &ndash; tanpa perlu menghitung selisih/offset secara manual. Sistem akan <b>otomatis menghitung</b> selisih (&Delta;N, &Delta;E), jarak miring, dan arah kemiringan antar 2 posisi pengukuran pada tab Analisis. Titik dengan elevasi terendah pada satu sisi otomatis menjadi titik dasar/acuan (mengikuti metode referensi yang dipilih pada tab 1).</div>
+        <div class="vert-chiprow" id="vertSisiFilterRow"></div>
+        <div style="overflow-x:auto;">
+          <table class="vert-table" id="vertPointsTable"></table>
+        </div>
+        <div class="vert-btn-row">
+          <button class="vert-btn primary" id="vertAddPoint">+ Tambah Titik</button>
+          <button class="vert-btn" id="vertAddBulk">+ Tambah Beberapa Titik per Sisi</button>
+          <button class="vert-btn danger" id="vertClearPoints">Hapus Semua Titik</button>
+        </div>
+      </div>
+      <div class="vert-card">
+        <h3 style="margin-top:0;">Impor Cepat (Tempel dari Excel/CSV)</h3>
+        <div class="vert-note">Format per baris: <code>Label, Sisi, Z(m), N(m), E(m), JarakBM(m, opsional), Keterangan</code> dipisah koma atau tab.</div>
+        <textarea id="vertCsvInput" rows="4" style="width:100%;border:1px solid var(--c-border);border-radius:10px;padding:8px;font-size:12px;font-family:ui-monospace,monospace;" placeholder="Dasar, A, 0, 9156320.000, 699450.000, ,&#10;Atas, A, 20, 9156320.012, 699450.018, , terlihat miring"></textarea>
+        <div class="vert-btn-row"><button class="vert-btn" id="vertImportCsv">Impor Data</button></div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB 3: VISUALISASI ===================== -->
+    <section id="vert-view-visual" class="vert-hidden">
+      <div class="vert-card">
+        <h2>3. Visualisasi Kondisi Vertikal</h2>
+        <div class="vert-grid">
+          <div><label>Tampilkan Sisi</label><select id="vertVisSisi"><option value="__all__">Semua Sisi</option></select></div>
+          <div><label>Faktor Pembesaran Deviasi</label><input type="range" id="vertExagger" min="1" max="100" value="20"><span id="vertExaggerVal" style="font-size:11.5px;color:var(--c-muted);"></span></div>
+        </div>
+        <div class="vert-note">Deviasi horizontal pada gambar ditampilkan <b>diperbesar</b> agar terlihat jelas (deviasi sesungguhnya berskala mm, jauh lebih kecil dari tinggi struktur). Nilai sesungguhnya tetap dipakai pada perhitungan &amp; laporan.</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;">
+          <div style="flex:1;min-width:280px;">
+            <h3 style="margin-top:0;">Tampak Samping (Elevasi)</h3>
+            <div class="vert-svgwrap" id="vertElevWrap"></div>
+          </div>
+          <div style="flex:1;min-width:280px;">
+            <h3 style="margin-top:0;">Tampak Atas (Plan / Lintasan Deviasi)</h3>
+            <div class="vert-svgwrap" id="vertPlanWrap"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB 4: ANALISIS KETEGAKAN ===================== -->
+    <section id="vert-view-analisis" class="vert-hidden">
+      <div class="vert-card">
+        <h2>4. Hasil Analisis Ketegakan</h2>
+        <div class="vert-grid" id="vertAnalisisKpi"></div>
+        <h3>Tabel Hasil Pengukuran Kemiringan</h3>
+        <div style="overflow-x:auto;">
+          <table class="vert-table" id="vertAnalisisTable"></table>
+        </div>
+      </div>
+      <div class="vert-card">
+        <h3 style="margin-top:0;">Profil Deviasi vs Elevasi</h3>
+        <div class="vert-svgwrap" id="vertProfileChartWrap"></div>
+      </div>
+    </section>
+
+    <!-- ===================== TAB 5: LAPORAN ===================== -->
+    <section id="vert-view-laporan" class="vert-hidden">
+      <div class="vert-card">
+        <h2>5. Laporan Inspeksi Verticality</h2>
+        <div class="vert-grid">
+          <div><label>Diperiksa Oleh</label><input type="text" id="vlDiperiksa" value=""></div>
+          <div><label>Disetujui Oleh</label><input type="text" id="vlDisetujui" value=""></div>
+          <div><label>Nama Instansi/Kontraktor</label><input type="text" id="vlInstansi" value=""></div>
+          <div><label>Kesimpulan</label>
+            <select id="vlKesimpulan">
+              <option value="auto">Otomatis (berdasarkan hasil analisis)</option>
+              <option value="layak">Layak Dipergunakan</option>
+              <option value="tidak">Tidak Layak Dipergunakan / Perlu Tindakan Lanjut</option>
+            </select>
+          </div>
+        </div>
+        <div class="vert-btn-row">
+          <button class="vert-btn primary" id="vertBuildReport">Susun Laporan</button>
+          <button class="vert-btn navy" id="vertPrintReport">Cetak / Simpan PDF</button>
+          <button class="vert-btn" id="vertExportCsv">Export CSV</button>
+          <button class="vert-btn" id="vertExportJson">Export JSON</button>
+        </div>
+        <div class="vert-disclaimer">Laporan ini dihasilkan otomatis berdasarkan data dan standar toleransi yang dipilih pengguna. Hasil bersifat indikatif sebagai alat bantu monitoring lapangan &ndash; keputusan akhir kelayakan struktur tetap memerlukan kajian dan tanda tangan tenaga ahli/penyedia jasa yang berkompeten.</div>
+      </div>
+      <div class="vert-card" id="vertReportPreviewCard" style="overflow-x:auto;">
+        <div id="vertReportPrintArea"></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+<script>
+/* =========================================================================
+   Verticality Survey Suite – Engine Kalkulasi Ketegakan (REVISI 2)
+   ========================================================================= */
+(function(root){
+  'use strict';
+
+  function mean(a){ return a.reduce(function(s,v){return s+v;},0)/(a.length||1); }
+
+  function linreg(xs, ys){
+    var n = xs.length;
+    if (n < 2) return {slope:0, intercept: ys[0]||0};
+    var mx = mean(xs), my = mean(ys);
+    var num=0, den=0;
+    for (var i=0;i<n;i++){ num += (xs[i]-mx)*(ys[i]-my); den += (xs[i]-mx)*(xs[i]-mx); }
+    var slope = den===0 ? 0 : num/den;
+    var intercept = my - slope*mx;
+    return {slope:slope, intercept:intercept};
+  }
+
+  function groupBy(arr, keyFn){
+    var groups = {}; var order = [];
+    arr.forEach(function(item){
+      var k = keyFn(item);
+      if (!groups[k]){ groups[k]=[]; order.push(k); }
+      groups[k].push(item);
+    });
+    return {groups:groups, order:order};
+  }
+
+  function toleransiValue(d_mm, toleransi){
+    var v = d_mm / toleransi.ratioDenom;
+    if (toleransi.capMm !== null && toleransi.capMm !== undefined){
+      if (toleransi.capMode === 'floor') v = Math.max(v, toleransi.capMm);
+      else v = Math.min(v, toleransi.capMm);
+    }
+    return v;
+  }
+
+  var TOLERANSI_PRESETS = {
+    aisc303:    {label:"AISC 303-10 §7.13.1.1 – Kolom Baja (1/500, maks 50mm)", ratioDenom:500,  capMm:50, capMode:'ceiling'},
+    tower2000:  {label:"Tower Telekomunikasi – Umum Industri (1/2000)",            ratioDenom:2000, capMm:null, capMode:'ceiling'},
+    tank200:    {label:"API 650 §7.5.2 – Tangki/Silo & Kolom/Dinding Beton (1/200)", ratioDenom:200, capMm:null, capMode:'ceiling'},
+    ketat1000:  {label:"Ketat – Core Wall / Presisi Tinggi (1/1000, maks 25mm)",   ratioDenom:1000, capMm:25, capMode:'ceiling'},
+    cerobong600:{label:"CICIND – Cerobong Industri (1/600, min 25mm)",             ratioDenom:600,  capMm:25, capMode:'floor'},
+    pagar100:   {label:"Pagar / Railing – Toleransi Umum Proyek (1/100)",          ratioDenom:100,  capMm:null, capMode:'ceiling'}
+  };
+
+  function azimuthToCompass8(deg){
+    var dirs = ['Utara','Timur Laut','Timur','Tenggara','Selatan','Barat Daya','Barat','Barat Laut'];
+    var idx = Math.round(((deg%360)+360)%360/45) % 8;
+    return dirs[idx];
+  }
+
+  function analyze(points, options){
+    var method = options.method || 'base';
+    var toleransi = options.toleransi || {ratioDenom:500, capMm:50, capMode:'ceiling'};
+    var bm = options.bm && options.bm.aktif ? options.bm : null;
+
+    var g = groupBy(points, function(p){ return p.sisi; });
+    var results = [];
+
+    g.order.forEach(function(sisi){
+      var pts = g.groups[sisi].slice().sort(function(a,b){ return a.Z_m-b.Z_m; });
+
+      var rn=null, re=null;
+      if (method === 'bestfit' && pts.length >= 2){
+        var zs = pts.map(function(p){return p.Z_m;});
+        rn = linreg(zs, pts.map(function(p){return p.N_m;}));
+        re = linreg(zs, pts.map(function(p){return p.E_m;}));
+      }
+
+      pts.forEach(function(p, idx){
+        var refN, refE, refLabel, d_mm;
+        if (method === 'incremental'){
+          if (idx === 0){ refN=p.N_m; refE=p.E_m; refLabel='(titik awal sisi ini)'; d_mm = 1; }
+          else {
+            var prev = pts[idx-1];
+            refN = prev.N_m; refE = prev.E_m; refLabel = prev.label;
+            d_mm = Math.max(Math.abs(p.Z_m-prev.Z_m)*1000, 1);
+          }
+        } else if (method === 'bestfit' && rn){
+          refN = rn.slope*p.Z_m + rn.intercept;
+          refE = re.slope*p.Z_m + re.intercept;
+          refLabel = '(garis regresi)';
+          d_mm = Math.max(p.Z_m*1000, 1);
+        } else {
+          refN = pts[0].N_m; refE = pts[0].E_m; refLabel = pts[0].label;
+          d_mm = Math.max(Math.abs(p.Z_m - pts[0].Z_m)*1000, 1);
+        }
+
+        var deltaN_mm = (p.N_m - refN)*1000;
+        var deltaE_mm = (p.E_m - refE)*1000;
+        var jarakMiring_mm = Math.sqrt(deltaN_mm*deltaN_mm + deltaE_mm*deltaE_mm);
+        var tol = toleransiValue(d_mm, toleransi);
+        var status = jarakMiring_mm <= tol ? 'LURUS' : 'OVER';
+        var azimuthDeg = (Math.atan2(deltaE_mm, deltaN_mm)*180/Math.PI + 360) % 360;
+        var arahKompas = jarakMiring_mm < 0.5 ? '-' : azimuthToCompass8(azimuthDeg);
+
+        var bmInfo = null;
+        if (bm){
+          var jarakHitungBM_m = Math.sqrt(Math.pow(p.E_m-bm.E_m,2) + Math.pow(p.N_m-bm.N_m,2));
+          var jarakUkur = (p.jarakUkurBM_m!==undefined && p.jarakUkurBM_m!==null && p.jarakUkurBM_m!=='') ? parseFloat(p.jarakUkurBM_m) : null;
+          bmInfo = {
+            jarakHitung_m: jarakHitungBM_m,
+            jarakUkur_m: jarakUkur,
+            selisih_mm: jarakUkur!==null ? Math.abs(jarakHitungBM_m-jarakUkur)*1000 : null
+          };
+        }
+
+        results.push(Object.assign({}, p, {
+          d_mm: d_mm, deltaN_mm: deltaN_mm, deltaE_mm: deltaE_mm,
+          jarakMiring_mm: jarakMiring_mm, toleransi_mm: tol, status: status,
+          azimuthDeg: azimuthDeg, arahKompas: arahKompas, refLabel: refLabel,
+          bmInfo: bmInfo
+        }));
+      });
+    });
+
+    return results;
+  }
+
+  function summarize(results){
+    var total = results.length;
+    var overCount = results.filter(function(r){return r.status==='OVER';}).length;
+    var maxDeviation = results.reduce(function(m,r){return Math.max(m,r.jarakMiring_mm);}, 0);
+    var worst = results.slice().sort(function(a,b){return b.jarakMiring_mm-a.jarakMiring_mm;})[0] || null;
+    var bmFlags = results.filter(function(r){ return r.bmInfo && r.bmInfo.selisih_mm!==null && r.bmInfo.selisih_mm > 50; });
+    return {
+      total: total, overCount: overCount, lurusCount: total-overCount,
+      maxDeviation_mm: maxDeviation, worstPoint: worst,
+      overallStatus: overCount===0 ? 'LAYAK' : 'PERLU EVALUASI',
+      bmFlagCount: bmFlags.length, bmFlags: bmFlags
+    };
+  }
+
+  var api = {
+    linreg: linreg, groupBy: groupBy, toleransiValue: toleransiValue,
+    azimuthToCompass8: azimuthToCompass8, analyze: analyze, summarize: summarize,
+    TOLERANSI_PRESETS: TOLERANSI_PRESETS
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.VertEngine = api;
+
+})(typeof window !== 'undefined' ? window : globalThis);
+
+window.EXAMPLES_RAW = {
+ "kolom": [
+  {"label":"Dasar","sisi":"Kolom As 1' / B(1)","Z_m":0,"N_m":9156320.0,"E_m":699450.0,"keterangan":""},
+  {"label":"Atas","sisi":"Kolom As 1' / B(1)","Z_m":5.6056,"N_m":9156320.0,"E_m":699450.0172,"keterangan":"Arah Easting (X)"},
+  {"label":"Dasar","sisi":"Kolom As 2 / B(1)","Z_m":0,"N_m":9156320.0,"E_m":699456.0,"keterangan":""},
+  {"label":"Atas","sisi":"Kolom As 2 / B(1)","Z_m":5.5467,"N_m":9156320.0,"E_m":699456.0108,"keterangan":"Arah Easting (X)"},
+  {"label":"Dasar","sisi":"Kolom As 2' / B(1)","Z_m":0,"N_m":9156326.0,"E_m":699456.0,"keterangan":""},
+  {"label":"Atas","sisi":"Kolom As 2' / B(1)","Z_m":5.6702,"N_m":9156326.0,"E_m":699456.0176,"keterangan":"Arah Easting (X)"},
+  {"label":"Dasar","sisi":"Dinding As 1-8 / C","Z_m":0,"N_m":9156340.0,"E_m":699450.0,"keterangan":""},
+  {"label":"Atas","sisi":"Dinding As 1-8 / C","Z_m":5.5218,"N_m":9156340.0,"E_m":699450.0337,"keterangan":"Arah Easting (X)"},
+  {"label":"Dasar","sisi":"Dinding As 8 / B-C","Z_m":0,"N_m":9156340.0,"E_m":699468.0,"keterangan":""},
+  {"label":"Atas","sisi":"Dinding As 8 / B-C","Z_m":4.7417,"N_m":9156340.0218,"E_m":699468.0,"keterangan":"Arah Northing (Y)"}
+ ],
+ "tower4kaki": [
+  {"label":"Dasar","sisi":"Kaki A","Z_m":0,"N_m":9270500.0,"E_m":712003.0,"keterangan":""},
+  {"label":"Elevasi 10m","sisi":"Kaki A","Z_m":10,"N_m":9270500.001,"E_m":712003.0025,"keterangan":""},
+  {"label":"Elevasi 20m","sisi":"Kaki A","Z_m":20,"N_m":9270500.004,"E_m":712003.01,"keterangan":""},
+  {"label":"Elevasi 30m","sisi":"Kaki A","Z_m":30,"N_m":9270500.009,"E_m":712003.0225,"keterangan":""},
+  {"label":"Elevasi 40m","sisi":"Kaki A","Z_m":40,"N_m":9270500.016,"E_m":712003.04,"keterangan":""},
+  {"label":"Dasar","sisi":"Kaki B","Z_m":0,"N_m":9270503.0,"E_m":712000.0,"keterangan":""},
+  {"label":"Elevasi 10m","sisi":"Kaki B","Z_m":10,"N_m":9270503.0022,"E_m":711999.9988,"keterangan":""},
+  {"label":"Elevasi 20m","sisi":"Kaki B","Z_m":20,"N_m":9270503.009,"E_m":711999.995,"keterangan":""},
+  {"label":"Elevasi 30m","sisi":"Kaki B","Z_m":30,"N_m":9270503.0202,"E_m":711999.9888,"keterangan":""},
+  {"label":"Elevasi 40m","sisi":"Kaki B","Z_m":40,"N_m":9270503.036,"E_m":711999.98,"keterangan":""},
+  {"label":"Dasar","sisi":"Kaki C","Z_m":0,"N_m":9270500.0,"E_m":711997.0,"keterangan":""},
+  {"label":"Elevasi 10m","sisi":"Kaki C","Z_m":10,"N_m":9270499.9985,"E_m":711996.998,"keterangan":""},
+  {"label":"Elevasi 20m","sisi":"Kaki C","Z_m":20,"N_m":9270499.994,"E_m":711996.992,"keterangan":""},
+  {"label":"Elevasi 30m","sisi":"Kaki C","Z_m":30,"N_m":9270499.9865,"E_m":711996.982,"keterangan":""},
+  {"label":"Elevasi 40m","sisi":"Kaki C","Z_m":40,"N_m":9270499.976,"E_m":711996.968,"keterangan":""},
+  {"label":"Dasar","sisi":"Kaki D","Z_m":0,"N_m":9270497.0,"E_m":712000.0,"keterangan":""},
+  {"label":"Elevasi 10m","sisi":"Kaki D","Z_m":10,"N_m":9270496.9982,"E_m":712000.0015,"keterangan":""},
+  {"label":"Elevasi 20m","sisi":"Kaki D","Z_m":20,"N_m":9270496.993,"E_m":712000.006,"keterangan":""},
+  {"label":"Elevasi 30m","sisi":"Kaki D","Z_m":30,"N_m":9270496.9842,"E_m":712000.0135,"keterangan":""},
+  {"label":"Elevasi 40m","sisi":"Kaki D","Z_m":40,"N_m":9270496.972,"E_m":712000.024,"keterangan":""}
+ ],
+ "towerOver": [
+  {"label":"Dasar","sisi":"Kaki 1","Z_m":0,"N_m":9302101.5,"E_m":698202.6,"keterangan":""},
+  {"label":"Elevasi 7.5m","sisi":"Kaki 1","Z_m":7.5,"N_m":9302101.5002,"E_m":698202.6004,"keterangan":""},
+  {"label":"Elevasi 15m","sisi":"Kaki 1","Z_m":15,"N_m":9302101.5008,"E_m":698202.6015,"keterangan":""},
+  {"label":"Elevasi 22.5m","sisi":"Kaki 1","Z_m":22.5,"N_m":9302101.5017,"E_m":698202.6034,"keterangan":""},
+  {"label":"Elevasi 30m","sisi":"Kaki 1","Z_m":30,"N_m":9302101.503,"E_m":698202.606,"keterangan":""},
+  {"label":"Dasar","sisi":"Kaki 2","Z_m":0,"N_m":9302101.5,"E_m":698197.4,"keterangan":""},
+  {"label":"Elevasi 7.5m","sisi":"Kaki 2","Z_m":7.5,"N_m":9302101.5034,"E_m":698197.406,"keterangan":""},
+  {"label":"Elevasi 15m","sisi":"Kaki 2","Z_m":15,"N_m":9302101.5135,"E_m":698197.424,"keterangan":""},
+  {"label":"Elevasi 22.5m","sisi":"Kaki 2","Z_m":22.5,"N_m":9302101.5304,"E_m":698197.454,"keterangan":""},
+  {"label":"Elevasi 30m","sisi":"Kaki 2","Z_m":30,"N_m":9302101.554,"E_m":698197.496,"keterangan":""},
+  {"label":"Dasar","sisi":"Kaki 3","Z_m":0,"N_m":9302097.0,"E_m":698200.0,"keterangan":""},
+  {"label":"Elevasi 7.5m","sisi":"Kaki 3","Z_m":7.5,"N_m":9302097.0004,"E_m":698199.9994,"keterangan":""},
+  {"label":"Elevasi 15m","sisi":"Kaki 3","Z_m":15,"N_m":9302097.0015,"E_m":698199.9978,"keterangan":""},
+  {"label":"Elevasi 22.5m","sisi":"Kaki 3","Z_m":22.5,"N_m":9302097.0034,"E_m":698199.9949,"keterangan":""},
+  {"label":"Elevasi 30m","sisi":"Kaki 3","Z_m":30,"N_m":9302097.006,"E_m":698199.991,"keterangan":""}
+ ],
+ "pagar": [
+  {"label":"Dasar","sisi":"Tiang P1","Z_m":0,"N_m":918000.0,"E_m":450000.0,"keterangan":""},
+  {"label":"Atas","sisi":"Tiang P1","Z_m":2.2,"N_m":918000.003,"E_m":450000.008,"keterangan":""},
+  {"label":"Dasar","sisi":"Tiang P2","Z_m":0,"N_m":918000.0,"E_m":450010.0,"keterangan":""},
+  {"label":"Atas","sisi":"Tiang P2","Z_m":2.2,"N_m":917999.995,"E_m":450010.012,"keterangan":""},
+  {"label":"Dasar","sisi":"Tiang P3","Z_m":0,"N_m":918000.0,"E_m":450020.0,"keterangan":""},
+  {"label":"Atas","sisi":"Tiang P3","Z_m":2.2,"N_m":918000.004,"E_m":450020.006,"keterangan":""},
+  {"label":"Dasar","sisi":"Tiang P4","Z_m":0,"N_m":918000.0,"E_m":450030.0,"keterangan":""},
+  {"label":"Atas","sisi":"Tiang P4","Z_m":2.2,"N_m":918000.01,"E_m":450030.022,"keterangan":""},
+  {"label":"Dasar","sisi":"Tiang P5","Z_m":0,"N_m":918000.0,"E_m":450040.0,"keterangan":""},
+  {"label":"Atas","sisi":"Tiang P5","Z_m":2.2,"N_m":918000.002,"E_m":450040.005,"keterangan":""}
+ ],
+ "silo": [
+  {"label":"Dasar","sisi":"Sisi Utara","Z_m":0,"N_m":9245303.0,"E_m":812500.0,"keterangan":"","jarakUkurBM_m":72.858},
+  {"label":"Elevasi 7.5m","sisi":"Sisi Utara","Z_m":7.5,"N_m":9245303.0125,"E_m":812500.0,"keterangan":"","jarakUkurBM_m":72.877},
+  {"label":"Elevasi 15m","sisi":"Sisi Utara","Z_m":15,"N_m":9245303.025,"E_m":812500.0,"keterangan":"","jarakUkurBM_m":72.878},
+  {"label":"Dasar","sisi":"Sisi Timur","Z_m":0,"N_m":9245300.0,"E_m":812503.0,"keterangan":"","jarakUkurBM_m":72.868},
+  {"label":"Elevasi 7.5m","sisi":"Sisi Timur","Z_m":7.5,"N_m":9245300.0,"E_m":812503.01,"keterangan":"","jarakUkurBM_m":72.865},
+  {"label":"Elevasi 15m","sisi":"Sisi Timur","Z_m":15,"N_m":9245300.0,"E_m":812503.02,"keterangan":"","jarakUkurBM_m":72.876},
+  {"label":"Dasar","sisi":"Sisi Selatan","Z_m":0,"N_m":9245297.0,"E_m":812500.0,"keterangan":"","jarakUkurBM_m":68.629},
+  {"label":"Elevasi 7.5m","sisi":"Sisi Selatan","Z_m":7.5,"N_m":9245296.985,"E_m":812500.0,"keterangan":"","jarakUkurBM_m":68.613},
+  {"label":"Elevasi 15m","sisi":"Sisi Selatan","Z_m":15,"N_m":9245296.97,"E_m":812500.0,"keterangan":"","jarakUkurBM_m":68.606},
+  {"label":"Dasar","sisi":"Sisi Barat","Z_m":0,"N_m":9245300.0,"E_m":812497.0,"keterangan":"","jarakUkurBM_m":68.615},
+  {"label":"Elevasi 7.5m","sisi":"Sisi Barat","Z_m":7.5,"N_m":9245300.0,"E_m":812496.97,"keterangan":"","jarakUkurBM_m":68.6},
+  {"label":"Elevasi 15m","sisi":"Sisi Barat","Z_m":15,"N_m":9245300.0,"E_m":812496.94,"keterangan":"","jarakUkurBM_m":69.031}
+ ],
+ "cerobong": [
+  {"label":"Dasar","sisi":"Sisi A","Z_m":0,"N_m":9130450.0,"E_m":325801.0,"keterangan":""},
+  {"label":"Elevasi 12m","sisi":"Sisi A","Z_m":12,"N_m":9130450.0006,"E_m":325801.0053,"keterangan":""},
+  {"label":"Elevasi 24m","sisi":"Sisi A","Z_m":24,"N_m":9130450.0024,"E_m":325801.0212,"keterangan":""},
+  {"label":"Elevasi 35m","sisi":"Sisi A","Z_m":35,"N_m":9130450.005,"E_m":325801.045,"keterangan":""},
+  {"label":"Dasar","sisi":"Sisi B","Z_m":0,"N_m":9130450.0,"E_m":325799.0,"keterangan":""},
+  {"label":"Elevasi 12m","sisi":"Sisi B","Z_m":12,"N_m":9130449.9991,"E_m":325798.992,"keterangan":""},
+  {"label":"Elevasi 24m","sisi":"Sisi B","Z_m":24,"N_m":9130449.9962,"E_m":325798.968,"keterangan":""},
+  {"label":"Elevasi 35m","sisi":"Sisi B","Z_m":35,"N_m":9130449.992,"E_m":325798.932,"keterangan":""}
+ ]
+};
+/* =========================================================================
+   Survey Verticality Suite – Aplikasi Utama (REVISI 2)
+   ========================================================================= */
+(function(){
+  'use strict';
+  var E = window.VertEngine;
+  var $ = function(id){ return document.getElementById(id); };
+  var $$ = function(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); };
+  function uid(){ return 'p'+Math.random().toString(36).slice(2,9); }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '–'; d=(d===undefined)?2:d; return Number(n).toFixed(d); }
+  function toast(msg, ms){
+    var t=document.createElement('div'); t.className='vert-toast'; t.textContent=msg;
+    document.body.appendChild(t); setTimeout(function(){ t.remove(); }, ms||2200);
+  }
+  function downloadFile(name, content, mime){
+    var blob = (content instanceof Blob) ? content : new Blob([content],{type:mime});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },200);
+  }
+  var SISI_PALETTE = ['#EA580C','#1E293B','#0EA5E9','#7C3AED','#15803D','#DB2777','#CA8A04','#0F766E'];
+  function colorForSisi(sisi, sisiOrder){
+    var idx = sisiOrder.indexOf(sisi);
+    return SISI_PALETTE[idx % SISI_PALETTE.length];
+  }
+  function esc(s){ return String(s===undefined||s===null?'':s).replace(/"/g,'&quot;'); }
+
+  var SHAPE_BY_JENIS = {
+    tower:    {baseWidth:110, topWidth:28},
+    cerobong: {baseWidth:50,  topWidth:20},
+    silo:     {baseWidth:92,  topWidth:86},
+    pagar:    {baseWidth:74,  topWidth:68},
+    kolom:    {baseWidth:54,  topWidth:48},
+    dinding:  {baseWidth:60,  topWidth:54},
+    core:     {baseWidth:64,  topWidth:58},
+    tiang:    {baseWidth:50,  topWidth:46},
+    pilar:    {baseWidth:58,  topWidth:50},
+    lainnya:  {baseWidth:54,  topWidth:48}
+  };
+  function shapeForJenis(j){ return SHAPE_BY_JENIS[j] || SHAPE_BY_JENIS.lainnya; }
+
+  /* =========================== STATE =========================== */
+  var state = {
+    project: {
+      nama:'Pembangunan Gedung Kantor', lokasi:'Jakarta', referensi:'VRT-001', tanggal:'',
+      surveyor:'', alat:'Total Station', jenis:'kolom', tinggi:20, jumlahSisi:2,
+      tolPreset:'aisc303', toleransi:{ratioDenom:500, capMm:50, capMode:'ceiling'},
+      metode:'base',
+      bm:{aktif:false, N_m:0, E_m:0, nama:'BM-1'}
+    },
+    points: [],
+    exagger: 20,
+    visSisi: '__all__',
+    lastAnalysis: null,
+    lastSummary: null
+  };
+  window.VertState = state;
+
+  /* =========================== TAB SWITCH =========================== */
+  var TAB_KEYS = ['proyek','data','visual','analisis','laporan'];
+  function showTab(key){
+    TAB_KEYS.forEach(function(k){ $('vert-view-'+k).classList.toggle('vert-hidden', k!==key); });
+    $$('.vert-tab').forEach(function(btn){ btn.classList.toggle('active', btn.getAttribute('data-tab')===key); });
+    if (key==='data') renderPointsTable();
+    if (key==='visual' && window.VertApp.renderVisualizations) window.VertApp.renderVisualizations();
+    if (key==='analisis' && window.VertApp.renderAnalysisTab) window.VertApp.renderAnalysisTab();
+  }
+  $$('.vert-tab').forEach(function(btn){
+    btn.addEventListener('click', function(){ showTab(btn.getAttribute('data-tab')); });
+  });
+
+  /* =========================================================================
+     TAB 1: PROYEK & STANDAR
+     ========================================================================= */
+  function syncProjectFromForm(){
+    var p = state.project;
+    p.nama = $('vpNama').value; p.lokasi = $('vpLokasi').value; p.referensi = $('vpReferensi').value;
+    p.tanggal = $('vpTanggal').value; p.surveyor = $('vpSurveyor').value; p.alat = $('vpAlat').value;
+    p.jenis = $('vpJenis').value;
+    p.tinggi = parseFloat($('vpTinggi').value)||1;
+    p.jumlahSisi = parseInt($('vpJumlahSisi').value,10)||1;
+    p.toleransi = {
+      ratioDenom: parseFloat($('vpTolRatio').value)||500,
+      capMm: $('vpTolCap').value===''?null:parseFloat($('vpTolCap').value),
+      capMode: $('vpTolCapMode').value
+    };
+    p.metode = document.querySelector('input[name="vpMetode"]:checked').value;
+    p.bm = {
+      aktif: $('vpBmAktif').checked,
+      N_m: parseFloat($('vpBmN').value)||0,
+      E_m: parseFloat($('vpBmE').value)||0,
+      nama: $('vpBmNama').value || 'BM-1'
+    };
+    updateTolFormulaNote();
+    updateMetodeNote();
+  }
+
+  function applyPreset(presetKey){
+    var preset = E.TOLERANSI_PRESETS[presetKey];
+    if (preset){
+      $('vpTolRatio').value = preset.ratioDenom;
+      $('vpTolCap').value = preset.capMm===null||preset.capMm===undefined ? '' : preset.capMm;
+      $('vpTolCapMode').value = preset.capMode || 'ceiling';
+    }
+  }
+  $('vpTolPreset').addEventListener('change', function(){
+    if (this.value !== 'manual') applyPreset(this.value);
+    syncProjectFromForm();
+  });
+  ['vpNama','vpLokasi','vpReferensi','vpTanggal','vpSurveyor','vpAlat','vpJenis','vpTinggi','vpJumlahSisi',
+   'vpTolRatio','vpTolCap','vpTolCapMode','vpBmAktif','vpBmN','vpBmE','vpBmNama'].forEach(function(id){
+    $(id).addEventListener('input', syncProjectFromForm);
+    $(id).addEventListener('change', syncProjectFromForm);
+  });
+  $$('input[name="vpMetode"]').forEach(function(r){ r.addEventListener('change', syncProjectFromForm); });
+
+  function updateTolFormulaNote(){
+    var p = state.project;
+    var contoh_d = p.tinggi*1000;
+    var contohTol = E.toleransiValue(contoh_d, p.toleransi);
+    var modeTxt = p.toleransi.capMode==='floor' ? 'minimum' : 'maksimum';
+    var capTxt = (p.toleransi.capMm!==null && p.toleransi.capMm!==undefined) ? (', dibatasi '+modeTxt+' '+p.toleransi.capMm+' mm') : '';
+    $('vpTolFormula').innerHTML = 'Formula: <b>Toleransi (mm) = d (mm) &divide; '+p.toleransi.ratioDenom+'</b>'+capTxt+'.<br>'+
+      'Contoh: pada tinggi total objek ('+fmt(p.tinggi,1)+' m = '+fmt(contoh_d,0)+' mm), toleransi = <b>'+fmt(contohTol,2)+' mm</b>.';
+  }
+  function updateMetodeNote(){
+    var m = state.project.metode;
+    var note = m === 'bestfit'
+      ? 'Metode regresi: kemiringan keseluruhan dihitung dari kemiringan garis regresi linier (least-squares) terhadap seluruh titik per sisi; deviasi tiap titik dilaporkan sebagai residual (selisih dari garis tren) – baik untuk mendeteksi tonjolan/cekungan lokal selain kemiringan global.'
+      : m === 'incremental'
+      ? 'Metode per section: setiap titik dibandingkan terhadap titik SEBELUMNYA (bukan titik dasar) – cocok untuk inspeksi tower/struktur bertingkat dengan banyak level pengukuran berurutan, mendeteksi kemiringan lokal di tiap section.'
+      : 'Metode titik dasar: seluruh titik pada satu sisi dibandingkan langsung terhadap titik dengan elevasi (Z) terkecil (titik dasar/acuan) – sesuai praktik lapangan umum (lihat AISC 303 §7.13: garis kerja menghubungkan titik kerja bawah & atas).';
+    $('vpMetodeNote').textContent = note;
+  }
+
+  /* ---------- Contoh Proyek ---------- */
+  var EXAMPLE_META = {
+    kolom: {
+      label: 'Kolom Gedung (4 titik)', desc: 'Kolom &amp; dinding – replikasi Tabel 2 hasil pengukuran kemiringan bangunan',
+      project: {nama:'Pembangunan Gedung Kantor', lokasi:'Jakarta', referensi:'ADP-PK-K-POS-F-INS-09', surveyor:'Tim Survei', alat:'Total Station', jenis:'kolom', tinggi:5.7, jumlahSisi:5, tolPreset:'tank200', toleransi:{ratioDenom:200,capMm:null,capMode:'ceiling'}, metode:'base', bm:{aktif:false,N_m:0,E_m:0,nama:'BM-1'}}
+    },
+    tower4kaki: {
+      label: 'Tower Telekomunikasi 4 Kaki (40m)', desc: 'Menara BTS – 4 kaki (A,B,C,D), 5 level elevasi per kaki',
+      project: {nama:'Pemeriksaan Ketegakan Tower BTS', lokasi:'Site ABC-001', referensi:'FM.102-TNC.PRI', surveyor:'Tim CME', alat:'Theodolite', jenis:'tower', tinggi:40, jumlahSisi:4, tolPreset:'tower2000', toleransi:{ratioDenom:2000,capMm:null,capMode:'ceiling'}, metode:'base', bm:{aktif:false,N_m:0,E_m:0,nama:'BM-1'}}
+    },
+    towerOver: {
+      label: 'Tower 3 Kaki – Melebihi Toleransi', desc: 'Menara segitiga 30m dengan kemiringan signifikan pada satu kaki',
+      project: {nama:'Inspeksi Tower Akibat Dugaan Kemiringan', lokasi:'Site XYZ-017', referensi:'FM.102-TNC.PRI', surveyor:'Tim CME', alat:'Total Station', jenis:'tower', tinggi:30, jumlahSisi:3, tolPreset:'tower2000', toleransi:{ratioDenom:2000,capMm:null,capMode:'ceiling'}, metode:'base', bm:{aktif:false,N_m:0,E_m:0,nama:'BM-1'}}
+    },
+    pagar: {
+      label: 'Pagar / Dinding Pembatas (5 tiang)', desc: 'Pagar sepanjang 40m, 5 segmen tiang, tinggi 2.2m',
+      project: {nama:'Pemeriksaan Ketegakan Pagar Keliling', lokasi:'Area Perimeter Pabrik', referensi:'VRT-PGR-01', surveyor:'Tim Survei', alat:'Total Station', jenis:'pagar', tinggi:2.2, jumlahSisi:5, tolPreset:'pagar100', toleransi:{ratioDenom:100,capMm:null,capMode:'ceiling'}, metode:'base', bm:{aktif:false,N_m:0,E_m:0,nama:'BM-1'}}
+    },
+    silo: {
+      label: 'Tangki / Silo Penyimpanan (15m)', desc: '4 sisi keliling, 3 level – dengan cross-check Benchmark (BM)',
+      project: {nama:'Inspeksi Verticality Tangki Penyimpanan', lokasi:'Area Tangki T-04', referensi:'VRT-TNK-04', surveyor:'Tim QC', alat:'Total Station', jenis:'silo', tinggi:15, jumlahSisi:4, tolPreset:'tank200', toleransi:{ratioDenom:200,capMm:null,capMode:'ceiling'}, metode:'base', bm:{aktif:true,N_m:9245250.000,E_m:812450.000,nama:'BM-T04'}}
+    },
+    cerobong: {
+      label: 'Cerobong Asap Industri (35m)', desc: '2 sisi berlawanan, struktur langsing – salah satu sisi melebihi toleransi',
+      project: {nama:'Inspeksi Ketegakan Cerobong Boiler', lokasi:'Area Boiler Plant', referensi:'VRT-CRB-01', surveyor:'Tim QC', alat:'Total Station', jenis:'cerobong', tinggi:35, jumlahSisi:2, tolPreset:'cerobong600', toleransi:{ratioDenom:600,capMm:25,capMode:'floor'}, metode:'base', bm:{aktif:false,N_m:0,E_m:0,nama:'BM-1'}}
+    }
+  };
+
+  function renderExampleCards(){
+    var html = '';
+    Object.keys(EXAMPLE_META).forEach(function(key){
+      var ex = EXAMPLE_META[key];
+      html += '<div class="vert-examplecard" data-ex="'+key+'"><b>'+ex.label+'</b><small>'+ex.desc+'</small></div>';
+    });
+    $('vertExampleRow').innerHTML = html;
+    $$('.vert-examplecard').forEach(function(card){
+      card.addEventListener('click', function(){ loadExample(card.getAttribute('data-ex')); });
+    });
+  }
+  function loadExample(key){
+    var meta = EXAMPLE_META[key];
+    var raw = window.EXAMPLES_RAW && window.EXAMPLES_RAW[key];
+    if (!meta || !raw){ toast('Contoh tidak ditemukan.'); return; }
+    state.project = JSON.parse(JSON.stringify(meta.project));
+    state.points = raw.map(function(p){ return Object.assign({id:uid()}, p); });
+    populateProjectForm();
+    renderPointsTable();
+    renderSisiFilterChips();
+    toast('Contoh "'+meta.label+'" dimuat: '+state.points.length+' titik.');
+    showTab('data');
+  }
+
+  function populateProjectForm(){
+    var p = state.project;
+    $('vpNama').value = p.nama; $('vpLokasi').value = p.lokasi; $('vpReferensi').value = p.referensi;
+    $('vpTanggal').value = p.tanggal; $('vpSurveyor').value = p.surveyor; $('vpAlat').value = p.alat;
+    $('vpJenis').value = p.jenis; $('vpTinggi').value = p.tinggi; $('vpJumlahSisi').value = p.jumlahSisi;
+    $('vpTolPreset').value = p.tolPreset || 'manual';
+    $('vpTolRatio').value = p.toleransi.ratioDenom;
+    $('vpTolCap').value = (p.toleransi.capMm===null||p.toleransi.capMm===undefined) ? '' : p.toleransi.capMm;
+    $('vpTolCapMode').value = p.toleransi.capMode || 'ceiling';
+    document.querySelector('input[name="vpMetode"][value="'+p.metode+'"]').checked = true;
+    $('vpBmAktif').checked = !!(p.bm && p.bm.aktif);
+    $('vpBmN').value = p.bm ? p.bm.N_m : 0;
+    $('vpBmE').value = p.bm ? p.bm.E_m : 0;
+    $('vpBmNama').value = p.bm ? p.bm.nama : 'BM-1';
+    updateTolFormulaNote(); updateMetodeNote();
+  }
+
+  /* =========================================================================
+     TAB 2: DATA PENGUKURAN
+     ========================================================================= */
+  function sisiList(){
+    var seen = {}; var order = [];
+    state.points.forEach(function(p){ if (!seen[p.sisi]){ seen[p.sisi]=true; order.push(p.sisi); } });
+    return order;
+  }
+
+  function renderSisiFilterChips(){
+    var sisis = sisiList();
+    var html = '<div class="vert-chip'+(state.dataFilterSisi===undefined?' active':'')+'" data-sisi="__all__">Semua Sisi</div>';
+    sisis.forEach(function(s){
+      html += '<div class="vert-chip'+(state.dataFilterSisi===s?' active':'')+'" data-sisi="'+esc(s)+'">'+s+'</div>';
+    });
+    $('vertSisiFilterRow').innerHTML = html;
+    $$('#vertSisiFilterRow .vert-chip').forEach(function(chip){
+      chip.addEventListener('click', function(){
+        var v = chip.getAttribute('data-sisi');
+        state.dataFilterSisi = (v==='__all__') ? undefined : v;
+        renderSisiFilterChips(); renderPointsTable();
+      });
+    });
+  }
+
+  function renderPointsTable(){
+    var pts = state.points;
+    var filtered = state.dataFilterSisi ? pts.filter(function(p){return p.sisi===state.dataFilterSisi;}) : pts;
+    var showBM = state.project.bm && state.project.bm.aktif;
+    var rows = '<tr><th style="width:14%;">Label</th><th style="width:16%;">Sisi</th><th>Elevasi Z (m)</th><th>Northing N (m)</th><th>Easting E (m)</th>'+
+      (showBM ? '<th>Jarak Ukur ke BM (m)</th>' : '')+'<th>Keterangan</th><th></th></tr>';
+    if (!filtered.length){
+      rows += '<tr><td colspan="8" style="color:var(--c-muted);">Belum ada titik data. Tambahkan titik atau muat contoh proyek.</td></tr>';
+    }
+    filtered.forEach(function(p){
+      rows += '<tr data-id="'+p.id+'">'+
+        '<td><input type="text" class="vp-label" value="'+esc(p.label)+'"></td>'+
+        '<td><input type="text" class="vp-sisi" value="'+esc(p.sisi)+'"></td>'+
+        '<td><input type="number" step="0.001" class="vp-z" value="'+p.Z_m+'"></td>'+
+        '<td><input type="number" step="0.001" class="vp-n" value="'+p.N_m+'"></td>'+
+        '<td><input type="number" step="0.001" class="vp-e" value="'+p.E_m+'"></td>'+
+        (showBM ? '<td><input type="number" step="0.001" class="vp-bm" value="'+(p.jarakUkurBM_m!==undefined&&p.jarakUkurBM_m!==null?p.jarakUkurBM_m:'')+'" placeholder="opsional"></td>' : '')+
+        '<td><input type="text" class="vp-ket" value="'+esc(p.keterangan||'')+'"></td>'+
+        '<td><button class="vert-btn sm danger vp-del" type="button">&times;</button></td></tr>';
+    });
+    $('vertPointsTable').innerHTML = rows;
+    $$('#vertPointsTable tr[data-id]').forEach(function(tr){
+      var id = tr.getAttribute('data-id');
+      var p = state.points.find(function(x){return x.id===id;});
+      function bind(sel, field, isNum){
+        var el = tr.querySelector(sel);
+        if (!el) return;
+        el.addEventListener('input', function(e){
+          p[field] = isNum ? (e.target.value===''?null:(parseFloat(e.target.value)||0)) : e.target.value;
+          if (field==='sisi') renderSisiFilterChips();
+        });
+      }
+      bind('.vp-label','label',false);
+      bind('.vp-sisi','sisi',false);
+      bind('.vp-z','Z_m',true);
+      bind('.vp-n','N_m',true);
+      bind('.vp-e','E_m',true);
+      bind('.vp-bm','jarakUkurBM_m',true);
+      bind('.vp-ket','keterangan',false);
+      tr.querySelector('.vp-del').addEventListener('click', function(){
+        state.points = state.points.filter(function(x){return x.id!==id;});
+        renderPointsTable(); renderSisiFilterChips();
+      });
+    });
+  }
+
+  $('vertAddPoint').addEventListener('click', function(){
+    var sisis = sisiList();
+    var defaultSisi = state.dataFilterSisi || sisis[0] || 'Sisi A';
+    var lastInSisi = state.points.filter(function(p){return p.sisi===defaultSisi;}).slice(-1)[0];
+    var baseN = lastInSisi ? lastInSisi.N_m : 0, baseE = lastInSisi ? lastInSisi.E_m : 0;
+    state.points.push({id:uid(), label:'Titik Baru', sisi:defaultSisi, Z_m:0, N_m:baseN, E_m:baseE, jarakUkurBM_m:null, keterangan:''});
+    renderPointsTable(); renderSisiFilterChips();
+  });
+
+  $('vertAddBulk').addEventListener('click', function(){
+    var sisiName = prompt('Nama sisi/kaki baru:', 'Sisi '+(sisiList().length+1));
+    if (!sisiName) return;
+    var n = parseInt(prompt('Jumlah titik elevasi (termasuk dasar):', '5'), 10) || 5;
+    var baseN = parseFloat(prompt('Northing (N) titik dasar (m):', '0')) || 0;
+    var baseE = parseFloat(prompt('Easting (E) titik dasar (m):', '0')) || 0;
+    var H = state.project.tinggi;
+    for (var i=0;i<n;i++){
+      var z = H * i/(n-1);
+      state.points.push({id:uid(), label: i===0?'Dasar':'Elevasi '+fmt(z,1)+'m', sisi:sisiName, Z_m: Math.round(z*1000)/1000, N_m:baseN, E_m:baseE, jarakUkurBM_m:null, keterangan:''});
+    }
+    renderPointsTable(); renderSisiFilterChips();
+    toast(n+' titik ditambahkan untuk "'+sisiName+'". Isi Northing/Easting hasil ukur sesungguhnya pada tiap baris.');
+  });
+
+  $('vertClearPoints').addEventListener('click', function(){
+    if (state.points.length && !confirm('Hapus semua titik data?')) return;
+    state.points = [];
+    renderPointsTable(); renderSisiFilterChips();
+  });
+
+  $('vertImportCsv').addEventListener('click', function(){
+    var raw = $('vertCsvInput').value.trim();
+    if (!raw){ toast('Tempel data terlebih dahulu.'); return; }
+    var lines = raw.split('\n').map(function(l){return l.trim();}).filter(Boolean);
+    var added = 0;
+    lines.forEach(function(line){
+      var parts = line.split(/[,\t]/).map(function(s){return s.trim();});
+      if (parts.length < 5) return;
+      state.points.push({
+        id:uid(), label: parts[0]||'Titik', sisi: parts[1]||'Sisi A',
+        Z_m: parseFloat(parts[2])||0, N_m: parseFloat(parts[3])||0, E_m: parseFloat(parts[4])||0,
+        jarakUkurBM_m: parts[5]!==undefined && parts[5]!=='' ? parseFloat(parts[5]) : null,
+        keterangan: parts[6]||''
+      });
+      added++;
+    });
+    renderPointsTable(); renderSisiFilterChips();
+    $('vertCsvInput').value = '';
+    toast(added+' titik berhasil diimpor.');
+  });
+
+  /* expose for other parts */
+  window.VertApp = {
+    state: state, showTab: showTab, sisiList: sisiList, colorForSisi: colorForSisi,
+    fmt: fmt, esc: esc, uid: uid, clamp: clamp, toast: toast, downloadFile: downloadFile,
+    SISI_PALETTE: SISI_PALETTE, syncProjectFromForm: syncProjectFromForm,
+    renderPointsTable: renderPointsTable, renderSisiFilterChips: renderSisiFilterChips,
+    shapeForJenis: shapeForJenis
+  };
+
+  renderExampleCards();
+  populateProjectForm();
+  renderSisiFilterChips();
+  $('vpTanggal').value = new Date().toISOString().slice(0,10);
+})();
+
+/* =========================================================================
+   Survey Verticality Suite – Visualisasi, Analisis, Laporan (REVISI 2)
+   ========================================================================= */
+(function(){
+  'use strict';
+  var E = window.VertEngine;
+  var App = window.VertApp;
+  var state = App.state;
+  var $ = function(id){ return document.getElementById(id); };
+  var $$ = function(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); };
+  var fmt = App.fmt, esc = App.esc, toast = App.toast, downloadFile = App.downloadFile, clamp = App.clamp;
+
+  function runAnalysis(){
+    App.syncProjectFromForm();
+    var p = state.project;
+    if (!state.points.length){ state.lastAnalysis = []; state.lastSummary = null; return []; }
+    var results = E.analyze(state.points, {method:p.metode, toleransi:p.toleransi, bm:p.bm});
+    state.lastAnalysis = results;
+    state.lastSummary = E.summarize(results);
+    return results;
+  }
+  window.VertApp.runAnalysis = runAnalysis;
+
+  function sisiOrderCached(){ return App.sisiList(); }
+  function pxPerMm(){ return state.exagger * 0.05; }
+
+  /* =========================================================================
+     TAB 3: VISUALISASI
+     ========================================================================= */
+  function refreshVisSisiOptions(){
+    var sel = $('vertVisSisi');
+    var sisis = sisiOrderCached();
+    var cur = state.visSisi;
+    sel.innerHTML = '<option value="__all__">Semua Sisi</option>' +
+      sisis.map(function(s){ return '<option value="'+esc(s)+'"'+(cur===s?' selected':'')+'>'+s+'</option>'; }).join('');
+  }
+
+  function renderElevationSVG(results, project, sisiFilter){
+    var sisiOrder = sisiOrderCached();
+    var filtered = (sisiFilter && sisiFilter!=='__all__') ? results.filter(function(r){return r.sisi===sisiFilter;}) : results;
+    if (!filtered.length) return '<div style="padding:40px;text-align:center;color:#999;font-size:13px;">Belum ada data untuk ditampilkan.</div>';
+
+    var W=380, H=460, marginTop=26, marginBottom=40;
+    var plotH = H-marginTop-marginBottom;
+    var centerX = W/2;
+    var Hm = Math.max(project.tinggi, 0.1);
+    function zToY(z){ return marginTop + (1-z/Hm)*plotH; }
+    var scale = pxPerMm();
+
+    var by = zToY(0), ty = zToY(Hm);
+    var shape = App.shapeForJenis(project.jenis);
+    var baseWidth = shape.baseWidth, topWidth = shape.topWidth;
+
+    var svg = [];
+    svg.push('<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:420px;display:block;margin:0 auto;font-family:Inter,sans-serif;">');
+
+    svg.push('<polygon points="'+(centerX-baseWidth/2)+','+by+' '+(centerX+baseWidth/2)+','+by+' '+(centerX+topWidth/2)+','+ty+' '+(centerX-topWidth/2)+','+ty+'" fill="#F5F1EA" stroke="#D8D2C8" stroke-width="1.5"/>');
+
+    svg.push('<line x1="14" y1="'+by+'" x2="'+(W-14)+'" y2="'+by+'" stroke="#A39A8A" stroke-width="2"/>');
+    for (var gx=14; gx<W-14; gx+=11){ svg.push('<line x1="'+gx+'" y1="'+by+'" x2="'+(gx-6)+'" y2="'+(by+7)+'" stroke="#C7BEB0" stroke-width="1"/>'); }
+
+    svg.push('<line x1="'+centerX+'" y1="'+by+'" x2="'+centerX+'" y2="'+(ty-4)+'" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3"/>');
+
+    var steps=24, leftPath=[], rightPath=[];
+    for (var i=0;i<=steps;i++){
+      var z = Hm*i/steps;
+      var tol = E.toleransiValue(Math.max(z*1000,1), project.toleransi);
+      var px = tol*scale;
+      var y = zToY(z);
+      leftPath.push((centerX-px).toFixed(1)+','+y.toFixed(1));
+      rightPath.push((centerX+px).toFixed(1)+','+y.toFixed(1));
+    }
+    if (project.metode==='base'){
+      svg.push('<polyline points="'+leftPath.join(' ')+'" fill="none" stroke="#FDBA74" stroke-width="1.2" stroke-dasharray="3,3"/>');
+      svg.push('<polyline points="'+rightPath.join(' ')+'" fill="none" stroke="#FDBA74" stroke-width="1.2" stroke-dasharray="3,3"/>');
+    }
+
+    var grouped = {};
+    filtered.forEach(function(r){ (grouped[r.sisi]=grouped[r.sisi]||[]).push(r); });
+    Object.keys(grouped).forEach(function(sisi){
+      var pts = grouped[sisi].slice().sort(function(a,b){return a.Z_m-b.Z_m;});
+      var color = App.colorForSisi(sisi, sisiOrder);
+      var base = pts[0];
+      var pathPts = pts.map(function(r){
+        var cumDN = (r.N_m-base.N_m)*1000, cumDE = (r.E_m-base.E_m)*1000;
+        var x = centerX + cumDE*scale;
+        var y = zToY(r.Z_m);
+        return x.toFixed(1)+','+y.toFixed(1);
+      });
+      svg.push('<polyline points="'+pathPts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2"/>');
+      pts.forEach(function(r){
+        var cumDE = (r.E_m-base.E_m)*1000;
+        var x = centerX + cumDE*scale;
+        var y = zToY(r.Z_m);
+        var fillC = r.status==='OVER' ? '#DC2626' : color;
+        svg.push('<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="4.2" fill="'+fillC+'" stroke="#fff" stroke-width="1.2"/>');
+      });
+    });
+
+    svg.push('<text x="'+(W-8)+'" y="'+(ty+4)+'" font-size="10" fill="#6B6356" text-anchor="end">Top</text>');
+    svg.push('<text x="'+(W-8)+'" y="'+(by-2)+'" font-size="10" fill="#6B6356" text-anchor="end">H='+fmt(Hm,1)+'m</text>');
+
+    svg.push('</svg>');
+    return svg.join('');
+  }
+
+  function renderPlanSVG(results, project, sisiFilter){
+    var sisiOrder = sisiOrderCached();
+    var filtered = (sisiFilter && sisiFilter!=='__all__') ? results.filter(function(r){return r.sisi===sisiFilter;}) : results;
+    if (!filtered.length) return '<div style="padding:40px;text-align:center;color:#999;font-size:13px;">Belum ada data untuk ditampilkan.</div>';
+
+    var W=340, H=340, cx=W/2, cy=H/2;
+    var scale = pxPerMm();
+    var Hm = Math.max(project.tinggi,0.1);
+    var tolAtTop = E.toleransiValue(Math.max(Hm*1000,1), project.toleransi);
+
+    var svg = [];
+    svg.push('<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:380px;display:block;margin:0 auto;font-family:Inter,sans-serif;">');
+
+    svg.push('<line x1="10" y1="'+cy+'" x2="'+(W-10)+'" y2="'+cy+'" stroke="#E7E2DC" stroke-width="1"/>');
+    svg.push('<line x1="'+cx+'" y1="10" x2="'+cx+'" y2="'+(H-10)+'" stroke="#E7E2DC" stroke-width="1"/>');
+    svg.push('<text x="'+(W-14)+'" y="'+(cy-4)+'" font-size="9" fill="#A39A8A" text-anchor="end">Timur</text>');
+    svg.push('<text x="'+(cx+5)+'" y="16" font-size="9" fill="#A39A8A">Utara</text>');
+
+    var rTol = tolAtTop*scale;
+    if (rTol>0 && rTol < W){
+      svg.push('<circle cx="'+cx+'" cy="'+cy+'" r="'+rTol.toFixed(1)+'" fill="none" stroke="#FDBA74" stroke-width="1.3" stroke-dasharray="3,3"/>');
+      svg.push('<text x="'+(cx+rTol*0.7071+3)+'" y="'+(cy-rTol*0.7071-3)+'" font-size="8.5" fill="#C2410C">toleransi @H</text>');
+    }
+    svg.push('<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#1C1917"/>');
+
+    var grouped = {};
+    filtered.forEach(function(r){ (grouped[r.sisi]=grouped[r.sisi]||[]).push(r); });
+    Object.keys(grouped).forEach(function(sisi){
+      var pts = grouped[sisi].slice().sort(function(a,b){return a.Z_m-b.Z_m;});
+      var color = App.colorForSisi(sisi, sisiOrder);
+      var base = pts[0];
+      var pathPts = pts.map(function(r){
+        var cumDN=(r.N_m-base.N_m)*1000, cumDE=(r.E_m-base.E_m)*1000;
+        var x = cx + cumDE*scale, y = cy - cumDN*scale;
+        return x.toFixed(1)+','+y.toFixed(1);
+      });
+      svg.push('<polyline points="'+pathPts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="1.6"/>');
+      pts.forEach(function(r,idx){
+        var cumDN=(r.N_m-base.N_m)*1000, cumDE=(r.E_m-base.E_m)*1000;
+        var x = cx + cumDE*scale, y = cy - cumDN*scale;
+        var fillC = r.status==='OVER' ? '#DC2626' : color;
+        var rad = idx===pts.length-1 ? 5.5 : 3.6;
+        svg.push('<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+rad+'" fill="'+fillC+'" stroke="#fff" stroke-width="1.1"/>');
+      });
+      var last = pts[pts.length-1];
+      var cumDN=(last.N_m-base.N_m)*1000, cumDE=(last.E_m-base.E_m)*1000;
+      var lx = cx+cumDE*scale, ly = cy-cumDN*scale;
+      svg.push('<text x="'+(lx+7).toFixed(1)+'" y="'+(ly+3).toFixed(1)+'" font-size="9.5" fill="'+color+'" font-weight="600">'+esc(sisi)+'</text>');
+    });
+
+    svg.push('</svg>');
+    return svg.join('');
+  }
+
+  function renderVisualizations(){
+    var results = runAnalysis();
+    refreshVisSisiOptions();
+    var p = state.project;
+    $('vertExaggerVal').textContent = '(1mm = '+fmt(pxPerMm(),2)+'px)';
+    $('vertElevWrap').innerHTML = renderElevationSVG(results, p, state.visSisi);
+    $('vertPlanWrap').innerHTML = renderPlanSVG(results, p, state.visSisi);
+  }
+  window.VertApp.renderVisualizations = renderVisualizations;
+
+  $('vertVisSisi').addEventListener('change', function(){ state.visSisi = this.value; renderVisualizations(); });
+  $('vertExagger').addEventListener('input', function(){ state.exagger = parseFloat(this.value); renderVisualizations(); });
+
+  /* =========================================================================
+     TAB 4: ANALISIS KETEGAKAN
+     ========================================================================= */
+  function arahLabel(r){
+    if (r.jarakMiring_mm < 0.5) return '–';
+    return fmt(r.azimuthDeg,0)+'° ('+r.arahKompas+')';
+  }
+
+  function renderAnalysisTab(){
+    var results = runAnalysis();
+    var summary = state.lastSummary;
+    var hasBM = state.project.bm && state.project.bm.aktif;
+
+    if (!results.length){
+      $('vertAnalisisKpi').innerHTML = '<div class="vert-kpi"><small>Status</small><b>Belum ada data</b></div>';
+      $('vertAnalisisTable').innerHTML = '<tr><td style="color:var(--c-muted);">Tambahkan data pengukuran pada tab 2.</td></tr>';
+      $('vertProfileChartWrap').innerHTML = '';
+      return;
+    }
+
+    var kpiHtml = '<div class="vert-kpi"><small>Total Titik Diukur</small><b>'+summary.total+'</b></div>'+
+      '<div class="vert-kpi '+(summary.overCount===0?'ok':'bad')+'"><small>Titik Melebihi Toleransi</small><b>'+summary.overCount+' / '+summary.total+'</b></div>'+
+      '<div class="vert-kpi"><small>Deviasi Maksimum</small><b>'+fmt(summary.maxDeviation_mm,1)+' mm</b></div>'+
+      '<div class="vert-kpi '+(summary.overallStatus==='LAYAK'?'ok':'bad')+'"><small>Status Keseluruhan</small><b>'+summary.overallStatus+'</b></div>';
+    if (hasBM){
+      kpiHtml += '<div class="vert-kpi '+(summary.bmFlagCount===0?'ok':'bad')+'"><small>Indikasi Blunder (Selisih BM &gt;50mm)</small><b>'+summary.bmFlagCount+'</b></div>';
+    }
+    $('vertAnalisisKpi').innerHTML = kpiHtml;
+
+    var rows = '<tr><th>No</th><th>Lokasi (Sisi)</th><th>Label</th><th>Acuan</th><th class="vert-num">&Delta;N (mm)</th><th class="vert-num">&Delta;E (mm)</th>'+
+      '<th class="vert-num">Jarak Miring (mm)</th><th>Arah Kemiringan</th><th class="vert-num">d (mm)</th><th class="vert-num">Toleransi (mm)</th>'+
+      (hasBM ? '<th class="vert-num">Selisih BM (mm)</th>' : '')+'<th>Keterangan</th></tr>';
+    results.forEach(function(r, i){
+      var bmCell = '';
+      if (hasBM){
+        if (r.bmInfo && r.bmInfo.selisih_mm!==null){
+          var flagged = r.bmInfo.selisih_mm > 50;
+          bmCell = '<td class="vert-num" style="'+(flagged?'color:#DC2626;font-weight:700;':'')+'">'+fmt(r.bmInfo.selisih_mm,1)+(flagged?' &#x26A0;':'')+'</td>';
+        } else bmCell = '<td class="vert-num">–</td>';
+      }
+      rows += '<tr><td>'+(i+1)+'</td><td>'+esc(r.sisi)+'</td><td>'+esc(r.label)+'</td><td style="font-size:11px;color:var(--c-muted);">'+esc(r.refLabel)+'</td>'+
+        '<td class="vert-num">'+fmt(r.deltaN_mm,2)+'</td><td class="vert-num">'+fmt(r.deltaE_mm,2)+'</td>'+
+        '<td class="vert-num">'+fmt(r.jarakMiring_mm,2)+'</td><td>'+arahLabel(r)+'</td>'+
+        '<td class="vert-num">'+fmt(r.d_mm,2)+'</td><td class="vert-num">'+fmt(r.toleransi_mm,2)+'</td>'+
+        bmCell+
+        '<td><span class="vert-tag '+(r.status==='OVER'?'bad':'ok')+'">'+r.status+'</span></td></tr>';
+    });
+    $('vertAnalisisTable').innerHTML = rows;
+
+    renderProfileChart(results);
+  }
+  window.VertApp.renderAnalysisTab = renderAnalysisTab;
+
+  function renderProfileChart(results){
+    var sisiOrder = sisiOrderCached();
+    var grouped = {};
+    results.forEach(function(r){ (grouped[r.sisi]=grouped[r.sisi]||[]).push(r); });
+
+    var W=760, H=260, padL=46, padR=14, padT=16, padB=28;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    var Hm = Math.max(state.project.tinggi,0.1);
+    var maxDev = Math.max.apply(null, results.map(function(r){return Math.max(Math.abs(r.deltaN_mm),Math.abs(r.deltaE_mm),r.toleransi_mm);})) || 10;
+    maxDev *= 1.15;
+
+    function xPix(dev){ return padL + plotW/2 + (dev/maxDev)*(plotW/2); }
+    function yPix(z){ return padT + (1-z/Hm)*plotH; }
+
+    var svg = [];
+    svg.push('<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:Inter,sans-serif;">');
+    svg.push('<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="#FDFCFB"/>');
+    for (var g=0;g<=4;g++){
+      var gy = padT + g/4*plotH;
+      var zval = Hm*(1-g/4);
+      svg.push('<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'" stroke="#EFEAE2" stroke-width="1"/>');
+      svg.push('<text x="2" y="'+(gy+3)+'" font-size="9.5" fill="#A39A8A">'+fmt(zval,1)+'m</text>');
+    }
+    svg.push('<line x1="'+xPix(0)+'" y1="'+padT+'" x2="'+xPix(0)+'" y2="'+(H-padB)+'" stroke="#94A3B8" stroke-width="1.2" stroke-dasharray="4,3"/>');
+
+    if (state.project.metode==='base'){
+      var steps=20, leftP=[], rightP=[];
+      for (var i=0;i<=steps;i++){
+        var z = Hm*i/steps;
+        var tol = E.toleransiValue(Math.max(z*1000,1), state.project.toleransi);
+        leftP.push(xPix(-tol).toFixed(1)+','+yPix(z).toFixed(1));
+        rightP.push(xPix(tol).toFixed(1)+','+yPix(z).toFixed(1));
+      }
+      svg.push('<polyline points="'+leftP.join(' ')+'" fill="none" stroke="#FDBA74" stroke-width="1.3" stroke-dasharray="3,3"/>');
+      svg.push('<polyline points="'+rightP.join(' ')+'" fill="none" stroke="#FDBA74" stroke-width="1.3" stroke-dasharray="3,3"/>');
+    }
+
+    Object.keys(grouped).forEach(function(sisi){
+      var pts = grouped[sisi].slice().sort(function(a,b){return a.Z_m-b.Z_m;});
+      var color = App.colorForSisi(sisi, sisiOrder);
+      var base = pts[0];
+      var line = pts.map(function(r){
+        var cumDE = (r.E_m-base.E_m)*1000;
+        return xPix(cumDE).toFixed(1)+','+yPix(r.Z_m).toFixed(1);
+      });
+      svg.push('<polyline points="'+line.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2"/>');
+      pts.forEach(function(r){
+        var cumDE = (r.E_m-base.E_m)*1000;
+        var x = xPix(cumDE);
+        var y = yPix(r.Z_m);
+        var fillC = r.status==='OVER' ? '#DC2626' : color;
+        svg.push('<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3.6" fill="'+fillC+'"/>');
+      });
+    });
+
+    var lx = padL; var ly = H-10;
+    sisiOrder.forEach(function(sisi){
+      var color = App.colorForSisi(sisi, sisiOrder);
+      svg.push('<rect x="'+lx+'" y="'+(ly-7)+'" width="9" height="3" fill="'+color+'"/>');
+      svg.push('<text x="'+(lx+12)+'" y="'+ly+'" font-size="9.5" fill="#6B6356">'+esc(sisi)+'</text>');
+      lx += 14 + sisi.length*5.6;
+    });
+
+    svg.push('</svg>');
+    $('vertProfileChartWrap').innerHTML = svg.join('');
+  }
+
+  /* =========================================================================
+     TAB 5: LAPORAN
+     ========================================================================= */
+  function jenisLabel(j){
+    var map = {kolom:'Kolom Bangunan', tower:'Menara/Tower Telekomunikasi', silo:'Tangki/Silo Penyimpanan',
+      cerobong:'Cerobong Asap Industri', pagar:'Pagar/Dinding Pembatas', dinding:'Dinding Struktur/Precast',
+      core:'Core Wall (Inti Bangunan)', tiang:'Tiang Pancang/Shear Wall', pilar:'Pilar Jembatan', lainnya:'Lainnya'};
+    return map[j] || j;
+  }
+  var METODE_LABEL = {base:'Terhadap Titik Dasar', incremental:'Terhadap Titik Sebelumnya (Per Section)', bestfit:'Regresi Linier (Best-fit)'};
+
+  function buildReportHtml(){
+    var results = runAnalysis();
+    var summary = state.lastSummary;
+    var p = state.project;
+    var hasBM = p.bm && p.bm.aktif;
+    if (!results.length){ return '<div style="padding:30px;color:#999;">Belum ada data untuk disusun menjadi laporan.</div>'; }
+
+    var kesimpulanSel = $('vlKesimpulan').value;
+    var kesimpulanText = kesimpulanSel==='auto'
+      ? (summary.overallStatus==='LAYAK' ? 'LAYAK DIPERGUNAKAN' : 'PERLU EVALUASI / TINDAKAN LANJUT')
+      : (kesimpulanSel==='layak' ? 'LAYAK DIPERGUNAKAN' : 'TIDAK LAYAK DIPERGUNAKAN / PERLU TINDAKAN LANJUT');
+
+    var elevSvg = renderElevationSVG(results, p, '__all__');
+    var planSvg = renderPlanSVG(results, p, '__all__');
+
+    var rows = '';
+    results.forEach(function(r,i){
+      var bmCell = hasBM ? ('<td>'+(r.bmInfo&&r.bmInfo.selisih_mm!==null?fmt(r.bmInfo.selisih_mm,1)+(r.bmInfo.selisih_mm>50?' &#x26A0;':''):'&ndash;')+'</td>') : '';
+      rows += '<tr><td>'+(i+1)+'</td><td>'+esc(r.sisi)+'</td><td>'+esc(r.label)+'</td>'+
+        '<td style="text-align:right;">'+fmt(r.jarakMiring_mm,2)+'</td><td>'+arahLabel(r)+'</td>'+
+        '<td style="text-align:right;">'+fmt(r.d_mm,1)+'</td>'+
+        '<td style="text-align:right;">'+fmt(r.toleransi_mm,2)+'</td>'+bmCell+
+        '<td style="text-align:center;'+(r.status==='OVER'?'background:#FEE2E2;color:#B91C1C;font-weight:700;':'')+'">'+r.status+'</td></tr>';
+    });
+
+    var bmHeaderCell = hasBM ? '<th>Selisih BM (mm)</th>' : '';
+
+    var html = ''+
+    '<h1>LAPORAN HASIL PENGUKURAN VERTICALITY / KETEGAKAN STRUKTUR</h1>'+
+    '<div class="sub">'+esc(jenisLabel(p.jenis))+' &ndash; '+esc(p.nama)+'</div>'+
+    '<table class="meta"><tr><td style="width:18%;"><b>Nama Proyek</b></td><td style="width:32%;">'+esc(p.nama)+'</td><td style="width:18%;"><b>No. Referensi</b></td><td>'+esc(p.referensi)+'</td></tr>'+
+    '<tr><td><b>Lokasi</b></td><td>'+esc(p.lokasi)+'</td><td><b>Tanggal</b></td><td>'+esc(p.tanggal)+'</td></tr>'+
+    '<tr><td><b>Surveyor</b></td><td>'+esc(p.surveyor)+'</td><td><b>Alat Ukur</b></td><td>'+esc(p.alat)+'</td></tr>'+
+    '<tr><td><b>Tinggi Total</b></td><td>'+fmt(p.tinggi,2)+' m</td><td><b>Metode Referensi</b></td><td>'+METODE_LABEL[p.metode]+'</td></tr>'+
+    (hasBM ? ('<tr><td><b>Benchmark (BM)</b></td><td colspan="3">'+esc(p.bm.nama)+' &ndash; N: '+fmt(p.bm.N_m,3)+' m, E: '+fmt(p.bm.E_m,3)+' m</td></tr>') : '')+
+    '</table>'+
+    '<table><tr><td style="width:50%;text-align:center;border:1px solid #999;">'+elevSvg+'<div style="font-size:10px;color:#555;">Tampak Samping (Elevasi)</div></td>'+
+    '<td style="width:50%;text-align:center;border:1px solid #999;">'+planSvg+'<div style="font-size:10px;color:#555;">Tampak Atas (Plan)</div></td></tr></table>'+
+    '<table class="data"><tr><th>No</th><th>Lokasi (Sisi)</th><th>Label</th><th>Jarak Miring (mm)</th><th>Arah Kemiringan</th><th>d (mm)</th><th>Toleransi (mm)</th>'+bmHeaderCell+'<th>Keterangan</th></tr>'+rows+'</table>'+
+    '<table class="meta"><tr><td style="width:30%;"><b>Formula Toleransi</b></td><td>d (mm) &divide; '+p.toleransi.ratioDenom+(p.toleransi.capMm?(', '+(p.toleransi.capMode==='floor'?'min.':'maks.')+' '+p.toleransi.capMm+' mm'):'')+'</td></tr>'+
+    '<tr><td><b>Deviasi Maksimum</b></td><td>'+fmt(summary.maxDeviation_mm,2)+' mm (titik: '+esc(summary.worstPoint?summary.worstPoint.label+' &ndash; '+summary.worstPoint.sisi:'-')+')</td></tr>'+
+    '<tr><td><b>Jumlah Titik Melebihi Toleransi</b></td><td>'+summary.overCount+' dari '+summary.total+' titik</td></tr>'+
+    (hasBM ? ('<tr><td><b>Indikasi Blunder (BM)</b></td><td>'+summary.bmFlagCount+' titik dengan selisih jarak BM &gt; 50mm &ndash; perlu verifikasi ulang</td></tr>') : '')+
+    '<tr><td><b>KESIMPULAN</b></td><td style="font-weight:700;">'+kesimpulanText+'</td></tr></table>'+
+    '<div class="sign-grid">'+
+      '<div><div class="line">'+esc($('vlDiperiksa').value||'.......................')+'</div>Diperiksa Oleh</div>'+
+      '<div><div class="line">'+esc($('vlDisetujui').value||'.......................')+'</div>Disetujui Oleh</div>'+
+    '</div>'+
+    '<div style="text-align:center;font-size:10px;color:#777;margin-top:14px;">'+esc($('vlInstansi').value||'')+' &ndash; Dihasilkan otomatis oleh Survey Verticality Suite pada '+new Date().toLocaleString('id-ID')+'</div>';
+
+    return html;
+  }
+
+  $('vertBuildReport').addEventListener('click', function(){
+    $('vertReportPrintArea').innerHTML = '<div class="vert-report">'+buildReportHtml()+'</div>';
+    toast('Laporan berhasil disusun.');
+  });
+  $('vertPrintReport').addEventListener('click', function(){
+    if (!$('vertReportPrintArea').innerHTML.trim()){ $('vertReportPrintArea').innerHTML = '<div class="vert-report">'+buildReportHtml()+'</div>'; }
+    window.print();
+  });
+
+  function buildCsv(){
+    var results = state.lastAnalysis || runAnalysis();
+    var hasBM = state.project.bm && state.project.bm.aktif;
+    var header = ['No','Sisi','Label','Z_m','N_m','E_m','Acuan','deltaN_mm','deltaE_mm','JarakMiring_mm','Arah','d_mm','Toleransi_mm','Status'];
+    if (hasBM) header.push('SelisihBM_mm');
+    var rows = [header];
+    results.forEach(function(r,i){
+      var row = [i+1, r.sisi, r.label, r.Z_m, r.N_m, r.E_m, r.refLabel, fmt(r.deltaN_mm,2), fmt(r.deltaE_mm,2), fmt(r.jarakMiring_mm,2), arahLabel(r), fmt(r.d_mm,1), fmt(r.toleransi_mm,2), r.status];
+      if (hasBM) row.push(r.bmInfo&&r.bmInfo.selisih_mm!==null?fmt(r.bmInfo.selisih_mm,1):'');
+      rows.push(row);
+    });
+    return rows.map(function(row){ return row.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  }
+  function buildJson(){
+    return JSON.stringify({ project: state.project, points: state.points, results: state.lastAnalysis, summary: state.lastSummary, generatedAt: new Date().toISOString() }, null, 2);
+  }
+  $('vertExportCsv').addEventListener('click', function(){ runAnalysis(); downloadFile('verticality-data.csv', buildCsv(), 'text/csv'); });
+  $('vertExportJson').addEventListener('click', function(){ runAnalysis(); downloadFile('verticality-data.json', buildJson(), 'application/json'); });
+
+})();
+</script>
+</body>
+</html>
