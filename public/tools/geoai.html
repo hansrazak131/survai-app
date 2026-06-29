@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>GeoAI – Deteksi Objek Otomatis</title>
+<!--
+  Geospatial AI Suite — Modul "GeoAI: Deteksi Objek Otomatis pada Citra Udara".
+  Mesin "training" dan "deteksi" menggunakan model statistik ringan (rata-rata
+  warna & ukuran per kelas, connected-component, NMS) yang dipelajari NYATA dari
+  sampel anotasi pengguna sehingga seluruh alur dapat diuji langsung di browser
+  tanpa GPU/server. Untuk produksi, gunakan pipeline YOLO11 + QGIS/Deepness.
+  Catatan: gambar contoh base64 dikosongkan pada versi ini; impor citra sendiri
+  (JPG/PNG/GeoTIFF) tetap berfungsi penuh.
+-->
+<style id="survai-embed-style">html.survai-embed body{background:#f8fafc !important;}</style>
+<style>
+  .geoai-root{
+    --c-bg:#F4F7F6; --c-card:#FFFFFF; --c-border:#E1E8E5; --c-border-soft:#EEF3F1;
+    --c-text:#0F1A17; --c-muted:#5B6B66; --c-faint:#94A39E;
+    --c-teal:#0D9488; --c-teal-light:#ECFDF8; --c-teal-dark:#0B7A70;
+    --c-amber:#D97706; --c-amber-light:#FEF6E7;
+    --c-radius-lg:20px; --c-radius-md:14px;
+    --c-shadow-sm:0 1px 2px rgba(15,26,23,.05);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--c-bg); color:var(--c-text); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .geoai-root *{box-sizing:border-box;}
+  .geoai-shell{max-width:1180px;margin:0 auto;padding:14px 14px 64px;}
+  .geoai-title h1{font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em;}
+  .geoai-title p{margin:0 0 16px;color:var(--c-muted);font-size:13px;max-width:760px;}
+  .geoai-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+  .geoai-tab{border:1px solid var(--c-border);background:var(--c-card);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--c-muted);cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .geoai-tab .geoai-tabnum{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--c-border-soft);font-size:10px;color:var(--c-muted);}
+  .geoai-tab.active{background:var(--c-teal);color:#fff;border-color:var(--c-teal);}
+  .geoai-tab.active .geoai-tabnum{background:rgba(255,255,255,.25);color:#fff;}
+  .geoai-card{background:var(--c-card);border:1px solid var(--c-border);border-radius:var(--c-radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--c-shadow-sm);}
+  .geoai-card h2{font-size:15px;font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:8px;}
+  .geoai-card h3{font-size:12.5px;font-weight:700;margin:14px 0 8px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.02em;}
+  .geoai-hidden{display:none;}
+  .geoai-note{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-teal-light);color:var(--c-teal-dark);line-height:1.5;}
+  .geoai-warn{font-size:12.5px;border-radius:12px;padding:9px 11px;margin:6px 0;background:var(--c-amber-light);color:#92400E;line-height:1.5;}
+  .geoai-btn{border:1px solid var(--c-border);background:#fff;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;color:var(--c-text);}
+  .geoai-btn.primary{background:var(--c-teal);border-color:var(--c-teal);color:#fff;}
+  .geoai-btn.danger{color:#B42318;border-color:#FDA29B;}
+  .geoai-btn.sm{padding:5px 10px;font-size:12px;}
+  .geoai-btn:disabled{opacity:.45;cursor:not-allowed;}
+  .geoai-btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+  .geoai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+  .geoai-grid label{display:block;font-size:11.5px;color:var(--c-muted);margin-bottom:4px;}
+  .geoai-grid input,.geoai-grid select{width:100%;border:1px solid var(--c-border);border-radius:8px;padding:7px 9px;font-size:12.5px;}
+  .geoai-kpi{border:1px solid var(--c-border-soft);border-radius:14px;padding:10px 12px;background:#FAFCFB;}
+  .geoai-kpi small{display:block;color:var(--c-muted);font-size:11px;}
+  .geoai-kpi b{font-size:16px;}
+  table.geoai-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.geoai-table th,table.geoai-table td{border-bottom:1px solid var(--c-border-soft);padding:7px 8px;text-align:left;vertical-align:middle;}
+  table.geoai-table th{color:var(--c-muted);font-weight:600;font-size:11.5px;text-transform:uppercase;}
+  .geoai-num{text-align:right;}
+  .geoai-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#10241F;color:#fff;padding:9px 16px;border-radius:10px;font-size:12.5px;z-index:80;max-width:90vw;text-align:center;}
+  .geoai-disclaimer{font-size:11.5px;color:var(--c-faint);border-top:1px dashed var(--c-border);padding-top:10px;margin-top:10px;line-height:1.5;}
+  .geoai-pre{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#0B1612;color:#D2EDE6;border-radius:12px;padding:14px;max-height:420px;overflow:auto;}
+  .geoai-chip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid transparent;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer;background:#F4F7F6;}
+  .geoai-chip .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .geoai-chip.active{border-color:var(--c-text);background:#fff;}
+  .geoai-chiprow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+  .geoai-examplecard{border:1px solid var(--c-border);border-radius:14px;overflow:hidden;cursor:pointer;background:#fff;transition:transform .1s;}
+  .geoai-examplecard:hover{transform:translateY(-2px);}
+  .geoai-examplecard img{width:100%;height:96px;object-fit:cover;display:block;background:#E1E8E5;}
+  .geoai-examplecard .cap{padding:7px 9px;font-size:11.5px;font-weight:600;}
+  .geoai-examplecard .cap small{display:block;font-weight:400;color:var(--c-muted);font-size:10.5px;}
+  .geoai-examplegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px;}
+  .geoai-dropzone{border:2px dashed var(--c-border);border-radius:14px;padding:28px 16px;text-align:center;color:var(--c-muted);font-size:13px;cursor:pointer;}
+  .geoai-dropzone.drag{border-color:var(--c-teal);background:var(--c-teal-light);}
+  .geoai-canvaswrap{position:relative;display:inline-block;max-width:100%;}
+  .geoai-canvaswrap canvas{display:block;max-width:100%;border-radius:10px;border:1px solid var(--c-border-soft);background:#000;}
+  .geoai-tilegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;max-height:300px;overflow-y:auto;padding:4px;border:1px solid var(--c-border-soft);border-radius:10px;}
+  .geoai-tilethumb{position:relative;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent;}
+  .geoai-tilethumb img{width:100%;height:64px;object-fit:cover;display:block;}
+  .geoai-tilethumb.active{border-color:var(--c-teal);}
+  .geoai-tilethumb .badge{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.65);color:#fff;font-size:9px;border-radius:6px;padding:1px 5px;}
+  .geoai-tilethumb.empty .badge{background:rgba(150,150,150,.7);}
+  .geoai-annlist{max-height:230px;overflow-y:auto;}
+  .geoai-annrow{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--c-border-soft);font-size:12px;}
+  .geoai-annrow .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .geoai-annrow span.lbl{flex:1;}
+  .geoai-progressbar{height:8px;border-radius:6px;background:var(--c-border-soft);overflow:hidden;}
+  .geoai-progressbar .fill{height:100%;background:var(--c-teal);width:0%;transition:width .15s;}
+  @media (max-width:640px){ .geoai-shell{padding:10px;} }
+</style>
+<script id="survai-embed-script">
+(function(){ try{ var p=new URLSearchParams(location.search); if(p.get('embed')==='1') document.documentElement.classList.add('survai-embed'); }catch(e){} })();
+</script>
+</head>
+<body>
+<div class="geoai-root">
+  <div class="geoai-shell">
+    <div class="geoai-title">
+      <h1>GeoAI — Deteksi Objek Otomatis pada Citra Udara</h1>
+      <p>Impor citra udara/satelit (JPG/PNG/GeoTIFF) → potong jadi tile → beri label sampel objek (anotasi) → augmentasi &amp; split data → latih model → deteksi &amp; hitung objek otomatis → evaluasi akurasi → buat layout &amp; laporan siap pakai.</p>
+    </div>
+
+    <div class="geoai-tabs" id="geoaiTabs">
+      <button class="geoai-tab active" data-tab="import"><span class="geoai-tabnum">1</span>Impor Citra</button>
+      <button class="geoai-tab" data-tab="tiling"><span class="geoai-tabnum">2</span>Tiling</button>
+      <button class="geoai-tab" data-tab="anotasi"><span class="geoai-tabnum">3</span>Anotasi</button>
+      <button class="geoai-tab" data-tab="augmentasi"><span class="geoai-tabnum">4</span>Augmentasi &amp; Split</button>
+      <button class="geoai-tab" data-tab="training"><span class="geoai-tabnum">5</span>Training</button>
+      <button class="geoai-tab" data-tab="deteksi"><span class="geoai-tabnum">6</span>Deteksi Objek</button>
+      <button class="geoai-tab" data-tab="evaluasi"><span class="geoai-tabnum">7</span>Evaluasi</button>
+      <button class="geoai-tab" data-tab="layout"><span class="geoai-tabnum">8</span>Layout &amp; Laporan</button>
+    </div>
+
+    <!-- TAB 1: IMPOR CITRA -->
+    <section id="geoai-view-import">
+      <div class="geoai-card">
+        <h2>1. Impor Citra</h2>
+        <div class="geoai-note">GeoAI mengotomatiskan analisis citra udara/satelit berskala besar: dari piksel mentah menjadi wawasan lokasi (jumlah &amp; posisi objek). Mulai dengan mengunggah citra Anda sendiri.</div>
+        <div id="geoaiDropzone" class="geoai-dropzone">
+          <div><b>Klik atau seret berkas ke sini</b></div>
+          <div style="margin-top:4px;">Mendukung JPG, PNG, dan GeoTIFF (.tif/.tiff — strip uncompressed/deflate, 8-bit)</div>
+          <input type="file" id="geoaiFileInput" accept=".jpg,.jpeg,.png,.tif,.tiff" style="display:none;">
+        </div>
+        <h3>Atau Muat Contoh Data</h3>
+        <div class="geoai-warn">Gambar contoh bawaan dinonaktifkan pada versi ringan ini untuk menjaga ukuran berkas. Silakan impor citra Anda sendiri di atas.</div>
+        <div class="geoai-examplegrid" id="geoaiExampleGrid"></div>
+        <div id="geoaiImportStatus" style="margin-top:10px;"></div>
+        <div class="geoai-canvaswrap" id="geoaiImportPreviewWrap" style="margin-top:10px;"></div>
+      </div>
+      <div class="geoai-card">
+        <h3 style="margin-top:0;">Kelas Objek</h3>
+        <div class="geoai-note">Tentukan kelas objek yang ingin dideteksi. Default: Bangunan/Rumah, Kendaraan/Mobil, Kapal/Perahu, Vegetasi/Pohon, dan Lainnya. Anda dapat mengganti nama maupun warnanya.</div>
+        <div id="geoaiClassEditor"></div>
+        <div class="geoai-btn-row"><button class="geoai-btn sm" id="geoaiAddClass">+ Tambah Kelas</button></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: TILING -->
+    <section id="geoai-view-tiling" class="geoai-hidden">
+      <div class="geoai-card">
+        <h2>2. Pemotongan Citra (Tiling)</h2>
+        <div class="geoai-note">Citra besar dipotong menjadi tile berukuran tetap agar mudah diberi label dan dipelajari oleh model. Tile yang tidak penuh di tepi tetap dibuat dengan ukuran lebih kecil.</div>
+        <div class="geoai-grid">
+          <div><label>Ukuran Tile (px)</label><input type="number" id="geoaiTileSize" value="416" step="32" min="128" max="1024"></div>
+        </div>
+        <div class="geoai-btn-row"><button class="geoai-btn primary" id="geoaiRunTiling">Potong Citra</button></div>
+        <div id="geoaiTilingStatus" style="margin-top:10px;"></div>
+      </div>
+      <div class="geoai-card" id="geoaiTilingPreviewCard" style="display:none;">
+        <h3 style="margin-top:0;">Pratinjau Grid Tile</h3>
+        <div class="geoai-canvaswrap" id="geoaiTilingPreviewWrap"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: ANOTASI -->
+    <section id="geoai-view-anotasi" class="geoai-hidden">
+      <div class="geoai-card">
+        <h2>3. Anotasi (Image Labelling)</h2>
+        <div class="geoai-note">Buat sampel data latih: tandai setiap individu objek pada tile dengan kotak (bounding box) atau poligon bebas, lalu pilih kelasnya. Beri label semua objek relevan; tandai "Tile Kosong" jika tidak ada objek.</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div style="flex:2;min-width:320px;">
+            <div class="geoai-chiprow" id="geoaiAnnClassChips"></div>
+            <div class="geoai-btn-row" style="margin-top:0;">
+              <button class="geoai-btn sm primary" id="geoaiShapeRect" data-shape="rect">▭ Kotak (BBox)</button>
+              <button class="geoai-btn sm" id="geoaiShapePoly" data-shape="poly">⬠ Poligon</button>
+              <button class="geoai-btn sm" id="geoaiPolyDone">Selesai Poligon</button>
+              <button class="geoai-btn sm" id="geoaiAnnUndo">Undo</button>
+              <button class="geoai-btn sm danger" id="geoaiAnnClearTile">Kosongkan Tile</button>
+              <button class="geoai-btn sm" id="geoaiMarkNull">Tandai Tile Kosong (Null)</button>
+            </div>
+            <div class="geoai-canvaswrap" id="geoaiAnnCanvasWrap" style="margin-top:8px;"></div>
+            <div class="geoai-btn-row">
+              <button class="geoai-btn sm" id="geoaiTilePrev">◁ Tile Sebelumnya</button>
+              <span id="geoaiTileIndicator" style="font-size:12.5px;color:var(--c-muted);"></span>
+              <button class="geoai-btn sm" id="geoaiTileNext">Tile Berikutnya ▷</button>
+            </div>
+          </div>
+          <div style="flex:1;min-width:220px;">
+            <h3 style="margin-top:0;">Daftar Anotasi Tile Ini</h3>
+            <div class="geoai-annlist" id="geoaiAnnList"></div>
+            <h3>Navigasi Tile</h3>
+            <div class="geoai-tilegrid" id="geoaiTileNavGrid"></div>
+          </div>
+        </div>
+      </div>
+      <div class="geoai-card">
+        <div class="geoai-grid" id="geoaiAnnSummary"></div>
+        <div class="geoai-btn-row">
+          <button class="geoai-btn" id="geoaiExportYolo">Unduh Dataset (Format YOLO, .json)</button>
+          <button class="geoai-btn" id="geoaiExportYaml">Unduh data.yaml</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: AUGMENTASI & SPLIT -->
+    <section id="geoai-view-augmentasi" class="geoai-hidden">
+      <div class="geoai-card">
+        <h2>4. Augmentasi &amp; Split Data</h2>
+        <div class="geoai-note">Augmentasi memperbanyak data latih: setiap tile yang sudah dianotasi diputar/dicerminkan/diubah kecerahannya secara nyata (koordinat anotasi ikut disesuaikan), meningkatkan generalisasi model.</div>
+        <div class="geoai-chiprow" id="geoaiAugOps"></div>
+        <div class="geoai-grid">
+          <div><label>Rasio Split Train (%)</label><input type="number" id="geoaiSplitRatio" value="80" min="50" max="95"></div>
+        </div>
+        <div class="geoai-btn-row"><button class="geoai-btn primary" id="geoaiRunAugmentation">Jalankan Augmentasi &amp; Split</button></div>
+        <div id="geoaiAugStatus" style="margin-top:10px;"></div>
+      </div>
+      <div class="geoai-card" id="geoaiAugPreviewCard" style="display:none;">
+        <h3 style="margin-top:0;">Pratinjau Hasil Augmentasi</h3>
+        <div class="geoai-tilegrid" id="geoaiAugPreviewGrid" style="max-height:220px;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 5: TRAINING -->
+    <section id="geoai-view-training" class="geoai-hidden">
+      <div class="geoai-card">
+        <h2>5. Training Model</h2>
+        <div class="geoai-warn">Training CNN/YOLO sesungguhnya memerlukan GPU &amp; waktu. Tab ini menyimulasikan kurva training YOLO secara ilustratif, dan SEKALIGUS melatih model statistik ringan (rata-rata warna &amp; ukuran per kelas) secara nyata dari sampel anotasi Anda — model ringan inilah yang dipakai pada tab Deteksi &amp; Evaluasi.</div>
+        <h3 style="margin-top:0;">Variasi Model YOLO11</h3>
+        <div style="overflow-x:auto;"><table class="geoai-table" id="geoaiYoloTable"></table></div>
+        <div class="geoai-grid" style="margin-top:10px;">
+          <div><label>Varian Model</label><select id="geoaiYoloVariant"></select></div>
+          <div><label>Epochs</label><input type="number" id="geoaiEpochs" value="100" min="10" max="300"></div>
+          <div><label>Batch Size</label><input type="number" id="geoaiBatch" value="8" min="1" max="64"></div>
+          <div><label>Image Size (px)</label><input type="number" id="geoaiImgsz" value="640" step="32"></div>
+          <div><label>Optimizer</label><select id="geoaiOptimizer"><option>SGD</option><option>Adam</option><option>AdamW</option></select></div>
+          <div><label>Patience (Early Stop)</label><input type="number" id="geoaiPatience" value="20" min="0"></div>
+        </div>
+        <div class="geoai-btn-row"><button class="geoai-btn primary" id="geoaiRunTraining">Mulai Training</button></div>
+        <div style="margin-top:10px;"><div class="geoai-progressbar"><div class="fill" id="geoaiTrainProgressFill"></div></div></div>
+        <div id="geoaiTrainStatus" style="margin-top:8px;font-size:12.5px;color:var(--c-muted);"></div>
+      </div>
+      <div class="geoai-card geoai-hidden" id="geoaiTrainResultCard">
+        <h3 style="margin-top:0;">Grafik Evaluasi Training</h3>
+        <div class="geoai-canvaswrap" id="geoaiTrainChartWrap"></div>
+        <div class="geoai-grid" id="geoaiTrainMetricsGrid" style="margin-top:10px;"></div>
+        <div class="geoai-disclaimer" id="geoaiTrainNote"></div>
+      </div>
+    </section>
+
+    <!-- TAB 6: DETEKSI OBJEK -->
+    <section id="geoai-view-deteksi" class="geoai-hidden">
+      <div class="geoai-card">
+        <h2>6. Deteksi &amp; Perhitungan Objek Otomatis</h2>
+        <div class="geoai-note">Terapkan model yang sudah "dilatih" pada citra baru untuk mengidentifikasi dan menghitung objek secara otomatis — meniru parameter plugin Deepness (QGIS): ambang confidence, ambang IoU untuk NMS, dan toleransi warna.</div>
+        <div class="geoai-grid">
+          <div><label>Citra Target</label><select id="geoaiDetectSource"></select></div>
+          <div><label>Confidence Minimal (%)</label><input type="number" id="geoaiConfThresh" value="50" min="1" max="99"></div>
+          <div><label>Ambang IoU / NMS (%)</label><input type="number" id="geoaiIouThresh" value="50" min="1" max="99"></div>
+          <div><label>Toleransi Warna Kelas</label><input type="number" id="geoaiColorFactor" value="135" min="50" max="300" step="5"></div>
+          <div><label>Resolusi (cm/px) — opsional</label><input type="number" id="geoaiResolutionCm" value="15" min="0" step="0.5"></div>
+        </div>
+        <div class="geoai-btn-row">
+          <button class="geoai-btn primary" id="geoaiRunDetection">Jalankan Deteksi</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--c-muted);"><input type="checkbox" id="geoaiShowCentroid"> Tampilkan sebagai Titik (Centroid)</label>
+        </div>
+        <div id="geoaiDetectStatus" style="margin-top:10px;"></div>
+      </div>
+      <div class="geoai-card geoai-hidden" id="geoaiDetectResultCard">
+        <h3 style="margin-top:0;">Hasil Deteksi</h3>
+        <div class="geoai-canvaswrap" id="geoaiDetectCanvasWrap"></div>
+        <div class="geoai-btn-row"><span style="font-size:12px;color:var(--c-muted);">Klik kotak pada citra untuk menghapus deteksi yang salah (koreksi manual).</span></div>
+        <h3>Rekapitulasi Hasil</h3>
+        <div style="overflow-x:auto;"><table class="geoai-table" id="geoaiDetectSummaryTable"></table></div>
+        <div class="geoai-grid" id="geoaiDetectKpiGrid" style="margin-top:10px;"></div>
+      </div>
+    </section>
+
+    <!-- TAB 7: EVALUASI -->
+    <section id="geoai-view-evaluasi" class="geoai-hidden">
+      <div class="geoai-card">
+        <h2>7. Evaluasi Model</h2>
+        <div class="geoai-note">Mengukur performa model pada data validasi: setiap tile validasi dideteksi ulang, lalu dibandingkan terhadap anotasi acuan (ground truth) menggunakan indeks IoU untuk menentukan TP, FP, FN — lalu dihitung Precision, Recall, F1-score, dan AP/mAP.</div>
+        <div class="geoai-warn"><b>Penting:</b> akurasi evaluasi bergantung pada kelengkapan anotasi pada tile validasi. Jika ada objek nyata yang belum dianotasi, deteksi yang benar bisa tercatat sebagai False Positive.</div>
+        <div class="geoai-btn-row"><button class="geoai-btn primary" id="geoaiRunEvaluation">Evaluasi pada Data Validasi</button></div>
+        <div id="geoaiEvalStatus" style="margin-top:10px;"></div>
+      </div>
+      <div class="geoai-card geoai-hidden" id="geoaiEvalResultCard">
+        <h3 style="margin-top:0;">Metrik per Kelas</h3>
+        <div style="overflow-x:auto;"><table class="geoai-table" id="geoaiEvalTable"></table></div>
+        <div class="geoai-grid" id="geoaiEvalKpiGrid" style="margin-top:10px;"></div>
+        <h3>Definisi Singkat</h3>
+        <div class="geoai-note">
+          <b>IoU</b> = luas tumpang-tindih ÷ luas gabungan kotak prediksi &amp; acuan.
+          <b>Precision</b> = TP/(TP+FP). <b>Recall</b> = TP/(TP+FN).
+          <b>F1-score</b> = rata-rata harmonis Precision &amp; Recall. <b>AP/mAP</b> = luas kurva precision-recall.
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 8: LAYOUT & LAPORAN -->
+    <section id="geoai-view-layout" class="geoai-hidden">
+      <div class="geoai-card">
+        <h2>8. Layout Peta &amp; Laporan Otomatis</h2>
+        <div class="geoai-note">Susun hasil deteksi menjadi peta tematik siap-cetak (judul, legenda, arah utara, skala, info model &amp; akurasi) dan laporan ringkasan otomatis.</div>
+        <div class="geoai-grid">
+          <div style="grid-column:1/-1;"><label>Judul Peta</label><input type="text" id="geoaiLayoutTitle" value="Peta Hasil Deteksi Objek Otomatis — GeoAI"></div>
+          <div><label>Sumber Data</label><input type="text" id="geoaiLayoutSource" value="Citra Udara/Satelit"></div>
+          <div><label>Dibuat Oleh</label><input type="text" id="geoaiLayoutAuthor" value="Tim GeoAI"></div>
+        </div>
+        <div class="geoai-btn-row">
+          <button class="geoai-btn primary" id="geoaiBuildLayout">Susun Layout</button>
+          <button class="geoai-btn" id="geoaiDownloadLayout">Unduh Layout (PNG)</button>
+        </div>
+        <div id="geoaiLayoutStatus" style="margin-top:10px;"></div>
+      </div>
+      <div class="geoai-card geoai-hidden" id="geoaiLayoutPreviewCard">
+        <div class="geoai-canvaswrap" id="geoaiLayoutCanvasWrap"></div>
+      </div>
+      <div class="geoai-card">
+        <h3 style="margin-top:0;">Laporan Otomatis</h3>
+        <div class="geoai-btn-row">
+          <button class="geoai-btn primary" id="geoaiGenReport">Buat Laporan</button>
+          <button class="geoai-btn" id="geoaiCopyReport">Copy</button>
+          <button class="geoai-btn" id="geoaiDownloadTxt">Export TXT</button>
+          <button class="geoai-btn" id="geoaiDownloadCsv">Export CSV</button>
+          <button class="geoai-btn" id="geoaiDownloadJson">Export JSON</button>
+        </div>
+        <div class="geoai-pre" id="geoaiReportBox">Klik "Buat Laporan" untuk menyusun ringkasan lengkap (dataset, training, deteksi, evaluasi).</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+<script>
+/* Bagian 1: Util, TIFF decoder */
+(function(){
+  'use strict';
+  var $ = function(id){ return document.getElementById(id); };
+  var $$ = function(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); };
+  function uid(){ return 'x'+Math.random().toString(36).slice(2,10); }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n)||!isFinite(n)) return '—'; d=(d===undefined)?1:d; return Number(n).toFixed(d); }
+  function pct(n,d){ return fmt(n*100,d===undefined?1:d)+'%'; }
+  function rand(a,b){ return a+Math.random()*(b-a); }
+  function toast(msg, ms){
+    var t=document.createElement('div'); t.className='geoai-toast'; t.textContent=msg;
+    document.body.appendChild(t); setTimeout(function(){ t.remove(); }, ms||2200);
+  }
+  function downloadFile(name, content, mime){
+    var blob = (content instanceof Blob) ? content : new Blob([content],{type:mime});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },200);
+  }
+  function dataURLtoBlob(dataURL){
+    var parts = dataURL.split(','); var meta = parts[0]; var b64 = parts[1];
+    var mimeMatch = meta.match(/data:(.*?);base64/);
+    var mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    var bin = atob(b64); var arr = new Uint8Array(bin.length);
+    for (var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], {type:mime});
+  }
+  var TIFF_TYPE_SIZE = {1:1,2:1,3:2,4:4,5:8,6:1,7:1,8:2,9:4,10:8,11:4,12:8};
+  function tiffReadIFD(dv, offset, little){
+    var count = dv.getUint16(offset, little); var entries = {}; var p = offset + 2;
+    for (var i=0;i<count;i++){
+      var tag = dv.getUint16(p, little); var type = dv.getUint16(p+2, little);
+      var cnt = dv.getUint32(p+4, little); var valOff = p+8;
+      var tsize = TIFF_TYPE_SIZE[type] || 1; var totalSize = tsize*cnt;
+      var dataOffset = (totalSize <= 4) ? valOff : dv.getUint32(valOff, little);
+      var vals = [];
+      for (var j=0;j<cnt;j++){
+        var v; var off = dataOffset + j*tsize;
+        switch(type){
+          case 1: case 6: case 7: case 2: v = dv.getUint8(off); break;
+          case 3: case 8: v = dv.getUint16(off, little); break;
+          case 4: case 9: v = dv.getUint32(off, little); break;
+          case 5: case 10: v = dv.getUint32(off,little)/dv.getUint32(off+4,little); break;
+          default: v = dv.getUint32(off, little);
+        }
+        vals.push(v);
+      }
+      entries[tag] = vals; p += 12;
+    }
+    return entries;
+  }
+  async function tiffInflate(uint8arr){
+    if (typeof DecompressionStream === 'undefined') throw new Error('Browser ini tidak mendukung DecompressionStream untuk TIFF terkompresi.');
+    var ds = new DecompressionStream('deflate');
+    var stream = new Blob([uint8arr]).stream().pipeThrough(ds);
+    var buf = await new Response(stream).arrayBuffer();
+    return new Uint8Array(buf);
+  }
+  async function decodeTIFF(arrayBuffer){
+    var dv = new DataView(arrayBuffer); var b0 = dv.getUint8(0), b1 = dv.getUint8(1); var little;
+    if (b0===0x49 && b1===0x49) little = true; else if (b0===0x4D && b1===0x4D) little = false;
+    else throw new Error('Bukan berkas TIFF yang valid.');
+    if (dv.getUint16(2, little) !== 42) throw new Error('Bukan berkas TIFF yang valid (magic number salah).');
+    var ifdOffset = dv.getUint32(4, little); var entries = tiffReadIFD(dv, ifdOffset, little);
+    var tag = function(id, def){ return entries[id] !== undefined ? entries[id] : def; };
+    var width = tag(256)[0]; var height = tag(257)[0]; var bitsPerSample = tag(258, [8])[0];
+    var compression = tag(259, [1])[0]; var photometric = tag(262, [1])[0];
+    var samplesPerPixel = tag(277, [1])[0]; var rowsPerStrip = tag(278, [height])[0];
+    var stripOffsets = tag(273, null); var stripByteCounts = tag(279, null);
+    var predictor = tag(317, [1])[0]; var tileWidth = tag(322, null);
+    if (tileWidth) throw new Error('TIFF bertipe "tiled" belum didukung. Konversi ke JPG/PNG terlebih dahulu.');
+    if (!stripOffsets) throw new Error('Struktur TIFF tidak dikenali (tidak ada StripOffsets).');
+    if (bitsPerSample !== 8) throw new Error('Hanya TIFF 8-bit per kanal yang didukung.');
+    if (compression !== 1 && compression !== 8 && compression !== 32946) throw new Error('Kompresi TIFF (kode '+compression+') belum didukung.');
+    var out = new Uint8Array(width*height*samplesPerPixel); var rowCursor = 0; var bytes = new Uint8Array(arrayBuffer);
+    for (var s=0; s<stripOffsets.length; s++){
+      var off = stripOffsets[s]; var byteCount = stripByteCounts[s];
+      var stripBuf = bytes.subarray(off, off+byteCount); var decoded;
+      if (compression === 1) decoded = stripBuf; else decoded = await tiffInflate(stripBuf);
+      var rowsInStrip = Math.min(rowsPerStrip, height-rowCursor); var bytesPerRow = width*samplesPerPixel; var finalRows = decoded;
+      if (predictor === 2){
+        finalRows = new Uint8Array(decoded.subarray(0, rowsInStrip*bytesPerRow));
+        for (var r=0;r<rowsInStrip;r++){
+          var rowStart = r*bytesPerRow;
+          for (var x=samplesPerPixel; x<bytesPerRow; x++) finalRows[rowStart+x] = (finalRows[rowStart+x] + finalRows[rowStart+x-samplesPerPixel]) & 0xFF;
+        }
+      }
+      out.set(finalRows.subarray(0, rowsInStrip*bytesPerRow), rowCursor*bytesPerRow); rowCursor += rowsInStrip;
+    }
+    return {width:width, height:height, samplesPerPixel:samplesPerPixel, photometric:photometric, data:out};
+  }
+  function tiffResultToCanvas(result){
+    var canvas = document.createElement('canvas'); canvas.width = result.width; canvas.height = result.height;
+    var ctx = canvas.getContext('2d'); var imgData = ctx.createImageData(result.width, result.height);
+    var n = result.width*result.height; var spp = result.samplesPerPixel; var src = result.data; var dst = imgData.data;
+    if (spp === 1){ var invert = (result.photometric === 0);
+      for (var i=0;i<n;i++){ var v = src[i]; if(invert) v = 255-v; dst[i*4]=v; dst[i*4+1]=v; dst[i*4+2]=v; dst[i*4+3]=255; }
+    } else if (spp === 3){
+      for (var i2=0;i2<n;i2++){ dst[i2*4]=src[i2*3]; dst[i2*4+1]=src[i2*3+1]; dst[i2*4+2]=src[i2*3+2]; dst[i2*4+3]=255; }
+    } else if (spp >= 4){
+      for (var i3=0;i3<n;i3++){ dst[i3*4]=src[i3*spp]; dst[i3*4+1]=src[i3*spp+1]; dst[i3*4+2]=src[i3*spp+2]; dst[i3*4+3]=src[i3*spp+3]; }
+    } else throw new Error('Jumlah kanal TIFF tidak didukung: '+spp);
+    ctx.putImageData(imgData, 0, 0); return canvas;
+  }
+  window.GeoAIUtil = { $:$, $$:$$, uid:uid, clamp:clamp, fmt:fmt, pct:pct, rand:rand, toast:toast, downloadFile:downloadFile, dataURLtoBlob:dataURLtoBlob, decodeTIFF:decodeTIFF, tiffResultToCanvas:tiffResultToCanvas };
+})();
+
+/* Bagian 2: Transformasi Geometri */
+(function(){
+  'use strict';
+  var TRANSFORMS = {
+    rot90:{outSize:function(w,h){return [h,w];},point:function(x,y,w,h){return [h-y,x];}},
+    rot180:{outSize:function(w,h){return [w,h];},point:function(x,y,w,h){return [w-x,h-y];}},
+    rot270:{outSize:function(w,h){return [h,w];},point:function(x,y,w,h){return [y,w-x];}},
+    hflip:{outSize:function(w,h){return [w,h];},point:function(x,y,w,h){return [w-x,y];}},
+    vflip:{outSize:function(w,h){return [w,h];},point:function(x,y,w,h){return [x,h-y];}},
+    bright:{outSize:function(w,h){return [w,h];},point:function(x,y,w,h){return [x,y];}}
+  };
+  function transformShape(shape, opName, w, h){
+    var t = TRANSFORMS[opName]; if (!t) throw new Error('Operasi tidak dikenal: '+opName);
+    var out = {id: shape.id, classId: shape.classId, shape: shape.shape};
+    if (shape.shape === 'rect'){
+      var corners = [[shape.x,shape.y],[shape.x+shape.w,shape.y],[shape.x,shape.y+shape.h],[shape.x+shape.w,shape.y+shape.h]];
+      var tp = corners.map(function(c){return t.point(c[0],c[1],w,h);});
+      var xs = tp.map(function(p){return p[0];}), ys = tp.map(function(p){return p[1];});
+      var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs), minY=Math.min.apply(null,ys), maxY=Math.max.apply(null,ys);
+      out.x=minX; out.y=minY; out.w=maxX-minX; out.h=maxY-minY;
+    } else out.points = shape.points.map(function(p){return t.point(p[0],p[1],w,h);});
+    return out;
+  }
+  window.GeoAIGeom = {
+    TRANSFORMS: TRANSFORMS, transformShape: transformShape,
+    transformAnnotations: function(annotations, opName, w, h){ return annotations.map(function(s){ return transformShape(s, opName, w, h); }); },
+    outSizeFor: function(opName, w, h){ return TRANSFORMS[opName].outSize(w,h); }
+  };
+})();
+
+/* Bagian 3: Mesin Deteksi Ringan */
+(function(){
+  'use strict';
+  function mean(arr){ return arr.reduce(function(a,b){return a+b;},0)/(arr.length||1); }
+  function buildClassProfiles(samples, classes){
+    var profiles = {};
+    classes.forEach(function(c){
+      var s = samples.filter(function(x){ return x.classId === c.id; });
+      if (!s.length){ profiles[c.id] = null; return; }
+      var rMean=mean(s.map(function(x){return x.meanColor[0];})), gMean=mean(s.map(function(x){return x.meanColor[1];})), bMean=mean(s.map(function(x){return x.meanColor[2];}));
+      var colorStd = mean(s.map(function(x){var dr=x.meanColor[0]-rMean,dg=x.meanColor[1]-gMean,db=x.meanColor[2]-bMean;return Math.sqrt(dr*dr+dg*dg+db*db);})) || 18;
+      colorStd = Math.min(Math.max(10, colorStd), 22);
+      var areas=s.map(function(x){return x.area;}), ws=s.map(function(x){return x.w;}), hs=s.map(function(x){return x.h;}), aspect=s.map(function(x){return x.w/Math.max(1,x.h);});
+      profiles[c.id] = { classId:c.id, count:s.length, meanColor:[rMean,gMean,bMean], colorStd:colorStd,
+        meanW:mean(ws), meanH:mean(hs), meanArea:mean(areas), minArea:Math.min.apply(null,areas)*0.35, maxArea:Math.max.apply(null,areas)*3.2,
+        meanAspect:mean(aspect), aspectLo:Math.min.apply(null,aspect)*0.4, aspectHi:Math.max.apply(null,aspect)*2.5 };
+    });
+    return profiles;
+  }
+  function detectBlobs(pixels, width, height, profiles, opts){
+    opts = opts || {}; var maxColorFactor = opts.maxColorFactor || 1.35;
+    var classIds = Object.keys(profiles).filter(function(k){ return profiles[k]; }); if (!classIds.length) return [];
+    var n = width*height; var labelOf = new Int16Array(n); labelOf.fill(-1);
+    for (var i=0;i<n;i++){
+      var r=pixels[i*4], g=pixels[i*4+1], b=pixels[i*4+2]; var bestK=-1, bestD=Infinity;
+      for (var k=0;k<classIds.length;k++){
+        var p=profiles[classIds[k]]; var dr=r-p.meanColor[0],dg=g-p.meanColor[1],db=b-p.meanColor[2];
+        var norm = Math.sqrt(dr*dr+dg*dg+db*db) / p.colorStd; if (norm < bestD){ bestD=norm; bestK=k; }
+      }
+      if (bestK>=0 && bestD <= maxColorFactor) labelOf[i] = bestK;
+    }
+    var visited = new Uint8Array(n); var boxes = []; var qx = new Int32Array(n), qy = new Int32Array(n);
+    for (var y0=0;y0<height;y0++){ for (var x0=0;x0<width;x0++){
+      var idx0 = y0*width+x0; if (visited[idx0] || labelOf[idx0] < 0) continue;
+      var k0 = labelOf[idx0]; var qhead=0, qtail=0; qx[qtail]=x0; qy[qtail]=y0; qtail++; visited[idx0]=1;
+      var minX=x0,maxX=x0,minY=y0,maxY=y0,count=0, sumR=0,sumG=0,sumB=0;
+      while (qhead<qtail){
+        var cx=qx[qhead], cy=qy[qhead]; qhead++; var cidx=cy*width+cx; count++;
+        sumR+=pixels[cidx*4]; sumG+=pixels[cidx*4+1]; sumB+=pixels[cidx*4+2];
+        if (cx<minX) minX=cx; if (cx>maxX) maxX=cx; if (cy<minY) minY=cy; if (cy>maxY) maxY=cy;
+        var neighbors=[[cx-1,cy],[cx+1,cy],[cx,cy-1],[cx,cy+1]];
+        for (var ni=0;ni<4;ni++){ var nx=neighbors[ni][0], ny=neighbors[ni][1];
+          if (nx<0||ny<0||nx>=width||ny>=height) continue; var nidx=ny*width+nx;
+          if (visited[nidx] || labelOf[nidx] !== k0) continue; visited[nidx]=1; qx[qtail]=nx; qy[qtail]=ny; qtail++; }
+      }
+      var w=maxX-minX+1, h=maxY-minY+1; var profile=profiles[classIds[k0]];
+      if (count < profile.minArea || count > profile.maxArea) continue;
+      var fillRatio = count/(w*h); if (fillRatio < (opts.minFillRatio || 0.32)) continue;
+      var aspect = w/Math.max(1,h); if (aspect < profile.aspectLo || aspect > profile.aspectHi) continue;
+      var avgColor=[sumR/count,sumG/count,sumB/count];
+      var colorDist=Math.sqrt(Math.pow(avgColor[0]-profile.meanColor[0],2)+Math.pow(avgColor[1]-profile.meanColor[1],2)+Math.pow(avgColor[2]-profile.meanColor[2],2));
+      var colorScore=Math.max(0,1-colorDist/(profile.colorStd*maxColorFactor*1.8));
+      var sizeScore=Math.max(0,1-Math.abs(count-profile.meanArea)/Math.max(profile.meanArea,count,1));
+      var score=0.6*colorScore+0.4*sizeScore;
+      boxes.push({x:minX,y:minY,w:w,h:h,classId:classIds[k0],score:clampScore(score)});
+    }}
+    return boxes;
+  }
+  function clampScore(s){ return Math.max(0.05, Math.min(0.99, s)); }
+  function iou(a,b){
+    var ax2=a.x+a.w,ay2=a.y+a.h,bx2=b.x+b.w,by2=b.y+b.h;
+    var ix1=Math.max(a.x,b.x),iy1=Math.max(a.y,b.y),ix2=Math.min(ax2,bx2),iy2=Math.min(ay2,by2);
+    var iw=Math.max(0,ix2-ix1),ih=Math.max(0,iy2-iy1); var inter=iw*ih; var union=a.w*a.h+b.w*b.h-inter;
+    return union<=0?0:inter/union;
+  }
+  function nms(boxes, iouThresh){
+    var sorted = boxes.slice().sort(function(a,b){ return b.score-a.score; }); var kept=[];
+    for (var i=0;i<sorted.length;i++){ var bi=sorted[i]; var overlap=false;
+      for (var j=0;j<kept.length;j++){ if (kept[j].classId===bi.classId && iou(kept[j],bi)>iouThresh){ overlap=true; break; } }
+      if (!overlap) kept.push(bi);
+    }
+    return kept;
+  }
+  function runDetection(pixels, width, height, profiles, confThresh, iouThresh, colorFactor){
+    var raw = detectBlobs(pixels, width, height, profiles, {maxColorFactor: colorFactor});
+    var afterConf = raw.filter(function(b){ return b.score >= confThresh; });
+    return {raw: raw, final: nms(afterConf, iouThresh)};
+  }
+  window.GeoAIDetect = { buildClassProfiles:buildClassProfiles, detectBlobs:detectBlobs, iou:iou, nms:nms, runDetection:runDetection };
+})();
+
+/* Bagian 4: Evaluasi */
+(function(){
+  'use strict';
+  function iou(a,b){
+    var ax2=a.x+a.w,ay2=a.y+a.h,bx2=b.x+b.w,by2=b.y+b.h;
+    var ix1=Math.max(a.x,b.x),iy1=Math.max(a.y,b.y),ix2=Math.min(ax2,bx2),iy2=Math.min(ay2,by2);
+    var iw=Math.max(0,ix2-ix1),ih=Math.max(0,iy2-iy1); var inter=iw*ih; var union=a.w*a.h+b.w*b.h-inter;
+    return union<=0?0:inter/union;
+  }
+  function matchPredictionsToGT(preds, gts, iouThresh){
+    var sortedPreds = preds.slice().sort(function(a,b){ return b.score-a.score; });
+    var gtUsed = gts.map(function(){ return false; }); var tp=0, fp=0; var detail=[];
+    for (var i=0;i<sortedPreds.length;i++){
+      var p=sortedPreds[i]; var bestJ=-1, bestIoU=0;
+      for (var j=0;j<gts.length;j++){ if (gtUsed[j] || gts[j].classId !== p.classId) continue; var v=iou(p,gts[j]); if (v>bestIoU){ bestIoU=v; bestJ=j; } }
+      if (bestJ>=0 && bestIoU>=iouThresh){ tp++; gtUsed[bestJ]=true; detail.push({pred:p,gtIndex:bestJ,iou:bestIoU,result:'TP'}); }
+      else { fp++; detail.push({pred:p,gtIndex:-1,iou:bestIoU,result:'FP'}); }
+    }
+    var fn = gtUsed.filter(function(u){ return !u; }).length;
+    return {tp:tp, fp:fp, fn:fn, detail:detail};
+  }
+  function precisionRecallF1(tp, fp, fn){
+    var precision=(tp+fp)>0?tp/(tp+fp):0, recall=(tp+fn)>0?tp/(tp+fn):0;
+    var f1=(precision+recall)>0?2*precision*recall/(precision+recall):0;
+    return {precision:precision, recall:recall, f1:f1};
+  }
+  function averagePrecision(preds, gts, iouThresh, steps){
+    steps = steps || 10; if (gts.length === 0) return null; var points=[];
+    for (var s=0;s<=steps;s++){ var thresh=s/steps; var filtered=preds.filter(function(p){return p.score>=thresh;});
+      var m=matchPredictionsToGT(filtered,gts,iouThresh); var pr=precisionRecallF1(m.tp,m.fp,m.fn); points.push({recall:pr.recall,precision:pr.precision}); }
+    points.sort(function(a,b){ return a.recall-b.recall; }); var maxToRight=0;
+    for (var k=points.length-1;k>=0;k--){ maxToRight=Math.max(maxToRight,points[k].precision); points[k].interpPrecision=maxToRight; }
+    var ap=0; for (var k2=1;k2<points.length;k2++){ var dr=points[k2].recall-points[k2-1].recall; if (dr>0) ap += dr*points[k2].interpPrecision; }
+    return {ap: Math.max(0,Math.min(1,ap)), curve: points};
+  }
+  function evaluateDataset(predGtPairs, classes, iouThresh){
+    var perClass={};
+    classes.forEach(function(c){
+      var allPreds=[], allGts=[];
+      predGtPairs.forEach(function(pair){ allPreds=allPreds.concat(pair.preds.filter(function(p){return p.classId===c.id;})); allGts=allGts.concat(pair.gts.filter(function(g){return g.classId===c.id;})); });
+      var m=matchPredictionsToGT(allPreds,allGts,iouThresh); var pr=precisionRecallF1(m.tp,m.fp,m.fn); var apResult=averagePrecision(allPreds,allGts,iouThresh,10);
+      perClass[c.id]={tp:m.tp,fp:m.fp,fn:m.fn,precision:pr.precision,recall:pr.recall,f1:pr.f1,ap:apResult?apResult.ap:null,nGT:allGts.length,nPred:allPreds.length};
+    });
+    var apValues=classes.map(function(c){return perClass[c.id].ap;}).filter(function(v){return v!==null;});
+    var mAP=apValues.length?apValues.reduce(function(a,b){return a+b;},0)/apValues.length:null;
+    return {perClass:perClass, mAP:mAP};
+  }
+  window.GeoAIEval = { iou:iou, matchPredictionsToGT:matchPredictionsToGT, precisionRecallF1:precisionRecallF1, averagePrecision:averagePrecision, evaluateDataset:evaluateDataset };
+})();
+</script>
+<script>
+window.GEOAI_EXAMPLES_B64 = {};
+</script>
+<script>
+/* Bagian 5: Aplikasi Utama (Tab 1–8) */
+(function(){
+  'use strict';
+  var U = window.GeoAIUtil, G = window.GeoAIGeom, D = window.GeoAIDetect, EV = window.GeoAIEval;
+  var $ = U.$, $$ = U.$$, uid = U.uid, clamp = U.clamp, fmt = U.fmt, pct = U.pct, rand = U.rand, toast = U.toast, downloadFile = U.downloadFile;
+
+  var DEFAULT_CLASSES = [
+    {id:'bangunan', name:'Bangunan / Rumah', color:'#DC2626'},
+    {id:'kendaraan', name:'Kendaraan / Mobil', color:'#2563EB'},
+    {id:'kapal', name:'Kapal / Perahu', color:'#7C3AED'},
+    {id:'vegetasi', name:'Vegetasi / Pohon', color:'#16A34A'},
+    {id:'lainnya', name:'Lainnya', color:'#6B7280'}
+  ];
+  var EXAMPLES = [];
+  var YOLO_VARIANTS = [
+    {id:'n', label:'YOLO11n (Nano)', map:39.5, speed:'Sangat cepat (CPU ~56ms)', params:'2.6M', flops:'6.5B'},
+    {id:'s', label:'YOLO11s (Small)', map:47.0, speed:'Masih cepat (CPU ~90ms)', params:'9.4M', flops:'21.5B'},
+    {id:'m', label:'YOLO11m (Medium)', map:51.5, speed:'Sedang (CPU ~183ms)', params:'20.1M', flops:'68.0B'},
+    {id:'l', label:'YOLO11l (Large)', map:53.4, speed:'Lambat (CPU ~238ms)', params:'25.3M', flops:'86.9B'},
+    {id:'x', label:'YOLO11x (Extra Large)', map:54.7, speed:'Paling lambat (CPU ~462ms)', params:'56.9M', flops:'194.9B'}
+  ];
+
+  var state = {
+    classes: JSON.parse(JSON.stringify(DEFAULT_CLASSES)),
+    image:null, tileSize:416, tiles:[], activeTileId:null, annotations:{}, nullTiles:{},
+    activeClassId:DEFAULT_CLASSES[0].id, activeShapeMode:'rect', polyInProgress:null, dragStart:null,
+    augmented:[], split:{train:[],val:[]}, datasetItems:[], classProfiles:null,
+    trainingLog:null, trainingConfig:null, trainingDone:false, detection:null, evaluation:null, layoutBuilt:false
+  };
+  window.GeoAIState = state;
+
+  function findClass(id){ return state.classes.find(function(c){return c.id===id;}) || state.classes[0]; }
+  function classCount(){ return state.classes.length; }
+
+  var TAB_KEYS = ['import','tiling','anotasi','augmentasi','training','deteksi','evaluasi','layout'];
+  function showTab(key){
+    TAB_KEYS.forEach(function(k){ $('geoai-view-'+k).classList.toggle('geoai-hidden', k!==key); });
+    $$('.geoai-tab').forEach(function(btn){ btn.classList.toggle('active', btn.getAttribute('data-tab')===key); });
+    if (key === 'anotasi') renderAnnotationTab();
+    if (key === 'deteksi') refreshDetectSourceOptions();
+    if (key === 'training') renderYoloTable();
+  }
+  $$('.geoai-tab').forEach(function(btn){ btn.addEventListener('click', function(){ showTab(btn.getAttribute('data-tab')); }); });
+
+  function renderClassEditor(){
+    var html = '';
+    state.classes.forEach(function(c){
+      html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;" data-cid="'+c.id+'">'+
+        '<input type="color" class="geoai-cls-color" value="'+c.color+'" style="width:34px;height:30px;border:none;border-radius:6px;padding:0;">'+
+        '<input type="text" class="geoai-cls-name" value="'+c.name.replace(/"/g,'&quot;')+'" style="flex:1;border:1px solid var(--c-border);border-radius:8px;padding:6px 9px;font-size:12.5px;">'+
+        (state.classes.length>1 ? '<button class="geoai-btn sm danger geoai-cls-del" type="button">Hapus</button>' : '')+
+      '</div>';
+    });
+    $('geoaiClassEditor').innerHTML = html;
+    $$('#geoaiClassEditor > div').forEach(function(row){
+      var cid = row.getAttribute('data-cid'); var c = findClass(cid);
+      row.querySelector('.geoai-cls-color').addEventListener('input', function(e){ c.color = e.target.value; renderAnnClassChips(); drawAnnotationCanvas(); });
+      row.querySelector('.geoai-cls-name').addEventListener('input', function(e){ c.name = e.target.value; renderAnnClassChips(); });
+      var delBtn = row.querySelector('.geoai-cls-del');
+      if (delBtn) delBtn.addEventListener('click', function(){
+        state.classes = state.classes.filter(function(x){ return x.id!==cid; });
+        if (state.activeClassId === cid) state.activeClassId = state.classes[0].id;
+        renderClassEditor(); renderAnnClassChips();
+      });
+    });
+  }
+  $('geoaiAddClass').addEventListener('click', function(){
+    var n = state.classes.length+1;
+    state.classes.push({id:'kelas'+uid(), name:'Kelas Baru '+n, color:'#'+Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0')});
+    renderClassEditor(); renderAnnClassChips();
+  });
+
+  function renderExampleGrid(){ $('geoaiExampleGrid').innerHTML = ''; }
+
+  function setImportStatus(html, isError){ $('geoaiImportStatus').innerHTML = '<div class="'+(isError?'geoai-warn':'geoai-note')+'">'+html+'</div>'; }
+
+  function onImageReady(canvas, name){
+    state.image = {canvas:canvas, width:canvas.width, height:canvas.height, name:name};
+    state.tiles = []; state.annotations = {}; state.nullTiles = {}; state.activeTileId = null;
+    state.augmented = []; state.split = {train:[],val:[]}; state.datasetItems = [];
+    state.classProfiles = null; state.trainingLog = null; state.trainingDone = false; state.detection = null; state.evaluation = null;
+    setImportStatus('Citra berhasil dimuat: <b>'+name+'</b> — '+canvas.width+' × '+canvas.height+' px.');
+    var wrap = $('geoaiImportPreviewWrap'); wrap.innerHTML = '';
+    var disp = document.createElement('canvas'); var scale = Math.min(1, 760/canvas.width);
+    disp.width = Math.round(canvas.width*scale); disp.height = Math.round(canvas.height*scale);
+    disp.getContext('2d').drawImage(canvas, 0,0,disp.width,disp.height); wrap.appendChild(disp);
+    toast('Citra "'+name+'" siap digunakan.');
+  }
+  function handleFile(file){
+    if (!file) return; var name = file.name; var lower = name.toLowerCase();
+    setImportStatus('Memuat "'+name+'"…');
+    if (lower.endsWith('.tif') || lower.endsWith('.tiff')){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        U.decodeTIFF(e.target.result).then(function(result){ onImageReady(U.tiffResultToCanvas(result), name); })
+          .catch(function(err){ setImportStatus('Gagal membaca TIFF: '+err.message, true); });
+      };
+      reader.onerror = function(){ setImportStatus('Gagal membaca berkas.', true); };
+      reader.readAsArrayBuffer(file);
+    } else {
+      var url = URL.createObjectURL(file); var img = new Image();
+      img.onload = function(){
+        var canvas = document.createElement('canvas'); canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img,0,0); URL.revokeObjectURL(url); onImageReady(canvas, name);
+      };
+      img.onerror = function(){ setImportStatus('Gagal memuat gambar. Format tidak didukung browser.', true); };
+      img.src = url;
+    }
+  }
+  $('geoaiDropzone').addEventListener('click', function(){ $('geoaiFileInput').click(); });
+  $('geoaiFileInput').addEventListener('change', function(e){ handleFile(e.target.files[0]); });
+  ['dragover','dragleave','drop'].forEach(function(evt){
+    $('geoaiDropzone').addEventListener(evt, function(e){
+      e.preventDefault(); $('geoaiDropzone').classList.toggle('drag', evt==='dragover');
+      if (evt==='drop' && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+  });
+
+  function runTiling(){
+    if (!state.image){ toast('Impor citra terlebih dahulu pada tab 1.'); return; }
+    var tileSize = clamp(parseInt($('geoaiTileSize').value,10)||416, 64, 2048); state.tileSize = tileSize;
+    var img = state.image; var cols = Math.ceil(img.width/tileSize), rows = Math.ceil(img.height/tileSize); var tiles = [];
+    for (var r=0;r<rows;r++){ for (var c=0;c<cols;c++){
+      var x=c*tileSize,y=r*tileSize; var w=Math.min(tileSize,img.width-x),h=Math.min(tileSize,img.height-y);
+      var canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img.canvas, x,y,w,h, 0,0,w,h);
+      tiles.push({id:uid(), row:r, col:c, x:x, y:y, w:w, h:h, canvas:canvas});
+    }}
+    state.tiles = tiles; state.annotations = {}; state.nullTiles = {};
+    state.activeTileId = tiles.length ? tiles[0].id : null;
+    state.augmented = []; state.split = {train:[],val:[]}; state.datasetItems = [];
+    state.classProfiles = null; state.trainingLog = null; state.trainingDone = false;
+    $('geoaiTilingStatus').innerHTML = '<div class="geoai-note">Dihasilkan <b>'+tiles.length+'</b> tile ('+rows+' baris × '+cols+' kolom), ukuran tile '+tileSize+'×'+tileSize+' px.</div>';
+    renderTilingPreview(); $('geoaiTilingPreviewCard').style.display='';
+    toast(tiles.length+' tile berhasil dibuat.');
+  }
+  $('geoaiRunTiling').addEventListener('click', runTiling);
+  function renderTilingPreview(){
+    var wrap = $('geoaiTilingPreviewWrap'); wrap.innerHTML = ''; var img = state.image;
+    var canvas = document.createElement('canvas'); var scale = Math.min(1, 760/img.width);
+    canvas.width = Math.round(img.width*scale); canvas.height = Math.round(img.height*scale);
+    var ctx = canvas.getContext('2d'); ctx.drawImage(img.canvas, 0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = 'rgba(13,148,136,0.9)'; ctx.lineWidth = 1;
+    state.tiles.forEach(function(t){ ctx.strokeRect(t.x*scale, t.y*scale, t.w*scale, t.h*scale); });
+    wrap.appendChild(canvas);
+  }
+
+  var ANN_DISPLAY_MAX = 480; var annCtx = null, annCanvasEl = null, annScale = 1;
+  function renderAnnClassChips(){
+    var html = '';
+    state.classes.forEach(function(c){
+      html += '<div class="geoai-chip'+(state.activeClassId===c.id?' active':'')+'" data-cid="'+c.id+'"><span class="dot" style="background:'+c.color+';"></span>'+c.name+'</div>';
+    });
+    $('geoaiAnnClassChips').innerHTML = html;
+    $$('#geoaiAnnClassChips .geoai-chip').forEach(function(chip){
+      chip.addEventListener('click', function(){ state.activeClassId = chip.getAttribute('data-cid'); renderAnnClassChips(); });
+    });
+  }
+  function activeTile(){ return state.tiles.find(function(t){ return t.id===state.activeTileId; }); }
+  function tileAnnotations(tileId){ if(!state.annotations[tileId]) state.annotations[tileId]=[]; return state.annotations[tileId]; }
+  function renderAnnotationTab(){
+    if (!state.tiles.length){
+      $('geoaiAnnCanvasWrap').innerHTML = '<div class="geoai-warn">Belum ada tile. Lakukan tiling pada tab 2 terlebih dahulu.</div>';
+      $('geoaiTileIndicator').textContent=''; $('geoaiAnnList').innerHTML=''; $('geoaiTileNavGrid').innerHTML=''; renderAnnSummary(); return;
+    }
+    renderAnnClassChips(); setupAnnCanvas(); renderTileNavGrid(); updateTileIndicator(); drawAnnotationCanvas(); renderAnnList(); renderAnnSummary();
+  }
+  function setupAnnCanvas(){
+    var wrap = $('geoaiAnnCanvasWrap'); if (annCanvasEl && wrap.contains(annCanvasEl)) return;
+    wrap.innerHTML = ''; annCanvasEl = document.createElement('canvas'); annCanvasEl.style.cursor = 'crosshair';
+    wrap.appendChild(annCanvasEl); annCtx = annCanvasEl.getContext('2d'); bindAnnCanvasEvents();
+  }
+  function tileDisplaySize(t){ return Math.min(ANN_DISPLAY_MAX/t.w, ANN_DISPLAY_MAX/t.h, 3); }
+  function drawAnnotationCanvas(){
+    var t = activeTile(); if (!t || !annCtx) return;
+    annScale = tileDisplaySize(t); annCanvasEl.width = Math.round(t.w*annScale); annCanvasEl.height = Math.round(t.h*annScale);
+    annCtx.imageSmoothingEnabled = false; annCtx.drawImage(t.canvas, 0,0,annCanvasEl.width, annCanvasEl.height);
+    var anns = tileAnnotations(t.id); anns.forEach(function(a){ drawShape(annCtx, a, annScale, false); });
+    if (state.polyInProgress && state.polyInProgress.length){ drawShape(annCtx, {shape:'poly', classId:state.activeClassId, points:state.polyInProgress}, annScale, true); }
+    if (state.nullTiles[t.id]){
+      annCtx.fillStyle = 'rgba(107,114,128,0.35)'; annCtx.fillRect(0,0,annCanvasEl.width, annCanvasEl.height);
+      annCtx.fillStyle = '#fff'; annCtx.font='bold 13px sans-serif'; annCtx.textAlign='center';
+      annCtx.fillText('TILE KOSONG (NULL)', annCanvasEl.width/2, annCanvasEl.height/2); annCtx.textAlign='left';
+    }
+  }
+  function drawShape(ctx, a, scale, inProgress){
+    var c = findClass(a.classId); ctx.strokeStyle = c.color; ctx.lineWidth = inProgress?1.5:2; ctx.fillStyle = c.color;
+    if (a.shape === 'rect'){
+      ctx.strokeRect(a.x*scale, a.y*scale, a.w*scale, a.h*scale);
+      ctx.globalAlpha = 0.14; ctx.fillRect(a.x*scale, a.y*scale, a.w*scale, a.h*scale); ctx.globalAlpha = 1;
+      ctx.font = '11px sans-serif'; var label = c.name; var tw = ctx.measureText(label).width;
+      ctx.fillRect(a.x*scale, Math.max(0,a.y*scale-14), tw+8, 14);
+      ctx.fillStyle = '#fff'; ctx.fillText(label, a.x*scale+4, Math.max(11,a.y*scale-3));
+    } else {
+      ctx.beginPath(); a.points.forEach(function(p,i){ var px=p[0]*scale, py=p[1]*scale; if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py); });
+      if (!inProgress) ctx.closePath(); ctx.stroke();
+      if (!inProgress){ ctx.globalAlpha=0.14; ctx.fill(); ctx.globalAlpha=1; }
+      a.points.forEach(function(p){ ctx.beginPath(); ctx.arc(p[0]*scale,p[1]*scale,3,0,Math.PI*2); ctx.fill(); });
+    }
+  }
+  function canvasLocalXY(e){
+    var rect = annCanvasEl.getBoundingClientRect();
+    var cx = (e.clientX!==undefined?e.clientX:(e.touches&&e.touches[0].clientX)) - rect.left;
+    var cy = (e.clientY!==undefined?e.clientY:(e.touches&&e.touches[0].clientY)) - rect.top;
+    var scaleX = annCanvasEl.width/rect.width, scaleY = annCanvasEl.height/rect.height;
+    return [cx*scaleX/annScale, cy*scaleY/annScale];
+  }
+  function bindAnnCanvasEvents(){
+    annCanvasEl.addEventListener('mousedown', function(e){
+      var t = activeTile(); if (!t) return; if (state.nullTiles[t.id]) return; var xy = canvasLocalXY(e);
+      if (state.activeShapeMode === 'rect'){ state.dragStart = xy; }
+      else { if (!state.polyInProgress) state.polyInProgress = []; state.polyInProgress.push(xy); drawAnnotationCanvas(); }
+    });
+    annCanvasEl.addEventListener('mousemove', function(e){
+      if (state.activeShapeMode==='rect' && state.dragStart){
+        var xy = canvasLocalXY(e); drawAnnotationCanvas();
+        var x0=Math.min(state.dragStart[0],xy[0]), y0=Math.min(state.dragStart[1],xy[1]);
+        var w0=Math.abs(xy[0]-state.dragStart[0]), h0=Math.abs(xy[1]-state.dragStart[1]);
+        var c = findClass(state.activeClassId); annCtx.strokeStyle = c.color; annCtx.lineWidth = 1.5; annCtx.setLineDash([4,3]);
+        annCtx.strokeRect(x0*annScale,y0*annScale,w0*annScale,h0*annScale); annCtx.setLineDash([]);
+      }
+    });
+    annCanvasEl.addEventListener('mouseup', function(e){
+      if (state.activeShapeMode==='rect' && state.dragStart){
+        var xy = canvasLocalXY(e); var t = activeTile();
+        var x0=Math.max(0,Math.min(state.dragStart[0],xy[0])), y0=Math.max(0,Math.min(state.dragStart[1],xy[1]));
+        var x1=Math.min(t.w,Math.max(state.dragStart[0],xy[0])), y1=Math.min(t.h,Math.max(state.dragStart[1],xy[1]));
+        var w0=x1-x0, h0=y1-y0; state.dragStart = null;
+        if (w0>=4 && h0>=4){
+          tileAnnotations(t.id).push({id:uid(), classId:state.activeClassId, shape:'rect', x:x0,y:y0,w:w0,h:h0});
+          delete state.nullTiles[t.id]; renderAnnList(); renderTileNavGrid(); renderAnnSummary();
+        }
+        drawAnnotationCanvas();
+      }
+    });
+    annCanvasEl.addEventListener('dblclick', function(){ finishPolygon(); });
+  }
+  function finishPolygon(){
+    if (state.polyInProgress && state.polyInProgress.length>=3){
+      var t = activeTile(); tileAnnotations(t.id).push({id:uid(), classId:state.activeClassId, shape:'poly', points:state.polyInProgress});
+      delete state.nullTiles[t.id]; renderAnnList(); renderTileNavGrid(); renderAnnSummary();
+    }
+    state.polyInProgress = null; drawAnnotationCanvas();
+  }
+  $('geoaiPolyDone').addEventListener('click', finishPolygon);
+  $('geoaiShapeRect').addEventListener('click', function(){
+    state.activeShapeMode='rect'; state.polyInProgress=null;
+    $('geoaiShapeRect').classList.add('primary'); $('geoaiShapePoly').classList.remove('primary'); drawAnnotationCanvas();
+  });
+  $('geoaiShapePoly').addEventListener('click', function(){
+    state.activeShapeMode='poly'; $('geoaiShapePoly').classList.add('primary'); $('geoaiShapeRect').classList.remove('primary');
+  });
+  $('geoaiAnnUndo').addEventListener('click', function(){
+    var t = activeTile(); if (!t) return;
+    if (state.polyInProgress && state.polyInProgress.length){ state.polyInProgress.pop(); drawAnnotationCanvas(); return; }
+    tileAnnotations(t.id).pop(); drawAnnotationCanvas(); renderAnnList(); renderTileNavGrid(); renderAnnSummary();
+  });
+  $('geoaiAnnClearTile').addEventListener('click', function(){
+    var t = activeTile(); if (!t) return; state.annotations[t.id] = []; delete state.nullTiles[t.id];
+    drawAnnotationCanvas(); renderAnnList(); renderTileNavGrid(); renderAnnSummary();
+  });
+  $('geoaiMarkNull').addEventListener('click', function(){
+    var t = activeTile(); if (!t) return; state.annotations[t.id] = []; state.nullTiles[t.id] = true;
+    drawAnnotationCanvas(); renderAnnList(); renderTileNavGrid(); renderAnnSummary();
+  });
+  function renderAnnList(){
+    var t = activeTile(); if (!t){ $('geoaiAnnList').innerHTML=''; return; }
+    var anns = tileAnnotations(t.id);
+    if (!anns.length){ $('geoaiAnnList').innerHTML = '<div style="color:var(--c-muted);font-size:12px;padding:6px 2px;">Belum ada anotasi pada tile ini.</div>'; return; }
+    var html = '';
+    anns.forEach(function(a){
+      var c = findClass(a.classId);
+      html += '<div class="geoai-annrow" data-aid="'+a.id+'"><span class="dot" style="background:'+c.color+';"></span><span class="lbl">'+c.name+' · '+(a.shape==='rect'?'kotak':'poligon')+'</span><button class="geoai-btn sm danger geoai-ann-del" type="button">×</button></div>';
+    });
+    $('geoaiAnnList').innerHTML = html;
+    $$('#geoaiAnnList .geoai-ann-del').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var row = btn.closest('.geoai-annrow'); var aid = row.getAttribute('data-aid');
+        state.annotations[t.id] = anns.filter(function(a){ return a.id!==aid; });
+        drawAnnotationCanvas(); renderAnnList(); renderTileNavGrid(); renderAnnSummary();
+      });
+    });
+  }
+  function renderTileNavGrid(){
+    var html = '';
+    state.tiles.forEach(function(t,i){
+      var n = (state.annotations[t.id]||[]).length; var isNull = !!state.nullTiles[t.id];
+      var cls = 'geoai-tilethumb'+(t.id===state.activeTileId?' active':'')+((n===0&&!isNull)?' empty':'');
+      html += '<div class="'+cls+'" data-tid="'+t.id+'" title="Tile '+(i+1)+'"><img src="'+t.canvas.toDataURL('image/jpeg',0.6)+'"><span class="badge">'+(isNull?'null':n)+'</span></div>';
+    });
+    $('geoaiTileNavGrid').innerHTML = html;
+    $$('#geoaiTileNavGrid .geoai-tilethumb').forEach(function(el){
+      el.addEventListener('click', function(){
+        state.activeTileId = el.getAttribute('data-tid'); state.polyInProgress = null;
+        renderTileNavGrid(); updateTileIndicator(); drawAnnotationCanvas(); renderAnnList();
+      });
+    });
+  }
+  function updateTileIndicator(){
+    var idx = state.tiles.findIndex(function(t){return t.id===state.activeTileId;});
+    $('geoaiTileIndicator').textContent = 'Tile '+(idx+1)+' / '+state.tiles.length;
+  }
+  $('geoaiTilePrev').addEventListener('click', function(){
+    var idx = state.tiles.findIndex(function(t){return t.id===state.activeTileId;});
+    if (idx>0){ state.activeTileId = state.tiles[idx-1].id; state.polyInProgress=null; renderTileNavGrid(); updateTileIndicator(); drawAnnotationCanvas(); renderAnnList(); }
+  });
+  $('geoaiTileNext').addEventListener('click', function(){
+    var idx = state.tiles.findIndex(function(t){return t.id===state.activeTileId;});
+    if (idx<state.tiles.length-1){ state.activeTileId = state.tiles[idx+1].id; state.polyInProgress=null; renderTileNavGrid(); updateTileIndicator(); drawAnnotationCanvas(); renderAnnList(); }
+  });
+  function annotationStats(){
+    var totalAnn=0, perClass={}; state.classes.forEach(function(c){ perClass[c.id]=0; }); var labeledTiles=0, nullCount=0;
+    state.tiles.forEach(function(t){
+      var anns = state.annotations[t.id]||[];
+      if (anns.length){ labeledTiles++; totalAnn += anns.length; anns.forEach(function(a){ if(perClass[a.classId]!==undefined) perClass[a.classId]++; }); }
+      else if (state.nullTiles[t.id]) nullCount++;
+    });
+    return {totalAnn:totalAnn, perClass:perClass, labeledTiles:labeledTiles, nullCount:nullCount, totalTiles:state.tiles.length};
+  }
+  function renderAnnSummary(){
+    var s = annotationStats();
+    var html = '<div class="geoai-kpi"><small>Tile Berlabel</small><b>'+s.labeledTiles+' / '+s.totalTiles+'</b></div>'+
+      '<div class="geoai-kpi"><small>Tile Kosong (Null)</small><b>'+s.nullCount+'</b></div>'+
+      '<div class="geoai-kpi"><small>Total Sampel Objek</small><b>'+s.totalAnn+'</b></div>';
+    state.classes.forEach(function(c){ html += '<div class="geoai-kpi"><small>'+c.name+'</small><b style="color:'+c.color+';">'+s.perClass[c.id]+'</b></div>'; });
+    $('geoaiAnnSummary').innerHTML = html;
+  }
+  function polyBBox(points){
+    var xs = points.map(function(p){return p[0];}), ys = points.map(function(p){return p[1];});
+    return {x:Math.min.apply(null,xs),y:Math.min.apply(null,ys),w:Math.max.apply(null,xs)-Math.min.apply(null,xs),h:Math.max.apply(null,ys)-Math.min.apply(null,ys)};
+  }
+  function buildYoloExportPackage(){
+    var s = annotationStats(); var items = [];
+    state.tiles.forEach(function(t, idx){
+      var anns = (state.annotations[t.id]||[]).map(function(a){
+        var bbox = a.shape==='rect' ? {x:a.x,y:a.y,w:a.w,h:a.h} : polyBBox(a.points);
+        var cx=(bbox.x+bbox.w/2)/t.w, cy=(bbox.y+bbox.h/2)/t.h, nw=bbox.w/t.w, nh=bbox.h/t.h;
+        var clsIdx = state.classes.findIndex(function(c){return c.id===a.classId;});
+        return {classIndex:clsIdx, className:findClass(a.classId).name, cx:cx, cy:cy, w:nw, h:nh};
+      });
+      items.push({ fileName:'tile_'+(idx+1)+'.jpg', width:t.w, height:t.h, isNull:!!state.nullTiles[t.id],
+        labelTxt: anns.map(function(a){ return a.classIndex+' '+a.cx.toFixed(6)+' '+a.cy.toFixed(6)+' '+a.w.toFixed(6)+' '+a.h.toFixed(6); }).join('\n'),
+        annotations: anns, imageDataUrl: t.canvas.toDataURL('image/jpeg',0.85) });
+    });
+    return { classes: state.classes.map(function(c){return c.name;}), nc: state.classes.length, items: items, summary: s };
+  }
+  $('geoaiExportYolo').addEventListener('click', function(){
+    if (!state.tiles.length){ toast('Belum ada data untuk diekspor.'); return; }
+    downloadFile('geoai-dataset-yolo.json', JSON.stringify(buildYoloExportPackage(), null, 1), 'application/json');
+    toast('Dataset (format YOLO, dibungkus JSON) berhasil diunduh.');
+  });
+  $('geoaiExportYaml').addEventListener('click', function(){
+    var yaml = 'train: ./augmented/train/images\nval: ./augmented/val/images\nnc: '+state.classes.length+'\nnames: ['+state.classes.map(function(c){return "'"+c.name+"'";}).join(', ')+']\n';
+    downloadFile('data.yaml', yaml, 'text/yaml'); toast('data.yaml berhasil diunduh.');
+  });
+
+  window.GeoAIApp = {
+    state: state, findClass: findClass, classCount: classCount, showTab: showTab,
+    renderClassEditor: renderClassEditor, renderExampleGrid: renderExampleGrid,
+    renderAnnClassChips: renderAnnClassChips, renderAnnotationTab: renderAnnotationTab,
+    drawAnnotationCanvas: drawAnnotationCanvas, annotationStats: annotationStats,
+    polyBBox: polyBBox, DEFAULT_CLASSES: DEFAULT_CLASSES, EXAMPLES: EXAMPLES,
+    YOLO_VARIANTS: YOLO_VARIANTS, activeTile: activeTile, tileAnnotations: tileAnnotations
+  };
+  renderClassEditor(); renderExampleGrid();
+  function refreshDetectSourceOptions(){ if (window.GeoAIApp.refreshDetectSourceOptions2) window.GeoAIApp.refreshDetectSourceOptions2(); }
+  function renderYoloTable(){ if (window.GeoAIApp.renderYoloTable2) window.GeoAIApp.renderYoloTable2(); }
+})();
+</script>
+<script>
+/* Bagian 6: Tab 4 (Augmentasi) s.d. Tab 8 (Layout & Laporan) */
+(function(){
+  'use strict';
+  var U = window.GeoAIUtil, G = window.GeoAIGeom, D = window.GeoAIDetect, EV = window.GeoAIEval;
+  var App = window.GeoAIApp, state = App.state;
+  var $ = U.$, $$ = U.$$, uid = U.uid, clamp = U.clamp, fmt = U.fmt, pct = U.pct, rand = U.rand, toast = U.toast, downloadFile = U.downloadFile;
+  var findClass = App.findClass, annotationStats = App.annotationStats, polyBBox = App.polyBBox; var YOLO_VARIANTS = App.YOLO_VARIANTS;
+
+  var AUG_OPS = [
+    {id:'rot90', label:'Rotasi 90°'},{id:'rot180', label:'Rotasi 180°'},{id:'rot270', label:'Rotasi 270°'},
+    {id:'hflip', label:'Flip Horizontal'},{id:'vflip', label:'Flip Vertikal'},{id:'bright', label:'Brightness/Contrast'}
+  ];
+  var activeAugOps = {}; AUG_OPS.forEach(function(op){ activeAugOps[op.id] = true; });
+  function renderAugOps(){
+    var html=''; AUG_OPS.forEach(function(op){ html += '<div class="geoai-chip'+(activeAugOps[op.id]?' active':'')+'" data-op="'+op.id+'">'+op.label+'</div>'; });
+    $('geoaiAugOps').innerHTML = html;
+    $$('#geoaiAugOps .geoai-chip').forEach(function(chip){ chip.addEventListener('click', function(){ var id=chip.getAttribute('data-op'); activeAugOps[id]=!activeAugOps[id]; renderAugOps(); }); });
+  }
+  renderAugOps();
+  function applyBrightnessContrast(srcCanvas){
+    var c = document.createElement('canvas'); c.width=srcCanvas.width; c.height=srcCanvas.height; var ctx = c.getContext('2d');
+    ctx.filter = 'brightness('+(100+rand(-15,15)).toFixed(0)+'%) contrast('+(100+rand(-10,10)).toFixed(0)+'%)';
+    ctx.drawImage(srcCanvas,0,0); ctx.filter = 'none'; return c;
+  }
+  function applyGeomTransform(srcCanvas, opName){
+    var w=srcCanvas.width, h=srcCanvas.height; var outSize=G.outSizeFor(opName,w,h);
+    var c = document.createElement('canvas'); c.width=outSize[0]; c.height=outSize[1]; var ctx = c.getContext('2d'); var m;
+    switch(opName){ case 'rot90': m=[0,1,-1,0,h,0]; break; case 'rot180': m=[-1,0,0,-1,w,h]; break; case 'rot270': m=[0,-1,1,0,0,w]; break;
+      case 'hflip': m=[-1,0,0,1,w,0]; break; case 'vflip': m=[1,0,0,-1,0,h]; break; default: m=[1,0,0,1,0,0]; }
+    ctx.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]); ctx.drawImage(srcCanvas,0,0); ctx.setTransform(1,0,0,1,0,0); return c;
+  }
+  function cloneAnn(a){ return JSON.parse(JSON.stringify(a)); }
+  function runAugmentation(){
+    if (!state.tiles.length){ toast('Belum ada tile. Lakukan tiling pada tab 2.'); return; }
+    var stats = annotationStats();
+    if (stats.labeledTiles + stats.nullCount === 0){ toast('Beri label (atau tandai kosong) pada minimal satu tile sebelum augmentasi.'); return; }
+    var selectedOps = AUG_OPS.filter(function(op){ return activeAugOps[op.id]; }).map(function(op){return op.id;});
+    var origItems = [], augmented = [];
+    state.tiles.forEach(function(t){
+      var anns = state.annotations[t.id] || []; var isNull = !!state.nullTiles[t.id];
+      if (!anns.length && !isNull) return;
+      origItems.push({id:uid(), baseTileId:t.id, opName:'orig', canvas:t.canvas, w:t.w, h:t.h, annotations:anns.map(cloneAnn), isNull:isNull});
+      selectedOps.forEach(function(opName){
+        var newCanvas = (opName==='bright') ? applyBrightnessContrast(t.canvas) : applyGeomTransform(t.canvas, opName);
+        var newAnns = isNull ? [] : G.transformAnnotations(anns, opName, t.w, t.h);
+        var outSize = (opName==='bright') ? [t.w,t.h] : G.outSizeFor(opName, t.w, t.h);
+        augmented.push({id:uid(), baseTileId:t.id, opName:opName, canvas:newCanvas, w:outSize[0], h:outSize[1], annotations:newAnns, isNull:isNull});
+      });
+    });
+    var allItems = origItems.concat(augmented); var shuffled = allItems.slice();
+    for (var i=shuffled.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var tmp=shuffled[i]; shuffled[i]=shuffled[j]; shuffled[j]=tmp; }
+    var ratio = clamp(parseFloat($('geoaiSplitRatio').value)||80, 50,95)/100;
+    var splitIdx = Math.max(1, Math.round(shuffled.length*ratio));
+    var train = shuffled.slice(0,splitIdx), val = shuffled.slice(splitIdx);
+    if (!val.length && shuffled.length>1){ val = [train.pop()]; }
+    state.augmented = augmented; state.datasetItems = allItems;
+    state.split = {train:train.map(function(x){return x.id;}), val:val.map(function(x){return x.id;})};
+    state.classProfiles = null; state.trainingLog = null; state.trainingDone = false;
+    $('geoaiAugStatus').innerHTML = '<div class="geoai-note">Augmentasi selesai: <b>'+origItems.length+'</b> tile asli × '+(selectedOps.length+1)+' = <b>'+allItems.length+'</b> total data. Split: <b>'+train.length+'</b> train / <b>'+val.length+'</b> val.</div>';
+    renderAugPreview(allItems.slice(0, 30)); $('geoaiAugPreviewCard').style.display='';
+    toast('Augmentasi & split data selesai: '+allItems.length+' total data.');
+  }
+  $('geoaiRunAugmentation').addEventListener('click', runAugmentation);
+  function renderAugPreview(items){
+    var html=''; items.forEach(function(it){ html += '<div class="geoai-tilethumb" title="'+it.opName+'"><img src="'+it.canvas.toDataURL('image/jpeg',0.6)+'"><span class="badge">'+it.opName+'</span></div>'; });
+    $('geoaiAugPreviewGrid').innerHTML = html;
+  }
+
+  function renderYoloTable2(){
+    if ($('geoaiYoloTable').dataset.built) { return; }
+    var rows = '<tr><th>Model</th><th class="geoai-num">mAP val 50-95</th><th>Kecepatan (CPU)</th><th class="geoai-num">Parameter</th><th class="geoai-num">FLOPs</th></tr>';
+    YOLO_VARIANTS.forEach(function(v){ rows += '<tr><td>'+v.label+'</td><td class="geoai-num">'+v.map+'</td><td>'+v.speed+'</td><td class="geoai-num">'+v.params+'</td><td class="geoai-num">'+v.flops+'</td></tr>'; });
+    $('geoaiYoloTable').innerHTML = rows; $('geoaiYoloTable').dataset.built = '1';
+    $('geoaiYoloVariant').innerHTML = YOLO_VARIANTS.map(function(v){return '<option value="'+v.id+'"'+(v.id==='m'?' selected':'')+'>'+v.label+'</option>';}).join('');
+  }
+  function buildClassProfilesFromTrain(){
+    var trainIds = state.split.train; var pool;
+    if (trainIds && trainIds.length){ pool = state.datasetItems.filter(function(it){ return trainIds.indexOf(it.id)>=0; }); }
+    else { pool = state.tiles.map(function(t){ return {canvas:t.canvas, annotations: state.annotations[t.id]||[]}; }); }
+    var samples = [];
+    pool.forEach(function(item){
+      var ctx = item.canvas.getContext('2d');
+      (item.annotations||[]).forEach(function(a){
+        var bbox = a.shape==='rect' ? {x:a.x,y:a.y,w:a.w,h:a.h} : polyBBox(a.points);
+        var bx=Math.max(0,Math.round(bbox.x)), by=Math.max(0,Math.round(bbox.y));
+        var bw=Math.max(1,Math.min(Math.round(bbox.w), item.canvas.width-bx)), bh=Math.max(1,Math.min(Math.round(bbox.h), item.canvas.height-by));
+        if (bw<1||bh<1) return; var pix; try { pix = ctx.getImageData(bx,by,bw,bh).data; } catch(e){ return; }
+        var rSum=0,gSum=0,bSum=0,n=bw*bh; for (var i=0;i<n;i++){ rSum+=pix[i*4]; gSum+=pix[i*4+1]; bSum+=pix[i*4+2]; }
+        samples.push({classId:a.classId, meanColor:[rSum/n,gSum/n,bSum/n], w:bw,h:bh,area:bw*bh});
+      });
+    });
+    return D.buildClassProfiles(samples, state.classes);
+  }
+  function runTraining(){
+    if (!state.tiles.length){ toast('Lakukan tiling & anotasi terlebih dahulu.'); return; }
+    var stats = annotationStats();
+    if (stats.totalAnn < 2){ toast('Tambahkan minimal beberapa sampel anotasi sebelum training (tab 3).'); return; }
+    if (!state.datasetItems.length){ toast('Lakukan augmentasi & split data terlebih dahulu (tab 4).'); return; }
+    var variant = $('geoaiYoloVariant').value || 'm';
+    var epochsReq = clamp(parseInt($('geoaiEpochs').value,10)||100, 5, 300);
+    var patience = clamp(parseInt($('geoaiPatience').value,10)||20, 0, epochsReq);
+    var batch = parseInt($('geoaiBatch').value,10)||8; var imgsz = parseInt($('geoaiImgsz').value,10)||640; var optimizer = $('geoaiOptimizer').value || 'SGD';
+    state.trainingConfig = {variant:variant, epochs:epochsReq, batch:batch, imgsz:imgsz, optimizer:optimizer, patience:patience};
+    var nSamples = stats.totalAnn; var nClassesUsed = Object.keys(stats.perClass).filter(function(k){return stats.perClass[k]>0;}).length;
+    var variantBonus = {n:0, s:0.01, m:0.02, l:0.03, x:0.04}[variant] || 0;
+    var dataQuality = clamp(0.45 + 0.035*Math.min(nSamples,14) + 0.02*nClassesUsed, 0.5, 0.92);
+    var precAsym = clamp(dataQuality + variantBonus, 0.5, 0.985);
+    var recAsym = clamp(dataQuality - 0.03 + variantBonus, 0.45, 0.97);
+    var map50Asym = clamp((precAsym+recAsym)/2 * 1.02, 0.45, 0.99);
+    var map5095Asym = clamp(map50Asym*0.82, 0.3, 0.92);
+    $('geoaiRunTraining').disabled = true; $('geoaiTrainProgressFill').style.width='0%';
+    var log = []; var bestMap=0, bestEpoch=0; var e = 0;
+    var startBoxLoss=rand(3.0,3.8), startClsLoss=rand(3.6,4.3), startDflLoss=rand(2.0,2.5);
+    var kLoss = 4.5/epochsReq, kMetric = 4.0/epochsReq;
+    function stepEpoch(){
+      e++;
+      var boxLoss=Math.max(0.15, startBoxLoss*Math.exp(-kLoss*e)+rand(-0.05,0.05)+0.18);
+      var clsLoss=Math.max(0.1, startClsLoss*Math.exp(-kLoss*e)+rand(-0.06,0.06)+0.12);
+      var dflLoss=Math.max(0.3, startDflLoss*Math.exp(-kLoss*e)+rand(-0.04,0.04)+0.35);
+      var valBoxLoss=boxLoss*rand(1.02,1.18), valClsLoss=clsLoss*rand(1.05,1.22), valDflLoss=dflLoss*rand(1.02,1.15);
+      var precision=clamp(precAsym*(1-Math.exp(-kMetric*e))+rand(-0.02,0.02),0,0.995);
+      var recall=clamp(recAsym*(1-Math.exp(-kMetric*e))+rand(-0.02,0.02),0,0.99);
+      var map50=clamp(map50Asym*(1-Math.exp(-kMetric*e))+rand(-0.015,0.015),0,0.995);
+      var map5095=clamp(map5095Asym*(1-Math.exp(-kMetric*e*0.85))+rand(-0.015,0.015),0,0.95);
+      log.push({epoch:e, box_loss:boxLoss, cls_loss:clsLoss, dfl_loss:dflLoss, val_box_loss:valBoxLoss, val_cls_loss:valClsLoss, val_dfl_loss:valDflLoss, precision:precision, recall:recall, map50:map50, map5095:map5095});
+      if (map50 > bestMap+0.001){ bestMap = map50; bestEpoch = e; }
+      $('geoaiTrainProgressFill').style.width = (e/epochsReq*100)+'%';
+      $('geoaiTrainStatus').textContent = 'Epoch '+e+'/'+epochsReq+' — box_loss '+fmt(boxLoss,3)+', mAP50 '+pct(map50)+', mAP50-95 '+pct(map5095);
+      var stoppedEarly = patience>0 && (e-bestEpoch)>=patience;
+      if (e < epochsReq && !stoppedEarly){ setTimeout(stepEpoch, 16); } else { finishTraining(log, stoppedEarly, e); }
+    }
+    stepEpoch();
+  }
+  $('geoaiRunTraining').addEventListener('click', runTraining);
+  function finishTraining(log, stoppedEarly, epochsRun){
+    state.trainingLog = log; state.classProfiles = buildClassProfilesFromTrain(); state.trainingDone = true;
+    $('geoaiRunTraining').disabled = false;
+    $('geoaiTrainStatus').innerHTML = (stoppedEarly ? '<b>Early stopping</b> pada epoch '+epochsRun+'.' : 'Training selesai pada epoch '+epochsRun+'.');
+    renderTrainCharts(log); renderTrainMetrics(log[log.length-1]); $('geoaiTrainResultCard').classList.remove('geoai-hidden');
+    var s = annotationStats();
+    $('geoaiTrainNote').textContent = 'Kurva di atas simulasi ilustratif gaya YOLO11. Model statistik ringan (warna & ukuran per kelas) dipelajari nyata dari '+s.totalAnn+' sampel anotasi data latih, dan dipakai pada tab Deteksi & Evaluasi.';
+    toast('Training selesai. Model siap dipakai untuk deteksi.'); refreshDetectSourceOptions2();
+  }
+  function drawLineChart(canvas, series, opts){
+    opts = opts||{}; var W=canvas.width, H=canvas.height; var ctx=canvas.getContext('2d');
+    ctx.fillStyle = '#0B1612'; ctx.fillRect(0,0,W,H);
+    var padL=36,padR=10,padT=22,padB=20; var plotW=W-padL-padR, plotH=H-padT-padB;
+    var allVals = []; series.forEach(function(s){ allVals = allVals.concat(s.data); });
+    var yMin = opts.yMin!==undefined?opts.yMin:Math.min.apply(null,allVals);
+    var yMax = opts.yMax!==undefined?opts.yMax:Math.max.apply(null,allVals);
+    if (yMax-yMin < 1e-6) yMax = yMin+1; var n = series[0].data.length;
+    function xPix(i){ return padL + (i/(Math.max(1,n-1)))*plotW; }
+    function yPix(v){ return padT + (1-(v-yMin)/(yMax-yMin))*plotH; }
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth=1; ctx.font='10px sans-serif'; ctx.fillStyle='#9FB3AD';
+    for (var g=0;g<=4;g++){ var gy = padT + g/4*plotH; ctx.beginPath(); ctx.moveTo(padL,gy); ctx.lineTo(W-padR,gy); ctx.stroke();
+      ctx.fillText((yMax - g/4*(yMax-yMin)).toFixed(2), 2, gy+3); }
+    if (opts.title){ ctx.fillStyle='#EAF6F2'; ctx.font='bold 11px sans-serif'; ctx.fillText(opts.title, padL, 13); }
+    series.forEach(function(s){ ctx.strokeStyle = s.color; ctx.lineWidth = 1.8; if (s.dashed) ctx.setLineDash([4,3]); else ctx.setLineDash([]);
+      ctx.beginPath(); s.data.forEach(function(v,i){ var x=xPix(i),y=yPix(v); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke(); });
+    ctx.setLineDash([]); var lx = padL; ctx.font='9.5px sans-serif';
+    series.forEach(function(s){ ctx.fillStyle=s.color; ctx.fillRect(lx,H-12,9,3); ctx.fillStyle='#C5D6D1'; ctx.fillText(s.label, lx+12, H-7); lx += ctx.measureText(s.label).width+28; });
+  }
+  function renderTrainCharts(log){
+    var wrap = $('geoaiTrainChartWrap'); wrap.innerHTML='';
+    var c1 = document.createElement('canvas'); c1.width=820; c1.height=190; c1.style.marginBottom='10px'; c1.style.maxWidth='100%';
+    var c2 = document.createElement('canvas'); c2.width=820; c2.height=190; c2.style.maxWidth='100%';
+    wrap.appendChild(c1); wrap.appendChild(c2);
+    drawLineChart(c1, [
+      {label:'train/box_loss', color:'#DC2626', data:log.map(function(l){return l.box_loss;})},
+      {label:'val/box_loss', color:'#DC2626', dashed:true, data:log.map(function(l){return l.val_box_loss;})},
+      {label:'train/cls_loss', color:'#2563EB', data:log.map(function(l){return l.cls_loss;})},
+      {label:'val/cls_loss', color:'#2563EB', dashed:true, data:log.map(function(l){return l.val_cls_loss;})},
+      {label:'train/dfl_loss', color:'#D97706', data:log.map(function(l){return l.dfl_loss;})},
+      {label:'val/dfl_loss', color:'#D97706', dashed:true, data:log.map(function(l){return l.val_dfl_loss;})}
+    ], {title:'Loss per Epoch', yMin:0});
+    drawLineChart(c2, [
+      {label:'precision', color:'#0D9488', data:log.map(function(l){return l.precision;})},
+      {label:'recall', color:'#7C3AED', data:log.map(function(l){return l.recall;})},
+      {label:'mAP50', color:'#DC2626', data:log.map(function(l){return l.map50;})},
+      {label:'mAP50-95', color:'#2563EB', data:log.map(function(l){return l.map5095;})}
+    ], {title:'Metrik Evaluasi per Epoch', yMin:0, yMax:1});
+  }
+  function renderTrainMetrics(last){
+    $('geoaiTrainMetricsGrid').innerHTML =
+      '<div class="geoai-kpi"><small>Precision</small><b>'+pct(last.precision)+'</b></div>'+
+      '<div class="geoai-kpi"><small>Recall</small><b>'+pct(last.recall)+'</b></div>'+
+      '<div class="geoai-kpi"><small>mAP50</small><b>'+pct(last.map50)+'</b></div>'+
+      '<div class="geoai-kpi"><small>mAP50-95</small><b>'+pct(last.map5095)+'</b></div>';
+  }
+
+  function refreshDetectSourceOptions2(){
+    var sel = $('geoaiDetectSource'); var html = '';
+    if (state.image) html += '<option value="full">Citra Penuh (hasil impor)</option>';
+    var valItems = state.datasetItems.filter(function(it){ return state.split.val.indexOf(it.id)>=0 && !it.isNull; });
+    valItems.forEach(function(it,i){ html += '<option value="val:'+it.id+'">Tile Validasi #'+(i+1)+' ('+it.opName+')</option>'; });
+    sel.innerHTML = html || '<option value="">Tidak ada citra tersedia</option>';
+  }
+  function getDetectionSourceCanvas(value){
+    if (value==='full') return state.image ? state.image.canvas : null;
+    if (value && value.indexOf('val:')===0){ var id = value.slice(4); var it = state.datasetItems.find(function(x){return x.id===id;}); return it ? it.canvas : null; }
+    return null;
+  }
+  function runDetectionTab(){
+    if (!state.classProfiles){ toast('Lakukan training terlebih dahulu pada tab 5.'); return; }
+    var srcVal = $('geoaiDetectSource').value; var srcCanvas = getDetectionSourceCanvas(srcVal);
+    if (!srcCanvas){ toast('Pilih citra target terlebih dahulu.'); return; }
+    var confThresh = clamp(parseFloat($('geoaiConfThresh').value)||50,1,99)/100;
+    var iouThresh = clamp(parseFloat($('geoaiIouThresh').value)||50,1,99)/100;
+    var colorFactor = clamp(parseFloat($('geoaiColorFactor').value)||135,50,300)/100;
+    var maxDim = 1100; var scale = Math.min(1, maxDim/Math.max(srcCanvas.width, srcCanvas.height));
+    var work = document.createElement('canvas'); work.width = Math.max(1,Math.round(srcCanvas.width*scale)); work.height = Math.max(1,Math.round(srcCanvas.height*scale));
+    work.getContext('2d').drawImage(srcCanvas,0,0,work.width,work.height);
+    var pixels = work.getContext('2d').getImageData(0,0,work.width,work.height).data;
+    $('geoaiDetectStatus').innerHTML = '<div class="geoai-note">Menjalankan deteksi pada '+work.width+'×'+work.height+' px…</div>';
+    setTimeout(function(){
+      var result = D.runDetection(pixels, work.width, work.height, state.classProfiles, confThresh, iouThresh, colorFactor);
+      var boxes = result.final.map(function(b){ return {id:uid(), x:b.x/scale, y:b.y/scale, w:b.w/scale, h:b.h/scale, classId:b.classId, score:b.score}; });
+      state.detection = {sourceCanvas:srcCanvas, w:srcCanvas.width, h:srcCanvas.height, boxes:boxes, resolutionCm: parseFloat($('geoaiResolutionCm').value)||0};
+      $('geoaiDetectStatus').innerHTML = '<div class="geoai-note">Deteksi selesai: ditemukan <b>'+boxes.length+'</b> objek (dari '+result.raw.length+' kandidat sebelum NMS &amp; ambang confidence).</div>';
+      renderDetectionResult(); toast('Deteksi selesai: '+boxes.length+' objek ditemukan.');
+    }, 20);
+  }
+  $('geoaiRunDetection').addEventListener('click', runDetectionTab);
+  var detectCanvasScale = 1;
+  function renderDetectionResult(){
+    var det = state.detection; $('geoaiDetectResultCard').classList.remove('geoai-hidden');
+    var wrap = $('geoaiDetectCanvasWrap'); wrap.innerHTML='';
+    var canvas = document.createElement('canvas'); detectCanvasScale = Math.min(1, 900/det.w);
+    canvas.width = Math.round(det.w*detectCanvasScale); canvas.height = Math.round(det.h*detectCanvasScale); wrap.appendChild(canvas);
+    redrawDetectionCanvas(canvas); bindDetectCanvasClick(canvas); renderDetectSummary();
+  }
+  function redrawDetectionCanvas(canvas){
+    var det = state.detection; var ctx = canvas.getContext('2d'); ctx.drawImage(det.sourceCanvas, 0,0,canvas.width,canvas.height);
+    var showCentroid = $('geoaiShowCentroid').checked;
+    det.boxes.forEach(function(b){
+      var c = findClass(b.classId); var x=b.x*detectCanvasScale,y=b.y*detectCanvasScale,w=b.w*detectCanvasScale,h=b.h*detectCanvasScale;
+      if (showCentroid){ ctx.fillStyle=c.color; ctx.beginPath(); ctx.arc(x+w/2,y+h/2,4,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke(); }
+      else { ctx.strokeStyle=c.color; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h); ctx.font='10px sans-serif';
+        var label = c.name+' '+Math.round(b.score*100)+'%'; var tw = ctx.measureText(label).width;
+        ctx.fillStyle=c.color; ctx.fillRect(x, Math.max(0,y-13), tw+6,13); ctx.fillStyle='#fff'; ctx.fillText(label, x+3, Math.max(10,y-3)); }
+    });
+  }
+  function bindDetectCanvasClick(canvas){
+    canvas.style.cursor='pointer';
+    canvas.addEventListener('click', function(e){
+      var rect = canvas.getBoundingClientRect(); var cx = (e.clientX-rect.left)*(canvas.width/rect.width); var cy = (e.clientY-rect.top)*(canvas.height/rect.height);
+      var det = state.detection; var hit = null;
+      for (var i=det.boxes.length-1;i>=0;i--){ var b = det.boxes[i]; var x=b.x*detectCanvasScale,y=b.y*detectCanvasScale,w=b.w*detectCanvasScale,h=b.h*detectCanvasScale;
+        if (cx>=x&&cx<=x+w&&cy>=y&&cy<=y+h){ hit=b; break; } }
+      if (hit){ det.boxes = det.boxes.filter(function(b){return b.id!==hit.id;}); redrawDetectionCanvas(canvas); renderDetectSummary(); toast('Deteksi dihapus (koreksi manual).'); }
+    });
+  }
+  function renderDetectSummary(){
+    var det = state.detection; var counts = {}; state.classes.forEach(function(c){counts[c.id]=0;});
+    det.boxes.forEach(function(b){ if(counts[b.classId]!==undefined) counts[b.classId]++; }); var total = det.boxes.length;
+    var rows = '<tr><th>Kelas</th><th class="geoai-num">Jumlah</th><th class="geoai-num">Persentase</th></tr>';
+    state.classes.forEach(function(c){ var n = counts[c.id]; rows += '<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+c.color+';margin-right:6px;"></span>'+c.name+'</td><td class="geoai-num">'+n+'</td><td class="geoai-num">'+(total?pct(n/total):'0%')+'</td></tr>'; });
+    rows += '<tr><td><b>Total</b></td><td class="geoai-num"><b>'+total+'</b></td><td class="geoai-num">100%</td></tr>';
+    $('geoaiDetectSummaryTable').innerHTML = rows;
+    var html = '<div class="geoai-kpi"><small>Total Objek Terdeteksi</small><b>'+total+'</b></div>';
+    if (det.resolutionCm>0){ var areaM2 = det.boxes.reduce(function(s,b){ return s + (b.w*det.resolutionCm/100)*(b.h*det.resolutionCm/100); },0); html += '<div class="geoai-kpi"><small>Estimasi Total Luas Objek</small><b>'+fmt(areaM2,1)+' m²</b></div>'; }
+    $('geoaiDetectKpiGrid').innerHTML = html;
+  }
+  $('geoaiShowCentroid').addEventListener('change', function(){ if (state.detection) renderDetectionResult(); });
+
+  function runEvaluationTab(){
+    if (!state.classProfiles){ toast('Lakukan training terlebih dahulu pada tab 5.'); return; }
+    var valItems = state.datasetItems.filter(function(it){ return state.split.val.indexOf(it.id)>=0; });
+    if (!valItems.length){ toast('Tidak ada data validasi. Lakukan augmentasi & split pada tab 4.'); return; }
+    var confThresh = clamp(parseFloat($('geoaiConfThresh').value)||50,1,99)/100;
+    var iouThreshNms = clamp(parseFloat($('geoaiIouThresh').value)||50,1,99)/100;
+    var colorFactor = clamp(parseFloat($('geoaiColorFactor').value)||135,50,300)/100; var iouThreshEval = 0.5;
+    var pairs = [];
+    valItems.forEach(function(it){
+      var ctx = it.canvas.getContext('2d'); var pixels = ctx.getImageData(0,0,it.canvas.width, it.canvas.height).data;
+      var result = D.runDetection(pixels, it.canvas.width, it.canvas.height, state.classProfiles, confThresh, iouThreshNms, colorFactor);
+      var gts = (it.annotations||[]).map(function(a){ var bbox = a.shape==='rect'?{x:a.x,y:a.y,w:a.w,h:a.h}:polyBBox(a.points); return {x:bbox.x,y:bbox.y,w:bbox.w,h:bbox.h,classId:a.classId}; });
+      pairs.push({preds:result.final, gts:gts});
+    });
+    var evalResult = EV.evaluateDataset(pairs, state.classes, iouThreshEval);
+    state.evaluation = evalResult; renderEvaluationResult(evalResult, valItems.length); toast('Evaluasi selesai pada '+valItems.length+' tile validasi.');
+  }
+  $('geoaiRunEvaluation').addEventListener('click', runEvaluationTab);
+  function renderEvaluationResult(evalResult, nVal){
+    $('geoaiEvalResultCard').classList.remove('geoai-hidden');
+    var rows = '<tr><th>Kelas</th><th class="geoai-num">GT</th><th class="geoai-num">Prediksi</th><th class="geoai-num">TP</th><th class="geoai-num">FP</th><th class="geoai-num">FN</th><th class="geoai-num">Precision</th><th class="geoai-num">Recall</th><th class="geoai-num">F1</th><th class="geoai-num">AP@0.5</th></tr>';
+    state.classes.forEach(function(c){
+      var m = evalResult.perClass[c.id];
+      rows += '<tr><td>'+c.name+'</td><td class="geoai-num">'+m.nGT+'</td><td class="geoai-num">'+m.nPred+'</td><td class="geoai-num">'+m.tp+'</td><td class="geoai-num">'+m.fp+'</td><td class="geoai-num">'+m.fn+'</td><td class="geoai-num">'+pct(m.precision)+'</td><td class="geoai-num">'+pct(m.recall)+'</td><td class="geoai-num">'+pct(m.f1)+'</td><td class="geoai-num">'+(m.ap!==null?pct(m.ap):'—')+'</td></tr>';
+    });
+    $('geoaiEvalTable').innerHTML = rows;
+    $('geoaiEvalKpiGrid').innerHTML = '<div class="geoai-kpi"><small>Tile Validasi Diuji</small><b>'+nVal+'</b></div><div class="geoai-kpi"><small>mAP@0.5 (rata-rata kelas)</small><b>'+(evalResult.mAP!==null?pct(evalResult.mAP):'—')+'</b></div>';
+  }
+
+  function buildLayout(){
+    if (!state.detection){ toast('Lakukan deteksi terlebih dahulu pada tab 6.'); return; }
+    var det = state.detection; var W = 1000, H = 760;
+    var canvas = document.createElement('canvas'); canvas.width=W; canvas.height=H; var ctx = canvas.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.strokeStyle='#333'; ctx.lineWidth=2; ctx.strokeRect(8,8,W-16,H-16);
+    ctx.fillStyle='#0F1A17'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center';
+    ctx.fillText($('geoaiLayoutTitle').value || 'Peta Hasil Deteksi Objek Otomatis', W/2, 36); ctx.textAlign='left';
+    var mapX=24,mapY=54,mapW=W-260,mapH=H-150;
+    ctx.save(); ctx.beginPath(); ctx.rect(mapX,mapY,mapW,mapH); ctx.clip();
+    var scale = Math.min(mapW/det.w, mapH/det.h); var drawW=det.w*scale, drawH=det.h*scale;
+    ctx.drawImage(det.sourceCanvas, mapX,mapY,drawW,drawH);
+    det.boxes.forEach(function(b){ var c = findClass(b.classId); ctx.strokeStyle=c.color; ctx.lineWidth=1.4; ctx.strokeRect(mapX+b.x*scale,mapY+b.y*scale,b.w*scale,b.h*scale); });
+    ctx.restore(); ctx.strokeStyle='#999'; ctx.lineWidth=1; ctx.strokeRect(mapX,mapY,mapW,mapH);
+    var naX=mapX+mapW-40, naY=mapY+40;
+    ctx.beginPath(); ctx.moveTo(naX,naY-22); ctx.lineTo(naX-9,naY+10); ctx.lineTo(naX,naY+2); ctx.lineTo(naX+9,naY+10); ctx.closePath(); ctx.fillStyle='#0F1A17'; ctx.fill();
+    ctx.font='bold 12px sans-serif'; ctx.textAlign='center'; ctx.fillText('U', naX, naY+24); ctx.textAlign='left';
+    var resCm = parseFloat($('geoaiResolutionCm').value)||0; var sbX=mapX+10, sbY=mapY+mapH-18;
+    if (resCm>0){ var barPx=80; var meters = barPx/scale*resCm/100; ctx.strokeStyle='#0F1A17'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(sbX,sbY); ctx.lineTo(sbX+barPx,sbY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sbX,sbY-4); ctx.lineTo(sbX,sbY+4); ctx.moveTo(sbX+barPx,sbY-4); ctx.lineTo(sbX+barPx,sbY+4); ctx.stroke();
+      ctx.font='10px sans-serif'; ctx.fillStyle='#0F1A17'; ctx.fillText('0', sbX-2, sbY+14); ctx.fillText(fmt(meters,0)+' m', sbX+barPx-10, sbY+14);
+    } else { ctx.font='10px sans-serif'; ctx.fillStyle='#888'; ctx.fillText('Skala relatif (resolusi citra belum dikalibrasi)', sbX, sbY+14); }
+    var panelX = mapX+mapW+16, panelY=mapY;
+    ctx.font='bold 12px sans-serif'; ctx.fillStyle='#0F1A17'; ctx.fillText('LEGENDA', panelX, panelY+4); var ly = panelY+22;
+    var counts = {}; state.classes.forEach(function(c){counts[c.id]=0;}); det.boxes.forEach(function(b){if(counts[b.classId]!==undefined)counts[b.classId]++;});
+    state.classes.forEach(function(c){ ctx.fillStyle=c.color; ctx.fillRect(panelX,ly-8,10,10); ctx.fillStyle='#0F1A17'; ctx.font='11px sans-serif'; ctx.fillText(c.name+' ('+counts[c.id]+')', panelX+15, ly); ly += 18; });
+    ly += 8; ctx.font='bold 12px sans-serif'; ctx.fillText('INFORMASI MODEL', panelX, ly); ly+=16; ctx.font='10.5px sans-serif'; ctx.fillStyle='#5B6B66';
+    var cfg = state.trainingConfig || {};
+    var infoLines = ['Model: YOLO11'+(cfg.variant||'-')+' (simulasi)','Epochs: '+(cfg.epochs||'-')+'  Batch: '+(cfg.batch||'-'),'Confidence ≥ '+$('geoaiConfThresh').value+'%, IoU NMS '+$('geoaiIouThresh').value+'%','Total objek: '+det.boxes.length];
+    if (state.evaluation && state.evaluation.mAP!==null) infoLines.push('mAP@0.5 (validasi): '+pct(state.evaluation.mAP));
+    infoLines.forEach(function(line){ ctx.fillText(line, panelX, ly); ly+=15; });
+    ly += 8; ctx.font='bold 12px sans-serif'; ctx.fillStyle='#0F1A17'; ctx.fillText('SUMBER & METADATA', panelX, ly); ly+=16; ctx.font='10.5px sans-serif'; ctx.fillStyle='#5B6B66';
+    ['Sumber: '+($('geoaiLayoutSource').value||'-'),'Dibuat oleh: '+($('geoaiLayoutAuthor').value||'-'),'Tanggal: '+new Date().toLocaleDateString('id-ID'),'Sistem koordinat: tidak terkalibrasi'].forEach(function(line){ ctx.fillText(line, panelX, ly); ly+=15; });
+    ctx.font='9.5px sans-serif'; ctx.fillStyle='#94A39E'; ctx.fillText('Dihasilkan otomatis oleh GeoAI Suite — Deteksi Objek Otomatis pada Citra Udara', 24, H-16);
+    var wrap = $('geoaiLayoutCanvasWrap'); wrap.innerHTML=''; wrap.appendChild(canvas);
+    $('geoaiLayoutPreviewCard').classList.remove('geoai-hidden'); state.layoutCanvas = canvas;
+    $('geoaiLayoutStatus').innerHTML = '<div class="geoai-note">Layout berhasil disusun. Klik "Unduh Layout (PNG)" untuk menyimpan.</div>';
+  }
+  $('geoaiBuildLayout').addEventListener('click', buildLayout);
+  $('geoaiDownloadLayout').addEventListener('click', function(){
+    if (!state.layoutCanvas){ toast('Susun layout terlebih dahulu.'); return; }
+    downloadFile('geoai-layout-peta.png', U.dataURLtoBlob(state.layoutCanvas.toDataURL('image/png')), 'image/png');
+  });
+  function buildReportText(){
+    var lines = [];
+    lines.push('LAPORAN OTOMATIS — GEOAI: DETEKSI OBJEK PADA CITRA UDARA');
+    lines.push('======================================================');
+    lines.push('Tanggal: '+new Date().toLocaleString('id-ID')); lines.push('');
+    lines.push('1. DATASET');
+    lines.push('  Citra sumber : '+(state.image?state.image.name+' ('+state.image.width+'×'+state.image.height+'px)':'—'));
+    lines.push('  Ukuran tile  : '+state.tileSize+'px, total '+state.tiles.length+' tile');
+    var s = annotationStats();
+    lines.push('  Tile berlabel: '+s.labeledTiles+' | Tile kosong (null): '+s.nullCount+' | Total sampel objek: '+s.totalAnn);
+    state.classes.forEach(function(c){ lines.push('    - '+c.name+': '+s.perClass[c.id]+' sampel'); }); lines.push('');
+    lines.push('2. AUGMENTASI & SPLIT');
+    if (state.datasetItems.length){ lines.push('  Total data setelah augmentasi: '+state.datasetItems.length); lines.push('  Train: '+state.split.train.length+' | Val: '+state.split.val.length); } else lines.push('  Belum dilakukan.'); lines.push('');
+    lines.push('3. TRAINING MODEL');
+    if (state.trainingDone){ var cfg = state.trainingConfig, last = state.trainingLog[state.trainingLog.length-1];
+      lines.push('  Varian   : YOLO11'+cfg.variant+' (simulasi; model deteksi aktual = statistik ringan)');
+      lines.push('  Epochs   : '+state.trainingLog.length+' / '+cfg.epochs+', Batch: '+cfg.batch+', ImgSz: '+cfg.imgsz+', Optimizer: '+cfg.optimizer);
+      lines.push('  Precision: '+pct(last.precision)+' | Recall: '+pct(last.recall)+' | mAP50: '+pct(last.map50)+' | mAP50-95: '+pct(last.map5095));
+    } else lines.push('  Belum dilakukan.'); lines.push('');
+    lines.push('4. HASIL DETEKSI');
+    if (state.detection){ var counts = {}; state.classes.forEach(function(c){counts[c.id]=0;}); state.detection.boxes.forEach(function(b){ if(counts[b.classId]!==undefined) counts[b.classId]++; }); var total = state.detection.boxes.length;
+      lines.push('  Total objek terdeteksi: '+total); state.classes.forEach(function(c){ lines.push('    - '+c.name+': '+counts[c.id]+' ('+(total?pct(counts[c.id]/total):'0%')+')'); });
+      lines.push('  Ambang confidence: '+$('geoaiConfThresh').value+'% | Ambang IoU/NMS: '+$('geoaiIouThresh').value+'%');
+    } else lines.push('  Belum dilakukan.'); lines.push('');
+    lines.push('5. EVALUASI MODEL');
+    if (state.evaluation){ state.classes.forEach(function(c){ var m = state.evaluation.perClass[c.id]; lines.push('  '+c.name+': TP='+m.tp+' FP='+m.fp+' FN='+m.fn+' | Precision='+pct(m.precision)+' Recall='+pct(m.recall)+' F1='+pct(m.f1)+' AP@0.5='+(m.ap!==null?pct(m.ap):'—')); });
+      lines.push('  mAP@0.5 keseluruhan: '+(state.evaluation.mAP!==null?pct(state.evaluation.mAP):'—'));
+    } else lines.push('  Belum dilakukan.'); lines.push('');
+    lines.push('CATATAN');
+    lines.push('  Mesin deteksi pada modul interaktif ini adalah model statistik ringan');
+    lines.push('  (warna & ukuran per kelas) yang dipelajari nyata dari sampel anotasi, sebagai');
+    lines.push('  pengganti ringan CNN/YOLO agar dapat diuji langsung di browser. Untuk produksi,');
+    lines.push('  latih YOLO11 sesungguhnya lalu terapkan via QGIS + plugin Deepness.');
+    return lines.join('\n');
+  }
+  function buildReportCsv(){
+    var rows = [['Kelas','GT_Sampel','Deteksi_Jumlah','Deteksi_Persen','Eval_TP','Eval_FP','Eval_FN','Precision','Recall','F1','AP@0.5']];
+    var s = annotationStats(); var detCounts = {}; state.classes.forEach(function(c){detCounts[c.id]=0;});
+    if (state.detection) state.detection.boxes.forEach(function(b){ if(detCounts[b.classId]!==undefined) detCounts[b.classId]++; });
+    var totalDet = state.detection ? state.detection.boxes.length : 0;
+    state.classes.forEach(function(c){
+      var m = state.evaluation ? state.evaluation.perClass[c.id] : null;
+      rows.push([c.name, s.perClass[c.id], detCounts[c.id], totalDet?fmt(detCounts[c.id]/totalDet*100,1)+'%':'0%', m?m.tp:'', m?m.fp:'', m?m.fn:'', m?fmt(m.precision*100,1)+'%':'', m?fmt(m.recall*100,1)+'%':'', m?fmt(m.f1*100,1)+'%':'', m&&m.ap!==null?fmt(m.ap*100,1)+'%':'']);
+    });
+    return rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  }
+  function buildReportJson(){
+    return JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      image: state.image ? {name:state.image.name, width:state.image.width, height:state.image.height} : null,
+      tileSize: state.tileSize, totalTiles: state.tiles.length, classes: state.classes,
+      annotationStats: annotationStats(), datasetSize: state.datasetItems.length, split: {train:state.split.train.length, val:state.split.val.length},
+      trainingConfig: state.trainingConfig, trainingFinal: state.trainingLog ? state.trainingLog[state.trainingLog.length-1] : null,
+      detection: state.detection ? {total: state.detection.boxes.length, boxes: state.detection.boxes} : null, evaluation: state.evaluation
+    }, null, 2);
+  }
+  $('geoaiGenReport').addEventListener('click', function(){ $('geoaiReportBox').textContent = buildReportText(); });
+  $('geoaiCopyReport').addEventListener('click', function(){
+    var txt = buildReportText(); $('geoaiReportBox').textContent = txt;
+    navigator.clipboard && navigator.clipboard.writeText(txt).then(function(){toast('Disalin.');}).catch(function(){toast('Gagal menyalin.');});
+  });
+  $('geoaiDownloadTxt').addEventListener('click', function(){ downloadFile('geoai-laporan.txt', buildReportText(), 'text/plain'); });
+  $('geoaiDownloadCsv').addEventListener('click', function(){ downloadFile('geoai-laporan.csv', buildReportCsv(), 'text/csv'); });
+  $('geoaiDownloadJson').addEventListener('click', function(){ downloadFile('geoai-laporan.json', buildReportJson(), 'application/json'); });
+
+  window.GeoAIApp.refreshDetectSourceOptions2 = refreshDetectSourceOptions2;
+  window.GeoAIApp.renderYoloTable2 = renderYoloTable2;
+  window.GeoAIApp.runTraining = runTraining;
+  window.GeoAIApp.runDetectionTab = runDetectionTab;
+  window.GeoAIApp.runEvaluationTab = runEvaluationTab;
+  window.GeoAIApp.buildLayout = buildLayout;
+  window.GeoAIApp.buildReportText = buildReportText;
+})();
+</script>
+</body>
+</html>
