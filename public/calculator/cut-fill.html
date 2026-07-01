@@ -14,6 +14,106 @@ main{max-width:1180px !important;margin:0 auto !important;padding:24px !importan
 #statusText{display:none !important;}
 @media(max-width:720px){main{padding:16px !important}.card{padding:18px !important;border-radius:20px !important}.field-grid{gap:12px !important}.result-grid{gap:12px !important}}
 </style>
+<style id="mz-style">
+:root{--mz-accent:#2563eb;--mz-accent2:#7c3aed;--mz-line:#e5e7eb;--mz-muted:#64748b;--mz-bg-soft:#f8fafc;
+  --mz-z1:#ef4444;--mz-z2:#16a34a;--mz-z3:#f59e0b;--mz-z4:#0891b2;--mz-z5:#7c3aed;--mz-z6:#db2777;--mz-z7:#65a30d;--mz-z8:#ea580c;}
+#mzModule{margin-top:8px}
+.mz-section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin:30px 4px 14px}
+.mz-section-head h2{font-size:24px;margin:0;color:#0f172a}
+.mz-section-head p{margin:6px 0 0;color:var(--mz-muted);font-size:13.5px;max-width:620px;line-height:1.5}
+.mz-pill{font-size:12px;font-weight:800;color:#1d4ed8;background:#dbeafe;padding:8px 14px;border-radius:999px;white-space:nowrap}
+.zone-target-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin:14px 0}
+.zt-card{background:var(--mz-bg-soft);border:1px solid var(--mz-line);border-radius:14px;padding:12px 13px}
+.zt-card .zt-head{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;margin-bottom:8px;color:#0f172a}
+.zt-dot{width:10px;height:10px;border-radius:3px;flex:none}
+.zt-card input[type=number]{width:100%;padding:8px 9px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;font-size:13px}
+.zt-card .zt-source{font-size:11px;color:var(--mz-muted);margin-top:6px}
+.zt-card .zt-area{font-size:11px;color:var(--mz-muted)}
+.mz-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:10px}
+.mz-table-wrap{overflow-x:auto}
+table.zone-table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+table.zone-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--mz-muted);font-weight:700;padding:0 8px 9px;border-bottom:2px solid var(--mz-line)}
+table.zone-table td{padding:10px 8px;border-bottom:1px solid var(--mz-line)}
+table.zone-table td.zname{font-weight:700;display:flex;align-items:center;gap:8px;color:#0f172a}
+table.zone-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+table.zone-table tfoot td{font-weight:800;border-top:2px solid var(--mz-line);border-bottom:none;color:#0f172a}
+.zone-bars{margin-top:18px;display:grid;gap:10px}
+.zb-row{display:grid;grid-template-columns:120px 1fr 150px;align-items:center;gap:10px}
+.zb-name{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px;color:#334155}
+.zb-track{height:18px;background:#eef2f7;border-radius:6px;overflow:hidden;border:1px solid var(--mz-line)}
+.zb-fill{height:100%;border-radius:6px}
+.zb-nums{font-size:11.5px;text-align:right;color:var(--mz-muted)}
+.mz-grid-2{display:grid;grid-template-columns:1.4fr 1fr;gap:24px;margin-bottom:24px}
+#mz-canvas-wrap{position:relative;height:480px;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#eef3fb,#dde6f2);border:1px solid var(--mz-line)}
+#mz-canvas-wrap canvas{display:block;width:100%;height:100%;cursor:grab}
+#mz-canvas-wrap canvas:active{cursor:grabbing}
+.mz-viewer-controls{position:absolute;top:12px;left:12px;background:rgba(255,255,255,.92);border:1px solid var(--mz-line);border-radius:12px;padding:10px 13px;font-size:12px;box-shadow:0 8px 18px rgba(15,23,42,.08);display:flex;flex-direction:column;gap:7px}
+.mz-toggle-row{display:flex;align-items:center;gap:7px;color:#334155;cursor:pointer;user-select:none}
+.mz-toggle-row input{accent-color:var(--mz-accent)}
+.mz-vexag-box{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.92);border:1px solid var(--mz-line);border-radius:12px;padding:10px 13px;width:160px;box-shadow:0 8px 18px rgba(15,23,42,.08)}
+.mz-ctrl-title{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mz-muted);margin-bottom:6px}
+.mz-vexag-box input[type=range]{width:100%;accent-color:var(--mz-accent)}
+.mz-val{font-size:11px;color:#334155;margin-top:4px}
+.mz-legend-strip{position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:10px;flex-wrap:wrap;background:rgba(255,255,255,.92);border:1px solid var(--mz-line);border-radius:12px;padding:8px 12px;box-shadow:0 8px 18px rgba(15,23,42,.08)}
+.mz-legend-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#334155}
+.mz-legend-swatch{width:10px;height:10px;border-radius:3px}
+#mz-loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:#eef3fb;transition:opacity .35s}
+.mz-spinner{width:24px;height:24px;border-radius:50%;border:2.5px solid #cbd5e1;border-top-color:var(--mz-accent);animation:mzspin .8s linear infinite}
+@keyframes mzspin{to{transform:rotate(360deg)}}
+.mz-ltext{font-size:12px;color:var(--mz-muted)}
+.mz-plan-wrap{position:relative}
+#mz-plan-svg{width:100%;height:auto;display:block;background:var(--mz-bg-soft);border-radius:14px;border:1px solid var(--mz-line)}
+.mz-plan-zone{stroke:#fff;stroke-width:1.4;cursor:pointer;transition:opacity .15s}
+.mz-plan-zone:hover{opacity:.78}
+.mz-plan-label{font-size:12px;font-weight:800;fill:#fff;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.mz-plan-tooltip{position:absolute;pointer-events:none;background:#0f172a;color:#e2e8f0;border-radius:9px;padding:8px 10px;font-size:11.5px;transform:translate(-50%,-115%);white-space:nowrap;opacity:0;transition:opacity .12s;z-index:5}
+.mz-plan-tooltip b{color:#fff}
+.btn.primary-light{background:var(--mz-accent);color:#fff}
+.btn.primary-light:hover{background:#1d4ed8}
+.btn:disabled,.btn[disabled]{opacity:.5;cursor:not-allowed}
+.meeting-preview{background:var(--mz-bg-soft);border:1px solid var(--mz-line);border-radius:16px;padding:18px 20px;color:#334155;font-size:13.5px;line-height:1.7}
+.meeting-preview h4{margin:14px 0 8px;color:#0f172a;font-size:15px}
+.meeting-preview table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+.meeting-preview th,.meeting-preview td{border-bottom:1px solid var(--mz-line);padding:6px 8px;text-align:left}
+.meeting-preview .mp-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
+.meeting-preview .mp-stat{background:#fff;border:1px solid var(--mz-line);border-radius:10px;padding:10px 12px}
+.meeting-preview .mp-stat span{display:block;font-size:10.5px;color:var(--mz-muted);text-transform:uppercase}
+.meeting-preview .mp-stat b{font-size:17px;color:#0f172a}
+@media print{
+  .app-shell{display:block !important}
+  body *{visibility:hidden}
+  #meetingCard,#meetingCard *{visibility:visible}
+  #meetingCard{position:absolute;left:0;top:0;width:100%}
+  .mz-actions{display:none !important}
+}
+@media(max-width:980px){.mz-grid-2{grid-template-columns:1fr}.zb-row{grid-template-columns:90px 1fr 110px}}
+/* Methodology explanation card */
+.meth-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
+.meth-col{background:var(--mz-bg-soft);border:1px solid var(--mz-line);border-radius:12px;padding:14px 15px}
+.meth-badge{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;background:#dcfce7;color:#15803d;margin-bottom:10px}
+.meth-badge-alt{background:#fef9c3;color:#854d0e}
+.meth-badge-c3d{background:#e0f2fe;color:#0369a1}
+.meth-col p{font-size:12.5px;color:#334155;line-height:1.6;margin:0 0 10px}
+.meth-formula{font-family:'IBM Plex Mono',monospace;font-size:11px;background:#fff;border:1px solid var(--mz-line);border-radius:8px;padding:8px 10px;color:#0f172a}
+.meth-formula small{color:var(--mz-muted)}
+.meth-note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;font-size:12.5px;color:#1e3a5f;line-height:1.6;margin-top:4px}
+@media(max-width:980px){.meth-grid{grid-template-columns:1fr}}
+
+.map-frame{min-height:640px !important;max-height:78vh !important;height:78vh;overflow:hidden !important;padding:0 !important;position:relative;cursor:grab;background:#f1f5f9 !important;}
+.map-frame.mz-zoomwrap{display:block !important;}
+.map-frame img{max-height:none !important;}
+.mz-zoom-inner{position:absolute;left:0;top:0;will-change:transform;}
+.mz-zoom-inner svg{display:block;}
+.mz-zoom-controls{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:6px;z-index:5;}
+.mz-zoom-controls button{width:34px;height:34px;border-radius:9px;border:1px solid var(--mz-line);background:#fff;color:#0f172a;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(15,23,42,.1);line-height:1;}
+.mz-zoom-controls button:hover{background:#eff6ff;border-color:var(--mz-accent);color:var(--mz-accent);}
+.mz-zoom-hint{position:absolute;bottom:12px;left:14px;font-size:11px;color:#94a3b8;background:rgba(255,255,255,.85);padding:5px 10px;border-radius:999px;z-index:5;pointer-events:none;}
+#mzProcessingOverlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);align-items:center;justify-content:center}
+.mzpo-card{background:#fff;border-radius:20px;padding:30px 36px;box-shadow:0 30px 60px rgba(15,23,42,.25);text-align:center;max-width:340px}
+.mzpo-spinner{width:34px;height:34px;border-radius:50%;border:3px solid #dbeafe;border-top-color:var(--mz-accent);animation:mzspin .8s linear infinite;margin:0 auto 16px}
+.mzpo-title{font-weight:800;font-size:16px;color:#0f172a;margin-bottom:6px}
+.mzpo-sub{font-size:12.5px;color:var(--mz-muted);line-height:1.6}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -29,9 +129,9 @@ main{max-width:1180px !important;margin:0 auto !important;padding:24px !importan
 
 <form class="grid-form" id="volumeForm">
 <section class="card" id="input"><div class="card-head"><h3>Import Data</h3><span>GeoTIFF + AOI</span></div>
-<label class="upload-box required-box"><input accept=".tif,.tiff" name="dtmAwal" required="" type="file"/><b>DTM Awal</b><small>Kondisi awal / topografi existing</small></label>
-<label class="upload-box required-box"><input accept=".tif,.tiff" name="dtmAkhir" required="" type="file"/><b>DTM Akhir</b><small>Kondisi akhir / design / after progress</small></label>
-<label class="upload-box optional-box"><input accept=".kml,.geojson,.json,.dxf,.shp,.zip" name="aoiFile" type="file"/><b>AOI + Acuan Design <em>recommended</em></b><small>KML / GeoJSON / <b>DXF</b> / <b>SHP atau ZIP</b> (lat-lon atau UTM). Dipakai sebagai <b>batas clipping</b> sekaligus <b>acuan elevasi design</b>. Elevasi design dibaca dari atribut polygon (GeoJSON/SHP), group-code 38 / Z vertex (DXF), atau Z koordinat. Tanpa AOI, analisis memakai seluruh raster.</small></label>
+<label class="upload-box required-box"><input accept=".tif,.tiff" name="dtmAwal" required="" type="file"/><b>DTM Awal</b><small>Kondisi awal / topografi existing — <b>DEM MC0</b> (baseline sebelum pekerjaan)</small></label>
+<label class="upload-box required-box"><input accept=".tif,.tiff" name="dtmAkhir" required="" type="file"/><b>DTM Akhir</b><small>Kondisi akhir / design / after progress — <b>DEM terbaru</b> (survei terkini)</small></label>
+<label class="upload-box optional-box"><input accept=".kml,.geojson,.json,.dxf,.shp,.zip" name="aoiFile" type="file"/><b>AOI + Acuan Design <em>recommended</em></b><small>KML / GeoJSON / <b>DXF</b> / <b>SHP atau ZIP</b> (lat-lon atau UTM). Dipakai sebagai <b>batas clipping</b> sekaligus <b>acuan elevasi design</b>. <b>Mendukung banyak zona sekaligus</b> — setiap layer DXF / feature GeoJSON-SHP / Placemark KML otomatis menjadi satu zona kerja terpisah dengan elevasi targetnya masing-masing (dibaca dari group-code 38 / Z vertex / atribut elev, atau dihitung otomatis — lihat mode di Parameter Proyek). Tanpa AOI, analisis memakai seluruh raster.</small></label>
 </section>
 <section class="card" id="parameter"><div class="card-head"><h3>Parameter Proyek</h3><span>Setting</span></div>
 <div class="field-grid">
@@ -44,6 +144,7 @@ main{max-width:1180px !important;margin:0 auto !important;padding:24px !importan
 <label>Faktor Pemadatan (gembur/padat)<input name="compactionFactor" step="0.01" type="number" value="1.2"/></label><label>Densitas Material (t/m³)<input name="materialDensity" step="0.01" type="number" value="1.8"/></label>
 <label>Kapasitas Truk (m³ gembur)<input name="truckCapacity" step="0.1" type="number" value="7"/></label><label>Produktivitas Alat (m³/jam)<input name="productivity" step="1" type="number" value="60"/></label>
 <label>Jam Kerja / Hari<input name="workHours" step="0.5" type="number" value="8"/></label><label>CRS AOI (auto/utm/latlon)<input name="aoiCrs" value="auto" placeholder="auto"/></label>
+<label>Mode Elevasi Target Zona<select name="targetElevMode" id="targetElevMode"><option value="aoi">Otomatis dari AOI (atribut/Z per zona)</option><option value="balance">Otomatis - Balance Cut &amp; Fill (rata-rata DTM Awal/MC0 per zona)</option><option value="manual">Manual per zona</option></select></label>
 </div><button class="primary" type="submit">Proses Hitung Volume</button>
 </section>
 </form>
@@ -55,6 +156,99 @@ main{max-width:1180px !important;margin:0 auto !important;padding:24px !importan
 <section class="card preview-card" id="map"><div class="card-head"><h3>Peta Heatmap Perubahan Elevasi</h3><span>Top View + Section Line</span></div><div class="legend gradient-legend"><span>Biru (rendah / cut)</span><i></i><span>Merah (tinggi / fill)</span></div><p class="muted compact">Garis kuning = long section (LS), garis biru = cross section (CS), <b>garis ungu putus-putus = batas AOI</b>. Saat AOI dipakai, perhitungan & peta hanya mencakup area di dalam AOI.</p><div class="map-frame" id="mapFrame">Preview peta akan muncul setelah proses selesai.</div></section>
 <section class="card" id="section"><div class="card-head"><h3>Long Section &amp; Cross Section</h3><span>Civil 3D Style</span></div><p class="muted">Preview section dibagi jelas antara long section dan cross section. Export PDF juga dipisah per jenis agar lebih informatif dan rapi.</p><div class="section-frame" id="sectionFrame">Section preview akan tampil setelah proses selesai.</div></section>
 <section class="card" id="export"><div class="card-head"><h3>Export Hasil</h3><span>Download</span></div><div class="export-actions"><a class="btn disabled" href="#" id="downloadReport">Laporan TXT</a><a class="btn disabled" href="#" id="downloadMap">Peta SVG</a><a class="btn disabled" href="#" id="downloadProfile">Profil CSV</a><a class="btn disabled" href="#" id="downloadLong">Long Section PDF</a><a class="btn disabled" href="#" id="downloadCross">Cross Section PDF</a><a class="btn disabled" href="#" id="downloadZip">Download ZIP</a></div><details class="report-details"><summary>Lihat JSON ringkasan teknis</summary><pre id="reportBox">Ringkasan teknis akan tampil setelah proses selesai.</pre></details></section>
+
+<!-- ============ MODUL MULTI-ZONA · 3D · LAPORAN MEETING ============ -->
+<div id="mzModule">
+  <div class="mz-section-head">
+    <div>
+      <h2>Analisis Multi-Zona</h2>
+      <p>Setiap layer/feature pada file AOI otomatis terdeteksi sebagai satu zona kerja terpisah, lengkap dengan elevasi target, volume, model 3D, dan laporan siap-meeting.</p>
+    </div>
+    <span class="mz-pill" id="mzZoneCount">Belum ada data</span>
+  </div>
+
+  <section class="card" id="zoneTargetCard">
+    <div class="card-head"><h3>Zona Terdeteksi &amp; Target Elevasi</h3><span id="mzModeBadge">mode: aoi</span></div>
+    <p class="muted compact" id="zoneTargetHint">Proses data pada form di atas (DTM Awal/MC0, DTM Akhir/terbaru, dan AOI) untuk mendeteksi zona kerja.</p>
+    <div id="zoneTargetList" class="zone-target-list"></div>
+    <div class="mz-actions">
+      <button class="btn" id="btnApplyZoneTargets" type="button" disabled>↺ Terapkan Ulang Target Zona</button>
+      <span class="muted compact" style="margin:0">Mengubah mode/nilai target tidak perlu upload ulang DEM — perhitungan zona dijalankan ulang dari data yang sudah dimuat.</span>
+    </div>
+  </section>
+
+  <section class="card" id="zoneResultsCard">
+    <div class="card-head"><h3>Volume per Zona</h3><span>cut / fill vs target</span></div>
+    <div class="mz-table-wrap"><table class="zone-table" id="zoneResultsTable"><thead><tr><th>Zona</th><th>Luas</th><th>Target</th><th>Sumber</th><th title="DTM MC0 → Target, setara Revit Excavation Volume">Cut MC0→Target (m³)</th><th title="DTM Akhir saat ini → Target, sisa pekerjaan">Cut Sisa (m³)</th><th>Fill Sisa (m³)</th><th>Net Sisa</th></tr></thead><tbody><tr><td colspan="8" class="muted">Belum ada data zona.</td></tr></tbody></table></div>
+    <div id="zoneBars" class="zone-bars"></div>
+  </section>
+
+  <section class="card" id="methCard">
+    <div class="card-head"><h3>Penjelasan Perbedaan Hasil vs Revit / Civil 3D</h3><span class="hint-text" style="cursor:pointer" id="methToggle">▼ tampilkan</span></div>
+    <div id="methBody" style="display:none;padding:0 18px 18px">
+      <div class="meth-grid">
+        <div class="meth-col meth-ours">
+          <div class="meth-badge">Tool ini (Raster Grid)</div>
+          <p>Volume dihitung dengan integrasi langsung tiap piksel raster pada resolusi native (0.5 m). <strong>Ini adalah metode paling akurat untuk data GeoTIFF</strong> — setiap variasi mikro-topografi ikut terhitung.</p>
+          <div class="meth-formula">V = Σ (z_sel − z_target) × luas_piksel<br><small>untuk setiap sel raster di dalam poligon zona</small></div>
+        </div>
+        <div class="meth-col meth-revit">
+          <div class="meth-badge meth-badge-alt">Revit Toposolid</div>
+          <p>Excavation Volume dihitung dari solid 3D berbasis <strong>TIN mesh</strong> yang dibangun dari titik-titik survey yang diimport — bukan dari raster penuh. TIN mem-simplikasi medan → puncak tajam terpangkas → volume lebih rendah.</p>
+          <div class="meth-formula">V = Volume 3D solid (TIN mesh − bidang datar target)<br><small>Bergantung pada kepadatan titik mesh Toposolid</small></div>
+        </div>
+        <div class="meth-col meth-c3d">
+          <div class="meth-badge meth-badge-c3d">Civil 3D</div>
+          <p>Civil 3D mendukung dua metode: <strong>Grid Volume</strong> (sama dengan tool ini, hasilnya harus mendekati) dan <strong>TIN Volume</strong> (seperti Revit, bergantung kepadatan mesh). Pastikan gunakan <em>Grid Volume Surface</em> untuk perbandingan.</p>
+          <div class="meth-formula">Grid: ≈ hasil tool ini (selisih &lt;1%)<br>TIN: ≈ Revit (selisih 14–53% tergantung terrain)</div>
+        </div>
+      </div>
+      <div class="meth-note">
+        <strong>Kolom "Cut MC0→Target"</strong> di tabel di atas menggunakan DTM Awal (MC0) sebagai titik awal — ini setara langsung dengan <em>Excavation Volume</em> Revit. Kolom <strong>"Cut Sisa"</strong> menggunakan DTM Akhir (survei terbaru) — ini adalah volume galian yang masih tersisa.
+        Jika Revit menggunakan Toposolid yang dibangun dari point cloud resolusi tinggi (= setara DEM 0.5 m), kedua angka seharusnya mendekati. Selisih yang ada murni karena perbedaan resolusi mesh, bukan bug kalkulasi.
+      </div>
+    </div>
+  </section>
+
+  <div class="mz-grid-2">
+    <section class="card" id="zone3dCard">
+      <div class="card-head"><h3>Model Permukaan 3D</h3><span class="hint-text">drag = rotate · scroll = zoom · shift+drag = pan</span></div>
+      <div id="mz-canvas-wrap">
+        <div id="mz-loading-overlay"><div class="mz-spinner"></div><div class="mz-ltext">Menunggu data diproses…</div></div>
+        <div class="mz-viewer-controls">
+          <label class="mz-toggle-row"><input type="checkbox" id="mz-chk-design" checked> Permukaan desain (target)</label>
+          <label class="mz-toggle-row"><input type="checkbox" id="mz-chk-original"> DTM Awal / MC0 (wireframe)</label>
+          <label class="mz-toggle-row"><input type="checkbox" id="mz-chk-grid" checked> Grid bantu</label>
+        </div>
+        <div class="mz-vexag-box">
+          <div class="mz-ctrl-title">Eksagerasi vertikal</div>
+          <input type="range" id="mz-vexag-slider" min="1" max="4" step="0.1" value="1.5">
+          <div class="mz-val" id="mz-vexag-val">1.5×</div>
+        </div>
+        <div class="mz-legend-strip" id="mz-legend-strip"></div>
+      </div>
+    </section>
+    <section class="card" id="zonePlanCard">
+      <div class="card-head"><h3>Denah Zona</h3><span class="hint-text">dari AOI</span></div>
+      <div class="mz-plan-wrap">
+        <svg id="mz-plan-svg" viewBox="0 0 380 320"></svg>
+        <div class="mz-plan-tooltip" id="mz-plan-tooltip"></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" id="meetingCard">
+    <div class="card-head"><h3>Laporan Meeting</h3><span>siap presentasi</span></div>
+    <p class="muted compact">Ringkasan hasil per zona dalam format siap dibahas saat meeting progres — termasuk cuplikan model 3D dan denah zona.</p>
+    <div id="meetingPreview" class="meeting-preview">Proses data terlebih dahulu untuk membuat laporan meeting.</div>
+    <div class="mz-actions">
+      <button class="btn primary-light" id="btnMeetingPdf" type="button" disabled>⬇ Unduh PDF Laporan Meeting</button>
+      <button class="btn" id="btnMeetingPrint" type="button" disabled>🖨 Cetak / Print</button>
+    </div>
+  </section>
+</div>
+<!-- ============ END MODUL MULTI-ZONA ============ -->
+
 <footer class="footer"><span>© Dashboard Volume Timbunan Pro</span><span>Developed by Egi Nugraha • ✉ egi.geomatika@gmail.com • ☎ 0895604053590</span></footer>
 </main>
 </div><script>
@@ -80,11 +274,12 @@ function ringBBox(ring){let mnx=Infinity,mny=Infinity,mxx=-Infinity,mxy=-Infinit
 function pointInRing(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-12)+xi))inside=!inside}return inside}
 function pointInPolygon(x,y,poly){if(!pointInRing(x,y,poly.rings[0]))return false;for(let k=1;k<poly.rings.length;k++)if(pointInRing(x,y,poly.rings[k]))return false;return true}
 function readElevFromProps(props,field){if(!props)return null;if(field&&props[field]!=null&&props[field]!=='')return Number(props[field]);for(const k of['elev','elevation','design','design_el','z','rl','level','target','el','dz'])for(const kk in props)if(kk.toLowerCase()===k&&props[kk]!=null&&props[kk]!=='')return Number(props[kk]);return null}
+function readNameFromProps(props){if(!props)return null;for(const k of['name','zone','zona','layer','label','id','nama'])for(const kk in props)if(kk.toLowerCase()===k&&props[kk]!=null&&props[kk]!=='')return String(props[kk]);return null}
 function geomToRingSets(geom){const out=[];if(!geom)return out;if(geom.type==='Polygon')out.push(geom.coordinates);else if(geom.type==='MultiPolygon')geom.coordinates.forEach(p=>out.push(p));else if(geom.type==='GeometryCollection'&&geom.geometries)geom.geometries.forEach(g=>geomToRingSets(g).forEach(r=>out.push(r)));return out}
-function parseAOIGeoJSON(obj,field){const polys=[];let feats=[];if(obj.type==='FeatureCollection')feats=obj.features||[];else if(obj.type==='Feature')feats=[obj];else if(obj.type==='Polygon'||obj.type==='MultiPolygon'||obj.type==='GeometryCollection')feats=[{type:'Feature',geometry:obj,properties:{}}];feats.forEach(f=>{const elev=readElevFromProps(f.properties,field);geomToRingSets(f.geometry).forEach(rings=>{const r=rings.map(rg=>rg.map(c=>[Number(c[0]),Number(c[1])])).filter(rg=>rg.length>=3);if(!r.length)return;let e=elev;if(!Number.isFinite(e)&&rings[0]){const zs=[];rings[0].forEach(c=>{if(c.length>2&&Number.isFinite(Number(c[2])))zs.push(Number(c[2]))});if(zs.length)e=zs.reduce((a,b)=>a+b,0)/zs.length}polys.push({rings:r,elev:Number.isFinite(e)?e:null})})});return polys}
-function parseAOIDXF(text,field){const L=text.split(/\r?\n/),N=L.length,polys=[];let cur=null,mode=null,pv=null;const flush=()=>{if(cur&&cur.verts.length>=3){const ring=cur.verts.filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1])).map(v=>[v[0],v[1]]);if(ring.length>=3){if(ring[0][0]!==ring[ring.length-1][0]||ring[0][1]!==ring[ring.length-1][1])ring.push([ring[0][0],ring[0][1]]);let elev=cur.elev;if(!Number.isFinite(elev)){const zs=cur.verts.map(v=>v[2]).filter(z=>Number.isFinite(z)&&z!==0);if(zs.length)elev=zs.reduce((a,b)=>a+b,0)/zs.length}polys.push({rings:[ring],elev:Number.isFinite(elev)?elev:null})}}cur=null;mode=null;pv=null};let i=0;while(i+1<N){const code=parseInt((L[i]||'').trim(),10);const val=(L[i+1]||'').trim();i+=2;if(!Number.isFinite(code))continue;if(code===0){if(val==='LWPOLYLINE'){flush();cur={verts:[],elev:NaN};mode='lw'}else if(val==='POLYLINE'){flush();cur={verts:[],elev:NaN};mode='poly'}else if(val==='VERTEX'){if(mode==='poly'&&cur){pv=[NaN,NaN,NaN];cur.verts.push(pv)}}else if(val==='SEQEND'){}else{flush()}continue}if(!cur)continue;const num=parseFloat(val);if(mode==='lw'){if(code===10)cur.verts.push([num,NaN,NaN]);else if(code===20){const v=cur.verts[cur.verts.length-1];if(v)v[1]=num}else if(code===30){const v=cur.verts[cur.verts.length-1];if(v)v[2]=num}else if(code===38)cur.elev=num}else if(mode==='poly'&&pv){if(code===10)pv[0]=num;else if(code===20)pv[1]=num;else if(code===30)pv[2]=num;else if(code===38)cur.elev=num}}flush();if(!polys.length)throw new Error('Tidak ada LWPOLYLINE/POLYLINE tertutup pada DXF. Pastikan batas AOI berupa polyline (idealnya tertutup).');let latlon=false;for(const p of polys){if(p.rings[0]&&p.rings[0][0]){latlon=isLatLon(p.rings[0][0][0],p.rings[0][0][1]);break}}return{polygons:polys,latlon}}
+function parseAOIGeoJSON(obj,field){const polys=[];let feats=[];if(obj.type==='FeatureCollection')feats=obj.features||[];else if(obj.type==='Feature')feats=[obj];else if(obj.type==='Polygon'||obj.type==='MultiPolygon'||obj.type==='GeometryCollection')feats=[{type:'Feature',geometry:obj,properties:{}}];feats.forEach(f=>{const elev=readElevFromProps(f.properties,field);const zname=readNameFromProps(f.properties);geomToRingSets(f.geometry).forEach(rings=>{const r=rings.map(rg=>rg.map(c=>[Number(c[0]),Number(c[1])])).filter(rg=>rg.length>=3);if(!r.length)return;let e=elev;if(!Number.isFinite(e)&&rings[0]){const zs=[];rings[0].forEach(c=>{if(c.length>2&&Number.isFinite(Number(c[2])))zs.push(Number(c[2]))});if(zs.length)e=zs.reduce((a,b)=>a+b,0)/zs.length}polys.push({rings:r,elev:Number.isFinite(e)?e:null,name:zname})})});return polys}
+function parseAOIDXF(text,field){const L=text.split(/\r?\n/),N=L.length,polys=[];let cur=null,mode=null,pv=null;const flush=()=>{if(cur&&cur.verts.length>=3){const ring=cur.verts.filter(v=>Number.isFinite(v[0])&&Number.isFinite(v[1])).map(v=>[v[0],v[1]]);if(ring.length>=3){if(ring[0][0]!==ring[ring.length-1][0]||ring[0][1]!==ring[ring.length-1][1])ring.push([ring[0][0],ring[0][1]]);let elev=cur.elev;if(!Number.isFinite(elev)){const zs=cur.verts.map(v=>v[2]).filter(z=>Number.isFinite(z)&&z!==0);if(zs.length)elev=zs.reduce((a,b)=>a+b,0)/zs.length}polys.push({rings:[ring],elev:Number.isFinite(elev)?elev:null,name:cur.layer||null})}}cur=null;mode=null;pv=null};let i=0;while(i+1<N){const code=parseInt((L[i]||'').trim(),10);const val=(L[i+1]||'').trim();i+=2;if(!Number.isFinite(code))continue;if(code===0){if(val==='LWPOLYLINE'){flush();cur={verts:[],elev:NaN,layer:null};mode='lw'}else if(val==='POLYLINE'){flush();cur={verts:[],elev:NaN,layer:null};mode='poly'}else if(val==='VERTEX'){if(mode==='poly'&&cur){pv=[NaN,NaN,NaN];cur.verts.push(pv)}}else if(val==='SEQEND'){}else{flush()}continue}if(!cur)continue;if(code===8){cur.layer=val;continue}const num=parseFloat(val);if(mode==='lw'){if(code===10)cur.verts.push([num,NaN,NaN]);else if(code===20){const v=cur.verts[cur.verts.length-1];if(v)v[1]=num}else if(code===30){const v=cur.verts[cur.verts.length-1];if(v)v[2]=num}else if(code===38)cur.elev=num}else if(mode==='poly'&&pv){if(code===10)pv[0]=num;else if(code===20)pv[1]=num;else if(code===30)pv[2]=num;else if(code===38)cur.elev=num}}flush();if(!polys.length)throw new Error('Tidak ada LWPOLYLINE/POLYLINE tertutup pada DXF. Pastikan batas AOI berupa polyline (idealnya tertutup).');let latlon=false;for(const p of polys){if(p.rings[0]&&p.rings[0][0]){latlon=isLatLon(p.rings[0][0][0],p.rings[0][0][1]);break}}return{polygons:polys,latlon}}
 async function loadAOI(file,field){const name=(file.name||'').toLowerCase();if(name.endsWith('.dxf'))return parseAOIDXF(await file.text(),field);if(name.endsWith('.zip')||name.endsWith('.shp')){if(!window.shp)throw new Error('Library shapefile (shpjs) belum termuat. Pastikan internet aktif.');const buf=await file.arrayBuffer();let gj;if(name.endsWith('.shp')){const geoms=window.shp.parseShp(buf);gj={type:'FeatureCollection',features:(geoms||[]).map(g=>({type:'Feature',properties:{},geometry:g}))}}else{gj=await window.shp(buf);if(Array.isArray(gj)){const fs=[];gj.forEach(fc=>(fc&&fc.features||[]).forEach(f=>fs.push(f)));gj={type:'FeatureCollection',features:fs}}}const polys=parseAOIGeoJSON(gj,field);if(!polys.length)throw new Error('Tidak ada polygon pada Shapefile. Untuk .shp tanpa .dbf, atribut elevasi tidak tersedia — gunakan ZIP (shp+dbf+prj) atau Elevasi Design Manual.');let latlon=false;for(const p of polys){if(p.rings[0]&&p.rings[0][0]){latlon=isLatLon(p.rings[0][0][0],p.rings[0][0][1]);break}}return{polygons:polys,latlon}}return parseAOI(await file.text(),file.name,field)}
-function parseAOIKML(text,field){const doc=new DOMParser().parseFromString(text,'text/xml');const polys=[];const pms=doc.getElementsByTagName('Placemark');const els=pms.length?Array.from(pms):[doc];const fl=String(field||'').toLowerCase();const wanted=['elev','elevation','design','z','rl','level','target'];const getElev=pm=>{let v=null;const sds=pm.getElementsByTagName?pm.getElementsByTagName('SimpleData'):[];for(const s of sds){const n=(s.getAttribute('name')||'').toLowerCase();if(n===fl||wanted.includes(n)){v=Number(s.textContent);break}}if(!Number.isFinite(v)){const ds=pm.getElementsByTagName?pm.getElementsByTagName('Data'):[];for(const d of ds){const n=(d.getAttribute('name')||'').toLowerCase();if(n===fl||wanted.includes(n)){const vv=d.getElementsByTagName('value')[0];if(vv){v=Number(vv.textContent);break}}}}return Number.isFinite(v)?v:null};const ringFrom=el=>{const c=el&&el.getElementsByTagName('coordinates')[0];if(!c)return null;return c.textContent.trim().split(/\s+/).map(t=>{const p=t.split(',');return[Number(p[0]),Number(p[1])]}).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]))};els.forEach(pm=>{const elev=getElev(pm);const pes=pm.getElementsByTagName?pm.getElementsByTagName('Polygon'):[];for(const pe of pes){const rings=[];const o=ringFrom(pe.getElementsByTagName('outerBoundaryIs')[0]);if(o&&o.length>=3)rings.push(o);for(const inb of pe.getElementsByTagName('innerBoundaryIs')){const ri=ringFrom(inb);if(ri&&ri.length>=3)rings.push(ri)}if(rings.length)polys.push({rings,elev})}});return polys}
+function parseAOIKML(text,field){const doc=new DOMParser().parseFromString(text,'text/xml');const polys=[];const pms=doc.getElementsByTagName('Placemark');const els=pms.length?Array.from(pms):[doc];const fl=String(field||'').toLowerCase();const wanted=['elev','elevation','design','z','rl','level','target'];const getElev=pm=>{let v=null;const sds=pm.getElementsByTagName?pm.getElementsByTagName('SimpleData'):[];for(const s of sds){const n=(s.getAttribute('name')||'').toLowerCase();if(n===fl||wanted.includes(n)){v=Number(s.textContent);break}}if(!Number.isFinite(v)){const ds=pm.getElementsByTagName?pm.getElementsByTagName('Data'):[];for(const d of ds){const n=(d.getAttribute('name')||'').toLowerCase();if(n===fl||wanted.includes(n)){const vv=d.getElementsByTagName('value')[0];if(vv){v=Number(vv.textContent);break}}}}return Number.isFinite(v)?v:null};const ringFrom=el=>{const c=el&&el.getElementsByTagName('coordinates')[0];if(!c)return null;return c.textContent.trim().split(/\s+/).map(t=>{const p=t.split(',');return[Number(p[0]),Number(p[1])]}).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]))};els.forEach(pm=>{const elev=getElev(pm);const pname=(pm.getElementsByTagName&&pm.getElementsByTagName('name')[0])?pm.getElementsByTagName('name')[0].textContent.trim():null;const pes=pm.getElementsByTagName?pm.getElementsByTagName('Polygon'):[];for(const pe of pes){const rings=[];const o=ringFrom(pe.getElementsByTagName('outerBoundaryIs')[0]);if(o&&o.length>=3)rings.push(o);for(const inb of pe.getElementsByTagName('innerBoundaryIs')){const ri=ringFrom(inb);if(ri&&ri.length>=3)rings.push(ri)}if(rings.length)polys.push({rings,elev,name:pname})}});return polys}
 function parseAOI(text,filename,field){let polys=[];const isKml=/\.kml$/i.test(filename||'')||/<kml/i.test(text)||/<Placemark/i.test(text);if(isKml)polys=parseAOIKML(text,field);else{let obj;try{obj=JSON.parse(text)}catch(e){throw new Error('AOI bukan GeoJSON/JSON/KML valid. Untuk SHP/ZIP, konversi dulu ke GeoJSON atau KML.')}polys=parseAOIGeoJSON(obj,field)}if(!polys.length)throw new Error('Tidak ada polygon valid di file AOI.');let latlon=false;for(const p of polys){if(p.rings[0]&&p.rings[0][0]){latlon=isLatLon(p.rings[0][0][0],p.rings[0][0][1]);break}}return{polygons:polys,latlon}}
 function reprojectAOI(aoi,zoneInfo){if(!aoi.latlon)return aoi;if(!zoneInfo)throw new Error('AOI dalam lat/lon, tetapi zona UTM raster tidak terdeteksi. Isi field "Sistem Koordinat" (mis. UTM Zone 54S).');aoi.polygons.forEach(p=>{p.rings=p.rings.map(r=>r.map(c=>{const u=wgs84ToUTM(c[0],c[1],zoneInfo.zone,zoneInfo.north);return[u.x,u.y]}))});aoi.latlon=false;return aoi}
 function aoiHit(wx,wy,polys){for(let k=0;k<polys.length;k++){const P=polys[k],b=P.bb;if(wx<b.mnx||wx>b.mxx||wy<b.mny||wy>b.mxy)continue;if(pointInPolygon(wx,wy,P))return P}return null}
@@ -114,7 +309,7 @@ if(d.luasBelumTargetM2/Math.max(1,d.luasAOIM2)>0.5)recs.push('Lebih dari 50% are
 blocks.push('<h4 style="margin:10px 0 6px">Rekomendasi Tindakan Lapangan</h4><ul style="line-height:1.7;margin:0;padding-left:20px">'+recs.map(r=>'<li>'+r+'</li>').join('')+'</ul>');
 blocks.push('<p class="muted compact" style="margin-top:10px">Catatan: estimasi material/alat bersifat indikatif (faktor pemadatan & produktivitas dapat disesuaikan di Parameter). Volume design dihitung di dalam AOI memakai elevasi design '+(d.sumberElevasi)+'.</p>');
 return blocks.join('')}
-form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]');btn.disabled=true;resetLinks();setStatus('Memproses raster di browser...');try{
+form.addEventListener('submit',async e=>{e.preventDefault();const btn=form.querySelector('button[type="submit"]');btn.disabled=true;resetLinks();setStatus('Memproses raster di browser...');if(window.mzShowProcessingOverlay)await window.mzShowProcessingOverlay();try{
 const fd=new FormData(form),awalFile=fd.get('dtmAwal'),akhirFile=fd.get('dtmAkhir'),aoiFile=fd.get('aoiFile');
 const dem=fd.get('designElevManual');
 const p={projectName:fd.get('projectName')||'Analisis Volume Timbunan',preparedBy:fd.get('preparedBy')||'Egi Nugraha',tanggalAwal:fd.get('tanggalAwal')||'-',tanggalAkhir:fd.get('tanggalAkhir')||'-',crsInfo:fd.get('crsInfo')||'UTM / Local CRS',spatialResolution:Number(fd.get('spatialResolution'))||.1,thresholdTimbunan:Number(fd.get('thresholdTimbunan'))||.05,thresholdStabil:Number(fd.get('thresholdStabil'))||.05,profileInterval:Number(fd.get('profileInterval'))||1,gridInterval:Number(fd.get('gridInterval'))||5,designField:fd.get('designField')||'elev',designElevManual:(dem!==''&&dem!=null)?Number(dem):NaN,compactionFactor:Number(fd.get('compactionFactor'))||1.2,materialDensity:Number(fd.get('materialDensity'))||1.8,truckCapacity:Number(fd.get('truckCapacity'))||7,productivity:Number(fd.get('productivity'))||60,workHours:Number(fd.get('workHours'))||8,aoiCrs:(fd.get('aoiCrs')||'auto').toLowerCase()};
@@ -122,6 +317,12 @@ const awal=await readGeoTiffFromFile(awalFile),akhir=await readGeoTiffFromFile(a
 /* geo-transform */
 const gb=awal.bbox;let geo=null;if(gb&&gb.length===4&&Number.isFinite(gb[0])&&Number.isFinite(gb[2])&&(gb[2]-gb[0])!==0)geo={minX:Math.min(gb[0],gb[2]),maxX:Math.max(gb[0],gb[2]),minY:Math.min(gb[1],gb[3]),maxY:Math.max(gb[1],gb[3])};else if(awal.origin&&awal.res){const ox=awal.origin[0],oy=awal.origin[1],rx=awal.res[0],ry=awal.res[1];geo={minX:ox,maxX:ox+rx*w,minY:Math.min(oy,oy+ry*h),maxY:Math.max(oy,oy+ry*h)}}
 const pixelW=geo?(geo.maxX-geo.minX)/w:p.spatialResolution,pixelH=geo?(geo.maxY-geo.minY)/h:p.spatialResolution,pa=pixelW*pixelH;if(geo)p.spatialResolution=(pixelW+pixelH)/2;
+/* Auto-detect CRS dari GeoTIFF dan tampilkan ke form */
+try{
+  const detectedCrs = window.mzDetectCrsLabel && window.mzDetectCrsLabel(awal.geoKeys || akhir.geoKeys);
+  if(detectedCrs){ p.crsInfo = detectedCrs; const elCrs=document.querySelector('[name="crsInfo"]'); if(elCrs) elCrs.value = detectedCrs; }
+  const elRes=document.querySelector('[name="spatialResolution"]'); if(elRes && geo) elRes.value = p.spatialResolution.toFixed(4);
+}catch(crsErr){ console.error('CRS auto-detect gagal:', crsErr); }
 /* AOI */
 let aoi=null,aoiMsg='AOI tidak digunakan (analisis seluruh raster).';
 if(aoiFile&&aoiFile.name){aoi=await loadAOI(aoiFile,p.designField);if(p.aoiCrs==='utm')aoi.latlon=false;else if(p.aoiCrs==='latlon')aoi.latlon=true;if(!geo){aoi=null;aoiMsg='AOI diabaikan: GeoTIFF tidak memiliki georeferensi (origin/bbox), clipping tidak dapat dilakukan.';}else{if(aoi.latlon){const zi=epsgToUTM(awal.geoKeys&&(awal.geoKeys.ProjectedCSTypeGeoKey||awal.geoKeys.ProjectedCSGeoKey))||parseUTMZoneText(p.crsInfo);reprojectAOI(aoi,zi);aoiMsg='AOI lat/lon direproyeksi ke UTM zone '+(zi.zone)+(zi.north?'N':'S')+' lalu di-clip.';}else aoiMsg='AOI (UTM) dipakai sebagai batas clipping & acuan design.';aoi.polygons.forEach(P=>{P.bb=ringBBox(P.rings[0])});}}
@@ -137,7 +338,869 @@ document.getElementById('mRemFill').textContent=hasDesign?fmtID.format(remFillV)
 document.getElementById('analisisBox').innerHTML=buildAnalysis(summary);
 const plan=sectionPlan(d,w,h,p),sec=sections(a,b,d,w,h,p,plan),svg=heatmap(d,w,h,p,summary,plan,haveAOI?{polys:aoi.polygons,geo,pixelW,pixelH}:null),html=sectionHtml(sec.longProfiles,sec.crossProfiles),csvText=csv(sec.allProfiles);let rep=report(summary,sec.longProfiles,sec.crossProfiles);if(hasDesign){const dd=summary.design,mm=summary.material;rep+='\n\n--- ANALISIS VS ACUAN DESIGN (DALAM AOI) ---\nSumber elevasi design:   '+dd.sumberElevasi+'\nLuas AOI dianalisis:     '+fmt(dd.luasAOIM2,2)+' m2\nSisa Timbunan ke design: '+fmt(dd.sisaTimbunanM3,3)+' m3 (padat)\nSisa Galian ke design:   '+fmt(dd.sisaGalianM3,3)+' m3\nProgres Timbunan:        '+fmt(dd.progresTimbunanPct,1)+' %\nLuas belum capai target: '+fmt(dd.luasBelumTargetM2,2)+' m2\nDefisit terdalam:        '+fmt(dd.defisitMaksM,3)+' m | Surplus tertinggi: '+fmt(dd.surplusMaksM,3)+' m\n\n--- KEBUTUHAN MATERIAL & ALAT ---\nVolume material gembur:  '+fmt(mm.volumeGemburM3,3)+' m3 (faktor '+fmt(p.compactionFactor,2)+')\nTonase material:         '+fmt(mm.tonase,2)+' ton (densitas '+fmt(p.materialDensity,2)+' t/m3)\nRitase truk:             '+Math.ceil(mm.ritase)+' rit (kapasitas '+fmt(p.truckCapacity,1)+' m3)\nEstimasi durasi:         '+fmt(mm.durasiJam,1)+' jam ~ '+fmt(mm.durasiHari,1)+' hari';}
 const longPdf=pdf('Long Section Report',sec.longProfiles,summary,p),crossPdf=pdf('Cross Section Report',sec.crossProfiles,summary,p);
-mapFrame.innerHTML=`<img src="${URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}))}"/>`;sectionFrame.innerHTML=html;reportBox.textContent=JSON.stringify(summary,null,2);setDownload('downloadReport',new Blob([rep],{type:'text/plain'}),'laporan_volume.txt');setDownload('downloadMap',new Blob([svg],{type:'image/svg+xml'}),'peta_heatmap_grid.svg');setDownload('downloadProfile',new Blob([csvText],{type:'text/csv'}),'profil_lintas.csv');setDownload('downloadLong',longPdf,'long_sections.pdf');setDownload('downloadCross',crossPdf,'cross_sections.pdf');const zip=new JSZip();zip.file('laporan_volume.txt',rep);zip.file('summary.json',JSON.stringify(summary,null,2));zip.file('peta_heatmap_grid.svg',svg);zip.file('profil_lintas.csv',csvText);zip.file('long_sections.pdf',longPdf);zip.file('cross_sections.pdf',crossPdf);setDownload('downloadZip',await zip.generateAsync({type:'blob'}),'hasil_volume.zip');setStatus('Selesai');document.getElementById('hasil').scrollIntoView({behavior:'auto',block:'start'})}catch(err){console.error(err);setStatus('Error');mapFrame.textContent='Preview gagal dibuat.';sectionFrame.textContent='Section preview gagal dibuat.';reportBox.textContent=err.message;document.getElementById('analisisBox').innerHTML='<p style="color:#b91c1c"><b>Gagal:</b> '+err.message+'</p>'}finally{btn.disabled=false}});
+if(window.mzMountZoomableMap){ window.mzMountZoomableMap(mapFrame, svg); } else { mapFrame.innerHTML=`<img src="${URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}))}"/>`; }
+sectionFrame.innerHTML=html;reportBox.textContent=JSON.stringify(summary,null,2);setDownload('downloadReport',new Blob([rep],{type:'text/plain'}),'laporan_volume.txt');setDownload('downloadMap',new Blob([svg],{type:'image/svg+xml'}),'peta_heatmap_grid.svg');setDownload('downloadProfile',new Blob([csvText],{type:'text/csv'}),'profil_lintas.csv');setDownload('downloadLong',longPdf,'long_sections.pdf');setDownload('downloadCross',crossPdf,'cross_sections.pdf');window.__VOLDATA={awal,akhir,aoi,geo,pixelW,pixelH,pa,w,h,p,summary,a,b,d,haveAOI};try{window.dispatchEvent(new CustomEvent('survai:volumeReady'))}catch(e){console.error(e)}setStatus('Selesai');document.getElementById('hasil').scrollIntoView({behavior:'auto',block:'start'});mzHideProcessingOverlay&&mzHideProcessingOverlay();(async()=>{try{mzShowZipNotice&&mzShowZipNotice('Menyiapkan ZIP unduhan di latar belakang...');const zip=new JSZip();zip.file('laporan_volume.txt',rep);zip.file('summary.json',JSON.stringify(summary,null,2));zip.file('peta_heatmap_grid.svg',svg);zip.file('profil_lintas.csv',csvText);zip.file('long_sections.pdf',longPdf);zip.file('cross_sections.pdf',crossPdf);setDownload('downloadZip',await zip.generateAsync({type:'blob'}),'hasil_volume.zip');mzShowZipNotice&&mzShowZipNotice('')}catch(zerr){console.error('ZIP generation failed:',zerr)}})()}catch(err){console.error(err);setStatus('Error');mzHideProcessingOverlay&&mzHideProcessingOverlay();mapFrame.textContent='Preview gagal dibuat.';sectionFrame.textContent='Section preview gagal dibuat.';reportBox.textContent=err.message;document.getElementById('analisisBox').innerHTML='<p style="color:#b91c1c"><b>Gagal:</b> '+err.message+'</p>'}finally{btn.disabled=false;window.mzHideProcessingOverlay&&window.mzHideProcessingOverlay()}});
+</script>
+<script id="mz-module-script">
+/* ====================================================================
+   MODUL MULTI-ZONA · 3D · DENAH · LAPORAN MEETING
+   Tidak mengubah fungsi/variabel pada script utama di atas — modul ini
+   membaca window.__VOLDATA (di-stash oleh handler submit utama) lalu
+   menjalankan analisis tambahan per-zona, secara independen.
+   ==================================================================== */
+(function(){
+  'use strict';
+  if (typeof pointInPolygon !== 'function' || typeof ringBBox !== 'function'){
+    console.error('Modul multi-zona: fungsi inti tidak ditemukan, modul dibatalkan.');
+    return;
+  }
+
+  const ZONE_COLORS = ['#ef4444','#16a34a','#f59e0b','#0891b2','#7c3aed','#db2777','#65a30d','#ea580c'];
+  const idfmt = (v,d=0)=> Number.isFinite(v) ? new Intl.NumberFormat('id-ID',{maximumFractionDigits:d,minimumFractionDigits:d}).format(v) : '-';
+
+  let ZONES = [];
+  let CTX = null;
+  let Viewer3D = { setTargets(){}, setVexag(){}, setLayerVisible(){}, snapshot(){return null} };
+
+  /* ---------------------------------------------------------------
+     0. PROCESSING OVERLAY (visible feedback during heavy computation)
+     --------------------------------------------------------------- */
+  function ensureOverlay(){
+    let ov = document.getElementById('mzProcessingOverlay');
+    if(!ov){
+      ov = document.createElement('div');
+      ov.id = 'mzProcessingOverlay';
+      ov.innerHTML = '<div class="mzpo-card"><div class="mzpo-spinner"></div><div class="mzpo-title">Memproses data…</div><div class="mzpo-sub" id="mzpoSub">Membaca raster, menghitung volume, dan menyiapkan laporan. Mohon tunggu, jangan tutup halaman.</div></div>';
+      document.body.appendChild(ov);
+    }
+    return ov;
+  }
+  window.mzShowProcessingOverlay = async function(msg){
+    const ov = ensureOverlay();
+    document.getElementById('mzpoSub').textContent = msg || 'Membaca raster, menghitung volume, dan menyiapkan laporan. Mohon tunggu, jangan tutup halaman.';
+    ov.style.display = 'flex';
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  };
+  window.mzHideProcessingOverlay = function(){
+    const ov = document.getElementById('mzProcessingOverlay');
+    if(ov) ov.style.display='none';
+  };
+  window.mzShowZipNotice = function(msg){
+    const el = document.getElementById('downloadZip');
+    if(!el) return;
+    if(msg){
+      if(!el.dataset.origText) el.dataset.origText = el.textContent;
+      el.textContent = '⏳ ZIP diproses…';
+    } else if (el.dataset.origText){
+      el.textContent = el.dataset.origText;
+    }
+  };
+
+  /* ---------------------------------------------------------------
+     0b. CRS AUTO-DETECTION (from GeoTIFF geoKeys)
+     --------------------------------------------------------------- */
+  window.mzDetectCrsLabel = function(geoKeys){
+    if(!geoKeys) return null;
+    const epsg = geoKeys.ProjectedCSTypeGeoKey || geoKeys.ProjectedCSGeoKey || geoKeys.GeographicTypeGeoKey;
+    if(!epsg || epsg===32767) return null;
+    try{
+      if(typeof epsgToUTM === 'function'){
+        const utm = epsgToUTM(epsg);
+        if(utm) return `UTM Zone ${utm.zone}${utm.north?'N':'S'} (EPSG:${epsg})`;
+      }
+    }catch(e){}
+    return `EPSG:${epsg}`;
+  };
+
+  /* ---------------------------------------------------------------
+     0c. ZOOMABLE / PANNABLE MAP VIEWER (canvas auto-fit to data)
+     --------------------------------------------------------------- */
+  window.mzMountZoomableMap = function(container, svgString){
+    container.innerHTML = '';
+    container.classList.add('mz-zoomwrap');
+
+    const inner = document.createElement('div');
+    inner.className = 'mz-zoom-inner';
+    inner.innerHTML = svgString;
+    const svgEl = inner.querySelector('svg');
+    if(!svgEl){ container.innerHTML = svgString; return; }
+
+    const vb = (svgEl.getAttribute('viewBox')||'0 0 600 400').split(/\s+/).map(Number);
+    const natW = vb[2]||600, natH = vb[3]||400;
+    svgEl.style.width = natW+'px';
+    svgEl.style.height = natH+'px';
+    svgEl.style.display = 'block';
+    inner.style.width = natW+'px';
+    inner.style.height = natH+'px';
+    inner.style.transformOrigin = '0 0';
+    container.appendChild(inner);
+
+    const controls = document.createElement('div');
+    controls.className = 'mz-zoom-controls';
+    controls.innerHTML = '<button type="button" data-act="in" title="Perbesar">+</button><button type="button" data-act="out" title="Perkecil">−</button><button type="button" data-act="fit" title="Sesuaikan layar">⤢</button><button type="button" data-act="data" title="Zoom ke data">⊙</button>';
+    container.appendChild(controls);
+
+    const hint = document.createElement('div');
+    hint.className = 'mz-zoom-hint';
+    hint.textContent = 'scroll = zoom · drag = geser · ⊙ = zoom ke data · ⤢ = reset';
+    container.appendChild(hint);
+
+    let scale=1, tx=0, ty=0, fitScale=1;
+    let dataBBox=null; // {x,y,w,h} in SVG units — set async after canvas scan
+
+    function apply(){ inner.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; }
+
+    function fit(){
+      const cw=container.clientWidth||600, ch=container.clientHeight||480;
+      fitScale = Math.min(cw/natW, ch/natH)*0.96;
+      scale=fitScale; tx=(cw-natW*scale)/2; ty=(ch-natH*scale)/2;
+      apply();
+    }
+
+    function fitData(){
+      if(!dataBBox) return;
+      const cw=container.clientWidth||600, ch=container.clientHeight||480;
+      const PAD=30;
+      const bw=dataBBox.w+PAD*2, bh=dataBBox.h+PAD*2;
+      scale=Math.min(cw/bw, ch/bh)*0.92;
+      scale=Math.min(scale, fitScale*14);
+      const cx=dataBBox.x+dataBBox.w/2, cy=dataBBox.y+dataBBox.h/2;
+      tx=cw/2-cx*scale; ty=ch/2-cy*scale;
+      apply();
+    }
+
+    function zoomAt(mx,my,factor){
+      const newScale=Math.min(Math.max(scale*factor, fitScale*0.35), fitScale*18);
+      const wx=(mx-tx)/scale, wy=(my-ty)/scale;
+      tx=mx-wx*newScale; ty=my-wy*newScale;
+      scale=newScale; apply();
+    }
+
+    requestAnimationFrame(fit);
+
+    // Canvas-based data bbox detection — runs async after SVG renders
+    setTimeout(function(){
+      try{
+        const xml = new XMLSerializer().serializeToString(svgEl);
+        const blob = new Blob([xml],{type:'image/svg+xml'});
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = function(){
+          try{
+            const CW=Math.min(natW,800), CH=Math.min(natH,700);
+            const scX=CW/natW, scY=CH/natH;
+            const c=document.createElement('canvas');
+            c.width=CW; c.height=CH;
+            const ctx=c.getContext('2d');
+            ctx.drawImage(img,0,0,CW,CH);
+            URL.revokeObjectURL(url);
+            const px=ctx.getImageData(0,0,CW,CH).data;
+            let minX=CW, maxX=0, minY=CH, maxY=0, found=false;
+            for(let y=0;y<CH;y++){
+              for(let x=0;x<CW;x++){
+                const i=(y*CW+x)*4, r=px[i], g=px[i+1], b=px[i+2];
+                // skip very light grey / white (background + grid)
+                if(r>215 && g>215 && b>215) continue;
+                // skip near-black (axis labels/text)
+                if(r<60 && g<60 && b<60) continue;
+                if(x<minX)minX=x; if(x>maxX)maxX=x;
+                if(y<minY)minY=y; if(y>maxY)maxY=y;
+                found=true;
+              }
+            }
+            if(found){
+              dataBBox={x:minX/scX, y:minY/scY, w:(maxX-minX)/scX, h:(maxY-minY)/scY};
+              fitData();
+            }
+          }catch(e){ URL.revokeObjectURL(url); }
+        };
+        img.onerror=()=>URL.revokeObjectURL(url);
+        img.src=url;
+      }catch(e){}
+    }, 80);
+
+    // Interaction handlers
+    let dragging=false, lastX=0, lastY=0;
+    container.addEventListener('mousedown', e=>{
+      dragging=true; lastX=e.clientX; lastY=e.clientY;
+      container.style.cursor='grabbing';
+      e.preventDefault();
+    });
+    window.addEventListener('mouseup', ()=>{ dragging=false; container.style.cursor='grab'; });
+    window.addEventListener('mousemove', e=>{
+      if(!dragging) return;
+      tx+=e.clientX-lastX; ty+=e.clientY-lastY;
+      lastX=e.clientX; lastY=e.clientY; apply();
+    });
+    container.addEventListener('wheel', e=>{
+      e.preventDefault();
+      const rect=container.getBoundingClientRect();
+      zoomAt(e.clientX-rect.left, e.clientY-rect.top, e.deltaY>0?0.84:1.19);
+    },{passive:false});
+    container.addEventListener('dblclick', ()=>dataBBox?fitData():fit());
+    controls.addEventListener('click', e=>{
+      const act=e.target.getAttribute('data-act'); if(!act)return;
+      const cw=container.clientWidth, ch=container.clientHeight;
+      if(act==='in') zoomAt(cw/2,ch/2,1.35);
+      else if(act==='out') zoomAt(cw/2,ch/2,1/1.35);
+      else if(act==='fit') fit();
+      else if(act==='data'){ if(dataBBox)fitData(); else fit(); }
+    });
+    window.addEventListener('resize', ()=>{ fit(); setTimeout(()=>dataBBox&&fitData(), 120); });
+  };
+
+  /* ---------------------------------------------------------------
+     1. ZONE DETECTION + TARGET ELEVATION
+     --------------------------------------------------------------- */
+  function detectZones(ctx){
+    const polys = (ctx.aoi && ctx.aoi.polygons) || [];
+    return polys.map((P,i)=>({
+      idx:i,
+      name: P.name ? String(P.name) : ('Zona '+(i+1)),
+      color: ZONE_COLORS[i % ZONE_COLORS.length],
+      rings: P.rings,
+      bb: P.bb || ringBBox(P.rings[0]),
+      elevAOI: Number.isFinite(P.elev) ? P.elev : null,
+    }));
+  }
+
+  function pixelWindowForBB(ctx, bb, marginPx){
+    const {geo,pixelW,pixelH,w,h} = ctx;
+    let px0 = Math.floor((bb.mnx-geo.minX)/pixelW)-marginPx;
+    let px1 = Math.ceil((bb.mxx-geo.minX)/pixelW)+marginPx;
+    let py0 = Math.floor((geo.maxY-bb.mxy)/pixelH)-marginPx;
+    let py1 = Math.ceil((geo.maxY-bb.mny)/pixelH)+marginPx;
+    px0=Math.max(0,px0); py0=Math.max(0,py0);
+    px1=Math.min(w-1,px1); py1=Math.min(h-1,py1);
+    return {px0,px1,py0,py1};
+  }
+
+  function elevAkhirAt(ctx,x,y,i){
+    const akhir=ctx.akhir, w=ctx.w, h=ctx.h;
+    return (akhir.width===w && akhir.height===h) ? akhir.raster[i] : sampleNearest(akhir,x,y,w,h);
+  }
+
+  function computeZoneBalance(ctx, zone){
+    const {awal,geo,pixelW,pixelH,w} = ctx;
+    const win = pixelWindowForBB(ctx, zone.bb, 1);
+    let sum=0,n=0;
+    for(let y=win.py0;y<=win.py1;y++){
+      const wy = geo.maxY-(y+0.5)*pixelH;
+      for(let x=win.px0;x<=win.px1;x++){
+        const wx = geo.minX+(x+0.5)*pixelW;
+        if(!pointInPolygon(wx,wy,zone)) continue;
+        const i=y*w+x, A=awal.raster[i];
+        if(isNoData(A,awal.nodata)) continue;
+        sum+=A; n++;
+      }
+    }
+    return n ? sum/n : NaN;
+  }
+
+  function resolveTargets(ctx, zones, mode, manualMap){
+    zones.forEach(z=>{
+      let t, src;
+      if (mode==='manual'){
+        if (manualMap && Number.isFinite(manualMap[z.idx])){ t=manualMap[z.idx]; src='manual'; }
+        else if (z.elevAOI!=null){ t=z.elevAOI; src='AOI (default awal)'; }
+        else { t=computeZoneBalance(ctx,z); src='auto-balance (default awal)'; }
+      } else if (mode==='balance'){
+        t = computeZoneBalance(ctx,z); src='auto-balance MC0';
+      } else {
+        if (z.elevAOI!=null){ t=z.elevAOI; src='atribut AOI'; }
+        else { t=computeZoneBalance(ctx,z); src='auto-balance (AOI kosong)'; }
+      }
+      z.target=t; z.targetSource=src;
+    });
+  }
+
+  function computeZoneStats(ctx, zone){
+    const {awal,akhir,geo,pixelW,pixelH,w,pa} = ctx;
+    const win = pixelWindowForBB(ctx, zone.bb, 1);
+    let area=0,cut=0,fill=0,dCut=0,dFill=0,minE=Infinity,maxE=-Infinity,sumE=0,nE=0;
+    let cutFromMC0=0, fillFromMC0=0; // vs awal (MC0 baseline) = Revit-style
+    for(let y=win.py0;y<=win.py1;y++){
+      const wy = geo.maxY-(y+0.5)*pixelH;
+      for(let x=win.px0;x<=win.px1;x++){
+        const wx = geo.minX+(x+0.5)*pixelW;
+        if(!pointInPolygon(wx,wy,zone)) continue;
+        const i=y*w+x;
+        const A=awal.raster[i], B=elevAkhirAt(ctx,x,y,i);
+        if(isNoData(A,awal.nodata) || isNoData(B,akhir.nodata)) continue;
+        area+=pa;
+        const dT=B-zone.target;
+        if(dT>0) cut+=dT*pa; else fill+=-dT*pa;
+        const dP=B-A;
+        if(dP>0) dFill+=dP*pa; else dCut+=-dP*pa;
+        // MC0 vs target (= total required excavation from original terrain, Revit-style)
+        const dA=A-zone.target;
+        if(dA>0) cutFromMC0+=dA*pa; else fillFromMC0+=-dA*pa;
+        if(B<minE)minE=B; if(B>maxE)maxE=B; sumE+=B; nE++;
+      }
+    }
+    zone.area=area; zone.cut=cut; zone.fill=fill; zone.net=cut-fill;
+    zone.progCut=dCut; zone.progFill=dFill;
+    zone.cutFromMC0=cutFromMC0; zone.fillFromMC0=fillFromMC0;
+    zone.elevMin=nE?minE:NaN; zone.elevMax=nE?maxE:NaN; zone.elevMean=nE?sumE/nE:NaN;
+  }
+
+  function readManualMap(){
+    const map={};
+    document.querySelectorAll('.zt-target-input').forEach(inp=>{
+      const idx=Number(inp.getAttribute('data-idx'));
+      const v=parseFloat(inp.value);
+      if(Number.isFinite(v)) map[idx]=v;
+    });
+    return map;
+  }
+
+  /* ---------------------------------------------------------------
+     2. RENDER: ZONE TARGET LIST
+     --------------------------------------------------------------- */
+  function renderZoneTargetList(){
+    const mode = document.getElementById('targetElevMode').value;
+    document.getElementById('mzModeBadge').textContent = 'mode: '+mode;
+    const wrap = document.getElementById('zoneTargetList');
+    if (!ZONES.length){
+      wrap.innerHTML='';
+      document.getElementById('zoneTargetHint').style.display='block';
+      return;
+    }
+    document.getElementById('zoneTargetHint').style.display='none';
+    wrap.innerHTML = ZONES.map(z=>`
+      <div class="zt-card">
+        <div class="zt-head"><span class="zt-dot" style="background:${z.color}"></span>${z.name}</div>
+        <input type="number" step="0.01" class="zt-target-input" data-idx="${z.idx}"
+          value="${Number.isFinite(z.target)?z.target.toFixed(2):''}" ${mode==='manual'?'':'disabled'}>
+        <div class="zt-source">sumber: ${z.targetSource||'-'}</div>
+        <div class="zt-area">luas: ${Number.isFinite(z.area)?idfmt(z.area,0)+' m²':'—'}</div>
+      </div>`).join('');
+  }
+
+  function renderLegend(){
+    const el = document.getElementById('mz-legend-strip');
+    el.innerHTML = ZONES.map(z=>`<div class="mz-legend-item"><span class="mz-legend-swatch" style="background:${z.color}"></span>${z.name} · ${idfmt(z.target,2)} m</div>`).join('');
+  }
+
+  /* ---------------------------------------------------------------
+     3. RENDER: RESULTS TABLE + BARS
+     --------------------------------------------------------------- */
+  function renderZoneResults(){
+    document.getElementById('mzZoneCount').textContent = ZONES.length ? (ZONES.length+' zona terdeteksi') : 'Belum ada data';
+    const tbody = document.querySelector('#zoneResultsTable tbody');
+    if (!ZONES.length){
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">Belum ada data zona.</td></tr>';
+      document.getElementById('zoneBars').innerHTML=''; return;
+    }
+    tbody.innerHTML = ZONES.map(z=>`
+      <tr>
+        <td class="zname"><span class="zt-dot" style="background:${z.color}"></span>${z.name}</td>
+        <td class="num">${idfmt(z.area,0)} m²</td>
+        <td class="num">${idfmt(z.target,2)} m</td>
+        <td class="num" style="text-align:left;color:var(--mz-muted);font-size:11px">${z.targetSource}</td>
+        <td class="num" title="Galian dari MC0 ke target = setara Revit Excavation Volume">${idfmt(z.cutFromMC0||z.cut,0)}</td>
+        <td class="num" title="Sisa galian dari DTM Akhir ke target = sisa pekerjaan">${idfmt(z.cut,0)}</td>
+        <td class="num">${idfmt(z.fill,0)}</td>
+        <td class="num">${idfmt(z.net,0)}</td>
+      </tr>`).join('') + `<tfoot-row></tfoot-row>`;
+    const totalArea=ZONES.reduce((s,z)=>s+z.area,0);
+    const totalMC0=ZONES.reduce((s,z)=>s+(z.cutFromMC0||z.cut),0);
+    const totalCut=ZONES.reduce((s,z)=>s+z.cut,0);
+    const totalFill=ZONES.reduce((s,z)=>s+z.fill,0);
+    const tfoot=document.querySelector('#zoneResultsTable tfoot')||(()=>{const t=document.createElement('tfoot');document.getElementById('zoneResultsTable').appendChild(t);return t;})();
+    tfoot.innerHTML=`<tr><td>Total</td><td class="num">${idfmt(totalArea,0)} m²</td><td colspan="2"></td><td class="num">${idfmt(totalMC0,0)}</td><td class="num">${idfmt(totalCut,0)}</td><td class="num">${idfmt(totalFill,0)}</td><td class="num">${idfmt(totalCut-totalFill,0)}</td></tr>`;
+    const maxV=Math.max(1,...ZONES.map(z=>Math.max(z.cutFromMC0||0,z.cut,z.fill)));
+    document.getElementById('zoneBars').innerHTML=ZONES.map(z=>`
+      <div class="zb-row">
+        <div class="zb-name"><span class="zt-dot" style="background:${z.color}"></span>${z.name}</div>
+        <div>
+          <div style="font-size:10px;color:var(--mz-muted);margin-bottom:2px">MC0 total</div>
+          <div class="zb-track" style="margin-bottom:4px"><div class="zb-fill" style="width:${((z.cutFromMC0||z.cut)/maxV*100).toFixed(1)}%;background:${z.color};opacity:.5;background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.12) 0 4px,transparent 4px 8px)"></div></div>
+          <div style="font-size:10px;color:var(--mz-muted);margin-bottom:2px">Sisa (DTM Akhir)</div>
+          <div class="zb-track" style="margin-bottom:4px"><div class="zb-fill" style="width:${(z.cut/maxV*100).toFixed(1)}%;background:${z.color}"></div></div>
+        </div>
+        <div class="zb-nums">MC0: ${idfmt(z.cutFromMC0||z.cut,0)} m³<br>Sisa: ${idfmt(z.cut,0)} m³<br>Fill: ${idfmt(z.fill,0)} m³</div>
+      </div>`).join('');
+    renderLegend();
+  }
+
+  /* ---------------------------------------------------------------
+     4. RENDER: DENAH ZONA (2D plan, SVG)
+     --------------------------------------------------------------- */
+  function renderDenah(){
+    const VBW=380, VBH=320, PAD=22;
+    const svg = document.getElementById('mz-plan-svg');
+    if (!ZONES.length){ svg.innerHTML=''; return; }
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    ZONES.forEach(z=> z.rings[0].forEach(([x,y])=>{
+      if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
+    }));
+    const scale = Math.min((VBW-2*PAD)/Math.max(1e-6,maxX-minX), (VBH-2*PAD)/Math.max(1e-6,maxY-minY));
+    const offX = (VBW-(maxX-minX)*scale)/2, offY = (VBH-(maxY-minY)*scale)/2;
+    function toScreen(x,y){ return [offX+(x-minX)*scale, VBH-(offY+(y-minY)*scale)]; }
+    svg.setAttribute('viewBox',`0 0 ${VBW} ${VBH}`);
+    let html='';
+    ZONES.forEach(z=>{
+      const pts = z.rings[0].map(([x,y])=>toScreen(x,y).join(',')).join(' ');
+      let cx=0,cy=0;
+      z.rings[0].forEach(([x,y])=>{ const [sx,sy]=toScreen(x,y); cx+=sx; cy+=sy; });
+      cx/=z.rings[0].length; cy/=z.rings[0].length;
+      html += `<polygon class="mz-plan-zone" points="${pts}" fill="${z.color}" fill-opacity="0.82" data-idx="${z.idx}"></polygon>`;
+      html += `<text class="mz-plan-label" x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle">${z.idx+1}</text>`;
+    });
+    svg.innerHTML = html;
+    const tooltip = document.getElementById('mz-plan-tooltip');
+    svg.querySelectorAll('.mz-plan-zone').forEach(p=>{
+      p.addEventListener('mousemove',(e)=>{
+        const z = ZONES[Number(p.getAttribute('data-idx'))];
+        const rect = svg.parentElement.getBoundingClientRect();
+        tooltip.style.left=(e.clientX-rect.left)+'px';
+        tooltip.style.top=(e.clientY-rect.top)+'px';
+        tooltip.style.opacity=1;
+        tooltip.innerHTML = `<b>${z.name}</b><br>Luas: ${idfmt(z.area,0)} m²<br>Target: ${idfmt(z.target,2)} m<br>Cut: ${idfmt(z.cut,0)} m³ · Fill: ${idfmt(z.fill,0)} m³`;
+      });
+      p.addEventListener('mouseleave',()=>{ tooltip.style.opacity=0; });
+    });
+  }
+
+  /* ---------------------------------------------------------------
+     5. 3D VIEWER (light theme, dynamic data)
+     --------------------------------------------------------------- */
+  function buildVisGrid(ctx, zones){
+    let mnx=Infinity,mxx=-Infinity,mny=Infinity,mxy=-Infinity;
+    zones.forEach(z=>{ mnx=Math.min(mnx,z.bb.mnx); mxx=Math.max(mxx,z.bb.mxx); mny=Math.min(mny,z.bb.mny); mxy=Math.max(mxy,z.bb.mxy); });
+    const spanX=mxx-mnx, spanY=mxy-mny, margin=Math.max(spanX,spanY)*0.12+5;
+    mnx-=margin; mxx+=margin; mny-=margin; mxy+=margin;
+    const {geo,pixelW,pixelH,w,h,awal} = ctx;
+    let cx0=Math.floor((mnx-geo.minX)/pixelW), cx1=Math.ceil((mxx-geo.minX)/pixelW);
+    let cy0=Math.floor((geo.maxY-mxy)/pixelH), cy1=Math.ceil((geo.maxY-mny)/pixelH);
+    cx0=clamp(cx0,0,w-1); cx1=clamp(cx1,0,w-1); cy0=clamp(cy0,0,h-1); cy1=clamp(cy1,0,h-1);
+    const spanPxX=Math.max(1,cx1-cx0), spanPxY=Math.max(1,cy1-cy0);
+    const TARGET_VERTS=85000;
+    const stride=Math.max(1,Math.round(Math.sqrt((spanPxX*spanPxY)/TARGET_VERTS)));
+    const NX=Math.max(2,Math.floor(spanPxX/stride)+1), NY=Math.max(2,Math.floor(spanPxY/stride)+1);
+
+    const elevAkhirArr=new Float32Array(NX*NY), elevAwalArr=new Float32Array(NX*NY), zoneIdArr=new Uint8Array(NX*NY);
+    let validSum=0, validN=0;
+    for(let r=0;r<NY;r++){
+      const y=clamp(cy0+r*stride,0,h-1);
+      const wy=geo.maxY-(y+0.5)*pixelH;
+      for(let c=0;c<NX;c++){
+        const x=clamp(cx0+c*stride,0,w-1);
+        const wx=geo.minX+(x+0.5)*pixelW;
+        const i=y*w+x;
+        const B=elevAkhirAt(ctx,x,y,i), A=awal.raster[i];
+        const bOK=!isNoData(B,ctx.akhir.nodata), aOK=!isNoData(A,awal.nodata);
+        let zid=0;
+        for(let zi=0;zi<zones.length;zi++){ if(pointInPolygon(wx,wy,zones[zi])){ zid=zi+1; break; } }
+        const idx=r*NX+c;
+        zoneIdArr[idx]=zid;
+        elevAkhirArr[idx]= bOK?B:(aOK?A:NaN);
+        elevAwalArr[idx]= aOK?A:(bOK?B:NaN);
+        if(bOK){ validSum+=B; validN++; }
+      }
+    }
+    const fb = validN ? validSum/validN : 0;
+    for(let k=0;k<NX*NY;k++){
+      if(!Number.isFinite(elevAkhirArr[k])) elevAkhirArr[k]=fb;
+      if(!Number.isFinite(elevAwalArr[k])) elevAwalArr[k]=fb;
+    }
+    return {NX,NY,cellW:pixelW*stride,cellH:pixelH*stride,elevAkhirArr,elevAwalArr,zoneIdArr};
+  }
+
+  function initViewer3D(){
+    const wrap = document.getElementById('mz-canvas-wrap');
+    if (typeof THREE === 'undefined'){
+      const ov=document.getElementById('mz-loading-overlay');
+      ov.style.display='flex'; ov.style.opacity=1;
+      ov.innerHTML='<div style="font-size:24px">⛰️</div><div class="mz-ltext" style="max-width:240px;text-align:center">Library 3D (three.js) gagal dimuat dari CDN. Tabel &amp; denah zona tetap berfungsi normal.</div>';
+      return { setTargets(){}, setVexag(){}, setLayerVisible(){}, snapshot(){return null}, rebuild(){} };
+    }
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xeaf0f8);
+    const camera = new THREE.PerspectiveCamera(42,1,0.5,8000);
+    const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    wrap.querySelectorAll('canvas').forEach(c=>c.remove());
+    wrap.insertBefore(renderer.domElement, wrap.firstChild);
+
+    let group=null, designMesh=null, origMesh=null, gridHelper=null;
+    let grid=null, NX=0, NY=0, halfW=0, halfH=0, elevBaseline=0, elevRange=1;
+    let indices=null, zoneColorRGB=[];
+    let vexag=1.5, theta=Math.PI*0.32, phi=1.02, radius=400;
+    const target=new THREE.Vector3(0,0,0);
+
+    function terrainColor(t){
+      const stops=[{t:0,c:[0.55,0.62,0.45]},{t:0.4,c:[0.70,0.65,0.46]},{t:0.7,c:[0.78,0.74,0.62]},{t:1,c:[0.93,0.93,0.92]}];
+      for(let i=0;i<stops.length-1;i++) if(t>=stops[i].t&&t<=stops[i+1].t){
+        const f=(t-stops[i].t)/(stops[i+1].t-stops[i].t), a=stops[i].c, b=stops[i+1].c;
+        return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f];
+      }
+      return stops[stops.length-1].c;
+    }
+    function hexToRgb(hex){ return [parseInt(hex.slice(1,3),16)/255, parseInt(hex.slice(3,5),16)/255, parseInt(hex.slice(5,7),16)/255]; }
+
+    function buildArrays(targets){
+      const pos=new Float32Array(NX*NY*3), col=new Float32Array(NX*NY*3);
+      for(let r=0;r<NY;r++){
+        for(let c=0;c<NX;c++){
+          const idx=r*NX+c;
+          const zid=grid.zoneIdArr[idx];
+          let y, colRGB;
+          if(zid>0 && Number.isFinite(targets[zid-1])){ y=targets[zid-1]; colRGB=zoneColorRGB[(zid-1)%zoneColorRGB.length]; }
+          else { y=grid.elevAkhirArr[idx]; colRGB=terrainColor((grid.elevAkhirArr[idx]-elevBaseline)/elevRange); }
+          pos[idx*3]=c*grid.cellW-halfW; pos[idx*3+1]=y-elevBaseline; pos[idx*3+2]=-(r*grid.cellH-halfH);
+          col[idx*3]=colRGB[0]; col[idx*3+1]=colRGB[1]; col[idx*3+2]=colRGB[2];
+        }
+      }
+      return {pos,col};
+    }
+
+    function rebuild(visGrid, zones){
+      grid=visGrid; NX=grid.NX; NY=grid.NY;
+      halfW=(NX-1)*grid.cellW/2; halfH=(NY-1)*grid.cellH/2;
+      let mn=Infinity,mx=-Infinity;
+      for(let k=0;k<NX*NY;k++){ if(grid.elevAkhirArr[k]<mn)mn=grid.elevAkhirArr[k]; if(grid.elevAkhirArr[k]>mx)mx=grid.elevAkhirArr[k]; }
+      elevBaseline=mn; elevRange=Math.max(1e-3,mx-mn);
+      zoneColorRGB = zones.map(z=>hexToRgb(z.color));
+
+      indices = new Uint32Array((NX-1)*(NY-1)*6);
+      { let p=0;
+        for(let r=0;r<NY-1;r++) for(let c=0;c<NX-1;c++){
+          const a=r*NX+c,b=a+1,e=a+NX,d=e+1;
+          indices[p++]=a; indices[p++]=e; indices[p++]=b;
+          indices[p++]=b; indices[p++]=e; indices[p++]=d;
+        }
+      }
+      if(group) scene.remove(group);
+      group = new THREE.Group();
+
+      const targets = zones.map(z=>z.target);
+      const designGeo = new THREE.BufferGeometry();
+      const {pos,col} = buildArrays(targets);
+      designGeo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+      designGeo.setAttribute('color', new THREE.BufferAttribute(col,3));
+      designGeo.setIndex(new THREE.BufferAttribute(indices,1));
+      designGeo.computeVertexNormals();
+      const designMat = new THREE.MeshStandardMaterial({vertexColors:true, flatShading:true, roughness:0.9, metalness:0.02, side:THREE.DoubleSide});
+      designMesh = new THREE.Mesh(designGeo, designMat);
+
+      const origGeo = new THREE.BufferGeometry();
+      const opos = new Float32Array(NX*NY*3);
+      for(let r=0;r<NY;r++) for(let c=0;c<NX;c++){
+        const idx=r*NX+c;
+        opos[idx*3]=c*grid.cellW-halfW; opos[idx*3+1]=grid.elevAwalArr[idx]-elevBaseline; opos[idx*3+2]=-(r*grid.cellH-halfH);
+      }
+      origGeo.setAttribute('position', new THREE.BufferAttribute(opos,3));
+      origGeo.setIndex(new THREE.BufferAttribute(indices,1));
+      const origMat = new THREE.MeshBasicMaterial({color:0x1d4ed8, wireframe:true, transparent:true, opacity:0.32});
+      origMesh = new THREE.Mesh(origGeo, origMat);
+      origMesh.visible = document.getElementById('mz-chk-original').checked;
+
+      gridHelper = new THREE.GridHelper(Math.max(halfW,halfH)*2.4, 22, 0xcbd5e1, 0xe2e8f0);
+      gridHelper.position.y=-1;
+      gridHelper.visible = document.getElementById('mz-chk-grid').checked;
+      designMesh.visible = document.getElementById('mz-chk-design').checked;
+
+      group.add(designMesh, origMesh, gridHelper);
+      scene.add(group);
+
+      radius = Math.max(halfW,halfH)*2.5;
+      target.set(0, elevRange*0.12, 0);
+      updateCamera();
+
+      const ov=document.getElementById('mz-loading-overlay');
+      if(ov){ ov.style.opacity=0; setTimeout(()=>ov.style.display='none',350); }
+    }
+
+    scene.add(new THREE.HemisphereLight(0xfdfdfd,0x9fb0c0,0.85));
+    const sun = new THREE.DirectionalLight(0xffffff,0.9);
+    sun.position.set(300,500,250);
+    scene.add(sun);
+    scene.add(new THREE.AmbientLight(0xffffff,0.35));
+
+    function updateCamera(){
+      const sp=Math.sin(phi), cp=Math.cos(phi);
+      camera.position.set(target.x+radius*sp*Math.sin(theta), target.y+radius*cp, target.z+radius*sp*Math.cos(theta));
+      camera.lookAt(target);
+    }
+    updateCamera();
+
+    let dragging=false, panning=false, lastX=0, lastY=0;
+    const dom = renderer.domElement;
+    dom.addEventListener('mousedown',(e)=>{ dragging=true; panning=e.shiftKey||e.button===2; lastX=e.clientX; lastY=e.clientY; });
+    window.addEventListener('mouseup',()=>{ dragging=false; });
+    window.addEventListener('mousemove',(e)=>{
+      if(!dragging) return;
+      const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
+      if(panning){
+        const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
+        const right=new THREE.Vector3().crossVectors(camera.up,dir).normalize();
+        const up=new THREE.Vector3().crossVectors(dir,right).normalize();
+        const sp_=radius*0.0012;
+        target.addScaledVector(right, dx*sp_); target.addScaledVector(up, dy*sp_);
+      } else {
+        theta -= dx*0.0055;
+        phi = Math.min(1.52, Math.max(0.12, phi-dy*0.0045));
+      }
+      updateCamera();
+    });
+    dom.addEventListener('contextmenu',(e)=>e.preventDefault());
+    dom.addEventListener('wheel',(e)=>{
+      e.preventDefault();
+      radius *= (1+(e.deltaY>0?0.1:-0.1));
+      radius = Math.min(Math.max(radius, Math.max(halfW,halfH||50)*0.3), Math.max(halfW,halfH||50)*8);
+      updateCamera();
+    },{passive:false});
+
+    function resize(){
+      const w_=wrap.clientWidth, h_=wrap.clientHeight;
+      if(!w_||!h_) return;
+      camera.aspect=w_/h_; camera.updateProjectionMatrix();
+      renderer.setSize(w_,h_);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function animate(){ requestAnimationFrame(animate); if(group) group.scale.y=vexag; renderer.render(scene,camera); }
+    animate();
+
+    return {
+      rebuild,
+      setTargets(zones){ if(!group) return; const {pos,col}=buildArrays(zones.map(z=>z.target)); designMesh.geometry.attributes.position.array.set(pos); designMesh.geometry.attributes.color.array.set(col); designMesh.geometry.attributes.position.needsUpdate=true; designMesh.geometry.attributes.color.needsUpdate=true; designMesh.geometry.computeVertexNormals(); },
+      setVexag(v){ vexag=v; },
+      setLayerVisible(which,vis){ if(which==='design'&&designMesh) designMesh.visible=vis; if(which==='original'&&origMesh) origMesh.visible=vis; if(which==='grid'&&gridHelper) gridHelper.visible=vis; },
+      snapshot(){ try{ renderer.render(scene,camera); return renderer.domElement.toDataURL('image/png'); }catch(e){ return null; } },
+    };
+  }
+
+  /* ---------------------------------------------------------------
+     6. LAPORAN MEETING
+     --------------------------------------------------------------- */
+  function getProjectMeta(){
+    const v = id => (document.querySelector(`[name="${id}"]`)||{}).value || '';
+    return {
+      projectName: v('projectName')||'Analisis Volume Timbunan',
+      preparedBy: v('preparedBy')||'-',
+      tanggalAwal: v('tanggalAwal')||'-',
+      tanggalAkhir: v('tanggalAkhir')||'-',
+      crsInfo: v('crsInfo')||'-',
+    };
+  }
+
+  function renderMeetingPreview(){
+    const box = document.getElementById('meetingPreview');
+    if(!ZONES.length){ box.textContent='Proses data terlebih dahulu untuk membuat laporan meeting.'; return; }
+    const meta = getProjectMeta();
+    const totalArea = ZONES.reduce((s,z)=>s+z.area,0);
+    const totalCut = ZONES.reduce((s,z)=>s+z.cut,0);
+    const totalFill = ZONES.reduce((s,z)=>s+z.fill,0);
+    const dominant = totalCut>=totalFill ? 'galian (cut)' : 'timbunan (fill)';
+    box.innerHTML = `
+      <h4 style="margin-top:0">${meta.projectName}</h4>
+      <p style="margin:0 0 10px;color:var(--mz-muted)">Disiapkan oleh ${meta.preparedBy} · Periode ${meta.tanggalAwal} s/d ${meta.tanggalAkhir} · ${meta.crsInfo} · ${new Date().toLocaleDateString('id-ID')}</p>
+      <div class="mp-stats">
+        <div class="mp-stat"><span>Jumlah zona</span><b>${ZONES.length}</b></div>
+        <div class="mp-stat"><span>Luas total</span><b>${idfmt(totalArea,0)} m²</b></div>
+        <div class="mp-stat"><span>Total cut</span><b>${idfmt(totalCut,0)} m³</b></div>
+        <div class="mp-stat"><span>Total fill</span><b>${idfmt(totalFill,0)} m³</b></div>
+        <div class="mp-stat"><span>Net volume</span><b>${idfmt(totalCut-totalFill,0)} m³</b></div>
+      </div>
+      <p>Pekerjaan saat ini didominasi <b>${dominant}</b>. Berikut rincian per zona terhadap elevasi target masing-masing:</p>
+      <table>
+        <thead><tr><th>Zona</th><th>Luas (m²)</th><th>Target (m)</th><th>Cut MC0 (m³)</th><th>Cut Sisa (m³)</th><th>Fill (m³)</th><th>Net</th></tr></thead>
+        <tbody>${ZONES.map(z=>`<tr><td>${z.name}</td><td>${idfmt(z.area,0)}</td><td>${idfmt(z.target,2)}</td><td>${idfmt(z.cutFromMC0||z.cut,0)}</td><td>${idfmt(z.cut,0)}</td><td>${idfmt(z.fill,0)}</td><td>${idfmt(z.net,0)}</td></tr>`).join('')}</tbody>
+      </table>
+      <h4>Catatan untuk meeting</h4>
+      <ul style="margin:0;padding-left:20px;line-height:1.7">
+        ${ZONES.map(z=> z.cut>z.fill*1.2
+            ? `<li><b>${z.name}</b>: masih perlu galian ≈ <b>${idfmt(z.cut,0)} m³</b> untuk mencapai elevasi target ${idfmt(z.target,2)} m.</li>`
+            : z.fill>z.cut*1.2
+            ? `<li><b>${z.name}</b>: masih perlu timbunan ≈ <b>${idfmt(z.fill,0)} m³</b> untuk mencapai elevasi target ${idfmt(z.target,2)} m.</li>`
+            : `<li><b>${z.name}</b>: relatif sudah mendekati elevasi target (selisih kecil, net ${idfmt(z.net,0)} m³).</li>`
+          ).join('')}
+      </ul>
+      <p class="muted compact" style="margin-top:10px">Sumber elevasi target: ${[...new Set(ZONES.map(z=>z.targetSource))].join(', ')}. Volume dihitung dari DTM Akhir (terbaru) terhadap elevasi target tiap zona pada resolusi raster asli.</p>
+    `;
+  }
+
+  function svgToPngDataUrl(svgEl){
+    return new Promise((resolve)=>{
+      try{
+        const xml = new XMLSerializer().serializeToString(svgEl);
+        const svg64 = 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(xml)));
+        const img = new Image();
+        img.onload = ()=>{
+          const c = document.createElement('canvas');
+          const vb = svgEl.viewBox.baseVal;
+          c.width = (vb&&vb.width)||600; c.height=(vb&&vb.height)||400;
+          const ctx2 = c.getContext('2d');
+          ctx2.fillStyle = '#f8fafc'; ctx2.fillRect(0,0,c.width,c.height);
+          ctx2.drawImage(img,0,0,c.width,c.height);
+          resolve(c.toDataURL('image/png'));
+        };
+        img.onerror = ()=>resolve(null);
+        img.src = svg64;
+      }catch(e){ resolve(null); }
+    });
+  }
+
+  async function buildMeetingPdf(){
+    if(!window.jspdf || !ZONES.length) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({orientation:'portrait', unit:'pt', format:'a4'});
+    const meta = getProjectMeta();
+    const W = 595, M = 40;
+    let y = 56;
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(15,23,42);
+    doc.text('Laporan Meeting — Analisis Volume per Zona', M, y); y+=22;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(71,85,105);
+    doc.text(`Proyek: ${meta.projectName}`, M, y); y+=14;
+    doc.text(`Disiapkan oleh: ${meta.preparedBy}   |   Periode: ${meta.tanggalAwal} s/d ${meta.tanggalAkhir}`, M, y); y+=14;
+    doc.text(`CRS: ${meta.crsInfo}   |   Tanggal laporan: ${new Date().toLocaleDateString('id-ID')}`, M, y); y+=22;
+
+    const totalArea = ZONES.reduce((s,z)=>s+z.area,0);
+    const totalCut = ZONES.reduce((s,z)=>s+z.cut,0);
+    const totalFill = ZONES.reduce((s,z)=>s+z.fill,0);
+    doc.setDrawColor(226,232,240); doc.setFillColor(248,250,252);
+    doc.roundedRect(M,y,W-2*M,54,8,8,'FD');
+    doc.setFontSize(9); doc.setTextColor(100,116,139);
+    const cols=[M+14,M+150,M+290,M+430];
+    const labels=['Zona','Luas Total','Total Cut','Total Fill'];
+    const vals=[String(ZONES.length), idfmt(totalArea,0)+' m²', idfmt(totalCut,0)+' m³', idfmt(totalFill,0)+' m³'];
+    labels.forEach((l,i)=>{ doc.text(l, cols[i], y+18); });
+    doc.setFontSize(14); doc.setTextColor(15,23,42); doc.setFont('helvetica','bold');
+    vals.forEach((v,i)=>{ doc.text(v, cols[i], y+38); });
+    doc.setFont('helvetica','normal');
+    y += 70;
+
+    // snapshots
+    try{
+      const snap3d = Viewer3D.snapshot && Viewer3D.snapshot();
+      const planSvg = document.getElementById('mz-plan-svg');
+      const snapPlan = await svgToPngDataUrl(planSvg);
+      const imgY = y;
+      if(snap3d){ doc.addImage(snap3d,'PNG', M, imgY, 330, 200); }
+      if(snapPlan){ doc.addImage(snapPlan,'PNG', M+340, imgY, W-2*M-340, 200); }
+      doc.setFontSize(8); doc.setTextColor(148,163,184);
+      doc.text('Model 3D — permukaan desain per zona', M, imgY+212);
+      doc.text('Denah zona', M+340, imgY+212);
+      y = imgY + 226;
+    }catch(e){ console.error(e); }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(15,23,42);
+    doc.text('Rincian per Zona', M, y); y+=8;
+    doc.setDrawColor(226,232,240); doc.line(M,y,W-M,y); y+=14;
+    doc.setFontSize(9);
+    const headers=['Zona','Luas (m²)','Target (m)','Cut MC0 (m³)','Cut Sisa (m³)','Fill (m³)','Net'];
+    const colX=[M,M+80,M+155,M+225,M+330,M+400,M+465];
+    doc.setTextColor(100,116,139);
+    headers.forEach((h,i)=>doc.text(h,colX[i],y));
+    y+=6; doc.setDrawColor(226,232,240); doc.line(M,y,W-M,y); y+=12;
+    doc.setTextColor(30,41,59);
+    ZONES.forEach(z=>{
+      if(y>760){ doc.addPage(); y=50; }
+      const row=[z.name, idfmt(z.area,0), idfmt(z.target,2), idfmt(z.cutFromMC0||z.cut,0), idfmt(z.cut,0), idfmt(z.fill,0), idfmt(z.net,0)];
+      row.forEach((c,i)=>doc.text(String(c),colX[i],y));
+      y+=16;
+    });
+    y+=10;
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('Catatan untuk Meeting', M, y); y+=16;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(51,65,85);
+    ZONES.forEach(z=>{
+      if(y>770){ doc.addPage(); y=50; }
+      let line;
+      if(z.cut>z.fill*1.2) line=`${z.name}: masih perlu galian sekitar ${idfmt(z.cut,0)} m3 menuju elevasi target ${idfmt(z.target,2)} m.`;
+      else if(z.fill>z.cut*1.2) line=`${z.name}: masih perlu timbunan sekitar ${idfmt(z.fill,0)} m3 menuju elevasi target ${idfmt(z.target,2)} m.`;
+      else line=`${z.name}: relatif mendekati elevasi target (net ${idfmt(z.net,0)} m3).`;
+      const split = doc.splitTextToSize('• '+line, W-2*M);
+      doc.text(split, M, y); y += split.length*12+4;
+    });
+
+    doc.setFontSize(8); doc.setTextColor(148,163,184);
+    doc.text('Dashboard Volume Timbunan Pro — Egi Nugraha · egi.geomatika@gmail.com', M, 815);
+
+    doc.save('laporan_meeting_volume.pdf');
+  }
+
+  /* ---------------------------------------------------------------
+     7. ORCHESTRATION
+     --------------------------------------------------------------- */
+  function fullRecompute(){
+    if(!CTX) return;
+    const mode = document.getElementById('targetElevMode').value;
+    const manualMap = mode==='manual' ? readManualMap() : null;
+    resolveTargets(CTX, ZONES, mode, manualMap);
+    ZONES.forEach(z=> computeZoneStats(CTX, z));
+    renderZoneTargetList();
+    renderZoneResults();
+    renderDenah();
+    renderMeetingPreview();
+
+    const visGrid = buildVisGrid(CTX, ZONES);
+    if(!Viewer3D.rebuild) Viewer3D = initViewer3D();
+    Viewer3D.rebuild(visGrid, ZONES);
+
+    document.getElementById('btnApplyZoneTargets').disabled = false;
+    document.getElementById('btnMeetingPdf').disabled = false;
+    document.getElementById('btnMeetingPrint').disabled = false;
+  }
+
+  function onVolumeReady(){
+    CTX = window.__VOLDATA;
+    if(!CTX || !CTX.haveAOI || !CTX.aoi || !CTX.aoi.polygons || !CTX.aoi.polygons.length){
+      ZONES = [];
+      document.getElementById('mzZoneCount').textContent = 'Belum ada data zona (upload AOI dengan minimal 1 polygon)';
+      document.getElementById('zoneTargetHint').textContent = 'AOI yang diproses belum berisi polygon zona. Upload AOI (DXF/GeoJSON/KML/SHP) dengan minimal satu polygon tertutup, lalu proses ulang.';
+      document.getElementById('zoneTargetHint').style.display='block';
+      document.getElementById('zoneTargetList').innerHTML='';
+      const ov=document.getElementById('mz-loading-overlay');
+      if(ov){ ov.style.display='flex'; ov.style.opacity=1; ov.innerHTML='<div style="font-size:24px">🗺️</div><div class="mz-ltext" style="max-width:240px;text-align:center">Belum ada zona untuk ditampilkan — upload AOI dengan minimal satu polygon, lalu proses ulang.</div>'; }
+      renderZoneResults(); renderDenah(); renderMeetingPreview();
+      return;
+    }
+    ZONES = detectZones(CTX);
+    fullRecompute();
+  }
+
+  window.addEventListener('survai:volumeReady', onVolumeReady);
+
+  // methodology card toggle
+  const methToggle = document.getElementById('methToggle');
+  const methBody = document.getElementById('methBody');
+  if(methToggle && methBody){
+    methToggle.addEventListener('click', ()=>{
+      const open = methBody.style.display !== 'none';
+      methBody.style.display = open ? 'none' : 'block';
+      methToggle.textContent = open ? '▼ tampilkan' : '▲ tutup';
+    });
+  }
+  document.getElementById('targetElevMode').addEventListener('change', ()=>{
+    if (CTX && ZONES.length){
+      const mode = document.getElementById('targetElevMode').value;
+      const manualMap = mode==='manual' ? readManualMap() : null;
+      resolveTargets(CTX, ZONES, mode, manualMap);
+    }
+    renderZoneTargetList();
+  });
+  document.getElementById('btnApplyZoneTargets').addEventListener('click', fullRecompute);
+  document.getElementById('btnMeetingPdf').addEventListener('click', ()=>{ buildMeetingPdf(); });
+  document.getElementById('btnMeetingPrint').addEventListener('click', ()=>{ window.print(); });
+
+  document.getElementById('mz-chk-design').addEventListener('change', e=>Viewer3D.setLayerVisible('design', e.target.checked));
+  document.getElementById('mz-chk-original').addEventListener('change', e=>Viewer3D.setLayerVisible('original', e.target.checked));
+  document.getElementById('mz-chk-grid').addEventListener('change', e=>Viewer3D.setLayerVisible('grid', e.target.checked));
+  const mzVexag = document.getElementById('mz-vexag-slider');
+  mzVexag.addEventListener('input', e=>{
+    const v=parseFloat(e.target.value);
+    document.getElementById('mz-vexag-val').textContent=v.toFixed(1)+'×';
+    Viewer3D.setVexag(v);
+  });
+
+  // If data already exists (e.g. script re-run / hot integration), initialize immediately.
+  if (window.__VOLDATA) onVolumeReady();
+})();
+
 </script>
 <!-- ==== SURVAI EMBED MODE (injected; tidak mengubah rumus/ID/function) ==== -->
 <style id="survai-embed-style">
