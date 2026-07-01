@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#17365f">
+<title>RTKLIB — Tukang Ukur</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{
+    --navy:#17365f; --navy-2:#1e4a80; --ink:#0f1e33; --field:#e8703a;
+    --field-soft:#fbe9df; --paper:#f5f7fa; --line:#dde5ee; --ok:#1f9d63;
+    --warn:#c9812a; --err:#c0392b; --muted:#6b7c92; --white:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--paper); color:var(--ink); line-height:1.5;
+    -webkit-font-smoothing:antialiased; padding-bottom:32px;
+  }
+  .topbar{
+    background:var(--navy); color:#fff; padding:14px 18px;
+    display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:500;
+    box-shadow:0 2px 12px rgba(23,54,95,.25);
+  }
+  .topbar .back{
+    background:rgba(255,255,255,.12); border:none; color:#fff; width:36px;height:36px;
+    border-radius:9px; font-size:18px; cursor:pointer; display:grid;place-items:center;
+  }
+  .topbar h1{font-size:17px; font-weight:700; letter-spacing:.2px}
+  .topbar .sub{font-size:11px; opacity:.7; font-weight:500; margin-top:1px}
+  .wrap{max-width:760px; margin:0 auto; padding:16px}
+
+  /* engine status */
+  .engine{
+    display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:12px 14px; margin-bottom:16px; font-size:13px;
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+  .dot.loading{background:var(--warn); animation:pulse 1s infinite}
+  .dot.ready{background:var(--ok)}
+  .dot.error{background:var(--err)}
+  @keyframes pulse{50%{opacity:.35}}
+  .engine b{font-weight:600}
+  .engine .ver{margin-left:auto;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+
+  /* tabs */
+  .tabs{display:flex; gap:6px; margin-bottom:16px; background:#eef2f7; padding:5px; border-radius:12px}
+  .tab{
+    flex:1; text-align:center; padding:10px; border-radius:9px; font-size:13px;
+    font-weight:600; color:var(--muted); cursor:pointer; border:none; background:none;
+    transition:all .15s;
+  }
+  .tab.active{background:#fff; color:var(--navy); box-shadow:0 1px 4px rgba(23,54,95,.12)}
+
+  .panel{display:none} .panel.active{display:block}
+  .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:14px}
+  .card h2{font-size:14px; font-weight:700; color:var(--navy); margin-bottom:4px}
+  .card .hint{font-size:12px; color:var(--muted); margin-bottom:14px}
+
+  label.fld{display:block; font-size:12px; font-weight:600; color:var(--ink); margin:12px 0 6px}
+  label.fld .opt{font-weight:500; color:var(--muted)}
+
+  /* dropzone */
+  .drop{
+    border:2px dashed var(--line); border-radius:12px; padding:18px; text-align:center;
+    cursor:pointer; transition:all .15s; background:var(--paper);
+  }
+  .drop:hover,.drop.over{border-color:var(--navy-2); background:#eef3fa}
+  .drop .ic{font-size:24px; margin-bottom:6px}
+  .drop .t{font-size:13px; font-weight:600}
+  .drop .s{font-size:11px; color:var(--muted); margin-top:3px}
+  .drop.has{border-style:solid; border-color:var(--ok); background:#f0f9f4; text-align:left}
+  .drop.has .fname{font-size:13px;font-weight:600;color:var(--ink);word-break:break-all}
+  .drop.has .fsize{font-size:11px;color:var(--muted)}
+
+  select,input[type=text]{
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+    font-size:14px; font-family:inherit; background:#fff; color:var(--ink);
+  }
+  select:focus,input:focus{outline:2px solid var(--navy-2); outline-offset:0; border-color:transparent}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{
+    width:100%; padding:14px; border:none; border-radius:12px; font-size:15px;
+    font-weight:700; cursor:pointer; margin-top:16px; transition:transform .1s,opacity .15s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn.primary{background:var(--navy); color:#fff}
+  .btn.field{background:var(--field); color:#fff}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+
+  /* result */
+  .result{display:none; margin-top:16px}
+  .result.show{display:block; animation:fade .25s}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}}
+  .coord{
+    background:linear-gradient(135deg,var(--navy),var(--navy-2)); color:#fff;
+    border-radius:14px; padding:18px; margin-bottom:12px;
+  }
+  .coord .q{
+    display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;
+    margin-bottom:12px; letter-spacing:.4px;
+  }
+  .q.fix{background:#1f9d63} .q.float{background:#c9812a} .q.single{background:#5a6b82}
+  .coord .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+  .coord .lbl{font-size:10px;opacity:.65;text-transform:uppercase;letter-spacing:.6px}
+  .coord .val{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .coord .val.sm{font-size:13px}
+  .prec{font-size:11px;opacity:.8;margin-top:12px;border-top:1px solid rgba(255,255,255,.18);padding-top:10px}
+
+  #map{height:220px;border-radius:12px;margin-bottom:12px;border:1px solid var(--line)}
+  .dlrow{display:flex;gap:8px}
+  .dlrow .btn{margin-top:0}
+  .btn.ghost{background:#eef2f7;color:var(--navy)}
+
+  .log{
+    background:var(--ink); color:#c7d6ea; font-family:ui-monospace,Menlo,monospace;
+    font-size:11px; padding:12px; border-radius:10px; margin-top:12px; max-height:150px;
+    overflow:auto; white-space:pre-wrap; line-height:1.55; display:none;
+  }
+  .log.show{display:block}
+  .stat{font-size:12px;padding:10px 12px;border-radius:10px;margin-top:12px;display:none}
+  .stat.show{display:block}
+  .stat.err{background:#fdecea;color:var(--err);border:1px solid #f3c6c0}
+  .stat.info{background:#eaf3fb;color:var(--navy);border:1px solid #cadef0}
+  .spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .fb{font-size:11px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.6}
+  .fb a{color:var(--navy-2)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <button class="back" onclick="history.length>1?history.back():location.href='/'">‹</button>
+  <div>
+    <h1>RTKLIB GNSS</h1>
+    <div class="sub">Konversi &amp; hitung koordinat presisi</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="engine">
+    <span class="dot loading" id="dot"></span>
+    <div><b id="engineTxt">Memuat engine RTKLIB…</b></div>
+    <span class="ver" id="engineVer"></span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="conv">Konversi ke RINEX</button>
+    <button class="tab" data-tab="proc">Hitung Koordinat</button>
+  </div>
+
+  <!-- ============ FITUR 1: CONVERT ============ -->
+  <div class="panel active" id="panel-conv">
+    <div class="card">
+      <h2>Konversi data alat → RINEX</h2>
+      <p class="hint">Ubah file rekaman receiver (u-blox, RTCM3, Novatel, dll) menjadi berkas RINEX .2o + navigasi.</p>
+
+      <div class="drop" id="drop-raw">
+        <div class="ic">📡</div>
+        <div class="t">Pilih file mentah GNSS</div>
+        <div class="s">.ubx · .rtcm3 · .obs · .bin — atau seret ke sini</div>
+      </div>
+      <input type="file" id="file-raw" hidden>
+
+      <div class="row2">
+        <div>
+          <label class="fld">Format alat</label>
+          <select id="fmt">
+            <option value="ubx">u-blox (UBX)</option>
+            <option value="rtcm3">RTCM 3</option>
+            <option value="novatel">NovAtel OEM4/7</option>
+            <option value="septentrio">Septentrio</option>
+            <option value="skytraq">SkyTraq</option>
+            <option value="javad">Javad</option>
+            <option value="trimble">Trimble RT17</option>
+            <option value="binex">BINEX</option>
+            <option value="hemisphere">Hemisphere</option>
+            <option value="nvs">NVS</option>
+          </select>
+        </div>
+        <div>
+          <label class="fld">Versi RINEX</label>
+          <select id="rnxver">
+            <option value="211">2.11 (.2o)</option>
+            <option value="305">3.05 (.obs)</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="fld">Station ID <span class="opt">(opsional, 4 huruf)</span></label>
+      <input type="text" id="staid" maxlength="4" placeholder="mis. BASE" style="text-transform:uppercase">
+
+      <button class="btn field" id="btn-conv" disabled>Konversi ke RINEX</button>
+
+      <div class="stat" id="stat-conv"></div>
+      <div class="result" id="res-conv">
+        <div class="dlrow">
+          <button class="btn ghost" id="dl-obs">⬇ File .2o (OBS)</button>
+          <button class="btn ghost" id="dl-nav">⬇ File Navigasi</button>
+        </div>
+      </div>
+      <pre class="log" id="log-conv"></pre>
+    </div>
+  </div>
+
+  <!-- ============ FITUR 2: PROCESS ============ -->
+  <div class="panel" id="panel-proc">
+    <div class="card">
+      <h2>Hitung koordinat presisi</h2>
+      <p class="hint">Proses RINEX rover (+ base + navigasi) menjadi koordinat teliti sentimeter–milimeter.</p>
+
+      <div class="drop" id="drop-rover">
+        <div class="ic">📍</div>
+        <div class="t">RINEX Rover (wajib)</div>
+        <div class="s">.2o · .obs · .rnx</div>
+      </div>
+      <input type="file" id="file-rover" hidden>
+
+      <div class="drop" id="drop-base" style="margin-top:10px">
+        <div class="ic">🗼</div>
+        <div class="t">RINEX Base <span style="font-weight:400;color:var(--muted)">(untuk presisi cm)</span></div>
+        <div class="s">.2o · .obs — kosongkan untuk mode Single</div>
+      </div>
+      <input type="file" id="file-base" hidden>
+
+      <div class="drop" id="drop-nav" style="margin-top:10px">
+        <div class="ic">🛰️</div>
+        <div class="t">File Navigasi <span style="font-weight:400;color:var(--muted)">(disarankan)</span></div>
+        <div class="s">.nav · .*n · .*g</div>
+      </div>
+      <input type="file" id="file-nav" hidden>
+
+      <label class="fld">Mode perhitungan</label>
+      <select id="mode">
+        <option value="3">Static — titik diam, presisi mm–cm</option>
+        <option value="2">Kinematic — rover bergerak, cm</option>
+        <option value="1">DGPS — sub-meter</option>
+        <option value="0">Single — tanpa base, ~meter</option>
+      </select>
+
+      <button class="btn primary" id="btn-proc" disabled>Hitung Koordinat</button>
+
+      <div class="stat" id="stat-proc"></div>
+      <div class="result" id="res-proc">
+        <div class="coord" id="coordBox">
+          <span class="q" id="qBadge">—</span>
+          <div class="grid">
+            <div><div class="lbl">Latitude</div><div class="val" id="rLat">—</div></div>
+            <div><div class="lbl">Longitude</div><div class="val" id="rLon">—</div></div>
+            <div><div class="lbl">Elevasi (m)</div><div class="val" id="rH">—</div></div>
+            <div><div class="lbl">Satelit / Epoch</div><div class="val sm" id="rNs">—</div></div>
+          </div>
+          <div class="prec" id="rPrec">—</div>
+        </div>
+        <div id="map"></div>
+        <button class="btn ghost" id="dl-pos" style="margin-top:0">⬇ Unduh hasil .pos</button>
+      </div>
+      <pre class="log" id="log-proc"></pre>
+    </div>
+  </div>
+
+  <div class="fb">
+    Engine: RTKLIB 2.4.3 b34 (T. Takasu) · dijalankan di perangkat Anda via WebAssembly.<br>
+    Data tidak dikirim ke server mana pun.
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ==================================================================
+   Integrasi WASM RTKLIB. Membutuhkan rtklib.js + rtklib.wasm di folder
+   yang sama (hasil build_wasm.sh). Semua proses jalan di browser.
+   ================================================================== */
+let Module = null, ready = false;
+
+const $ = id => document.getElementById(id);
+const files = { raw:null, rover:null, base:null, nav:null };
+let outBlobs = {};
+
+/* ---- muat engine WASM ---- */
+async function loadEngine(){
+  const dot = $('dot'), txt = $('engineTxt'), ver = $('engineVer');
+  try{
+    if(typeof createRTKLIB === 'undefined'){
+      throw new Error('rtklib.js belum ditemukan');
+    }
+    Module = await createRTKLIB();
+    try{ Module.FS.mkdir('/work'); }catch(e){}
+    ready = true;
+    const v = Module.ccall('rtk_version','string',[],[]);
+    dot.className='dot ready';
+    txt.textContent='Engine RTKLIB siap';
+    ver.textContent='v'+v;
+    $('btn-conv').disabled = !files.raw;
+    $('btn-proc').disabled = !files.rover;
+  }catch(err){
+    dot.className='dot error';
+    txt.innerHTML='Engine belum tersedia — letakkan <b>rtklib.js</b> &amp; <b>rtklib.wasm</b> di folder yang sama';
+    console.warn(err);
+  }
+}
+
+/* ---- tabs ---- */
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    $('panel-'+t.dataset.tab).classList.add('active');
+  };
+});
+
+/* ---- helper dropzone ---- */
+function setupDrop(dropId, inputId, key){
+  const drop = $(dropId), input = $(inputId);
+  const setFile = f=>{
+    files[key]=f;
+    drop.classList.add('has');
+    drop.innerHTML = `<div class="fname">📄 ${f.name}</div><div class="fsize">${(f.size/1024).toFixed(1)} KB — ketuk untuk ganti</div>`;
+    if(key==='raw') $('btn-conv').disabled = !ready;
+    if(key==='rover') $('btn-proc').disabled = !ready;
+  };
+  drop.onclick = ()=>input.click();
+  input.onchange = e=>{ if(e.target.files[0]) setFile(e.target.files[0]); };
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+}
+setupDrop('drop-raw','file-raw','raw');
+setupDrop('drop-rover','file-rover','rover');
+setupDrop('drop-base','file-base','base');
+setupDrop('drop-nav','file-nav','nav');
+
+/* ---- util MEMFS ---- */
+async function writeFS(path, file){
+  const buf = new Uint8Array(await file.arrayBuffer());
+  Module.FS.writeFile(path, buf);
+}
+function readFS(path){
+  try{ return Module.FS.readFile(path); }catch(e){ return null; }
+}
+function showStat(el, kind, msg){
+  el.className='stat show '+kind; el.textContent=msg;
+}
+function showLog(el, txt){
+  if(!txt) return; el.className='log show'; el.textContent=txt;
+}
+
+/* ================= FITUR 1: CONVERT ================= */
+$('btn-conv').onclick = async ()=>{
+  if(!ready || !files.raw) return;
+  const btn=$('btn-conv'), stat=$('stat-conv'), res=$('res-conv');
+  res.classList.remove('show'); stat.className='stat';
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Mengonversi…';
+  try{
+    Module.ccall('rtk_clear_log',null,[],[]);
+    const inPath='/work/input.raw';
+    const obsPath='/work/out.obs', navPath='/work/out.nav';
+    await writeFS(inPath, files.raw);
+    const fmt=$('fmt').value, rnxver=parseInt($('rnxver').value), staid=$('staid').value.trim();
+
+    const rc = Module.ccall('rtk_convert','number',
+      ['string','string','string','string','number','string'],
+      [inPath, fmt, obsPath, navPath, rnxver, staid]);
+
+    const log = Module.ccall('rtk_get_log','string',[],[]);
+    showLog($('log-conv'), log);
+
+    if(rc!==0) throw new Error('Konversi gagal (kode '+rc+'). Pastikan format alat sesuai.');
+
+    const obs=readFS(obsPath), nav=readFS(navPath);
+    if(!obs) throw new Error('File RINEX tidak terbentuk — cek format & isi file mentah.');
+
+    const ext = rnxver<=299 ? '2o' : 'obs';
+    const navext = rnxver<=299 ? '2n' : 'nav';
+    const base = files.raw.name.replace(/\.[^.]+$/,'');
+    outBlobs.obs = { blob:new Blob([obs]), name:`${base}.${ext}` };
+    if(nav && nav.length) outBlobs.nav = { blob:new Blob([nav]), name:`${base}.${navext}` };
+
+    $('dl-obs').style.display='';
+    $('dl-nav').style.display = outBlobs.nav ? '' : 'none';
+    showStat(stat,'info',`Berhasil. RINEX ${rnxver<=299?'2.11':'3.05'} siap diunduh.`);
+    res.classList.add('show');
+  }catch(err){
+    showStat(stat,'err',err.message);
+  }finally{
+    btn.disabled=false; btn.textContent='Konversi ke RINEX';
+  }
+};
+$('dl-obs').onclick=()=>outBlobs.obs && download(outBlobs.obs.blob,outBlobs.obs.name);
+$('dl-nav').onclick=()=>outBlobs.nav && download(outBlobs.nav.blob,outBlobs.nav.name);
+
+/* ================= FITUR 2: PROCESS ================= */
+let map=null, marker=null;
+$('btn-proc').onclick = async ()=>{
+  if(!ready || !files.rover) return;
+  const btn=$('btn-proc'), stat=$('stat-proc'), res=$('res-proc');
+  res.classList.remove('show'); stat.className='stat';
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span> Menghitung…';
+  try{
+    Module.ccall('rtk_clear_log',null,[],[]);
+    const rov='/work/rover.obs'; await writeFS(rov, files.rover);
+    let bas='', nav='', outPos='/work/result.pos';
+    if(files.base){ bas='/work/base.obs'; await writeFS(bas, files.base); }
+    if(files.nav){ nav='/work/nav.nav'; await writeFS(nav, files.nav); }
+    const mode=parseInt($('mode').value);
+
+    const rc = Module.ccall('rtk_process','number',
+      ['string','string','string','string','string','number','number','number','number'],
+      [rov, bas, nav, '', outPos, mode, 0,0,0]);
+
+    const log = Module.ccall('rtk_get_log','string',[],[]);
+    showLog($('log-proc'), log);
+    if(rc!==0) throw new Error('Perhitungan gagal (kode '+rc+').');
+
+    const posData = readFS(outPos);
+    if(!posData) throw new Error('Tidak ada hasil solusi.');
+    const posText = new TextDecoder().decode(posData);
+    outBlobs.pos = { blob:new Blob([posText]), name:(files.rover.name.replace(/\.[^.]+$/,''))+'.pos' };
+
+    const fixes = parsePos(posText);
+    if(!fixes.length) throw new Error('Tidak ada epoch solusi valid. Coba tambahkan file navigasi.');
+
+    const pt = averageFixed(fixes);
+    renderResult(pt, fixes.length);
+    res.classList.add('show');
+  }catch(err){
+    showStat(stat,'err',err.message);
+  }finally{
+    btn.disabled=false; btn.textContent='Hitung Koordinat';
+  }
+};
+$('dl-pos').onclick=()=>outBlobs.pos && download(outBlobs.pos.blob,outBlobs.pos.name);
+
+/* ---- parser .pos (format SOLF_LLH) ---- */
+function parsePos(text){
+  const out=[];
+  for(const line of text.split('\n')){
+    if(!line || line.startsWith('%')) continue;
+    const p=line.trim().split(/\s+/);
+    if(p.length<10) continue;
+    const lat=+p[2],lon=+p[3],h=+p[4],q=+p[5],ns=+p[6],sn=+p[7],se=+p[8],su=+p[9];
+    if(isNaN(lat)||isNaN(lon)) continue;
+    out.push({lat,lon,h,q,ns,sn,se,su});
+  }
+  return out;
+}
+function averageFixed(fixes){
+  let use=fixes.filter(f=>f.q===1);
+  if(!use.length) use=fixes.filter(f=>f.q===2);
+  if(!use.length) use=fixes;
+  const n=use.length, a=(k)=>use.reduce((s,f)=>s+f[k],0)/n;
+  return {lat:a('lat'),lon:a('lon'),h:a('h'),q:use[0].q,ns:Math.round(a('ns')),
+          sn:a('sn'),se:a('se'),su:a('su'),count:n};
+}
+function renderResult(pt, total){
+  const qmap={1:['fix','FIXED — presisi cm'],2:['float','FLOAT — desimeter'],5:['single','SINGLE — meter']};
+  const qi=qmap[pt.q]||['single','SOLUSI'];
+  const badge=$('qBadge'); badge.className='q '+qi[0]; badge.textContent=qi[1];
+  $('rLat').textContent=pt.lat.toFixed(9)+'°';
+  $('rLon').textContent=pt.lon.toFixed(9)+'°';
+  $('rH').textContent=pt.h.toFixed(4);
+  $('rNs').textContent=pt.ns+' sat · '+total+' epoch';
+  const hAcc=Math.sqrt(pt.sn*pt.sn+pt.se*pt.se);
+  $('rPrec').textContent=`Presisi horizontal ±${(hAcc*100).toFixed(1)} cm · vertikal ±${(pt.su*100).toFixed(1)} cm (dari ${pt.count} solusi ${qi[0]==='fix'?'fixed':qi[0]})`;
+  // peta
+  if(!map){
+    map=L.map('map',{attributionControl:false}).setView([pt.lat,pt.lon],18);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20}).addTo(map);
+  }else map.setView([pt.lat,pt.lon],18);
+  if(marker) map.removeLayer(marker);
+  marker=L.marker([pt.lat,pt.lon]).addTo(map);
+  setTimeout(()=>map.invalidateSize(),200);
+}
+
+/* ---- unduh blob ---- */
+function download(blob,name){
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+// dipanggil setelah rtklib.js selesai dimuat (lihat tag script di bawah)
+window._rtkBoot = loadEngine;
+</script>
+<!-- Muat engine WASM. Jika file belum ada, halaman tetap tampil & memberi pesan. -->
+<script src="rtklib.js"
+  onload="window._rtkBoot && window._rtkBoot()"
+  onerror="window._rtkBoot && window._rtkBoot()"></script>
+</body>
+</html>
