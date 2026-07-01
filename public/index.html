@@ -707,6 +707,7 @@ const TOOL_ITEMS = [
   {file:'hidrografi-pasut.html', title:'Hidrografi Pasut',desc:'Pengolahan Pasut Admiralty', icon:icoTide()},
   {file:'hydro-qc.html',         title:'Hydro Bathymetry QC',desc:'TVU · Lajur · Validasi GNSS', icon:icoQC()},
   {file:'civil-hub.html',        title:'Civil',          desc:'Sondir/SPT · CBR · Sand Cone', icon:icoCivil()},
+  {file:'rtklib-tools.html',     title:'RTKLIB GNSS',    desc:'Konversi RINEX & Koordinat Presisi', icon:icoRTK()},
 ];
 
 /* ---- Master list semua menu yang bisa di-pin ke Akses Cepat ---- */
@@ -736,6 +737,7 @@ const ALL_QA = [
   {tab:'tools', file:'utility-tools.html',    title:'Utility Tools'},
   {tab:'tools', file:'tools-curve.html',      title:'Curve Tools'},
   {tab:'tools', file:'geoai.html',            title:'GeoAI'},
+  {tab:'tools', file:'rtklib-tools.html',    title:'RTKLIB GNSS'},
   {tab:'tools', file:'aktivitas-tambang.html',title:'Produktivitas'},
   {tab:'maps',  file:null,                    title:'Maps'},
 ];
@@ -783,6 +785,7 @@ function qaIcon(title){
     'GeoAI':icoGeoAI(),
     'Settlement Sensor':icoSettlement(),
     'Survey Verticality':icoVerticality(),
+    'RTKLIB GNSS':icoRTK(),
     'Maps':icoMap(),
   };
   return m[title] || icoTools();
@@ -1189,7 +1192,7 @@ function icoOre(){return svg('<path d="M12 3l8 5v8l-8 5-8-5V8z"/><path d="M12 8l
 function icoCivil(){return svg('<path d="M4 21h16M5 21V9.5L12 5l7 4.5V21"/><path d="M9 21v-6h6v6"/><path d="M9 12h.01M12 12h.01M15 12h.01"/>');}
 function icoSettlement(){return svg('<path d="M3 5h18M3 5v6M21 5v6"/><path d="M6 11v8M12 11v5M18 11v8"/><path d="M3 19h7M14 16h7"/><path d="M12 16l-2 3M12 16l2 3"/>');}
 function icoVerticality(){return svg('<path d="M12 2v20"/><path d="M9 5l3-3 3 3"/><path d="M9 19l3 3 3-3"/><path d="M7 8h2M7 12h2M7 16h2M15 8h2M15 12h2M15 16h2"/>');}
-
+function icoRTK(){return svg('<path d="M2 12h3M19 12h3M12 2v3M12 19v3"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="1.5"/>');}
 /* =================== GNSS STATUS =================== */
 let gnssLoaded = false;
 function openGnssStatus(){
