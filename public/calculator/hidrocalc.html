@@ -46,7 +46,19 @@ button{font-family:inherit}
 .nav-item .stt.ok{background:var(--good)}
 .nav-item .stt.warn{background:var(--warn)}
 
-.main{flex:1;overflow-y:auto;position:relative;background:var(--bg)}
+.nav-toggle{display:none;width:32px;height:32px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel);color:var(--ink-dim);cursor:pointer;align-items:center;justify-content:center;flex:0 0 auto}
+.nav-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.nav-toggle svg{width:17px;height:17px}
+.nav-overlay{display:none}
+@media(max-width:900px){
+  .nav-toggle{display:flex}
+  .nav{position:fixed;top:48px;left:0;bottom:0;z-index:60;width:82%;max-width:300px;transform:translateX(-100%);transition:transform .2s ease;box-shadow:var(--shadow-md)}
+  .nav.open{transform:translateX(0)}
+  .nav-overlay{display:none;position:fixed;top:48px;left:0;right:0;bottom:0;background:rgba(15,20,28,.4);z-index:55}
+  .nav-overlay.show{display:block}
+}
+
+.main{flex:1;overflow-y:auto;position:relative;background:var(--bg);min-width:0}
 .page{display:none;padding:20px 26px 60px;max-width:1180px;margin:0 auto}
 .page.active{display:block}
 .page-head{margin-bottom:16px}
@@ -269,6 +281,7 @@ canvas.chart{width:100%;display:block}
 <body>
 <div class="app">
   <div class="topbar">
+    <button class="nav-toggle" id="btnNavToggle" aria-label="Buka menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
     <div class="brand">
       <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0c0-5-7-13-7-13z" fill="#fff"/></svg></div>
       <div><div class="brand-name">HidroCalc</div><div class="brand-sub">MINE WATER MGMT &amp; HYDROLOGY</div></div>
@@ -297,6 +310,7 @@ canvas.chart{width:100%;display:block}
       <div class="nav-item" data-page="p9"><span class="num">9</span>Import &amp; Parameter 3D<span class="stt" id="stt-p9"></span></div>
       <div class="nav-item" data-page="p10"><span class="num">10</span>Tampilan Model 3D<span class="stt" id="stt-p10"></span></div>
     </nav>
+    <div class="nav-overlay" id="navOverlay"></div>
 
     <main class="main">
 
@@ -1511,8 +1525,17 @@ document.querySelectorAll('.nav-item').forEach(item=>{
     item.classList.add('active');
     $('page-'+item.dataset.page).classList.add('active');
     document.querySelector('.main').scrollTop = 0;
+    closeNav();
   });
 });
+
+// ── Mobile nav drawer (show/hide sidebar) ───────────────────────────
+const navEl = $('navList'), navOverlay = $('navOverlay'), btnNavToggle = $('btnNavToggle');
+function openNav(){ navEl.classList.add('open'); navOverlay.classList.add('show'); }
+function closeNav(){ navEl.classList.remove('open'); navOverlay.classList.remove('show'); }
+function toggleNav(){ navEl.classList.contains('open') ? closeNav() : openNav(); }
+btnNavToggle && btnNavToggle.addEventListener('click', toggleNav);
+navOverlay && navOverlay.addEventListener('click', closeNav);
 function gotoPage(p){ document.querySelector(`.nav-item[data-page="${p}"]`).click(); }
 
 // ── Generic editable-row table helper ─────────────────────────────
