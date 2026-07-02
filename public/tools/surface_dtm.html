@@ -1171,6 +1171,12 @@ function drawSectionOverlay(ctx, cam, cw,ch,ww,wh){
 // —— Pan / zoom / section-click wiring for a 2D-style canvas panel —
 function wirePanZoom(canvas, cam, redrawFn, opts){
   let dragging=false, moved=false, lastX=0, lastY=0, startX=0, startY=0;
+  // Mobile browsers fire synthetic "compatibility" mouse events (mousedown/mouseup/click)
+  // shortly after a real touch interaction. Without this guard those synthetic events
+  // re-trigger onSectionClick right after the touch handler already registered the tap,
+  // so a single finger tap would silently place BOTH section points at once.
+  let lastTouchTs = 0;
+  const isSyntheticFromTouch = ()=> (Date.now()-lastTouchTs) < 900;
 
   function worldAt(clientX, clientY){
     const rect = canvas.getBoundingClientRect();
@@ -1180,6 +1186,7 @@ function wirePanZoom(canvas, cam, redrawFn, opts){
   }
 
   canvas.addEventListener('mousedown', e=>{
+    if(isSyntheticFromTouch()) return;
     dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; startX=e.clientX; startY=e.clientY;
   });
   window.addEventListener('mousemove', e=>{
@@ -1192,6 +1199,7 @@ function wirePanZoom(canvas, cam, redrawFn, opts){
   window.addEventListener('mouseup', e=>{
     if(!dragging) return;
     dragging=false;
+    if(isSyntheticFromTouch()) return;
     if(!moved){
       // treat as click
       if(STATE.sectionMode && opts.onSectionClick){
@@ -1226,6 +1234,7 @@ function wirePanZoom(canvas, cam, redrawFn, opts){
   // basic touch support (single-finger pan, two-finger pinch zoom)
   let touchState=null;
   canvas.addEventListener('touchstart', e=>{
+    lastTouchTs = Date.now();
     if(e.touches.length===1){
       touchState={mode:'pan', x:e.touches[0].clientX, y:e.touches[0].clientY, moved:false, sx:e.touches[0].clientX, sy:e.touches[0].clientY};
     } else if(e.touches.length===2){
@@ -1252,6 +1261,7 @@ function wirePanZoom(canvas, cam, redrawFn, opts){
     }
   }, {passive:false});
   canvas.addEventListener('touchend', e=>{
+    lastTouchTs = Date.now();
     if(touchState && touchState.mode==='pan' && !touchState.moved && STATE.sectionMode && opts.onSectionClick){
       opts.onSectionClick(worldAt(touchState.x, touchState.y));
     }
