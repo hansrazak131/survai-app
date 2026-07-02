@@ -1,0 +1,2322 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GeoSurface Studio — DTM · TIN · Kontur · Section</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   DESIGN TOKENS — light survey/CAD instrument palette
+   Reference feel: desktop GIS tools (light gray chrome,
+   blue accent, mono data readouts, flat panels, no glass/AI gradients)
+   ========================================================= */
+:root{
+  --bg:#eef1f5;            /* app background */
+  --panel:#ffffff;         /* panel surface */
+  --panel-2:#f6f8fa;       /* secondary surface / inputs */
+  --line:#dbe1ea;          /* hairline borders */
+  --line-strong:#c3cbd8;
+  --ink:#1c2430;           /* primary text */
+  --ink-dim:#5b6675;       /* secondary text */
+  --ink-faint:#8b95a5;     /* tertiary text */
+  --accent:#215bd6;        /* primary blue */
+  --accent-hov:#1a49b3;
+  --accent-soft:#e7edfc;
+  --good:#1a9e6f;
+  --warn:#c07a12;
+  --bad:#c33f3f;
+  --topbar-h:46px;
+  --statusbar-h:24px;
+  --r:6px; --r2:9px;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Inter',system-ui,sans-serif;
+  --elev-1:#2159c9; --elev-2:#1fb5c9; --elev-3:#3fc27a; --elev-4:#d9c93a; --elev-5:#e0742a; --elev-6:#c33f3f;
+  --shadow-sm:0 1px 2px rgba(20,30,50,.06), 0 1px 1px rgba(20,30,50,.04);
+  --shadow-md:0 4px 16px rgba(20,30,50,.12), 0 1px 3px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit}
+::selection{background:var(--accent-soft)}
+
+/* ---- app shell ---- */
+.app{display:flex;flex-direction:column;height:100vh;height:calc(var(--vh, 1vh) * 100);height:100dvh;overflow:hidden}
+
+/* ---- top bar ---- */
+.topbar{
+  height:var(--topbar-h);flex:0 0 auto;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;padding:0 14px;gap:18px;box-shadow:var(--shadow-sm);position:relative;z-index:40;
+}
+.brand{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.brand-mark{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--elev-1),var(--elev-3) 55%,var(--elev-5));display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.brand-mark svg{width:16px;height:16px;position:relative}
+.brand-name{font-weight:700;font-size:13.5px;letter-spacing:-.01em;color:var(--ink)}
+.brand-sub{font-size:9.5px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.03em;margin-top:-1px}
+
+.topbar-menu{display:flex;align-items:center;gap:2px;padding-left:14px;border-left:1px solid var(--line)}
+.tbtn{display:flex;align-items:center;gap:6px;background:none;border:1px solid transparent;border-radius:var(--r);padding:6px 10px;font-size:12px;font-weight:500;color:var(--ink-dim);cursor:pointer;transition:.12s}
+.tbtn:hover{background:var(--panel-2);border-color:var(--line);color:var(--ink)}
+.tbtn svg{width:14px;height:14px;opacity:.75}
+
+.view-tabs{display:flex;align-items:center;gap:2px;margin:0 auto;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:3px}
+.vtab{border:none;background:none;padding:6px 13px;border-radius:6px;font-size:12px;font-weight:600;color:var(--ink-dim);cursor:pointer;display:flex;align-items:center;gap:6px;transition:.12s;white-space:nowrap}
+.vtab svg{width:13px;height:13px}
+.vtab:hover:not(.active){color:var(--ink)}
+.vtab.active{background:var(--panel);color:var(--accent);box-shadow:var(--shadow-sm)}
+
+.topbar-right{display:flex;align-items:center;gap:6px;flex:0 0 auto;margin-left:auto}
+.icon-btn{width:30px;height:30px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel);color:var(--ink-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s}
+.icon-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.icon-btn svg{width:15px;height:15px}
+.btn-buy{background:var(--accent);color:#fff;border:none;border-radius:var(--r);padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.12s}
+.btn-buy:hover{background:var(--accent-hov)}
+.btn-buy svg{width:13px;height:13px}
+
+/* ---- body layout ---- */
+.body{flex:1;display:flex;min-height:0}
+.sidebar{
+  width:296px;flex:0 0 auto;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:4px}
+
+.sb-sec{border-bottom:1px solid var(--line);padding:13px 16px}
+.sb-sec h3{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);margin-bottom:10px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+.sb-sec h3 .badge{font-family:var(--mono);font-weight:500;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:99px;font-size:9.5px;text-transform:none;letter-spacing:0}
+
+.upload-zone{border:1.5px dashed var(--line-strong);border-radius:var(--r2);padding:14px;text-align:center;cursor:pointer;position:relative;transition:.15s;background:var(--panel-2)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--accent-soft)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-zone .icz{width:26px;height:26px;margin:0 auto 6px;color:var(--ink-faint)}
+.upload-zone .icl{font-size:11.5px;color:var(--ink-dim);line-height:1.5}
+.upload-zone .icl b{color:var(--ink);font-weight:600}
+.upload-zone small{color:var(--ink-faint);font-family:var(--mono);font-size:10px}
+
+.row-btns{display:flex;gap:7px;margin-top:9px}
+.btn{padding:8px 10px;border-radius:var(--r);cursor:pointer;font-weight:600;font-size:11.5px;transition:.12s;border:1px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn svg{width:13px;height:13px}
+.btn.primary{background:var(--accent);color:#fff;width:100%}
+.btn.primary:hover{background:var(--accent-hov)}
+.btn.secondary{background:var(--panel);color:var(--ink-dim);border-color:var(--line-strong);flex:1}
+.btn.secondary:hover{color:var(--ink);border-color:var(--accent);background:var(--accent-soft)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0}
+.stat-row .k{font-size:11px;color:var(--ink-faint)}
+.stat-row .v{font-size:11.5px;color:var(--ink);font-family:var(--mono);font-weight:600}
+
+.field{margin-bottom:9px}
+.field label{display:block;font-size:10px;color:var(--ink-faint);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.field select,.field input[type=number]{
+  width:100%;background:var(--panel-2);border:1px solid var(--line-strong);color:var(--ink);
+  border-radius:var(--r);padding:7px 9px;font-size:12px;font-family:var(--mono);
+}
+.field select:focus,.field input:focus{outline:none;border-color:var(--accent);background:#fff}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.progress-bar{height:5px;background:var(--panel-2);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin:9px 0 5px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--elev-3));width:0;transition:width .25s}
+.status-line{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono);min-height:14px}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0}
+.toggle-row .k{font-size:11.5px;color:var(--ink-dim)}
+.sw{position:relative;width:32px;height:18px;flex:0 0 auto}
+.sw input{opacity:0;width:100%;height:100%;position:absolute;cursor:pointer;margin:0;z-index:1}
+.sw .track{position:absolute;inset:0;background:var(--line-strong);border-radius:99px;transition:.15s}
+.sw .knob{position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.sw input:checked ~ .track{background:var(--accent)}
+.sw input:checked ~ .knob{transform:translateX(14px)}
+
+.exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.exp-btn{padding:8px 8px;border:1px solid var(--line-strong);border-radius:var(--r);background:var(--panel);font-size:11px;font-weight:600;cursor:pointer;color:var(--ink-dim);transition:.12s;display:flex;flex-direction:column;align-items:center;gap:3px}
+.exp-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.exp-btn svg{width:15px;height:15px}
+
+/* ---- main / canvas area ---- */
+.main{flex:1;position:relative;overflow:hidden;background:#dfe4ea;min-width:0}
+.panel{position:absolute;inset:0;display:none}
+.panel.active{display:block}
+
+#panel-2d{background:#eef1f5}
+#canvas2d{width:100%;height:100%;cursor:crosshair;display:block;touch-action:none}
+
+#panel-3d{background:#cfe0ef}
+#panel-3d canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+#panel-3d.grabbing canvas{cursor:grabbing}
+
+#panel-tin{background:#cfe0ef}
+#panel-tin canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+#panel-tin.grabbing canvas{cursor:grabbing}
+
+#panel-contour{background:#fff}
+#canvas-contour{width:100%;height:100%;cursor:crosshair;display:block;touch-action:none}
+
+#panel-profile{background:#fff}
+
+/* welcome empty state */
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--ink-faint);text-align:center;padding:30px}
+.empty-state svg{width:52px;height:52px;opacity:.35}
+.empty-state h4{color:var(--ink-dim);font-size:14px;font-weight:600}
+.empty-state p{font-size:12px;max-width:320px;line-height:1.6}
+
+/* ---- floating controls over canvas ---- */
+.view-controls{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:5px;z-index:10}
+.vc-btn{width:32px;height:32px;border:1px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.92);color:var(--ink-dim);font-size:14px;cursor:pointer;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:.12s}
+.vc-btn:hover{background:#fff;border-color:var(--accent);color:var(--accent)}
+.vc-btn svg{width:16px;height:16px}
+.vc-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.coord-bar{position:absolute;bottom:0;left:0;right:0;height:var(--statusbar-h);background:rgba(255,255,255,.94);border-top:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:16px;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);backdrop-filter:blur(4px);z-index:9}
+.coord-bar span{color:var(--ink-dim)}
+.coord-bar b{color:var(--ink);font-weight:600}
+.coord-bar .sep{width:1px;height:12px;background:var(--line-strong)}
+.coord-bar .fill{flex:1}
+
+.elev-legend{position:absolute;top:12px;left:12px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:var(--r2);padding:9px 11px;backdrop-filter:blur(4px);z-index:8;box-shadow:var(--shadow-sm)}
+.legend-title{font-size:9.5px;color:var(--ink-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.legend-grad{width:130px;height:9px;border-radius:4px;background:linear-gradient(90deg,var(--elev-1),var(--elev-2),var(--elev-3),var(--elev-4),var(--elev-5),var(--elev-6))}
+.legend-labels{display:flex;justify-content:space-between;margin-top:4px;font-size:9.5px;font-family:var(--mono);color:var(--ink-faint)}
+
+.panel-toolbar{position:absolute;top:12px;left:12px;display:flex;gap:6px;z-index:8}
+.panel-toolbar.right{left:auto;right:56px}
+.pt-btn{height:30px;padding:0 11px;border:1px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.94);color:var(--ink-dim);font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow-sm);backdrop-filter:blur(4px);transition:.12s}
+.pt-btn:hover{border-color:var(--accent);color:var(--accent)}
+.pt-btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pt-btn svg{width:13px;height:13px}
+
+.loading-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,.85);z-index:50;gap:10px;backdrop-filter:blur(2px)}
+.loading-overlay .spin{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);animation:sp .8s linear infinite}
+.loading-overlay p{font-family:var(--mono);font-size:11.5px;color:var(--ink-dim)}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.tip{position:absolute;pointer-events:none;background:#1c2430;border:1px solid #2c3648;border-radius:7px;padding:6px 9px;font-family:var(--mono);font-size:10.5px;color:#e7ecf5;z-index:35;white-space:nowrap;opacity:0;transition:opacity .1s}
+.tip.show{opacity:1}
+.tip b{color:#7fb0ff}
+
+.toast{position:absolute;bottom:38px;left:50%;transform:translateX(-50%);background:#1c2430;color:#fff;padding:8px 16px;border-radius:8px;font-size:12px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:var(--shadow-md)}
+
+.vexag-box{position:absolute;bottom:36px;right:12px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:var(--r2);padding:9px 11px;z-index:9;width:150px;box-shadow:var(--shadow-sm);backdrop-filter:blur(4px)}
+.vexag-box label{font-size:9.5px;color:var(--ink-faint);text-transform:uppercase;display:flex;justify-content:space-between;margin-bottom:5px;font-weight:700}
+.vexag-box input[type=range]{width:100%;accent-color:var(--accent)}
+
+/* ---- profile panel ---- */
+.profile-wrap{position:absolute;inset:0;display:flex;flex-direction:column}
+.profile-hint{flex:1;display:flex;align-items:center;justify-content:center}
+.profile-chart-box{flex:1;display:flex;flex-direction:column;min-height:0}
+.profile-head{padding:10px 16px 8px;border-bottom:1px solid var(--line)}
+.ph-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--ink-dim)}
+.ph-row b{color:var(--ink)}
+.ph-clearance{margin-top:6px;text-align:center;font-size:11.5px;font-family:var(--mono);font-weight:600;padding:5px 10px;border-radius:var(--r);background:var(--panel-2);border:1px solid var(--line)}
+.ph-clearance.neg{color:#a3271f;background:#fdeceb;border-color:#f3c6c2}
+.ph-clearance.pos{color:#166a49;background:#e9f7f1;border-color:#bfe6d6}
+.profile-canvas-holder{flex:1;position:relative}
+#canvas-profile{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#canvas-profile:active{cursor:grabbing}
+
+/* ---- responsive ---- */
+@media(max-width:900px){
+  .body{flex-direction:column}
+  .sidebar{width:100%;max-height:42vh;max-height:calc(var(--vh, 1vh) * 42);border-right:none;border-bottom:1px solid var(--line)}
+  .view-tabs{position:absolute;left:8px;right:8px;top:52px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== TOP BAR ===== -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M2 18L8 9L12 14L16 7L22 18" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">GeoSurface Studio</div>
+        <div class="brand-sub">DTM · TIN · KONTUR · SECTION</div>
+      </div>
+    </div>
+
+    <div class="topbar-menu">
+      <button class="tbtn" id="btnNewProject" title="Mulai proyek baru">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+        Proyek Baru
+      </button>
+      <button class="tbtn" id="btnEditArea" title="Pengaturan area & CRS">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h7v7H3zM14 14h7v7h-7z"/><path d="M10 6.5H14M6.5 10V14"/></svg>
+        Area
+      </button>
+    </div>
+
+    <div class="view-tabs" id="viewTabs">
+      <button class="vtab active" data-panel="2d">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 5-6 4 4"/></svg>
+        DTM 2D
+      </button>
+      <button class="vtab" data-panel="3d">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
+        Surface 3D
+      </button>
+      <button class="vtab" data-panel="tin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l9 15H3z"/><path d="M12 3v15M7.5 10.5h9M4.8 15.5h14.4"/></svg>
+        TIN Mesh
+      </button>
+      <button class="vtab" data-panel="contour">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 17c3-4 4 4 7 0s4 4 7 0s4 4 6 0"/><path d="M2 11c3-4 4 4 7 0s4 4 7 0s4 4 6 0"/></svg>
+        Kontur
+      </button>
+      <button class="vtab" data-panel="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 20l4-9 4 3 4-8 4 6 2-3"/></svg>
+        Section
+      </button>
+    </div>
+
+    <div class="topbar-right">
+      <button class="icon-btn" id="btnSnapshot" title="Snapshot tampilan aktif">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2M20 8V6a2 2 0 0 0-2-2h-2M20 16v2a2 2 0 0 1-2 2h-2"/><circle cx="12" cy="12" r="3.2"/></svg>
+      </button>
+      <button class="icon-btn" id="btnFullscreen" title="Layar penuh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+
+      <div class="sb-sec">
+        <h3>Impor Point Cloud</h3>
+        <div class="upload-zone" id="dropZone">
+          <input type="file" accept=".txt,.csv,.xyz,.asc" id="fileInput">
+          <svg class="icz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <div class="icl"><b>Klik atau seret file</b><br>.txt · .csv · .xyz · .asc</div>
+          <small>Kolom: X Y Z (bebas kolom tambahan)</small>
+        </div>
+        <div class="row-btns">
+          <button class="btn secondary" id="btnLoadSample">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 5v14l11-7z"/></svg>
+            Data Sampel
+          </button>
+        </div>
+      </div>
+
+      <div class="sb-sec" id="statsSection" style="display:none">
+        <h3>Informasi Data <span class="badge" id="statCrs">Lokal (m)</span></h3>
+        <div class="stat-row"><span class="k">Jumlah Titik</span><span class="v" id="statPts">—</span></div>
+        <div class="stat-row"><span class="k">Luas X</span><span class="v" id="statX">—</span></div>
+        <div class="stat-row"><span class="k">Luas Y</span><span class="v" id="statY">—</span></div>
+        <div class="stat-row"><span class="k">Z min / max</span><span class="v" id="statZ">—</span></div>
+        <div class="stat-row"><span class="k">Z rata-rata</span><span class="v" id="statZmean">—</span></div>
+      </div>
+
+      <div class="sb-sec">
+        <h3>Parameter Permukaan</h3>
+        <div class="field">
+          <label>Metode Interpolasi</label>
+          <select id="methodSel">
+            <option value="tin" selected>TIN (Triangulasi Delaunay)</option>
+            <option value="idw">IDW (Inverse Distance Weighted)</option>
+            <option value="binavg">Binning — Rata-rata</option>
+            <option value="binmin">Binning — Minimum (ground)</option>
+          </select>
+        </div>
+        <div class="frow">
+          <div class="field">
+            <label>Grid Spacing (m)</label>
+            <input type="number" id="gridRes" value="2" min="0.5" max="50" step="0.5">
+          </div>
+          <div class="field">
+            <label>IDW Power</label>
+            <input type="number" id="idwPow" value="2" min="1" max="6" step="0.5">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="field">
+            <label>Interval Kontur (m)</label>
+            <input type="number" id="contourInt" value="5" min="0.5" max="100" step="0.5">
+          </div>
+          <div class="field">
+            <label>Major setiap ke-N</label>
+            <input type="number" id="majorN" value="5" min="2" max="20" step="1">
+          </div>
+        </div>
+        <button class="btn primary" id="btnProcess">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
+          Proses Surface &amp; Kontur
+        </button>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="status-line" id="statusLine">Siap memproses</div>
+      </div>
+
+      <div class="sb-sec" id="volSection" style="display:none">
+        <h3>Statistik Surface</h3>
+        <div class="stat-row"><span class="k">Ukuran Grid</span><span class="v" id="svGrid">—</span></div>
+        <div class="stat-row"><span class="k">Luas Coverage</span><span class="v" id="svArea">—</span></div>
+        <div class="stat-row"><span class="k">Jumlah Kontur</span><span class="v" id="svContours">—</span></div>
+        <div class="stat-row"><span class="k">Segitiga TIN</span><span class="v" id="svTri">—</span></div>
+      </div>
+
+      <div class="sb-sec" id="displaySection" style="display:none">
+        <h3>Tampilan</h3>
+        <div class="toggle-row">
+          <span class="k">Titik sampel (2D)</span>
+          <label class="sw"><input type="checkbox" id="togPoints"><span class="track"></span><span class="knob"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="k">Wireframe (3D/TIN)</span>
+          <label class="sw"><input type="checkbox" id="togWire"><span class="track"></span><span class="knob"></span></label>
+        </div>
+        <div class="toggle-row">
+          <span class="k">Label elevasi kontur</span>
+          <label class="sw"><input type="checkbox" id="togLabel" checked><span class="track"></span><span class="knob"></span></label>
+        </div>
+      </div>
+
+      <div class="sb-sec" style="border-bottom:none">
+        <h3>Ekspor</h3>
+        <div class="exp-grid">
+          <button class="exp-btn" id="btnExpDTM"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>PNG DTM</button>
+          <button class="exp-btn" id="btnExp3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l9 5v10l-9 5-9-5V7z"/></svg>PNG 3D</button>
+          <button class="exp-btn" id="btnExpContourDXF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>DXF Kontur</button>
+          <button class="exp-btn" id="btnExpContourCSV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>CSV Kontur</button>
+          <button class="exp-btn" id="btnExpGrid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>CSV Grid</button>
+          <button class="exp-btn" id="btnExpProfile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 20l4-9 4 3 4-8 4 6 2-3"/></svg>CSV Section</button>
+          <button class="exp-btn" id="btnExpReportPDF" style="grid-column:1 / -1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>Laporan PDF (Analisis Topografi)</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ===== MAIN VIEW AREA ===== -->
+    <main class="main">
+
+      <!-- 2D DTM -->
+      <div class="panel active" id="panel-2d">
+        <canvas id="canvas2d"></canvas>
+        <div class="elev-legend" id="legend2d" style="display:none">
+          <div class="legend-title">Elevasi (m)</div>
+          <div class="legend-grad"></div>
+          <div class="legend-labels"><span id="legMin2d">—</span><span id="legMid2d">—</span><span id="legMax2d">—</span></div>
+        </div>
+        <div class="panel-toolbar" id="tools2d" style="display:none">
+          <button class="pt-btn" id="btnSection2d" title="Buat garis section/profil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L20 4"/><circle cx="4" cy="20" r="2.2"/><circle cx="20" cy="4" r="2.2"/></svg>
+            Section
+          </button>
+        </div>
+        <div class="view-controls" id="vc2d" style="display:none">
+          <button class="vc-btn" id="btnZoomIn2d" title="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnZoomOut2d" title="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnFit2d" title="Fit ke layar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+        </div>
+        <div class="coord-bar" id="cbar2d" style="display:none">
+          <span>X <b id="cX2d">—</b></span><span>Y <b id="cY2d">—</b></span><span>Z <b id="cZ2d">—</b></span>
+          <div class="sep"></div><span id="modeLabel2d">Mode: Navigasi</span>
+          <div class="fill"></div><span id="zoomLabel2d">100%</span>
+        </div>
+        <div class="empty-state" id="empty2d">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 5-6 4 4"/></svg>
+          <h4>Belum ada data permukaan</h4>
+          <p>Impor file titik (.txt/.csv/.xyz) atau muat data sampel di panel kiri, lalu klik "Proses Surface &amp; Kontur".</p>
+        </div>
+      </div>
+
+      <!-- 3D Surface -->
+      <div class="panel" id="panel-3d">
+        <div class="elev-legend" id="legend3d" style="display:none">
+          <div class="legend-title">Elevasi (m)</div>
+          <div class="legend-grad"></div>
+          <div class="legend-labels"><span id="legMin3d">—</span><span id="legMid3d">—</span><span id="legMax3d">—</span></div>
+        </div>
+        <div class="view-controls" id="vc3d" style="display:none">
+          <button class="vc-btn" id="btnZoomIn3d" title="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnZoomOut3d" title="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnFit3d" title="Fit ke layar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button class="vc-btn" id="btnTopView3d" title="Tampak atas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="5"/></svg></button>
+        </div>
+        <div class="vexag-box" id="vexagBox3d" style="display:none">
+          <label><span>Exaggeration Z</span><span id="vexagVal3d">1.5×</span></label>
+          <input type="range" id="vexagSlider3d" min="0.2" max="5" step="0.1" value="1.5">
+        </div>
+        <div class="coord-bar" id="cbar3d" style="display:none">
+          <span>Drag: rotasi</span><div class="sep"></div><span>Shift+Drag / klik-kanan: geser</span><div class="sep"></div><span>Scroll: zoom</span>
+          <div class="fill"></div><span id="triCount3d">—</span>
+        </div>
+        <div class="empty-state" id="empty3d">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
+          <h4>Belum ada model 3D</h4>
+          <p>Proses data terlebih dahulu untuk membangun permukaan 3D (mesh grid hasil interpolasi).</p>
+        </div>
+      </div>
+
+      <!-- TIN Mesh -->
+      <div class="panel" id="panel-tin">
+        <div class="elev-legend" id="legendTin" style="display:none">
+          <div class="legend-title">Elevasi (m)</div>
+          <div class="legend-grad"></div>
+          <div class="legend-labels"><span id="legMinTin">—</span><span id="legMidTin">—</span><span id="legMaxTin">—</span></div>
+        </div>
+        <div class="view-controls" id="vcTin" style="display:none">
+          <button class="vc-btn" id="btnZoomInTin" title="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnZoomOutTin" title="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnFitTin" title="Fit ke layar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button class="vc-btn" id="btnWireTin" title="Toggle wireframe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 15H3z"/><path d="M12 3v15M7.5 10.5h9M4.8 15.5h14.4"/></svg></button>
+        </div>
+        <div class="coord-bar" id="cbarTin" style="display:none">
+          <span>Drag: rotasi</span><div class="sep"></div><span>Shift+Drag / klik-kanan: geser</span><div class="sep"></div><span>Scroll: zoom</span>
+          <div class="fill"></div><span id="triCountTin">—</span>
+        </div>
+        <div class="empty-state" id="emptyTin">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3l9 15H3z"/><path d="M12 3v15M7.5 10.5h9M4.8 15.5h14.4"/></svg>
+          <h4>Belum ada TIN mesh</h4>
+          <p>Proses data untuk membangun Triangulated Irregular Network langsung dari titik asli (bukan grid).</p>
+        </div>
+      </div>
+
+      <!-- Kontur -->
+      <div class="panel" id="panel-contour">
+        <canvas id="canvas-contour"></canvas>
+        <div class="panel-toolbar" id="toolsContour" style="display:none">
+          <button class="pt-btn" id="btnSectionC" title="Buat garis section/profil">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20L20 4"/><circle cx="4" cy="20" r="2.2"/><circle cx="20" cy="4" r="2.2"/></svg>
+            Section
+          </button>
+        </div>
+        <div class="view-controls" id="vcContour" style="display:none">
+          <button class="vc-btn" id="btnZoomInC" title="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnZoomOutC" title="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg></button>
+          <button class="vc-btn" id="btnFitC" title="Fit ke layar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+        </div>
+        <div class="coord-bar" id="cbarC" style="display:none">
+          <span>X <b id="cXC">—</b></span><span>Y <b id="cYC">—</b></span><span>Z <b id="cZC">—</b></span>
+          <div class="sep"></div><span id="modeLabelC">Mode: Navigasi</span>
+          <div class="fill"></div><span id="zoomLabelC">100%</span>
+        </div>
+        <div class="empty-state" id="emptyContour">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 17c3-4 4 4 7 0s4 4 7 0s4 4 6 0"/><path d="M2 11c3-4 4 4 7 0s4 4 7 0s4 4 6 0"/></svg>
+          <h4>Belum ada garis kontur</h4>
+          <p>Proses data untuk membangkitkan kontur dari grid DTM sesuai interval yang ditentukan.</p>
+        </div>
+      </div>
+
+      <!-- Section / Profile -->
+      <div class="panel" id="panel-profile">
+        <div class="profile-wrap">
+          <div class="profile-hint" id="profileHint">
+            <div class="empty-state" style="position:static">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 20l4-9 4 3 4-8 4 6 2-3"/></svg>
+              <h4>Belum ada section</h4>
+              <p>Buka tab "DTM 2D" atau "Kontur", klik tombol <b>Section</b>, lalu klik dua titik pada peta untuk membuat garis potongan memanjang (path profile).</p>
+            </div>
+          </div>
+          <div class="profile-chart-box" id="profileChartBox" style="display:none">
+            <div class="profile-head">
+              <div class="ph-row">
+                <span>From: <b id="fromPos">—</b></span>
+                <span id="profTitle">Path Profile</span>
+                <span>To: <b id="toPos">—</b></span>
+              </div>
+              <div class="ph-clearance" id="clearanceInfo" style="display:none"></div>
+            </div>
+            <div class="profile-canvas-holder">
+              <canvas id="canvas-profile"></canvas>
+              <div class="view-controls" id="vcProfile">
+                <button class="vc-btn" id="btnZoomInP" title="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+                <button class="vc-btn" id="btnZoomOutP" title="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg></button>
+                <button class="vc-btn" id="btnFitP" title="Fit ke layar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="loadingOverlay" style="display:none">
+        <div class="spin"></div>
+        <p id="loadingMsg">Memproses...</p>
+      </div>
+      <div class="tip" id="tip"></div>
+      <div class="toast" id="toast"></div>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/delaunator@5.0.1/delaunator.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+'use strict';
+/* ================================================================
+   GeoSurface Studio — application logic
+   Point cloud -> Delaunay TIN -> gridded DTM -> contours -> 3D views
+   ================================================================ */
+
+// —— Globals / state ————————————————————————————————————————————
+const STATE = {
+  raw: null,        // {x:Float32Array, y:Float32Array, z:Float32Array} local coords
+  n: 0,
+  bounds: null,     // {minx,miny,minz,maxx,maxy,maxz,width,height,ox,oy} ox/oy = world origin (absolute)
+  delaunay: null,   // Delaunator instance (built on local x,y)
+  grid: null,       // {ncols,nrows,res,z:Float32Array}
+  contours: null,   // [{z,major,pts:[[x,y],...]}]
+  loaded: false,
+  processing: false,
+  sectionLine: null, // {a:[x,y], b:[x,y]} local coords
+  sectionMode: false,
+  lastProfile: null,
+};
+
+const $ = id => document.getElementById(id);
+
+// —— Formatting helpers ————————————————————————————————————————
+const fmt0 = v => Number.isFinite(v) ? v.toFixed(0) : '—';
+const fmt1 = v => Number.isFinite(v) ? v.toFixed(1) : '—';
+const fmt2 = v => Number.isFinite(v) ? v.toFixed(2) : '—';
+const fmtK = v => Number.isFinite(v) ? (v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)) : '—';
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+
+function toast(msg, dur=2600){
+  const el=$('toast'); el.textContent=msg; el.style.opacity=1;
+  clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity=0,dur);
+}
+function setLoading(show, msg){
+  $('loadingOverlay').style.display = show?'flex':'none';
+  if(msg) $('loadingMsg').textContent = msg;
+}
+function progress(pct, msg){
+  $('progressFill').style.width = pct+'%';
+  $('statusLine').textContent = msg||'';
+}
+function tick(){ return new Promise(r=>setTimeout(r,0)); }
+
+// —— Elevation color ramp (matches legend gradient) ——————————————
+const RAMP_STOPS = [
+  [0.00, [33,89,201]],
+  [0.20, [31,181,201]],
+  [0.42, [63,194,122]],
+  [0.60, [217,201,58]],
+  [0.80, [224,116,42]],
+  [1.00, [195,63,63]],
+];
+function elevColor(t){
+  t = clamp(t,0,1);
+  for(let i=0;i<RAMP_STOPS.length-1;i++){
+    const [t0,c0]=RAMP_STOPS[i], [t1,c1]=RAMP_STOPS[i+1];
+    if(t>=t0 && t<=t1){
+      const f=(t1===t0)?0:(t-t0)/(t1-t0);
+      return [c0[0]+(c1[0]-c0[0])*f, c0[1]+(c1[1]-c0[1])*f, c0[2]+(c1[2]-c0[2])*f];
+    }
+  }
+  return RAMP_STOPS[RAMP_STOPS.length-1][1];
+}
+function elevColorHex(t){
+  const [r,g,b]=elevColor(t).map(v=>Math.round(v));
+  return `rgb(${r},${g},${b})`;
+}
+
+// —— Decompression helper (gzip base64) ——————————————————————————
+async function decompressB64(b64){
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  const ds = new DecompressionStream('gzip');
+  const w = ds.writable.getWriter(), r = ds.readable.getReader();
+  w.write(bytes); w.close();
+  const chunks=[]; let total=0;
+  for(;;){ const {value,done} = await r.read(); if(done) break; chunks.push(value); total+=value.length; }
+  const out = new Uint8Array(total);
+  let off=0; for(const c of chunks){ out.set(c,off); off+=c.length; }
+  return out.buffer;
+}
+
+// —— Parse plain text/csv point cloud (X Y Z [...]) ——————————————
+function parsePointsText(text){
+  const lines = text.split(/\r\n|\r|\n/);
+  const xs=[], ys=[], zs=[];
+  for(let i=0;i<lines.length;i++){
+    let line = lines[i].trim();
+    if(!line) continue;
+    // accept comma, semicolon, tab or whitespace separated
+    const parts = line.split(/[,;\t ]+/).filter(s=>s.length);
+    if(parts.length<3) continue;
+    // find first 3 finite numeric values
+    const nums = [];
+    for(let k=0;k<parts.length && nums.length<3;k++){
+      const v = Number(parts[k]);
+      if(Number.isFinite(v)) nums.push(v);
+      else if(nums.length>0) break; // stop at first non-numeric after we started collecting
+    }
+    if(nums.length<3) continue;
+    xs.push(nums[0]); ys.push(nums[1]); zs.push(nums[2]);
+  }
+  if(xs.length<3) throw new Error('Data titik tidak valid atau kurang dari 3 titik.');
+  return { x:Float32Array.from(xs), y:Float32Array.from(ys), z:Float32Array.from(zs) };
+}
+
+// —— Load embedded sample bundle (compressed point cloud) ——————————
+async function loadSampleBundle(){
+  progress(8,'Membuat data sampel...'); await tick();
+  // Synthetic rolling terrain sample (no bundled binary data in this build)
+  const n = 4000;
+  const width = 400, height = 320;
+  const x = new Float32Array(n), y = new Float32Array(n), z = new Float32Array(n);
+  let minz=Infinity, maxz=-Infinity;
+  for(let i=0;i<n;i++){
+    const px = Math.random()*width, py = Math.random()*height;
+    const pz = 120
+      + 14*Math.sin(px/55) + 10*Math.cos(py/40)
+      + 6*Math.sin((px+py)/30)
+      + (Math.random()-0.5)*1.6;
+    x[i]=px; y[i]=py; z[i]=pz;
+    if(pz<minz) minz=pz; if(pz>maxz) maxz=pz;
+  }
+  progress(20,'Data sampel dimuat...'); await tick();
+  STATE.raw = {x,y,z};
+  STATE.n = n;
+  STATE.bounds = {
+    ox: 618838.34, oy: 9344510.95,
+    minx:0, miny:0, maxx: width, maxy: height,
+    minz, maxz,
+    width, height,
+  };
+  await runPipeline();
+}
+
+// —— Handle uploaded file ————————————————————————————————————————
+async function processUploadedFile(file){
+  try{
+    setLoading(true,'Membaca file...');
+    progress(5,'Membaca file '+file.name+'...'); await tick();
+    const text = await file.text();
+    const {x,y,z} = parsePointsText(text);
+    let minx=Infinity,maxx=-Infinity,miny=Infinity,maxy=-Infinity,minz=Infinity,maxz=-Infinity;
+    for(let i=0;i<x.length;i++){
+      if(x[i]<minx)minx=x[i]; if(x[i]>maxx)maxx=x[i];
+      if(y[i]<miny)miny=y[i]; if(y[i]>maxy)maxy=y[i];
+      if(z[i]<minz)minz=z[i]; if(z[i]>maxz)maxz=z[i];
+    }
+    const lx = new Float32Array(x.length), ly = new Float32Array(y.length);
+    for(let i=0;i<x.length;i++){ lx[i]=x[i]-minx; ly[i]=y[i]-miny; }
+    STATE.raw = {x:lx, y:ly, z};
+    STATE.n = x.length;
+    STATE.bounds = { ox:minx, oy:miny, minx:0, miny:0, maxx:maxx-minx, maxy:maxy-miny, minz, maxz, width:maxx-minx, height:maxy-miny };
+    toast('✓ '+x.length.toLocaleString('id-ID')+' titik dimuat dari '+file.name);
+    await runPipeline();
+  }catch(err){
+    console.error(err);
+    setLoading(false);
+    toast('⚠ Gagal membaca file: '+err.message, 4000);
+  }
+}
+
+// —— Delaunay triangulation over raw local x,y ——————————————————
+function buildDelaunay(){
+  const {x,y} = STATE.raw;
+  const n = STATE.n;
+  const coords = new Float64Array(n*2);
+  for(let i=0;i<n;i++){ coords[i*2]=x[i]; coords[i*2+1]=y[i]; }
+  STATE.delaunay = new Delaunator(coords);
+}
+
+// —— Grid construction ————————————————————————————————————————————
+function computeGridDims(res){
+  const {width,height} = STATE.bounds;
+  let ncols = Math.max(2, Math.round(width/res)+1);
+  let nrows = Math.max(2, Math.round(height/res)+1);
+  // guard against runaway cell counts
+  while(ncols*nrows > 380000){
+    res *= 1.25;
+    ncols = Math.max(2, Math.round(width/res)+1);
+    nrows = Math.max(2, Math.round(height/res)+1);
+  }
+  return {ncols,nrows,res};
+}
+
+// TIN-based grid: rasterize Delaunay triangles with barycentric interpolation
+function gridFromTIN(res){
+  const {ncols,nrows} = computeGridDims(res);
+  const usedRes = STATE.bounds.width/(ncols-1);
+  const zGrid = new Float32Array(ncols*nrows).fill(NaN);
+  const {x,y,z} = STATE.raw;
+  const tris = STATE.delaunay.triangles;
+  const nt = tris.length/3;
+  for(let t=0;t<nt;t++){
+    const i0=tris[t*3], i1=tris[t*3+1], i2=tris[t*3+2];
+    const x0=x[i0],y0=y[i0],z0=z[i0];
+    const x1=x[i1],y1=y[i1],z1=z[i1];
+    const x2=x[i2],y2=y[i2],z2=z[i2];
+    const minX=Math.min(x0,x1,x2), maxX=Math.max(x0,x1,x2);
+    const minY=Math.min(y0,y1,y2), maxY=Math.max(y0,y1,y2);
+    let c0=Math.max(0,Math.floor(minX/usedRes));
+    let c1=Math.min(ncols-1,Math.ceil(maxX/usedRes));
+    let r0=Math.max(0,Math.floor(minY/usedRes));
+    let r1=Math.min(nrows-1,Math.ceil(maxY/usedRes));
+    const denom = (y1-y2)*(x0-x2)+(x2-x1)*(y0-y2);
+    if(Math.abs(denom)<1e-9) continue;
+    for(let r=r0;r<=r1;r++){
+      const py = r*usedRes;
+      for(let c=c0;c<=c1;c++){
+        const px = c*usedRes;
+        const w0 = ((y1-y2)*(px-x2)+(x2-x1)*(py-y2))/denom;
+        const w1 = ((y2-y0)*(px-x2)+(x0-x2)*(py-y2))/denom;
+        const w2 = 1-w0-w1;
+        if(w0>=-1e-6 && w1>=-1e-6 && w2>=-1e-6){
+          zGrid[r*ncols+c] = w0*z0+w1*z1+w2*z2;
+        }
+      }
+    }
+  }
+  return { ncols, nrows, res:usedRes, z:zGrid };
+}
+
+// Spatial bucket index for neighbor search (IDW / binning)
+function buildBuckets(cellSize){
+  const {width,height} = STATE.bounds;
+  const bcols = Math.max(1, Math.ceil(width/cellSize));
+  const brows = Math.max(1, Math.ceil(height/cellSize));
+  const buckets = new Array(bcols*brows);
+  for(let i=0;i<buckets.length;i++) buckets[i]=[];
+  const {x,y} = STATE.raw;
+  for(let i=0;i<STATE.n;i++){
+    let bc = Math.floor(x[i]/cellSize), br = Math.floor(y[i]/cellSize);
+    bc = clamp(bc,0,bcols-1); br = clamp(br,0,brows-1);
+    buckets[br*bcols+bc].push(i);
+  }
+  return {buckets,bcols,brows,cellSize};
+}
+
+function gridFromIDW(res, power){
+  const {ncols,nrows} = computeGridDims(res);
+  const usedRes = STATE.bounds.width/(ncols-1);
+  const zGrid = new Float32Array(ncols*nrows).fill(NaN);
+  const {x,y,z} = STATE.raw;
+  const bucketSize = Math.max(usedRes*3, STATE.bounds.width/60);
+  const {buckets,bcols,brows,cellSize} = buildBuckets(bucketSize);
+  for(let r=0;r<nrows;r++){
+    const py = r*usedRes;
+    for(let c=0;c<ncols;c++){
+      const px = c*usedRes;
+      let bc = clamp(Math.floor(px/cellSize),0,bcols-1);
+      let br = clamp(Math.floor(py/cellSize),0,brows-1);
+      let ring=1, num=0, den=0, found=0;
+      while(found<4 && ring<Math.max(bcols,brows)+1){
+        num=0;den=0;found=0;
+        const c0=clamp(bc-ring,0,bcols-1), c1=clamp(bc+ring,0,bcols-1);
+        const r0=clamp(br-ring,0,brows-1), r1=clamp(br+ring,0,brows-1);
+        for(let rr=r0;rr<=r1;rr++){
+          for(let cc=c0;cc<=c1;cc++){
+            const pts = buckets[rr*bcols+cc];
+            for(let k=0;k<pts.length;k++){
+              const idx = pts[k];
+              const dx=x[idx]-px, dy=y[idx]-py;
+              const d2 = dx*dx+dy*dy;
+              found++;
+              if(d2<1e-6){ num=z[idx]*1e12; den=1e12; continue; }
+              const w = 1/Math.pow(d2,power/2);
+              num += w*z[idx]; den += w;
+            }
+          }
+        }
+        ring++;
+        if(ring>Math.max(bcols,brows)) break;
+      }
+      if(den>0) zGrid[r*ncols+c] = num/den;
+    }
+  }
+  return { ncols, nrows, res:usedRes, z:zGrid };
+}
+
+function gridFromBinning(res, mode){
+  const {ncols,nrows} = computeGridDims(res);
+  const usedRes = STATE.bounds.width/(ncols-1);
+  const sum = new Float32Array(ncols*nrows).fill(0);
+  const cnt = new Int32Array(ncols*nrows).fill(0);
+  const minv = new Float32Array(ncols*nrows).fill(Infinity);
+  const {x,y,z} = STATE.raw;
+  for(let i=0;i<STATE.n;i++){
+    let c = Math.round(x[i]/usedRes);
+    let r = Math.round(y[i]/usedRes);
+    c = clamp(c,0,ncols-1); r = clamp(r,0,nrows-1);
+    const idx = r*ncols+c;
+    sum[idx]+=z[i]; cnt[idx]++;
+    if(z[i]<minv[idx]) minv[idx]=z[i];
+  }
+  const zGrid = new Float32Array(ncols*nrows).fill(NaN);
+  for(let i=0;i<zGrid.length;i++){
+    if(cnt[i]>0) zGrid[i] = (mode==='min') ? minv[i] : sum[i]/cnt[i];
+  }
+  // fill small gaps (empty bins) using nearest filled neighbor within small radius
+  for(let r=0;r<nrows;r++){
+    for(let c=0;c<ncols;c++){
+      const idx=r*ncols+c;
+      if(!Number.isNaN(zGrid[idx])) continue;
+      let best=NaN, bestD=Infinity;
+      for(let dr=-2;dr<=2;dr++){
+        for(let dc=-2;dc<=2;dc++){
+          const rr=r+dr, cc=c+dc;
+          if(rr<0||rr>=nrows||cc<0||cc>=ncols) continue;
+          const v=zGrid[rr*ncols+cc];
+          if(Number.isNaN(v)) continue;
+          const d=dr*dr+dc*dc;
+          if(d<bestD){bestD=d;best=v;}
+        }
+      }
+      if(!Number.isNaN(best)) zGrid[idx]=best;
+    }
+  }
+  return { ncols, nrows, res:usedRes, z:zGrid };
+}
+
+function bilinearSample(grid, wx, wy){
+  const {ncols,nrows,res,z} = grid;
+  const fx = wx/res, fy = wy/res;
+  const c0 = clamp(Math.floor(fx),0,ncols-1), r0 = clamp(Math.floor(fy),0,nrows-1);
+  const c1 = clamp(c0+1,0,ncols-1), r1 = clamp(r0+1,0,nrows-1);
+  const tx = clamp(fx-c0,0,1), ty = clamp(fy-r0,0,1);
+  const z00=z[r0*ncols+c0], z10=z[r0*ncols+c1], z01=z[r1*ncols+c0], z11=z[r1*ncols+c1];
+  const vals=[z00,z10,z01,z11].filter(v=>!Number.isNaN(v));
+  if(vals.length===0) return NaN;
+  const safe = v=>Number.isNaN(v) ? (vals.reduce((a,b)=>a+b,0)/vals.length) : v;
+  const top = safe(z00)*(1-tx)+safe(z10)*tx;
+  const bot = safe(z01)*(1-tx)+safe(z11)*tx;
+  return top*(1-ty)+bot*ty;
+}
+
+// —— Marching squares contour generation ——————————————————————————
+const EDGE_CORNER_PAIRS = [[0,1],[1,2],[2,3],[3,0]]; // bottom,right,top,left
+const EDGE_TABLE = {
+  1:[[3,0]], 14:[[3,0]],
+  2:[[0,1]], 13:[[0,1]],
+  3:[[3,1]], 12:[[3,1]],
+  4:[[1,2]], 11:[[1,2]],
+  6:[[0,2]], 9:[[0,2]],
+  7:[[3,2]], 8:[[3,2]],
+  5:[[3,2],[0,1]],
+  10:[[3,0],[1,2]],
+};
+
+function edgePointFor(corners, edgeIdx, level){
+  const [ia,ib] = EDGE_CORNER_PAIRS[edgeIdx];
+  const A=corners[ia], B=corners[ib];
+  let t = (level-A[2])/(B[2]-A[2]);
+  t = clamp(t,0,1);
+  return [A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t];
+}
+
+function traceContours(grid, interval, majorN){
+  const {ncols,nrows,res,z} = grid;
+  let zmin=Infinity, zmax=-Infinity;
+  for(let i=0;i<z.length;i++){ const v=z[i]; if(!Number.isNaN(v)){ if(v<zmin)zmin=v; if(v>zmax)zmax=v; } }
+  if(!Number.isFinite(zmin)) return [];
+  const level0 = Math.ceil(zmin/interval)*interval;
+  const segsByLevel = new Map(); // level(rounded key) -> array of [p1,p2]
+
+  for(let r=0;r<nrows-1;r++){
+    for(let c=0;c<ncols-1;c++){
+      const v00=z[r*ncols+c], v10=z[r*ncols+c+1], v11=z[(r+1)*ncols+c+1], v01=z[(r+1)*ncols+c];
+      if(Number.isNaN(v00)||Number.isNaN(v10)||Number.isNaN(v11)||Number.isNaN(v01)) continue;
+      const cmin=Math.min(v00,v10,v11,v01), cmax=Math.max(v00,v10,v11,v01);
+      if(cmax<zmin||cmin>zmax) continue;
+      const lStart = Math.max(level0, Math.ceil(cmin/interval)*interval);
+      const corners = [
+        [c*res, r*res, v00],
+        [(c+1)*res, r*res, v10],
+        [(c+1)*res, (r+1)*res, v11],
+        [c*res, (r+1)*res, v01],
+      ];
+      for(let level=lStart; level<=cmax+1e-9; level+=interval){
+        if(level<cmin || level>cmax) continue;
+        const cs = (v00>=level?1:0)|(v10>=level?2:0)|(v11>=level?4:0)|(v01>=level?8:0);
+        const edges = EDGE_TABLE[cs];
+        if(!edges) continue;
+        const key = Math.round(level*1000);
+        if(!segsByLevel.has(key)) segsByLevel.set(key,[]);
+        const arr = segsByLevel.get(key);
+        for(const [ea,eb] of edges){
+          const p1 = edgePointFor(corners, ea, level);
+          const p2 = edgePointFor(corners, eb, level);
+          arr.push([p1,p2]);
+        }
+      }
+    }
+  }
+
+  const results = [];
+  const nMajor = Math.max(2, majorN|0);
+  for(const [key, segs] of segsByLevel){
+    const level = key/1000;
+    const polylines = chainSegments(segs);
+    const idxFromMin = Math.round((level-level0)/interval);
+    const major = Math.abs(idxFromMin % nMajor) < 1e-6;
+    for(const pts of polylines){
+      if(pts.length<2) continue;
+      results.push({ z: level, major, pts });
+    }
+  }
+  results.sort((a,b)=>a.z-b.z);
+  return results;
+}
+
+function chainSegments(segs){
+  const key = p => Math.round(p[0]*200)+','+Math.round(p[1]*200);
+  const adj = new Map();
+  segs.forEach((s,i)=>{
+    [0,1].forEach(end=>{
+      const k = key(s[end]);
+      if(!adj.has(k)) adj.set(k,[]);
+      adj.get(k).push({i,end});
+    });
+  });
+  const used = new Array(segs.length).fill(false);
+  const polylines = [];
+  for(let i=0;i<segs.length;i++){
+    if(used[i]) continue;
+    used[i]=true;
+    let poly = [segs[i][0], segs[i][1]];
+    let guard=0;
+    let extend=true;
+    while(extend && guard++<100000){
+      extend=false;
+      const k = key(poly[poly.length-1]);
+      const cands = adj.get(k)||[];
+      for(const cnd of cands){
+        if(!used[cnd.i]){
+          used[cnd.i]=true;
+          const seg=segs[cnd.i];
+          poly.push(cnd.end===0 ? seg[1] : seg[0]);
+          extend=true;
+          break;
+        }
+      }
+    }
+    extend=true; guard=0;
+    while(extend && guard++<100000){
+      extend=false;
+      const k = key(poly[0]);
+      const cands = adj.get(k)||[];
+      for(const cnd of cands){
+        if(!used[cnd.i]){
+          used[cnd.i]=true;
+          const seg=segs[cnd.i];
+          poly.unshift(cnd.end===0 ? seg[1] : seg[0]);
+          extend=true;
+          break;
+        }
+      }
+    }
+    polylines.push(poly);
+  }
+  return polylines;
+}
+
+// —— Heatmap raster builder (shared by 2D + Kontur panels) ————————
+function buildHeatmapRaster(grid){
+  const {ncols,nrows,z} = grid;
+  let zmin=Infinity, zmax=-Infinity;
+  for(let i=0;i<z.length;i++){ const v=z[i]; if(!Number.isNaN(v)){ if(v<zmin)zmin=v; if(v>zmax)zmax=v; } }
+  const canvas = document.createElement('canvas');
+  canvas.width = ncols; canvas.height = nrows;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(ncols,nrows);
+  const range = (zmax-zmin)||1;
+  for(let pr=0; pr<nrows; pr++){
+    const r = nrows-1-pr; // flip so row0(top pixel) = max Y (north-up)
+    for(let c=0;c<ncols;c++){
+      const v = z[r*ncols+c];
+      const di = (pr*ncols+c)*4;
+      if(Number.isNaN(v)){ img.data[di+3]=0; continue; }
+      const t=(v-zmin)/range;
+      const [R,G,B] = elevColor(t);
+      img.data[di]=R; img.data[di+1]=G; img.data[di+2]=B; img.data[di+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  return {canvas, zmin, zmax};
+}
+
+// —— Generic 2D world<->screen camera ——————————————————————————————
+function makeCam(){ return {zoom:1, panX:0, panY:0}; }
+
+function csrect(canvas){
+  const r = canvas.getBoundingClientRect();
+  return {w:Math.max(1,r.width), h:Math.max(1,r.height)};
+}
+function syncCanvasRes(canvas){
+  const dpr = Math.min(2, window.devicePixelRatio||1);
+  const {w,h} = csrect(canvas);
+  const tw = Math.round(w*dpr), th = Math.round(h*dpr);
+  if(canvas.width!==tw || canvas.height!==th){ canvas.width=tw; canvas.height=th; }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {w,h,ctx};
+}
+
+function worldToScreen(cam, wx, wy, cw, ch, ww, wh){
+  const baseScale = Math.min(cw/ww, ch/wh) * 0.90;
+  const scale = baseScale * cam.zoom;
+  const cx = cw/2 + cam.panX, cy = ch/2 + cam.panY;
+  return [ cx + (wx-ww/2)*scale, cy - (wy-wh/2)*scale, scale ];
+}
+function screenToWorld(cam, sx, sy, cw, ch, ww, wh){
+  const baseScale = Math.min(cw/ww, ch/wh) * 0.90;
+  const scale = baseScale * cam.zoom;
+  const cx = cw/2 + cam.panX, cy = ch/2 + cam.panY;
+  return [ (sx-cx)/scale + ww/2, -(sy-cy)/scale + wh/2 ];
+}
+
+const cam2d = makeCam();
+const camC = makeCam();
+
+// —— 2D DTM panel render —————————————————————————————————————————
+function draw2D(){
+  if(!STATE.loaded) return;
+  const canvas = $('canvas2d');
+  const {w:cw,h:ch,ctx} = syncCanvasRes(canvas);
+  ctx.clearRect(0,0,cw,ch);
+  const {width:ww, height:wh} = STATE.bounds;
+
+  if(STATE.raster2d){
+    const [x0,y0] = worldToScreen(cam2d, 0, wh, cw, ch, ww, wh);
+    const [x1,y1] = worldToScreen(cam2d, ww, 0, cw, ch, ww, wh);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(STATE.raster2d.canvas, x0, y0, x1-x0, y1-y0);
+  }
+
+  if($('togPoints').checked && STATE.raw){
+    const step = Math.max(1, Math.floor(STATE.n/4000));
+    ctx.fillStyle='rgba(20,25,35,.55)';
+    for(let i=0;i<STATE.n;i+=step){
+      const [sx,sy] = worldToScreen(cam2d, STATE.raw.x[i], STATE.raw.y[i], cw,ch,ww,wh);
+      ctx.beginPath(); ctx.arc(sx,sy,1.4,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  drawSectionOverlay(ctx, cam2d, cw,ch,ww,wh);
+  $('zoomLabel2d').textContent = Math.round(cam2d.zoom*100)+'%';
+}
+
+// —— Kontur panel render —————————————————————————————————————————
+function drawContour(){
+  if(!STATE.loaded) return;
+  const canvas = $('canvas-contour');
+  const {w:cw,h:ch,ctx} = syncCanvasRes(canvas);
+  ctx.clearRect(0,0,cw,ch);
+  const {width:ww, height:wh} = STATE.bounds;
+
+  if(STATE.raster2d){
+    const [x0,y0] = worldToScreen(camC, 0, wh, cw, ch, ww, wh);
+    const [x1,y1] = worldToScreen(camC, ww, 0, cw, ch, ww, wh);
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalAlpha = 0.92;
+    ctx.drawImage(STATE.raster2d.canvas, x0, y0, x1-x0, y1-y0);
+    ctx.globalAlpha = 1;
+  }
+
+  if(STATE.contours){
+    const showLabel = $('togLabel').checked;
+    for(const line of STATE.contours){
+      ctx.beginPath();
+      for(let i=0;i<line.pts.length;i++){
+        const [sx,sy] = worldToScreen(camC, line.pts[i][0], line.pts[i][1], cw,ch,ww,wh);
+        if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+      }
+      ctx.strokeStyle = line.major ? 'rgba(35,40,50,.82)' : 'rgba(60,68,82,.42)';
+      ctx.lineWidth = line.major ? 1.5 : 0.75;
+      ctx.stroke();
+
+      if(line.major && showLabel && line.pts.length>4){
+        const mid = line.pts[Math.floor(line.pts.length*0.45)];
+        const [sx,sy] = worldToScreen(camC, mid[0], mid[1], cw,ch,ww,wh);
+        const txt = line.z.toFixed(0);
+        ctx.font = '600 10px "JetBrains Mono",monospace';
+        const tw = ctx.measureText(txt).width;
+        ctx.fillStyle='rgba(255,255,255,.88)';
+        ctx.fillRect(sx-tw/2-3, sy-7, tw+6, 13);
+        ctx.fillStyle='#1c2430';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(txt, sx, sy-0.5);
+      }
+    }
+  }
+
+  drawSectionOverlay(ctx, camC, cw,ch,ww,wh);
+  $('zoomLabelC').textContent = Math.round(camC.zoom*100)+'%';
+}
+
+function drawSectionOverlay(ctx, cam, cw,ch,ww,wh){
+  if(!STATE.sectionLine) return;
+  const {a,b} = STATE.sectionLine;
+  const [ax,ay] = worldToScreen(cam, a[0], a[1], cw,ch,ww,wh);
+  ctx.save();
+  ctx.fillStyle = '#f5c518';
+  ctx.strokeStyle = '#8a6d00';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(ax,ay,5,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  if(b){
+    const [bx,by] = worldToScreen(cam, b[0], b[1], cw,ch,ww,wh);
+    ctx.strokeStyle = '#f5c518';
+    ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.fillStyle = '#f5c518'; ctx.strokeStyle='#8a6d00'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.arc(bx,by,5,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// —— Pan / zoom / section-click wiring for a 2D-style canvas panel —
+function wirePanZoom(canvas, cam, redrawFn, opts){
+  let dragging=false, moved=false, lastX=0, lastY=0, startX=0, startY=0;
+
+  function worldAt(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const sx = clientX-rect.left, sy = clientY-rect.top;
+    const {width:ww,height:wh} = STATE.bounds;
+    return screenToWorld(cam, sx, sy, rect.width, rect.height, ww, wh);
+  }
+
+  canvas.addEventListener('mousedown', e=>{
+    dragging=true; moved=false; lastX=e.clientX; lastY=e.clientY; startX=e.clientX; startY=e.clientY;
+  });
+  window.addEventListener('mousemove', e=>{
+    if(dragging){
+      const dx=e.clientX-lastX, dy=e.clientY-lastY;
+      if(Math.abs(e.clientX-startX)>3||Math.abs(e.clientY-startY)>3) moved=true;
+      if(moved){ cam.panX+=dx; cam.panY+=dy; lastX=e.clientX; lastY=e.clientY; redrawFn(); }
+    }
+  });
+  window.addEventListener('mouseup', e=>{
+    if(!dragging) return;
+    dragging=false;
+    if(!moved){
+      // treat as click
+      if(STATE.sectionMode && opts.onSectionClick){
+        opts.onSectionClick(worldAt(e.clientX, e.clientY));
+      }
+    }
+  });
+  canvas.addEventListener('mousemove', e=>{
+    if(!STATE.loaded) return;
+    const [wx,wy] = worldAt(e.clientX, e.clientY);
+    const z = STATE.grid ? bilinearSample(STATE.grid, wx, wy) : NaN;
+    if(opts.coordEls){
+      opts.coordEls.x.textContent = fmt2(STATE.bounds.ox+wx);
+      opts.coordEls.y.textContent = fmt2(STATE.bounds.oy+wy);
+      opts.coordEls.z.textContent = Number.isFinite(z) ? fmt1(z)+' m' : '—';
+    }
+  });
+  canvas.addEventListener('wheel', e=>{
+    if(!STATE.loaded) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX-rect.left, sy = e.clientY-rect.top;
+    const {width:ww,height:wh} = STATE.bounds;
+    const [wx,wy] = screenToWorld(cam, sx, sy, rect.width, rect.height, ww, wh);
+    const factor = e.deltaY<0 ? 1.15 : 1/1.15;
+    cam.zoom = clamp(cam.zoom*factor, 0.15, 60);
+    const [sx2,sy2] = worldToScreen(cam, wx, wy, rect.width, rect.height, ww, wh);
+    cam.panX += sx-sx2; cam.panY += sy-sy2;
+    redrawFn();
+  }, {passive:false});
+
+  // basic touch support (single-finger pan, two-finger pinch zoom)
+  let touchState=null;
+  canvas.addEventListener('touchstart', e=>{
+    if(e.touches.length===1){
+      touchState={mode:'pan', x:e.touches[0].clientX, y:e.touches[0].clientY, moved:false, sx:e.touches[0].clientX, sy:e.touches[0].clientY};
+    } else if(e.touches.length===2){
+      const [t0,t1]=e.touches;
+      touchState={mode:'pinch', d:Math.hypot(t1.clientX-t0.clientX,t1.clientY-t0.clientY)};
+    }
+  }, {passive:true});
+  canvas.addEventListener('touchmove', e=>{
+    if(!touchState) return;
+    e.preventDefault();
+    if(touchState.mode==='pan' && e.touches.length===1){
+      const dx=e.touches[0].clientX-touchState.x, dy=e.touches[0].clientY-touchState.y;
+      if(Math.abs(e.touches[0].clientX-touchState.sx)>3||Math.abs(e.touches[0].clientY-touchState.sy)>3) touchState.moved=true;
+      cam.panX+=dx; cam.panY+=dy;
+      touchState.x=e.touches[0].clientX; touchState.y=e.touches[0].clientY;
+      redrawFn();
+    } else if(touchState.mode==='pinch' && e.touches.length===2){
+      const [t0,t1]=e.touches;
+      const d=Math.hypot(t1.clientX-t0.clientX,t1.clientY-t0.clientY);
+      const factor = d/touchState.d;
+      cam.zoom = clamp(cam.zoom*factor, 0.15, 60);
+      touchState.d=d;
+      redrawFn();
+    }
+  }, {passive:false});
+  canvas.addEventListener('touchend', e=>{
+    if(touchState && touchState.mode==='pan' && !touchState.moved && STATE.sectionMode && opts.onSectionClick){
+      opts.onSectionClick(worldAt(touchState.x, touchState.y));
+    }
+    touchState=null;
+  });
+}
+
+function fitCam(cam, redrawFn){ cam.zoom=1; cam.panX=0; cam.panY=0; redrawFn(); }
+
+// —— Minimal orbit controls (rotate / pan / zoom) ——————————————————
+class OrbitLite{
+  constructor(camera, dom, target){
+    this.camera = camera; this.dom = dom;
+    this.target = target ? target.clone() : new THREE.Vector3();
+    const off = camera.position.clone().sub(this.target);
+    this.radius = off.length() || 10;
+    this.theta = Math.atan2(off.x, off.z);
+    this.phi = Math.acos(clamp(off.y/this.radius, -1, 1));
+    this.minRadius = 0.01; this.maxRadius = 1e6;
+    this._bind();
+    this.update();
+  }
+  _bind(){
+    let mode=null, lastX=0, lastY=0;
+    const onDown = e=>{
+      const isTouch = e.touches;
+      const p = isTouch ? e.touches[0] : e;
+      mode = (e.button===2 || e.shiftKey) ? 'pan' : 'rotate';
+      if(isTouch && e.touches.length===2){ mode='pinch'; this._pinchD = this._touchDist(e.touches); }
+      lastX=p.clientX; lastY=p.clientY;
+      this.dom.parentElement.classList.add('grabbing');
+    };
+    const onMove = e=>{
+      if(!mode) return;
+      const isTouch = e.touches;
+      if(isTouch && mode==='pinch' && e.touches.length===2){
+        const d = this._touchDist(e.touches);
+        const f = this._pinchD/d;
+        this.radius = clamp(this.radius*f, this.minRadius, this.maxRadius);
+        this._pinchD = d;
+        this.update();
+        return;
+      }
+      const p = isTouch ? e.touches[0] : e;
+      const dx = p.clientX-lastX, dy = p.clientY-lastY;
+      lastX=p.clientX; lastY=p.clientY;
+      if(mode==='rotate'){
+        this.theta -= dx*0.007;
+        this.phi = clamp(this.phi - dy*0.007, 0.06, Math.PI-0.06);
+      } else if(mode==='pan'){
+        const panScale = this.radius*0.0016;
+        const fwd = new THREE.Vector3(); this.camera.getWorldDirection(fwd);
+        const right = new THREE.Vector3().crossVectors(fwd, this.camera.up).normalize();
+        const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
+        this.target.addScaledVector(right, -dx*panScale);
+        this.target.addScaledVector(up, dy*panScale);
+      }
+      this.update();
+    };
+    const onUp = ()=>{ mode=null; this.dom.parentElement.classList.remove('grabbing'); };
+    this.dom.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    this.dom.addEventListener('contextmenu', e=>e.preventDefault());
+    this.dom.addEventListener('wheel', e=>{
+      e.preventDefault();
+      const f = e.deltaY<0 ? 0.88 : 1.12;
+      this.radius = clamp(this.radius*f, this.minRadius, this.maxRadius);
+      this.update();
+    }, {passive:false});
+    this.dom.addEventListener('touchstart', onDown, {passive:true});
+    this.dom.addEventListener('touchmove', e=>{ e.preventDefault(); onMove(e); }, {passive:false});
+    this.dom.addEventListener('touchend', onUp);
+  }
+  _touchDist(t){ return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+  update(){
+    const sp = this.radius*Math.sin(this.phi);
+    const x = sp*Math.sin(this.theta), z = sp*Math.cos(this.theta), y = this.radius*Math.cos(this.phi);
+    this.camera.position.set(this.target.x+x, this.target.y+y, this.target.z+z);
+    this.camera.lookAt(this.target);
+  }
+  fitTo(center, radius){
+    this.target.copy(center);
+    this.radius = radius*2.4;
+    this.theta = Math.PI*0.32;
+    this.phi = Math.PI*0.36;
+    this.update();
+  }
+  topView(center, radius){
+    this.target.copy(center);
+    this.radius = radius*2.4;
+    this.theta = 0.001;
+    this.phi = 0.15;
+    this.update();
+  }
+}
+
+function skyTexture(){
+  const c = document.createElement('canvas'); c.width=8; c.height=256;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0,0,0,256);
+  g.addColorStop(0, '#bcd8f2');
+  g.addColorStop(0.55, '#dcebf6');
+  g.addColorStop(1, '#f3f6f4');
+  ctx.fillStyle=g; ctx.fillRect(0,0,8,256);
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// —— generic three.js viewer bootstrap ——————————————————————————————
+function initViewer(containerId){
+  const container = $(containerId);
+  const w = container.clientWidth||600, h = container.clientHeight||400;
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio||1));
+  renderer.setSize(w,h);
+  if(renderer.outputEncoding!==undefined) renderer.outputEncoding = THREE.sRGBEncoding;
+  container.insertBefore(renderer.domElement, container.firstChild);
+
+  const scene = new THREE.Scene();
+  scene.background = skyTexture();
+
+  const camera = new THREE.PerspectiveCamera(42, w/h, 0.1, 1e6);
+  camera.position.set(1,1,1);
+
+  const amb = new THREE.AmbientLight(0xffffff, 0.65);
+  scene.add(amb);
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+  sun.position.set(0.6,1,0.4);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xdbe8ff, 0.35);
+  fill.position.set(-0.6,0.4,-0.5);
+  scene.add(fill);
+
+  const controls = new OrbitLite(camera, renderer.domElement, new THREE.Vector3());
+
+  function resize(){
+    const cw = container.clientWidth||1, ch = container.clientHeight||1;
+    renderer.setSize(cw,ch);
+    camera.aspect = cw/ch;
+    camera.updateProjectionMatrix();
+  }
+  function render(){ renderer.render(scene,camera); }
+
+  let raf=null;
+  function loop(){ render(); raf=requestAnimationFrame(loop); }
+
+  return {container, renderer, scene, camera, controls, resize, render, loop, mesh:null};
+}
+
+let viewer3d = null, viewerTin = null;
+
+// —— Build terrain surface mesh from grid ——————————————————————————
+function buildSurfaceMesh(vexag){
+  const {ncols,nrows,res,z} = STATE.grid;
+  const {width:ww, height:wh} = STATE.bounds;
+  let zmin=Infinity,zmax=-Infinity;
+  for(let i=0;i<z.length;i++){ const v=z[i]; if(!Number.isNaN(v)){ if(v<zmin)zmin=v; if(v>zmax)zmax=v; } }
+  const zc = (zmin+zmax)/2;
+  const positions = new Float32Array(ncols*nrows*3);
+  const colors = new Float32Array(ncols*nrows*3);
+  const valid = new Uint8Array(ncols*nrows);
+  const range = (zmax-zmin)||1;
+  for(let r=0;r<nrows;r++){
+    for(let c=0;c<ncols;c++){
+      const idx = r*ncols+c;
+      const v = z[idx];
+      const px = c*res - ww/2, pz = r*res - wh/2;
+      let py;
+      if(Number.isNaN(v)){ valid[idx]=0; py=0; }
+      else { valid[idx]=1; py=(v-zc)*vexag; }
+      positions[idx*3]=px; positions[idx*3+1]=py; positions[idx*3+2]=pz;
+      const t = Number.isNaN(v) ? 0 : (v-zmin)/range;
+      const [R,G,B] = elevColor(t);
+      colors[idx*3]=R/255; colors[idx*3+1]=G/255; colors[idx*3+2]=B/255;
+    }
+  }
+  const indices = [];
+  for(let r=0;r<nrows-1;r++){
+    for(let c=0;c<ncols-1;c++){
+      const i00=r*ncols+c, i10=r*ncols+c+1, i01=(r+1)*ncols+c, i11=(r+1)*ncols+c+1;
+      if(!valid[i00]||!valid[i10]||!valid[i01]||!valid[i11]) continue;
+      indices.push(i00,i01,i10, i10,i01,i11);
+    }
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geom.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  return {geom, zmin, zmax, sizeXZ: Math.max(ww,wh)};
+}
+
+function renderSurface3D(){
+  if(!viewer3d) viewer3d = initViewer('panel-3d');
+  const vexag = parseFloat($('vexagSlider3d').value)||1.5;
+  if(viewer3d.mesh){ viewer3d.scene.remove(viewer3d.mesh); viewer3d.mesh.geometry.dispose(); viewer3d.mesh.material.dispose(); }
+  if(viewer3d.wire){ viewer3d.scene.remove(viewer3d.wire); viewer3d.wire.geometry.dispose(); viewer3d.wire.material.dispose(); viewer3d.wire=null; }
+
+  const {geom, zmin, zmax, sizeXZ} = buildSurfaceMesh(vexag);
+  const mat = new THREE.MeshStandardMaterial({vertexColors:true, roughness:0.92, metalness:0.02, side:THREE.DoubleSide, flatShading:false});
+  const mesh = new THREE.Mesh(geom, mat);
+  viewer3d.scene.add(mesh);
+  viewer3d.mesh = mesh;
+
+  if($('togWire').checked){
+    const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geom), new THREE.LineBasicMaterial({color:0x1c2430, transparent:true, opacity:0.18}));
+    viewer3d.scene.add(wire);
+    viewer3d.wire = wire;
+  }
+
+  const bbox = new THREE.Box3().setFromObject(mesh);
+  const center = bbox.getCenter(new THREE.Vector3());
+  const radius = bbox.getSize(new THREE.Vector3()).length()/2 || sizeXZ/2;
+  viewer3d.controls.fitTo(center, radius);
+  viewer3d.resize();
+  viewer3d.render();
+  if(!viewer3d._looping){ viewer3d._looping=true; viewer3d.loop(); }
+
+  $('legMin3d').textContent = fmt0(zmin)+' m';
+  $('legMax3d').textContent = fmt0(zmax)+' m';
+  $('legMid3d').textContent = fmt0((zmin+zmax)/2)+' m';
+  $('triCount3d').textContent = fmtK(geom.index.count/3)+' segitiga';
+}
+
+// —— Build raw TIN mesh (irregular, direct from points) ————————————
+function buildTinMesh(){
+  const {x,y,z} = STATE.raw;
+  const {width:ww, height:wh, minz, maxz} = STATE.bounds;
+  const zc = (minz+maxz)/2;
+  const n = STATE.n;
+  const positions = new Float32Array(n*3);
+  const colors = new Float32Array(n*3);
+  const range = (maxz-minz)||1;
+  for(let i=0;i<n;i++){
+    positions[i*3]=x[i]-ww/2; positions[i*3+1]=z[i]-zc; positions[i*3+2]=y[i]-wh/2;
+    const t=(z[i]-minz)/range;
+    const [R,G,B]=elevColor(t);
+    colors[i*3]=R/255; colors[i*3+1]=G/255; colors[i*3+2]=B/255;
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geom.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  geom.setIndex(new THREE.BufferAttribute(Uint32Array.from(STATE.delaunay.triangles),1));
+  geom.computeVertexNormals();
+  return {geom, sizeXZ: Math.max(ww,wh)};
+}
+
+function renderTin3D(){
+  if(!viewerTin) viewerTin = initViewer('panel-tin');
+  if(viewerTin.mesh){ viewerTin.scene.remove(viewerTin.mesh); viewerTin.mesh.geometry.dispose(); viewerTin.mesh.material.dispose(); }
+  if(viewerTin.wire){ viewerTin.scene.remove(viewerTin.wire); viewerTin.wire.geometry.dispose(); viewerTin.wire.material.dispose(); viewerTin.wire=null; }
+
+  const {geom, sizeXZ} = buildTinMesh();
+  const mat = new THREE.MeshStandardMaterial({vertexColors:true, roughness:0.9, metalness:0.02, side:THREE.DoubleSide});
+  const mesh = new THREE.Mesh(geom, mat);
+  viewerTin.scene.add(mesh);
+  viewerTin.mesh = mesh;
+
+  const showWire = $('togWire').checked;
+  const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geom), new THREE.LineBasicMaterial({color:0x1c2430, transparent:true, opacity: showWire?0.35:0}));
+  viewerTin.scene.add(wire);
+  viewerTin.wire = wire;
+
+  const bbox = new THREE.Box3().setFromObject(mesh);
+  const center = bbox.getCenter(new THREE.Vector3());
+  const radius = bbox.getSize(new THREE.Vector3()).length()/2 || sizeXZ/2;
+  viewerTin.controls.fitTo(center, radius);
+  viewerTin.resize();
+  viewerTin.render();
+  if(!viewerTin._looping){ viewerTin._looping=true; viewerTin.loop(); }
+
+  $('legMinTin').textContent = fmt0(STATE.bounds.minz)+' m';
+  $('legMaxTin').textContent = fmt0(STATE.bounds.maxz)+' m';
+  $('legMidTin').textContent = fmt0((STATE.bounds.minz+STATE.bounds.maxz)/2)+' m';
+  $('triCountTin').textContent = fmtK(STATE.delaunay.triangles.length/3)+' segitiga';
+}
+
+// —— Profile / section chart ——————————————————————————————————————
+const camProfile = { start:0, end:1 }; // visible distance window [start,end] in meters
+
+function niceNum(range, round){
+  if(range<=0) return 1;
+  const exp = Math.floor(Math.log10(range));
+  const frac = range/Math.pow(10,exp);
+  let nf;
+  if(round){ nf = frac<1.5?1: frac<3?2: frac<7?5:10; }
+  else { nf = frac<=1?1: frac<=2?2: frac<=5?5:10; }
+  return nf*Math.pow(10,exp);
+}
+function niceTicks(min,max,desired){
+  const range = niceNum(Math.max(max-min,1e-6), false);
+  const step = niceNum(range/Math.max(1,desired-1), true);
+  const niceMin = Math.floor(min/step)*step;
+  const niceMax = Math.ceil(max/step)*step;
+  const out=[];
+  for(let v=niceMin; v<=niceMax+step*1e-6; v+=step) out.push(v);
+  return {step, ticks:out};
+}
+
+function computeAndShowProfile(){
+  if(!STATE.sectionLine || !STATE.sectionLine.b || !STATE.grid) return;
+  const {a,b} = STATE.sectionLine;
+  const steps = 500;
+  const dist = new Float32Array(steps+1);
+  const elev = new Float32Array(steps+1);
+  const totalDist = Math.hypot(b[0]-a[0], b[1]-a[1]);
+  for(let i=0;i<=steps;i++){
+    const t = i/steps;
+    const wx = a[0]+(b[0]-a[0])*t, wy = a[1]+(b[1]-a[1])*t;
+    dist[i] = totalDist*t;
+    elev[i] = bilinearSample(STATE.grid, wx, wy);
+  }
+  // line-of-sight from first to last valid sample + minimum clearance
+  let zA = elev[0], zB = elev[elev.length-1];
+  for(let i=0;i<elev.length && !Number.isFinite(zA);i++) zA = elev[i];
+  for(let i=elev.length-1;i>=0 && !Number.isFinite(zB);i--) zB = elev[i];
+  const los = new Float32Array(steps+1);
+  let minClear = Infinity, minIdx = 0;
+  for(let i=0;i<=steps;i++){
+    const t = i/steps;
+    los[i] = zA + (zB-zA)*t;
+    if(Number.isFinite(elev[i])){
+      const c = los[i]-elev[i];
+      if(c<minClear){ minClear=c; minIdx=i; }
+    }
+  }
+  const minT = minIdx/steps;
+  const minWorld = [a[0]+(b[0]-a[0])*minT, a[1]+(b[1]-a[1])*minT];
+
+  STATE.lastProfile = {
+    dist, elev, los, totalDist,
+    fromAbs: [STATE.bounds.ox+a[0], STATE.bounds.oy+a[1]],
+    toAbs: [STATE.bounds.ox+b[0], STATE.bounds.oy+b[1]],
+    minClear, minIdx,
+    minAbs: [STATE.bounds.ox+minWorld[0], STATE.bounds.oy+minWorld[1]],
+  };
+  $('fromPos').textContent = fmt2(STATE.lastProfile.fromAbs[0])+', '+fmt2(STATE.lastProfile.fromAbs[1]);
+  $('toPos').textContent = fmt2(STATE.lastProfile.toAbs[0])+', '+fmt2(STATE.lastProfile.toAbs[1]);
+  const cEl = $('clearanceInfo');
+  cEl.style.display='block';
+  cEl.className = 'ph-clearance ' + (minClear<0 ? 'neg':'pos');
+  cEl.textContent = 'Minimum Clearance: '+fmt1(minClear)+' m di '+fmt2(STATE.lastProfile.minAbs[0])+', '+fmt2(STATE.lastProfile.minAbs[1]);
+
+  camProfile.start = 0; camProfile.end = totalDist;
+  $('profileHint').style.display='none';
+  $('profileChartBox').style.display='flex';
+  drawProfileChart();
+  toast('✓ Section dibuat — panjang '+fmt0(totalDist)+' m');
+}
+
+function drawProfileChart(){
+  const prof = STATE.lastProfile;
+  if(!prof) return;
+  const canvas = $('canvas-profile');
+  const {w:cw,h:ch,ctx} = syncCanvasRes(canvas);
+  ctx.clearRect(0,0,cw,ch);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,cw,ch);
+
+  const useKm = prof.totalDist >= 1000;
+  const pad = {l:56, r:16, t:16, b:30};
+  const plotW = Math.max(10,cw-pad.l-pad.r), plotH = Math.max(10,ch-pad.t-pad.b);
+
+  const vStart = clamp(camProfile.start,0,prof.totalDist);
+  const vEnd = clamp(camProfile.end,0,prof.totalDist);
+  const vSpan = Math.max(1e-3, vEnd-vStart);
+
+  // sample indices visible in the current window
+  const n = prof.dist.length;
+  let i0 = Math.max(0, Math.floor((vStart/prof.totalDist)*(n-1))-1);
+  let i1 = Math.min(n-1, Math.ceil((vEnd/prof.totalDist)*(n-1))+1);
+
+  let zmin=Infinity, zmax=-Infinity;
+  for(let i=i0;i<=i1;i++){
+    if(Number.isFinite(prof.elev[i])){ if(prof.elev[i]<zmin)zmin=prof.elev[i]; if(prof.elev[i]>zmax)zmax=prof.elev[i]; }
+    if(Number.isFinite(prof.los[i])){ if(prof.los[i]<zmin)zmin=prof.los[i]; if(prof.los[i]>zmax)zmax=prof.los[i]; }
+  }
+  if(!Number.isFinite(zmin)){ zmin=0; zmax=1; }
+  if(zmax-zmin<1) { zmax+=0.5; zmin-=0.5; }
+  const {ticks:zTicks} = niceTicks(zmin, zmax, 6);
+  const zLo = zTicks[0], zHi = zTicks[zTicks.length-1];
+
+  const xAt = d => pad.l + ((d-vStart)/vSpan)*plotW;
+  const yAt = z => pad.t + (1-(z-zLo)/(zHi-zLo))*plotH;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l,pad.t,plotW,plotH); ctx.clip();
+
+  // horizontal gridlines + Y labels (elevation)
+  ctx.font = '600 11px "JetBrains Mono",monospace';
+  for(const z of zTicks){
+    const y = yAt(z);
+    ctx.strokeStyle = '#d7dde6';
+    ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(cw-pad.r,y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // filled terrain (solid green, matches reference)
+  ctx.beginPath();
+  ctx.moveTo(xAt(prof.dist[i0]), yAt(zLo));
+  for(let i=i0;i<=i1;i++){
+    const z = Number.isFinite(prof.elev[i]) ? prof.elev[i] : zLo;
+    ctx.lineTo(xAt(prof.dist[i]), yAt(z));
+  }
+  ctx.lineTo(xAt(prof.dist[i1]), yAt(zLo));
+  ctx.closePath();
+  ctx.fillStyle = '#2fa84f';
+  ctx.fill();
+
+  // terrain top edge
+  ctx.beginPath();
+  for(let i=i0;i<=i1;i++){
+    const z = Number.isFinite(prof.elev[i]) ? prof.elev[i] : zLo;
+    const x=xAt(prof.dist[i]), y=yAt(z);
+    if(i===i0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.strokeStyle = '#1c7a37';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+
+  // line-of-sight (dashed yellow/orange)
+  ctx.beginPath();
+  for(let i=i0;i<=i1;i++){
+    const x=xAt(prof.dist[i]), y=yAt(prof.los[i]);
+    if(i===i0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.setLineDash([6,4]);
+  ctx.strokeStyle = '#e0a500';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // minimum clearance marker
+  if(prof.minIdx>=i0 && prof.minIdx<=i1){
+    const x = xAt(prof.dist[prof.minIdx]);
+    const yTerr = yAt(prof.elev[prof.minIdx]);
+    const yLos = yAt(prof.los[prof.minIdx]);
+    ctx.strokeStyle = '#c33f3f'; ctx.lineWidth=1.6;
+    ctx.beginPath(); ctx.moveTo(x,yTerr); ctx.lineTo(x,yLos); ctx.stroke();
+    ctx.fillStyle = '#c33f3f';
+    ctx.beginPath(); ctx.arc(x,yTerr,3.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x,yLos,3.5,0,Math.PI*2); ctx.fill();
+  }
+
+  ctx.restore();
+
+  // Y axis labels (outside clip, left of box)
+  ctx.font = '600 11px "JetBrains Mono",monospace';
+  ctx.fillStyle = '#3a4658';
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(const z of zTicks){
+    ctx.fillText(fmt0(z)+' m', pad.l-8, yAt(z));
+  }
+
+  // X axis ticks + labels (distance)
+  const dispSpan = useKm ? vSpan/1000 : vSpan;
+  const {ticks:xTicksRaw} = niceTicks(useKm?vStart/1000:vStart, useKm?vEnd/1000:vEnd, Math.max(3,Math.round(plotW/95)));
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(const tv of xTicksRaw){
+    const dMeters = useKm ? tv*1000 : tv;
+    if(dMeters<vStart-1e-6 || dMeters>vEnd+1e-6) continue;
+    const x = xAt(dMeters);
+    ctx.strokeStyle='#e3e8ef';
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,ch-pad.b); ctx.stroke();
+    ctx.fillStyle = '#3a4658';
+    ctx.fillText((useKm? tv.toFixed(2)+' km' : fmt0(tv)+' m'), x, ch-pad.b+6);
+  }
+
+  // axes border box
+  ctx.strokeStyle='#a9b3c2';
+  ctx.lineWidth=1;
+  ctx.strokeRect(pad.l+0.5, pad.t+0.5, plotW-1, plotH-1);
+}
+
+// —— Section chart pan / zoom (mouse + touch) ——————————————————————
+function wireProfileZoomPan(){
+  const canvas = $('canvas-profile');
+  const worldDistAt = clientX=>{
+    const rect = canvas.getBoundingClientRect();
+    const pad = {l:56,r:16};
+    const plotW = Math.max(10, rect.width-pad.l-pad.r);
+    const sx = clamp((clientX-rect.left-pad.l)/plotW, 0, 1);
+    const span = camProfile.end-camProfile.start;
+    return camProfile.start + sx*span;
+  };
+  let dragging=false, lastX=0;
+  canvas.addEventListener('mousedown', e=>{ if(!STATE.lastProfile) return; dragging=true; lastX=e.clientX; });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging || !STATE.lastProfile) return;
+    const rect = canvas.getBoundingClientRect();
+    const pad = {l:56,r:16};
+    const plotW = Math.max(10, rect.width-pad.l-pad.r);
+    const span = camProfile.end-camProfile.start;
+    const dd = -(e.clientX-lastX)/plotW*span;
+    lastX = e.clientX;
+    shiftProfileWindow(dd);
+    drawProfileChart();
+  });
+  window.addEventListener('mouseup', ()=>{ dragging=false; });
+  canvas.addEventListener('wheel', e=>{
+    if(!STATE.lastProfile) return;
+    e.preventDefault();
+    const focus = worldDistAt(e.clientX);
+    const factor = e.deltaY<0 ? 0.82 : 1/0.82;
+    zoomProfileWindow(factor, focus);
+    drawProfileChart();
+  }, {passive:false});
+
+  let touchState=null;
+  canvas.addEventListener('touchstart', e=>{
+    if(!STATE.lastProfile) return;
+    if(e.touches.length===1){ touchState={mode:'pan', x:e.touches[0].clientX}; }
+    else if(e.touches.length===2){
+      const [t0,t1]=e.touches;
+      touchState={mode:'pinch', d:Math.abs(t1.clientX-t0.clientX), focus: worldDistAt((t0.clientX+t1.clientX)/2)};
+    }
+  }, {passive:true});
+  canvas.addEventListener('touchmove', e=>{
+    if(!touchState || !STATE.lastProfile) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const pad = {l:56,r:16};
+    const plotW = Math.max(10, rect.width-pad.l-pad.r);
+    if(touchState.mode==='pan' && e.touches.length===1){
+      const span = camProfile.end-camProfile.start;
+      const dd = -(e.touches[0].clientX-touchState.x)/plotW*span;
+      touchState.x = e.touches[0].clientX;
+      shiftProfileWindow(dd);
+      drawProfileChart();
+    } else if(touchState.mode==='pinch' && e.touches.length===2){
+      const [t0,t1]=e.touches;
+      const d = Math.abs(t1.clientX-t0.clientX);
+      const factor = touchState.d/Math.max(1,d);
+      zoomProfileWindow(factor, touchState.focus);
+      touchState.d = d;
+      drawProfileChart();
+    }
+  }, {passive:false});
+  canvas.addEventListener('touchend', ()=>{ touchState=null; });
+}
+function shiftProfileWindow(dd){
+  const prof = STATE.lastProfile; if(!prof) return;
+  const span = camProfile.end-camProfile.start;
+  let s = camProfile.start+dd, e = camProfile.end+dd;
+  if(s<0){ e-=s; s=0; }
+  if(e>prof.totalDist){ s-=(e-prof.totalDist); e=prof.totalDist; }
+  camProfile.start = clamp(s,0,prof.totalDist);
+  camProfile.end = clamp(e,0,prof.totalDist);
+}
+function zoomProfileWindow(factor, focus){
+  const prof = STATE.lastProfile; if(!prof) return;
+  const span = camProfile.end-camProfile.start;
+  let newSpan = clamp(span*factor, Math.max(2,prof.totalDist*0.01), prof.totalDist);
+  const f = clamp((focus-camProfile.start)/span, 0, 1);
+  let s = focus - f*newSpan, e = s+newSpan;
+  if(s<0){ e-=s; s=0; }
+  if(e>prof.totalDist){ s-=(e-prof.totalDist); e=prof.totalDist; }
+  camProfile.start = clamp(s,0,prof.totalDist);
+  camProfile.end = clamp(e,0,prof.totalDist);
+}
+wireProfileZoomPan();
+$('btnZoomInP').onclick = ()=>{ if(!STATE.lastProfile) return; const mid=(camProfile.start+camProfile.end)/2; zoomProfileWindow(0.7, mid); drawProfileChart(); };
+$('btnZoomOutP').onclick = ()=>{ if(!STATE.lastProfile) return; const mid=(camProfile.start+camProfile.end)/2; zoomProfileWindow(1/0.7, mid); drawProfileChart(); };
+$('btnFitP').onclick = ()=>{ if(!STATE.lastProfile) return; camProfile.start=0; camProfile.end=STATE.lastProfile.totalDist; drawProfileChart(); };
+
+// —— Pipeline orchestration ——————————————————————————————————————
+async function runPipeline(){
+  if(STATE.processing) return;
+  STATE.processing = true;
+  try{
+    setLoading(true,'Membangun triangulasi Delaunay...');
+    progress(30,'Triangulasi Delaunay ('+STATE.n.toLocaleString('id-ID')+' titik)...'); await tick();
+    buildDelaunay();
+
+    progress(50,'Membangun grid DTM...'); await tick();
+    const res = Math.max(0.5, parseFloat($('gridRes').value)||2);
+    const method = $('methodSel').value;
+    let grid;
+    if(method==='tin') grid = gridFromTIN(res);
+    else if(method==='idw') grid = gridFromIDW(res, parseFloat($('idwPow').value)||2);
+    else if(method==='binavg') grid = gridFromBinning(res,'avg');
+    else grid = gridFromBinning(res,'min');
+    STATE.grid = grid;
+    if(Math.abs(grid.res-res)>0.05) $('gridRes').value = grid.res.toFixed(2);
+
+    progress(70,'Membangun kontur...'); await tick();
+    const interval = Math.max(0.1, parseFloat($('contourInt').value)||5);
+    const majorN = Math.max(2, parseInt($('majorN').value)||5);
+    STATE.contours = traceContours(grid, interval, majorN);
+
+    progress(85,'Menyusun raster elevasi...'); await tick();
+    STATE.raster2d = buildHeatmapRaster(grid);
+
+    // invalidate 3D caches so they rebuild lazily on next activation
+    STATE._need3d = true; STATE._needTin = true;
+
+    STATE.loaded = true;
+    updateStatsUI();
+    revealPanelsUI();
+    cam2d.zoom=1; cam2d.panX=0; cam2d.panY=0;
+    camC.zoom=1; camC.panX=0; camC.panY=0;
+    STATE.sectionLine = null;
+
+    progress(100,'Selesai.'); await tick();
+    renderActivePanel();
+    setLoading(false);
+    toast('✓ Surface & kontur berhasil dibangun');
+  }catch(err){
+    console.error(err);
+    setLoading(false);
+    progress(0,'Gagal memproses');
+    toast('⚠ Gagal memproses data: '+err.message, 4500);
+  }
+  STATE.processing = false;
+}
+
+function updateStatsUI(){
+  $('statsSection').style.display='block';
+  $('statPts').textContent = STATE.n.toLocaleString('id-ID');
+  $('statX').textContent = fmt1(STATE.bounds.width)+' m';
+  $('statY').textContent = fmt1(STATE.bounds.height)+' m';
+  $('statZ').textContent = fmt1(STATE.bounds.minz)+' / '+fmt1(STATE.bounds.maxz)+' m';
+  let sum=0; for(const v of STATE.raw.z) sum+=v;
+  $('statZmean').textContent = fmt1(sum/STATE.n)+' m';
+
+  $('volSection').style.display='block';
+  $('svGrid').textContent = STATE.grid.ncols+' × '+STATE.grid.nrows+' ('+fmt1(STATE.grid.res)+' m)';
+  $('svArea').textContent = ((STATE.bounds.width*STATE.bounds.height)/10000).toFixed(2)+' ha';
+  $('svContours').textContent = STATE.contours.length;
+  $('svTri').textContent = fmtK(STATE.delaunay.triangles.length/3);
+}
+
+function revealPanelsUI(){
+  $('empty2d').style.display='none';
+  $('empty3d').style.display='none';
+  $('emptyTin').style.display='none';
+  $('emptyContour').style.display='none';
+
+  ['tools2d','vc2d','cbar2d','vc3d','cbar3d','vcTin','cbarTin','toolsContour','vcContour','cbarC']
+    .forEach(id=>{ $(id).style.display='flex'; });
+  ['legend2d','legend3d','legendTin','vexagBox3d','displaySection']
+    .forEach(id=>{ $(id).style.display='block'; });
+
+  $('legMin2d').textContent = fmt0(STATE.raster2d.zmin)+' m';
+  $('legMax2d').textContent = fmt0(STATE.raster2d.zmax)+' m';
+  $('legMid2d').textContent = fmt0((STATE.raster2d.zmin+STATE.raster2d.zmax)/2)+' m';
+}
+
+function renderActivePanel(){
+  const active = document.querySelector('.vtab.active').dataset.panel;
+  if(active==='2d') draw2D();
+  else if(active==='contour') drawContour();
+  else if(active==='3d'){ renderSurface3D(); STATE._need3d=false; }
+  else if(active==='tin'){ renderTin3D(); STATE._needTin=false; }
+}
+
+// —— Tabs ————————————————————————————————————————————————————————————
+document.querySelectorAll('.vtab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.vtab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    const key = btn.dataset.panel;
+    $('panel-'+key).classList.add('active');
+    if(!STATE.loaded) return;
+    requestAnimationFrame(()=>{
+      if(key==='2d') draw2D();
+      else if(key==='contour') drawContour();
+      else if(key==='3d'){
+        if(!viewer3d || STATE._need3d){ renderSurface3D(); STATE._need3d=false; }
+        else { viewer3d.resize(); viewer3d.render(); }
+      } else if(key==='tin'){
+        if(!viewerTin || STATE._needTin){ renderTin3D(); STATE._needTin=false; }
+        else { viewerTin.resize(); viewerTin.render(); }
+      }
+    });
+  });
+});
+
+// —— Section tool buttons (shared across 2D + Kontur) ——————————————————
+function setSectionMode(on){
+  STATE.sectionMode = on;
+  STATE.sectionLine = on ? null : STATE.sectionLine;
+  ['btnSection2d','btnSectionC'].forEach(id=>$(id).classList.toggle('on', on));
+  $('modeLabel2d').textContent = 'Mode: '+(on?'Section (klik 2 titik)':'Navigasi');
+  $('modeLabelC').textContent = 'Mode: '+(on?'Section (klik 2 titik)':'Navigasi');
+  if(on) toast('Klik titik awal section pada peta');
+  draw2D(); drawContour();
+}
+$('btnSection2d').onclick = ()=> setSectionMode(!STATE.sectionMode);
+$('btnSectionC').onclick = ()=> setSectionMode(!STATE.sectionMode);
+
+function onSectionClick(world){
+  if(!STATE.sectionLine){
+    STATE.sectionLine = {a: world, b: null};
+  } else if(!STATE.sectionLine.b){
+    STATE.sectionLine.b = world;
+    setSectionMode(false);
+    computeAndShowProfile();
+    document.querySelector('.vtab[data-panel="profile"]').click();
+    return;
+  }
+  draw2D(); drawContour();
+}
+
+wirePanZoom($('canvas2d'), cam2d, draw2D, {
+  onSectionClick,
+  coordEls: {x:$('cX2d'), y:$('cY2d'), z:$('cZ2d')},
+});
+wirePanZoom($('canvas-contour'), camC, drawContour, {
+  onSectionClick,
+  coordEls: {x:$('cXC'), y:$('cYC'), z:$('cZC')},
+});
+
+$('btnZoomIn2d').onclick = ()=>{ cam2d.zoom=clamp(cam2d.zoom*1.25,0.15,60); draw2D(); };
+$('btnZoomOut2d').onclick = ()=>{ cam2d.zoom=clamp(cam2d.zoom/1.25,0.15,60); draw2D(); };
+$('btnFit2d').onclick = ()=> fitCam(cam2d, draw2D);
+$('btnZoomInC').onclick = ()=>{ camC.zoom=clamp(camC.zoom*1.25,0.15,60); drawContour(); };
+$('btnZoomOutC').onclick = ()=>{ camC.zoom=clamp(camC.zoom/1.25,0.15,60); drawContour(); };
+$('btnFitC').onclick = ()=> fitCam(camC, drawContour);
+
+$('btnZoomIn3d').onclick = ()=>{ if(viewer3d){ viewer3d.controls.radius=clamp(viewer3d.controls.radius*0.82,viewer3d.controls.minRadius,viewer3d.controls.maxRadius); viewer3d.controls.update(); } };
+$('btnZoomOut3d').onclick = ()=>{ if(viewer3d){ viewer3d.controls.radius=clamp(viewer3d.controls.radius*1.22,viewer3d.controls.minRadius,viewer3d.controls.maxRadius); viewer3d.controls.update(); } };
+$('btnFit3d').onclick = ()=>{ if(viewer3d && viewer3d.mesh){ const bbox=new THREE.Box3().setFromObject(viewer3d.mesh); const c=bbox.getCenter(new THREE.Vector3()); const rad=bbox.getSize(new THREE.Vector3()).length()/2; viewer3d.controls.fitTo(c,rad); } };
+$('btnTopView3d').onclick = ()=>{ if(viewer3d && viewer3d.mesh){ const bbox=new THREE.Box3().setFromObject(viewer3d.mesh); const c=bbox.getCenter(new THREE.Vector3()); const rad=bbox.getSize(new THREE.Vector3()).length()/2; viewer3d.controls.topView(c,rad); } };
+
+$('btnZoomInTin').onclick = ()=>{ if(viewerTin){ viewerTin.controls.radius=clamp(viewerTin.controls.radius*0.82,viewerTin.controls.minRadius,viewerTin.controls.maxRadius); viewerTin.controls.update(); } };
+$('btnZoomOutTin').onclick = ()=>{ if(viewerTin){ viewerTin.controls.radius=clamp(viewerTin.controls.radius*1.22,viewerTin.controls.minRadius,viewerTin.controls.maxRadius); viewerTin.controls.update(); } };
+$('btnFitTin').onclick = ()=>{ if(viewerTin && viewerTin.mesh){ const bbox=new THREE.Box3().setFromObject(viewerTin.mesh); const c=bbox.getCenter(new THREE.Vector3()); const rad=bbox.getSize(new THREE.Vector3()).length()/2; viewerTin.controls.fitTo(c,rad); } };
+$('btnWireTin').onclick = ()=>{ $('togWire').checked = !$('togWire').checked; renderTin3D(); if(viewer3d) renderSurface3D(); $('btnWireTin').classList.toggle('on', $('togWire').checked); };
+
+$('vexagSlider3d').addEventListener('input', e=>{
+  $('vexagVal3d').textContent = parseFloat(e.target.value).toFixed(1)+'×';
+  if(STATE.loaded && viewer3d) renderSurface3D();
+});
+$('togWire').addEventListener('change', ()=>{ if(STATE.loaded){ if(viewer3d) renderSurface3D(); if(viewerTin) renderTin3D(); } });
+$('togPoints').addEventListener('change', draw2D);
+$('togLabel').addEventListener('change', drawContour);
+
+// —— File input / drag-drop ——————————————————————————————————————
+const drop = $('dropZone'), fileInput = $('fileInput');
+fileInput.onchange = e=>{ if(e.target.files[0]) processUploadedFile(e.target.files[0]); };
+drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', ()=> drop.classList.remove('drag'));
+drop.addEventListener('drop', e=>{
+  e.preventDefault(); drop.classList.remove('drag');
+  if(e.dataTransfer.files[0]) processUploadedFile(e.dataTransfer.files[0]);
+});
+$('btnLoadSample').onclick = async ()=>{
+  setLoading(true,'Memuat data sampel...');
+  await loadSampleBundle();
+};
+$('btnProcess').onclick = async ()=>{
+  if(!STATE.raw){ toast('⚠ Muat data terlebih dahulu (impor file atau data sampel)'); return; }
+  setLoading(true,'Memproses ulang dengan parameter baru...');
+  await runPipeline();
+};
+
+// —— Misc top-bar buttons ——————————————————————————————————————————
+$('btnFullscreen').onclick = ()=>{
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+};
+$('btnSnapshot').onclick = ()=>{
+  const active = document.querySelector('.vtab.active').dataset.panel;
+  if(active==='2d') exportCanvasPNG($('canvas2d'), 'dtm_2d.png');
+  else if(active==='contour') exportCanvasPNG($('canvas-contour'), 'kontur.png');
+  else if(active==='3d' && viewer3d){ viewer3d.render(); viewer3d.renderer.domElement.toBlob(b=>downloadBlob(b,'surface_3d.png')); toast('✓ Snapshot 3D diunduh'); }
+  else if(active==='tin' && viewerTin){ viewerTin.render(); viewerTin.renderer.domElement.toBlob(b=>downloadBlob(b,'tin_mesh.png')); toast('✓ Snapshot TIN diunduh'); }
+  else if(active==='profile') exportCanvasPNG($('canvas-profile'), 'section_profile.png');
+};
+$('btnNewProject').onclick = ()=>{ location.reload(); };
+$('btnEditArea').onclick = ()=>{ toast('CRS: koordinat lokal (meter), origin di titik X/Y minimum data'); };
+
+function exportCanvasPNG(canvas, name){
+  canvas.toBlob(b=>{ if(b) downloadBlob(b,name); });
+  toast('✓ '+name+' diunduh');
+}
+
+// —— Export functions ——————————————————————————————————————————————
+function downloadBlob(blob,name){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+}
+function downloadText(text,name,type='text/plain'){ downloadBlob(new Blob([text],{type}), name); }
+
+$('btnExpDTM').onclick = ()=>{
+  if(!STATE.loaded){ toast('⚠ Proses data terlebih dahulu'); return; }
+  const {canvas} = STATE.raster2d;
+  canvas.toBlob(b=>downloadBlob(b,'dtm_surface.png'));
+  toast('✓ DTM PNG diunduh');
+};
+$('btnExp3D').onclick = ()=>{
+  if(!viewer3d){ toast('⚠ Buka tab Surface 3D terlebih dahulu'); return; }
+  viewer3d.render();
+  viewer3d.renderer.domElement.toBlob(b=>downloadBlob(b,'surface_3d.png'));
+  toast('✓ Screenshot 3D diunduh');
+};
+$('btnExpContourDXF').onclick = ()=>{
+  if(!STATE.loaded || !STATE.contours){ toast('⚠ Tidak ada data kontur'); return; }
+  const {ox,oy} = STATE.bounds;
+  let dxf = '0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
+  for(const {z,pts} of STATE.contours){
+    dxf += '0\nPOLYLINE\n8\nCONTOUR\n66\n1\n70\n0\n';
+    for(const [lx,ly] of pts){
+      dxf += `0\nVERTEX\n8\nCONTOUR\n10\n${(ox+lx).toFixed(3)}\n20\n${(oy+ly).toFixed(3)}\n30\n${z.toFixed(3)}\n`;
+    }
+    dxf += '0\nSEQEND\n';
+  }
+  dxf += '0\nENDSEC\n0\nEOF\n';
+  downloadText(dxf,'contour.dxf','application/dxf');
+  toast('✓ Kontur DXF diunduh ('+STATE.contours.length+' garis)');
+};
+$('btnExpContourCSV').onclick = ()=>{
+  if(!STATE.loaded || !STATE.contours){ toast('⚠ Tidak ada data kontur'); return; }
+  const {ox,oy} = STATE.bounds;
+  let csv = 'Z,X,Y,Major,LineId\n';
+  STATE.contours.forEach((line,li)=>{
+    for(const [lx,ly] of line.pts){
+      csv += `${line.z.toFixed(2)},${(ox+lx).toFixed(3)},${(oy+ly).toFixed(3)},${line.major?1:0},${li}\n`;
+    }
+  });
+  downloadText(csv,'contour.csv','text/csv');
+  toast('✓ Kontur CSV diunduh');
+};
+$('btnExpGrid').onclick = ()=>{
+  if(!STATE.loaded){ toast('⚠ Proses data terlebih dahulu'); return; }
+  const {ncols,nrows,res,z} = STATE.grid;
+  const {ox,oy} = STATE.bounds;
+  let csv = 'Col,Row,X,Y,Z\n';
+  for(let r=0;r<nrows;r++) for(let c=0;c<ncols;c++){
+    const v = z[r*ncols+c];
+    if(Number.isNaN(v)) continue;
+    csv += `${c},${r},${(ox+c*res).toFixed(2)},${(oy+r*res).toFixed(2)},${v.toFixed(3)}\n`;
+  }
+  downloadText(csv,'grid.csv','text/csv');
+  toast('✓ Grid CSV diunduh');
+};
+$('btnExpProfile').onclick = ()=>{
+  if(!STATE.lastProfile){ toast('⚠ Belum ada section — buat dahulu di tab DTM 2D / Kontur'); return; }
+  const p = STATE.lastProfile;
+  let csv = 'Distance_m,Elevation_m\n';
+  for(let i=0;i<p.dist.length;i++) csv += `${p.dist[i].toFixed(3)},${Number.isFinite(p.elev[i])?p.elev[i].toFixed(3):''}\n`;
+  downloadText(csv,'section_profile.csv','text/csv');
+  toast('✓ Section CSV diunduh');
+};
+
+// —— PDF report + topographic analysis ——————————————————————————————
+function computeSurfaceStats(){
+  const {ncols,nrows,res,z} = STATE.grid;
+  let n=0,sum=0,zmin=Infinity,zmax=-Infinity;
+  for(let i=0;i<z.length;i++){ const v=z[i]; if(!Number.isNaN(v)){ n++; sum+=v; if(v<zmin)zmin=v; if(v>zmax)zmax=v; } }
+  const mean = sum/n;
+  let sqsum=0; for(let i=0;i<z.length;i++){ const v=z[i]; if(!Number.isNaN(v)) sqsum+=(v-mean)*(v-mean); }
+  const std = Math.sqrt(sqsum/n);
+
+  let slopeSum=0, slopeMax=0, slopeN=0;
+  for(let r=1;r<nrows-1;r++) for(let c=1;c<ncols-1;c++){
+    const zc=z[r*ncols+c], zx1=z[r*ncols+c+1], zx0=z[r*ncols+c-1], zy1=z[(r+1)*ncols+c], zy0=z[(r-1)*ncols+c];
+    if([zc,zx1,zx0,zy1,zy0].some(Number.isNaN)) continue;
+    const dzdx=(zx1-zx0)/(2*res), dzdy=(zy1-zy0)/(2*res);
+    const slopeDeg = Math.atan(Math.hypot(dzdx,dzdy))*180/Math.PI;
+    slopeSum += slopeDeg; slopeN++;
+    if(slopeDeg>slopeMax) slopeMax = slopeDeg;
+  }
+  const slopeMean = slopeN ? slopeSum/slopeN : 0;
+  const area = STATE.bounds.width * STATE.bounds.height;
+  return {
+    n, zmin, zmax, mean, std, range: zmax-zmin,
+    slopeMean, slopeMax,
+    area, density: STATE.n/area,
+    res, width: STATE.bounds.width, height: STATE.bounds.height,
+  };
+}
+
+function terrainClass(slopeMean){
+  if(slopeMean<3) return 'Datar';
+  if(slopeMean<8) return 'Landai';
+  if(slopeMean<15) return 'Bergelombang';
+  if(slopeMean<30) return 'Curam';
+  return 'Sangat Curam';
+}
+
+async function generateReportPDF(){
+  if(!STATE.loaded){ toast('⚠ Proses data terlebih dahulu'); return; }
+  if(!window.jspdf){ toast('⚠ Modul PDF gagal dimuat'); return; }
+  toast('⏳ Menyusun laporan PDF…');
+  await tick();
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const ML = 16;
+  let y = 18;
+
+  const s = computeSurfaceStats();
+  const cls = terrainClass(s.slopeMean);
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('id-ID', {day:'2-digit', month:'long', year:'numeric'});
+
+  // —— Header ——
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('LAPORAN PEMETAAN TOPOGRAFI', pw/2, y, {align:'center'}); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text('Digital Terrain Model (DTM) · TIN · Kontur · Section — GeoSurface Studio', pw/2, y, {align:'center'}); y+=5;
+  doc.setDrawColor(180); doc.line(ML,y,pw-ML,y); y+=8;
+
+  doc.setFontSize(10);
+  doc.text('Tanggal Laporan', ML, y); doc.text(': '+dateStr, ML+45, y); y+=5.5;
+  doc.text('Jumlah Titik Data', ML, y); doc.text(': '+STATE.n.toLocaleString('id-ID')+' titik', ML+45, y); y+=5.5;
+  doc.text('Luas Area', ML, y); doc.text(': '+s.area.toLocaleString('id-ID',{maximumFractionDigits:0})+' m² ('+(s.area/10000).toFixed(3)+' ha)', ML+45, y); y+=5.5;
+  doc.text('Dimensi Area', ML, y); doc.text(': '+s.width.toFixed(1)+' m x '+s.height.toFixed(1)+' m', ML+45, y); y+=5.5;
+  doc.text('Resolusi Grid DTM', ML, y); doc.text(': '+s.res.toFixed(2)+' m', ML+45, y); y+=5.5;
+  doc.text('Kerapatan Titik', ML, y); doc.text(': '+s.density.toFixed(3)+' titik/m²', ML+45, y); y+=8;
+
+  // —— Elevation statistics ——
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('1. Statistik Elevasi', ML, y); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  const stats = [
+    ['Elevasi Minimum', s.zmin.toFixed(2)+' m'],
+    ['Elevasi Maksimum', s.zmax.toFixed(2)+' m'],
+    ['Beda Tinggi (Range)', s.range.toFixed(2)+' m'],
+    ['Elevasi Rata-rata', s.mean.toFixed(2)+' m'],
+    ['Standar Deviasi', s.std.toFixed(2)+' m'],
+  ];
+  for(const [k,v] of stats){ doc.text(k, ML+2, y); doc.text(': '+v, ML+55, y); y+=5.5; }
+  y+=3;
+
+  // —— Slope / terrain analysis ——
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('2. Analisis Kemiringan Lereng', ML, y); y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text('Kemiringan Rata-rata', ML+2, y); doc.text(': '+s.slopeMean.toFixed(2)+'°', ML+55, y); y+=5.5;
+  doc.text('Kemiringan Maksimum', ML+2, y); doc.text(': '+s.slopeMax.toFixed(2)+'°', ML+55, y); y+=5.5;
+  doc.text('Klasifikasi Medan', ML+2, y); doc.text(': '+cls, ML+55, y); y+=7;
+
+  doc.setFontSize(9.5);
+  const interp = interpretationText(s, cls);
+  const wrapped = doc.splitTextToSize(interp, pw-2*ML-2);
+  doc.text(wrapped, ML+2, y); y += wrapped.length*4.6 + 4;
+
+  // —— DTM snapshot ——
+  if(STATE.raster2d && STATE.raster2d.canvas){
+    if(y>ph-90){ doc.addPage(); y=18; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('3. Peta DTM (Elevasi)', ML, y); y+=6;
+    const imgW = pw-2*ML, imgH = imgW * (STATE.raster2d.canvas.height/STATE.raster2d.canvas.width);
+    const capped = Math.min(imgH, 80);
+    const finalW = capped===imgH ? imgW : imgW*(capped/imgH);
+    doc.addImage(STATE.raster2d.canvas.toDataURL('image/png'), 'PNG', ML, y, finalW, capped);
+    y += capped + 8;
+  }
+
+  // —— Contour info ——
+  if(STATE.contours && STATE.contours.length){
+    if(y>ph-40){ doc.addPage(); y=18; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('4. Data Kontur', ML, y); y+=6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    const interval = Math.max(0.1, parseFloat($('contourInt').value)||5);
+    doc.text('Interval Kontur', ML+2, y); doc.text(': '+interval+' m', ML+55, y); y+=5.5;
+    doc.text('Jumlah Garis Kontur', ML+2, y); doc.text(': '+STATE.contours.length, ML+55, y); y+=5.5;
+    const nMajor = STATE.contours.filter(c=>c.major).length;
+    doc.text('Kontur Mayor / Minor', ML+2, y); doc.text(': '+nMajor+' / '+(STATE.contours.length-nMajor), ML+55, y); y+=8;
+  }
+
+  // —— Section profile ——
+  if(STATE.lastProfile){
+    if(y>ph-100){ doc.addPage(); y=18; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('5. Potongan Melintang (Section)', ML, y); y+=6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10);
+    const p = STATE.lastProfile;
+    doc.text('Titik Awal (X,Y)', ML+2, y); doc.text(': '+p.fromAbs[0].toFixed(2)+', '+p.fromAbs[1].toFixed(2), ML+55, y); y+=5.5;
+    doc.text('Titik Akhir (X,Y)', ML+2, y); doc.text(': '+p.toAbs[0].toFixed(2)+', '+p.toAbs[1].toFixed(2), ML+55, y); y+=5.5;
+    doc.text('Panjang Section', ML+2, y); doc.text(': '+p.totalDist.toFixed(2)+' m', ML+55, y); y+=5.5;
+    doc.text('Minimum Clearance', ML+2, y); doc.text(': '+p.minClear.toFixed(2)+' m ('+(p.minClear<0?'DEFISIT — perlu galian/perhatian':'AMAN')+')', ML+55, y); y+=7;
+
+    const canvas = $('canvas-profile');
+    if(canvas && canvas.width>0){
+      const imgW = pw-2*ML, imgH = imgW * (canvas.height/canvas.width);
+      const capped = Math.min(imgH, 75);
+      const finalW = capped===imgH ? imgW : imgW*(capped/imgH);
+      if(y+capped>ph-15){ doc.addPage(); y=18; }
+      doc.addImage(canvas.toDataURL('image/png'), 'PNG', ML, y, finalW, capped);
+      y += capped + 8;
+    }
+  }
+
+  // —— Footer on every page ——
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(140);
+    doc.text('GeoSurface Studio — Laporan dibangkitkan otomatis dari data DTM/TIN/Kontur/Section', ML, ph-10);
+    doc.text('Hal. '+i+'/'+pageCount, pw-ML, ph-10, {align:'right'});
+    doc.setTextColor(0);
+  }
+
+  doc.save('laporan_topografi.pdf');
+  toast('✓ Laporan PDF diunduh');
+}
+
+function interpretationText(s, cls){
+  const parts = [];
+  parts.push('Berdasarkan hasil pengolahan Digital Terrain Model (DTM), area survei memiliki beda tinggi (relief) sebesar '+s.range.toFixed(2)+' m, dari elevasi terendah '+s.zmin.toFixed(2)+' m hingga tertinggi '+s.zmax.toFixed(2)+' m.');
+  parts.push('Kemiringan lereng rata-rata terukur '+s.slopeMean.toFixed(2)+'° dengan kemiringan maksimum lokal mencapai '+s.slopeMax.toFixed(2)+'°, sehingga medan dapat diklasifikasikan sebagai kategori "'+cls+'".');
+  if(cls==='Datar' || cls==='Landai'){
+    parts.push('Kondisi medan yang relatif landai ini cukup mendukung untuk perencanaan tapak bangunan, jalan akses, maupun drainase permukaan tanpa memerlukan pekerjaan cut-and-fill yang besar.');
+  } else if(cls==='Bergelombang'){
+    parts.push('Kondisi medan bergelombang memerlukan perencanaan cut-and-fill yang lebih cermat, terutama pada jalur akses dan penempatan bangunan, guna menjaga kestabilan lereng dan efisiensi galian-timbunan.');
+  } else {
+    parts.push('Kemiringan lereng yang curam mengindikasikan potensi risiko erosi dan longsor pada area tersebut, sehingga disarankan dilakukan kajian geoteknik lanjutan sebelum tahap perencanaan konstruksi, serta penerapan terasering atau perkuatan lereng bila diperlukan.');
+  }
+  parts.push('Standar deviasi elevasi sebesar '+s.std.toFixed(2)+' m mencerminkan tingkat kekasaran (roughness) permukaan tanah; nilai yang lebih tinggi menunjukkan variasi topografi yang lebih kompleks dan perlu diperhitungkan dalam desain volume pekerjaan tanah.');
+  parts.push('Kerapatan titik data sebesar '+s.density.toFixed(3)+' titik/m² pada resolusi grid '+s.res.toFixed(2)+' m dinilai '+(s.density>=0.05?'memadai':'perlu ditambah')+' untuk merepresentasikan detail permukaan pada skala pemetaan topografi standar.');
+  return parts.join(' ');
+}
+
+$('btnExpReportPDF').onclick = generateReportPDF;
+
+// —— Mobile viewport-height fix (Android/iOS browser chrome collapses
+//    and 100vh does not update, clipping the bottom of the app) ——————
+function setRealVH(){
+  document.documentElement.style.setProperty('--vh', (window.innerHeight*0.01)+'px');
+}
+setRealVH();
+
+// —— Resize handling ——————————————————————————————————————————————
+window.addEventListener('resize', ()=>{
+  setRealVH();
+  if(!STATE.loaded) return;
+  const active = document.querySelector('.vtab.active').dataset.panel;
+  if(active==='2d') draw2D();
+  else if(active==='contour') drawContour();
+  else if(active==='3d' && viewer3d){ viewer3d.resize(); viewer3d.render(); }
+  else if(active==='tin' && viewerTin){ viewerTin.resize(); viewerTin.render(); }
+  else if(active==='profile') drawProfileChart();
+});
+window.addEventListener('orientationchange', setRealVH);
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', ()=>{
+    setRealVH();
+    if(!STATE.loaded) return;
+    const active = document.querySelector('.vtab.active').dataset.panel;
+    if(active==='profile') drawProfileChart();
+  });
+}
+new ResizeObserver(()=>{
+  if(!STATE.loaded) return;
+  const active = document.querySelector('.vtab.active').dataset.panel;
+  if(active==='profile') drawProfileChart();
+}).observe($('panel-profile'));
+
+// —— Boot ——————————————————————————————————————————————————————————————
+window.addEventListener('DOMContentLoaded', async ()=>{
+  try{
+    await loadSampleBundle();
+  }catch(err){
+    console.error(err);
+    setLoading(false);
+    toast('Impor file titik untuk mulai (.txt/.csv/.xyz)', 4000);
+  }
+});
+
+</script>
+
+</body>
+</html>
