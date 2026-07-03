@@ -281,7 +281,10 @@ button,input,select{font-family:inherit}
             <button class="btn sm" id="btnView"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Tampilan</button>
             <button class="btn sm ghost" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Hapus</button>
           </div>
-          <div class="readout" id="aoiReadout"><span class="muted">Belum ada area. Mulai dengan <b>Muat Sampel Pulo Ampel</b>.</span></div>
+          <input type="file" id="aoiFile" accept=".shp,.kml,.geojson,.json,.dxf" style="display:none">
+          <button class="btn sm wide" id="btnImport" style="margin-top:7px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v13"/></svg>Impor Batas AOI · SHP · KML · GeoJSON · DXF</button>
+          <div class="opt-sub" style="margin-top:6px">Hasil (raster &amp; vektor) otomatis di-clip ke batas poligon yang diimpor — ukuran file lebih kecil.</div>
+          <div class="readout" id="aoiReadout"><span class="muted">Belum ada area. Mulai dengan <b>Muat Sampel Pulo Ampel</b> atau <b>Impor Batas AOI</b>.</span></div>
           <div class="advisor" id="advisor"></div>
         </div>
 
@@ -376,7 +379,7 @@ button,input,select{font-family:inherit}
             <button class="btn sm" id="expKml"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>KML</button>
             <button class="btn sm" id="expCsv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6"/></svg>CSV</button>
           </div>
-          <div class="hint" id="expHint">GeoTIFF (raster aktif) &amp; GeoJSON/KML/DXF (kontur, sungai, watershed, profil) tergeoreferensi — dapat dibuka di QGIS/ArcGIS/AutoCAD. CSV = profil / statistik grid.</div>
+          <div class="hint" id="expHint">GeoTIFF (raster aktif) &amp; GeoJSON/KML/DXF (kontur, sungai, watershed, profil) tergeoreferensi — dapat dibuka di QGIS/ArcGIS/AutoCAD. CSV = profil / statistik grid. <b>Bila AOI diimpor sebagai poligon, semua keluaran otomatis ter-clip ke batas tersebut</b> (raster di luar batas = NoData -9999 / transparan) sehingga ukuran file lebih kecil.</div>
         </div>
 
         <div class="hint" style="text-align:center;margin-top:4px" id="footNote">Elevasi: AWS Terrain Tiles (SRTM/Copernicus/DEMNAS composite) · Diproses di perangkat Anda (client-side).</div>
@@ -601,6 +604,111 @@ function loadSample(){
   toast('Sampel 4 Ha dimuat · DEMNAS detail. Tekan "Unduh DEM & Proses".');
 }
 
+// ============================ IMPORT AOI (SHP · KML · GeoJSON · DXF) ============================
+// Semua parser mengembalikan cincin poligon [[lat,lng],...] (WGS84). Koordinat proyeksi
+// (UTM meter, mis. dari DXF/SHP) dideteksi otomatis lewat deprojectRing() — tidak mengubah
+// rumus analisis mana pun; AOI hasil impor hanya jadi poligon → mask clipping yang sudah ada.
+function importAOIFile(file){
+  if(!file) return;
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  const name='Impor · '+file.name;
+  const reader=new FileReader();
+  reader.onerror=()=>toast('Gagal membaca file.');
+  reader.onload=()=>{
+    try{
+      let ll=null;
+      if(ext==='geojson'||ext==='json') ll=parseGeoJSONAOI(reader.result);
+      else if(ext==='kml') ll=parseKMLAOI(reader.result);
+      else if(ext==='dxf') ll=parseDXFAOI(reader.result);
+      else if(ext==='shp') ll=parseSHPAOI(reader.result);
+      else { toast('Format tak dikenal. Pakai SHP · KML · GeoJSON · DXF.'); return; }
+      applyImportedAOI(ll, name);
+    }catch(e){ console.error(e); toast('Gagal mem-parsing file '+ext.toUpperCase()+'.'); }
+  };
+  if(ext==='shp') reader.readAsArrayBuffer(file); else reader.readAsText(file);
+}
+function applyImportedAOI(ll, name){
+  if(!ll || ll.length<3){ toast('Poligon tidak ditemukan di file.'); return; }
+  // buang titik penutup ganda bila ada
+  const f=ll[0], l=ll[ll.length-1];
+  if(l && f[0]===l[0] && f[1]===l[1]) ll=ll.slice(0,-1);
+  if(ll.length<3){ toast('Poligon tidak valid (butuh ≥3 titik).'); return; }
+  const lats=ll.map(p=>p[0]), lngs=ll.map(p=>p[1]);
+  setAOI(Math.min(...lngs),Math.min(...lats),Math.max(...lngs),Math.max(...lats), name, ll);
+  if(S.aoi){ S.map.fitBounds(ll,{padding:[50,50]}); toast('Batas AOI diimpor · '+ll.length+' titik · hasil akan di-clip ke batas ini.'); }
+}
+// Ubah cincin koordinat mentah [[x,y],...] → [[lat,lng],...] WGS84.
+// Jika sudah lon/lat → langsung. Jika UTM meter → deteksi zona (46–54, N/S) yang jatuh di Indonesia.
+function deprojectRing(coords){
+  coords=coords.filter(c=>Number.isFinite(c[0])&&Number.isFinite(c[1]));
+  if(coords.length<3) return null;
+  const x0=coords[0][0], y0=coords[0][1];
+  if(x0>=-180&&x0<=180&&y0>=-90&&y0<=90) return coords.map(c=>[c[1],c[0]]);
+  let bestRing=null, bestScore=-1;
+  for(let z=46;z<=54;z++)for(const hemi of [32600,32700]){
+    const def=utmDef(hemi+z); const ring=[]; let inCount=0;
+    for(const c of coords){ const p=proj4(def,wgs84,[c[0],c[1]]); ring.push([p[1],p[0]]);
+      if(p[0]>=94&&p[0]<=141.5&&p[1]>=-11.5&&p[1]<=6.5) inCount++; }
+    if(inCount>bestScore){ bestScore=inCount; bestRing=ring; }
+    if(inCount===coords.length) return ring;
+  }
+  return bestRing;
+}
+function parseGeoJSONAOI(text){
+  const j=JSON.parse(text);
+  const fromGeom=g=>{ if(!g) return null;
+    if(g.type==='Polygon') return g.coordinates[0];
+    if(g.type==='MultiPolygon') return g.coordinates[0][0];
+    if(g.type==='LineString') return g.coordinates;
+    if(g.type==='MultiLineString') return g.coordinates[0];
+    if(g.type==='GeometryCollection'){ for(const gg of g.geometries){ const r=fromGeom(gg); if(r)return r; } }
+    return null; };
+  let ring=null;
+  if(j.type==='FeatureCollection'){ for(const ft of (j.features||[])){ ring=fromGeom(ft.geometry); if(ring)break; } }
+  else if(j.type==='Feature') ring=fromGeom(j.geometry);
+  else ring=fromGeom(j);
+  return ring?deprojectRing(ring):null;
+}
+function parseKMLAOI(text){
+  const xml=new DOMParser().parseFromString(text,'application/xml');
+  const node=xml.querySelector('Polygon coordinates') || xml.querySelector('LineString coordinates') || xml.querySelector('coordinates');
+  if(!node) return null;
+  const coords=node.textContent.trim().split(/\s+/).map(tok=>{ const a=tok.split(','); return [parseFloat(a[0]),parseFloat(a[1])]; });
+  return deprojectRing(coords); // KML selalu WGS84 lon,lat
+}
+function parseDXFAOI(text){
+  const rows=text.split(/\r\n|\r|\n/); const pairs=[];
+  for(let i=0;i+1<rows.length;i+=2) pairs.push([rows[i].trim(), rows[i+1]]);
+  const polys=[]; let cur=null, px=null;
+  for(const [code,val] of pairs){
+    if(code==='0'){ const t=(val||'').trim().toUpperCase();
+      if(t==='LWPOLYLINE'||t==='POLYLINE'){ cur=[]; polys.push(cur); px=null; }
+      else if(t==='VERTEX'){ px=null; /* lanjut ke cur POLYLINE */ }
+      else if(t!=='SEQEND'){ cur=null; px=null; }
+    } else if(cur){
+      if(code==='10') px=parseFloat(val);
+      else if(code==='20' && px!==null){ cur.push([px, parseFloat(val)]); px=null; }
+    }
+  }
+  const best=polys.reduce((a,b)=>b.length>a.length?b:a, []);
+  return best.length>=3?deprojectRing(best):null;
+}
+function parseSHPAOI(buf){
+  const dv=new DataView(buf);
+  if(dv.getInt32(0,false)!==9994) return null;           // file code big-endian
+  const shpType=dv.getInt32(32,true);
+  const POLY=[3,5,13,15,23,25];                            // (Multi)PolyLine / Polygon (+Z/+M)
+  if(POLY.indexOf(shpType)<0) return null;
+  const o=100+8;                                           // rekaman pertama, lewati record header 8B
+  const numParts=dv.getInt32(o+36,true), numPoints=dv.getInt32(o+40,true);
+  if(numParts<1||numPoints<3) return null;
+  const partsStart=o+44, pointsStart=partsStart+numParts*4;
+  const p0=dv.getInt32(partsStart,true), p1=numParts>1?dv.getInt32(partsStart+4,true):numPoints;
+  const coords=[];
+  for(let i=p0;i<p1;i++){ coords.push([dv.getFloat64(pointsStart+i*16,true), dv.getFloat64(pointsStart+i*16+8,true)]); }
+  return deprojectRing(coords);
+}
+
 // ============================ UI: sources / analyses ============================
 function renderSources(){
   $('srcGrid').innerHTML=Object.keys(SOURCES).map(k=>{
@@ -785,8 +893,9 @@ function computeHydro(dem, accThreshPct){
 function streamSegments(dem,h){
   // connect stream cell centers to their downstream cell
   const gw=dem.gw,gh=dem.gh; const segs=[];
-  for(let r=0;r<gh;r++)for(let c=0;c<gw;c++){ const i=r*gw+c; if(h.acc[i]<h.thr)continue; const k=h.dir[i]; if(k<0)continue;
+  for(let r=0;r<gh;r++)for(let c=0;c<gw;c++){ const i=r*gw+c; if(dem.mask&&!dem.mask[i])continue; if(h.acc[i]<h.thr)continue; const k=h.dir[i]; if(k<0)continue;
     const nr=r+h.nb[k][0],nc=c+h.nb[k][1]; if(nr<0||nc<0||nr>=gh||nc>=gw)continue;
+    if(dem.mask&&!dem.mask[nr*gw+nc])continue;   // clip jaringan sungai ke batas AOI poligon
     segs.push([cellLatLng(dem,r,c),cellLatLng(dem,nr,nc), h.acc[i]]);
   } return segs;
 }
@@ -1280,6 +1389,8 @@ function init(){
   $('btnRect').onclick=()=>beginMode('rect','Klik sudut pertama lalu sudut kedua (kotak AOI)');
   $('btnPoly').onclick=()=>beginMode('poly','Klik titik-titik poligon, tekan Enter untuk selesai');
   $('btnView').onclick=useView;
+  $('btnImport').onclick=()=>$('aoiFile').click();
+  $('aoiFile').onchange=e=>{ if(e.target.files[0]) importAOIFile(e.target.files[0]); e.target.value=''; };
   $('btnClear').onclick=clearAOI;
   $('btnProcess').onclick=process;
   $('optDetail').onchange=e=>{ S.detail=e.target.value; updateCellInfo(); resetDem(); };
