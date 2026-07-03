@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Multispectral Analysis — NDVI · NDBI · NDWI · MNDWI</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ DESIGN TOKENS (light instrument / GIS) ============ */
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --panel-2:#f6f8fa; --line:#dbe1ea; --line-2:#c3cbd8;
+  --ink:#1c2430; --ink-dim:#5b6675; --ink-faint:#8b95a5;
+  --accent:#215bd6; --accent-hov:#1a49b3; --accent-soft:#e7edfc;
+  --good:#1a9e6f; --warn:#c07a12; --bad:#c33f3f;
+  --r:8px; --r2:12px;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif;
+  --shadow-sm:0 1px 2px rgba(20,30,50,.06),0 1px 1px rgba(20,30,50,.04);
+  --shadow-md:0 6px 24px rgba(20,30,50,.14),0 2px 6px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select{font-family:inherit}
+::selection{background:var(--accent-soft)}
+
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+
+/* topbar */
+.topbar{height:48px;flex:0 0 auto;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 14px;box-shadow:var(--shadow-sm);z-index:60}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-mark{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#1a7a2e,#215bd6 55%,#e0742a);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.brand-mark svg{width:17px;height:17px;color:#fff}
+.brand-txt b{font-weight:800;font-size:14px;letter-spacing:-.01em;display:block;line-height:1.1}
+.brand-txt span{font-size:9.5px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.03em}
+.topbar-badge{margin-left:auto;font-size:10px;font-weight:700;color:var(--good);background:#e6f6ef;border:1px solid #bfe6d6;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(26,158,111,.18)}
+
+/* body */
+.body{flex:1;display:flex;min-height:0;position:relative}
+#map{flex:1;min-width:0;background:#c9d3de;z-index:1}
+.leaflet-container{font-family:var(--sans)}
+
+/* sidebar */
+.side{width:360px;flex:0 0 360px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;z-index:20}
+.side-scroll{flex:1;overflow-y:auto;padding:14px 14px 90px}
+.side-scroll::-webkit-scrollbar{width:9px}
+.side-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:2px solid var(--panel)}
+
+/* step block */
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r2);padding:13px;margin-bottom:12px}
+.step-h{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.step-n{width:22px;height:22px;flex:none;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center}
+.step-t{font-weight:700;font-size:12.5px}
+.step-t small{display:block;font-weight:500;font-size:10px;color:var(--ink-faint);margin-top:1px}
+
+/* buttons */
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:var(--r);padding:9px 10px;font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:.12s;min-height:40px}
+.btn svg{width:14px;height:14px;opacity:.8}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.btn:active{transform:translateY(1px)}
+.btn.wide{grid-column:1 / -1}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent-hov)}
+.btn.primary:disabled{background:#a9b6cc;border-color:#a9b6cc;cursor:not-allowed;transform:none}
+.btn.sample{background:linear-gradient(135deg,#1a7a2e,#2b9e4a);color:#fff;border:none}
+.btn.sample:hover{filter:brightness(1.06)}
+.btn.ghost{background:none}
+
+/* AOI readout */
+.readout{margin-top:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;font-family:var(--mono);font-size:11px;color:var(--ink-dim);line-height:1.7}
+.readout b{color:var(--ink);font-weight:600}
+.readout .muted{color:var(--ink-faint)}
+
+/* index segmented */
+.idx-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.idx{border:1px solid var(--line);background:var(--panel-2);border-radius:var(--r);padding:9px 10px;cursor:pointer;text-align:left;transition:.12s}
+.idx:hover{border-color:var(--line-2)}
+.idx.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.idx b{font-size:12px;font-weight:800;display:block}
+.idx small{font-size:9.5px;color:var(--ink-faint)}
+.idx-desc{margin-top:9px;font-size:10.5px;color:var(--ink-dim);line-height:1.5;background:var(--panel-2);border-radius:var(--r);padding:8px 10px}
+.idx-desc .formula{font-family:var(--mono);color:var(--accent);font-size:10px}
+
+/* option rows */
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.opt:last-child{margin-bottom:0}
+.opt label{font-size:11.5px;font-weight:600;color:var(--ink-dim)}
+.opt select,.opt input[type=date]{border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:11.5px;background:var(--panel);color:var(--ink);min-height:38px}
+.slider-wrap{display:flex;align-items:center;gap:9px;flex:1;max-width:170px}
+.slider-wrap input[type=range]{flex:1;accent-color:var(--accent)}
+.slider-val{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);min-width:38px;text-align:right}
+
+/* result */
+.status{font-size:11px;font-weight:600;padding:9px 11px;border-radius:var(--r);line-height:1.5;margin-bottom:10px;display:none}
+.status.show{display:block}
+.status.info{background:var(--accent-soft);color:var(--accent);border:1px solid #cbd9f6}
+.status.ok{background:#e6f6ef;color:var(--good);border:1px solid #bfe6d6}
+.status.err{background:#fdecec;color:var(--bad);border:1px solid #f3c9c9}
+.status.warn{background:#fdf3e2;color:var(--warn);border:1px solid #f0dcb4}
+
+.scene{display:none;font-size:10.5px;color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;margin-bottom:10px;line-height:1.7}
+.scene.show{display:block}
+.scene b{color:var(--ink);font-weight:600}
+.scene .pill{display:inline-block;font-family:var(--mono);font-size:9.5px;background:var(--accent-soft);color:var(--accent);padding:1px 6px;border-radius:5px;margin-left:4px}
+
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.stat{background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:7px 8px;text-align:center}
+.stat .v{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink)}
+.stat .l{font-size:8.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+
+.legend{margin-bottom:10px}
+.legend-bar{height:14px;border-radius:4px;border:1px solid var(--line)}
+.legend-ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--ink-faint);margin-top:3px}
+
+.hist-wrap{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:9px;margin-bottom:10px}
+.hist-wrap .cap{font-size:9.5px;color:var(--ink-faint);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+#histCanvas{width:100%;height:74px;display:block}
+
+.cls-row{display:flex;align-items:center;gap:7px;font-size:10px;margin-bottom:4px}
+.cls-sw{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.1)}
+.cls-lbl{flex:1;color:var(--ink-dim);font-weight:600}
+.cls-track{width:78px;height:8px;border-radius:999px;background:var(--line);overflow:hidden;flex:none}
+.cls-fill{height:100%;border-radius:999px}
+.cls-pct{width:38px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--ink);font-size:9.5px}
+
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+
+.hint{font-size:10px;color:var(--ink-faint);line-height:1.5;margin-top:8px}
+
+/* opacity slider on result */
+.op-row{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.op-row label{font-size:11px;font-weight:600;color:var(--ink-dim);white-space:nowrap}
+.op-row input{flex:1;accent-color:var(--accent)}
+
+/* processing overlay */
+.proc{position:absolute;inset:0;background:rgba(238,241,245,.82);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:50}
+.proc.show{display:flex}
+.spinner{width:44px;height:44px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.proc-txt{font-size:12.5px;font-weight:600;color:var(--ink);text-align:center;max-width:280px}
+.proc-sub{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono)}
+
+/* map floating controls */
+.map-ctrl{position:absolute;z-index:15;display:flex;gap:6px}
+.map-ctrl.tl{top:12px;left:12px;flex-direction:column}
+.mc-btn{width:38px;height:38px;border-radius:9px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm);color:var(--ink-dim);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mc-btn svg{width:18px;height:18px}
+.mc-btn:hover{color:var(--accent);border-color:var(--accent)}
+.mc-btn.active{color:#fff;background:var(--accent);border-color:var(--accent)}
+.basemap-sw{position:absolute;bottom:14px;left:12px;z-index:15;background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow-sm);display:flex;overflow:hidden}
+.basemap-sw button{border:none;background:none;padding:7px 12px;font-size:11px;font-weight:700;color:var(--ink-dim);cursor:pointer}
+.basemap-sw button.active{background:var(--accent);color:#fff}
+
+/* inspector tooltip */
+.inspect{position:absolute;z-index:16;pointer-events:none;background:#1c2430;color:#fff;font-family:var(--mono);font-size:11px;padding:5px 9px;border-radius:7px;box-shadow:var(--shadow-md);display:none;transform:translate(-50%,-135%)}
+.inspect.show{display:block}
+.inspect b{color:#7fe0a8}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1c2430;color:#fff;font-size:12px;font-weight:600;padding:10px 18px;border-radius:999px;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:.25s;z-index:200;max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* mobile: sidebar -> bottom sheet */
+.sheet-toggle{display:none}
+@media (max-width:860px){
+  .body{flex-direction:column}
+  #map{flex:1}
+  .side{position:absolute;left:0;right:0;bottom:0;width:100%;flex:none;height:60dvh;border-left:none;border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -8px 28px rgba(20,30,50,.18);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+  .side.collapsed{transform:translateY(calc(60dvh - 118px))}
+  .side-scroll{padding-bottom:30px}
+  .sheet-toggle{display:flex;align-items:center;justify-content:center;gap:8px;height:34px;cursor:pointer;flex:none;border-bottom:1px solid var(--line)}
+  .sheet-toggle .grip{width:38px;height:4px;border-radius:999px;background:var(--line-2)}
+  .basemap-sw{bottom:calc(60dvh + 12px)}
+  .side.collapsed ~ #map{}
+}
+@media (max-width:860px){
+  .basemap-sw{bottom:auto;top:60px;left:12px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M3 14h7v7H3z"/><path d="M14 14h7v7h-7z"/></svg></span>
+      <span class="brand-txt"><b>Multispectral</b><span>SENTINEL-2 · INDONESIA</span></span>
+    </div>
+    <div class="topbar-badge"><span class="dot"></span>API Terhubung</div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <div id="map"></div>
+
+    <!-- map controls -->
+    <div class="map-ctrl tl">
+      <button class="mc-btn" id="btnZoomIn" title="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="mc-btn" id="btnZoomOut" title="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      <button class="mc-btn" id="btnHome" title="Ke Banten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+    </div>
+    <div class="basemap-sw">
+      <button id="bmSat" class="active">Satelit</button>
+      <button id="bmOsm">Peta</button>
+    </div>
+    <div class="inspect" id="inspect"></div>
+
+    <!-- processing overlay -->
+    <div class="proc" id="proc">
+      <div class="spinner"></div>
+      <div class="proc-txt" id="procTxt">Memproses…</div>
+      <div class="proc-sub" id="procSub"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="side" id="side">
+      <div class="sheet-toggle" id="sheetToggle"><span class="grip"></span></div>
+      <div class="side-scroll">
+
+        <!-- STEP 1: AREA -->
+        <div class="step">
+          <div class="step-h"><span class="step-n">1</span><span class="step-t">Area Analisis<small>Pilih lokasi di dalam wilayah Indonesia</small></span></div>
+          <button class="btn sample wide" id="btnSample"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg>Muat Sampel Banten</button>
+          <div class="btn-row" style="margin-top:7px">
+            <button class="btn" id="btnDraw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/></svg>Gambar Kotak</button>
+            <button class="btn" id="btnView"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Tampilan Peta</button>
+            <button class="btn ghost wide" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Hapus Area</button>
+          </div>
+          <div class="readout" id="aoiReadout"><span class="muted">Belum ada area. Mulai dengan <b>Muat Sampel Banten</b>.</span></div>
+        </div>
+
+        <!-- STEP 2: INDEX -->
+        <div class="step">
+          <div class="step-h"><span class="step-n">2</span><span class="step-t">Indeks Spektral<small>Pilih analisis yang diinginkan</small></span></div>
+          <div class="idx-grid" id="idxGrid"></div>
+          <div class="idx-desc" id="idxDesc"></div>
+        </div>
+
+        <!-- STEP 3: OPTIONS -->
+        <div class="step">
+          <div class="step-h"><span class="step-n">3</span><span class="step-t">Opsi Pencarian Citra<small>Sumber &amp; kualitas otomatis</small></span></div>
+          <div class="opt">
+            <label>Periode</label>
+            <select id="optPeriod">
+              <option value="90">3 bulan terakhir</option>
+              <option value="180" selected>6 bulan terakhir</option>
+              <option value="365">1 tahun terakhir</option>
+            </select>
+          </div>
+          <div class="opt">
+            <label>Awan maks.</label>
+            <div class="slider-wrap">
+              <input type="range" id="optCloud" min="1" max="80" value="20">
+              <span class="slider-val" id="cloudVal">20%</span>
+            </div>
+          </div>
+          <div class="opt">
+            <label>Detail render</label>
+            <select id="optRes">
+              <option value="220">Cepat (±220px)</option>
+              <option value="320" selected>Standar (±320px)</option>
+              <option value="480">Halus (±480px)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PROCESS -->
+        <button class="btn primary wide" id="btnProcess" disabled style="height:46px;font-size:13px;margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>Proses Analisis</button>
+
+        <!-- STEP 4: RESULT -->
+        <div class="step" id="resultStep" style="display:none">
+          <div class="step-h"><span class="step-n">4</span><span class="step-t">Hasil<small id="resultSub">Statistik &amp; visualisasi</small></span></div>
+          <div class="status" id="status"></div>
+          <div class="scene" id="scene"></div>
+
+          <div class="op-row" id="opRow" style="display:none">
+            <label>Transparansi</label>
+            <input type="range" id="opacityRange" min="10" max="100" value="80">
+          </div>
+
+          <div class="legend" id="legendBox" style="display:none">
+            <div class="legend-bar" id="legendBar"></div>
+            <div class="legend-ticks" id="legendTicks"></div>
+          </div>
+
+          <div class="stat-grid" id="statGrid" style="display:none"></div>
+
+          <div class="hist-wrap" id="histWrap" style="display:none">
+            <div class="cap">Distribusi Nilai</div>
+            <canvas id="histCanvas" width="320" height="74"></canvas>
+          </div>
+
+          <div id="classBox" style="display:none"></div>
+        </div>
+
+        <!-- STEP 5: EXPORT -->
+        <div class="step" id="exportStep" style="display:none">
+          <div class="step-h"><span class="step-n">5</span><span class="step-t">Ekspor<small>Unduh hasil ke perangkat</small></span></div>
+          <div class="export-grid">
+            <button class="btn" id="expPng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>PNG</button>
+            <button class="btn" id="expTif"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>GeoTIFF</button>
+            <button class="btn" id="expCsv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6"/></svg>CSV</button>
+            <button class="btn" id="expGeojson"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 00-8 8c0 6 8 12 8 12s8-6 8-12a8 8 0 00-8-8z"/></svg>GeoJSON</button>
+          </div>
+          <div class="hint">GeoTIFF & GeoJSON tergeoreferensi (dapat dibuka di QGIS/ArcGIS). CSV berisi sampel titik koordinat + nilai indeks.</div>
+        </div>
+
+        <div class="hint" style="text-align:center;margin-top:4px">Data: Sentinel-2 L2A · Copernicus / Element84 Earth Search · Diproses di perangkat Anda.</div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.min.js"></script>
+<script>
+'use strict';
+/* ==================================================================
+   Multispectral Analysis — standalone PWA tool
+   - Map dikunci ke wilayah Indonesia
+   - Sumber data otomatis: Sentinel-2 L2A via Earth Search STAC (tanpa login)
+   - Kalkulasi indeks (NDVI/NDBI/NDWI/MNDWI) di sisi klien (geotiff.js)
+   ================================================================== */
+
+// ---- Konstanta wilayah ----
+const INDONESIA_BOUNDS = L.latLngBounds([-11.5, 94.0], [6.5, 141.5]);
+const BANTEN_VIEW = { center:[-6.35, 106.15], zoom:9 };
+// Sampel kecil di Banten (sekitar Serang) ~6.6 x 6.6 km
+const BANTEN_SAMPLE = { W:106.10, S:-6.15, E:106.16, N:-6.09 };
+
+const STAC_URL = 'https://earth-search.aws.element84.com/v1/search';
+const STAC_COLLECTION = 'sentinel-2-l2a';
+
+// ---- Definisi indeks ----
+const INDICES = {
+  NDVI:{
+    label:'NDVI', sub:'Vegetasi', bandA:'nir', bandB:'red',
+    formula:'(B08 − B04) / (B08 + B04)',
+    desc:'Kerapatan & kesehatan vegetasi. Vegetasi lebat > 0.6, tanah ~ 0, air < 0.',
+    palette:['#a50026','#d73027','#f46d43','#fdae61','#fee08b','#ffffbf','#d9ef8b','#a6d96a','#66bd63','#1a9850','#006837'],
+    classes:[{lbl:'Vegetasi lebat',min:.4,max:1,color:'#1a9850'},{lbl:'Vegetasi sedang',min:.2,max:.4,color:'#a6d96a'},{lbl:'Vegetasi jarang',min:.05,max:.2,color:'#fee08b'},{lbl:'Tanah/non-veg',min:-.1,max:.05,color:'#fdae61'},{lbl:'Air/bangunan',min:-1,max:-.1,color:'#d73027'}]
+  },
+  NDBI:{
+    label:'NDBI', sub:'Lahan Terbangun', bandA:'swir16', bandB:'nir',
+    formula:'(B11 − B08) / (B11 + B08)',
+    desc:'Area terbangun / permukaan kedap. Bangunan > 0.1, vegetasi < 0.',
+    palette:['#1a9850','#66bd63','#a6d96a','#ffffbf','#fee08b','#fdae61','#f46d43','#d73027','#8b1a1a'],
+    classes:[{lbl:'Bangunan rapat',min:.2,max:1,color:'#8b1a1a'},{lbl:'Terbangun',min:.05,max:.2,color:'#f46d43'},{lbl:'Lahan terbuka',min:-.05,max:.05,color:'#ffffbf'},{lbl:'Vegetasi',min:-.5,max:-.05,color:'#66bd63'},{lbl:'Vegetasi lebat',min:-1,max:-.5,color:'#1a9850'}]
+  },
+  NDWI:{
+    label:'NDWI', sub:'Air / Kelembaban', bandA:'green', bandB:'nir',
+    formula:'(B03 − B08) / (B03 + B08)',
+    desc:'Kandungan air & kelembaban. Air > 0.3, lembab 0–0.3, kering < 0.',
+    palette:['#8c510a','#bf812d','#dfc27d','#f6e8c3','#ffffff','#c7eae5','#80cdc1','#35978f','#01665e','#003c30'],
+    classes:[{lbl:'Badan air',min:.3,max:1,color:'#01665e'},{lbl:'Lembab',min:.1,max:.3,color:'#80cdc1'},{lbl:'Normal',min:-.1,max:.1,color:'#f6e8c3'},{lbl:'Kering',min:-.3,max:-.1,color:'#dfc27d'},{lbl:'Sangat kering',min:-1,max:-.3,color:'#8c510a'}]
+  },
+  MNDWI:{
+    label:'MNDWI', sub:'Air Permukaan', bandA:'green', bandB:'swir16',
+    formula:'(B03 − B11) / (B03 + B11)',
+    desc:'Deteksi air permukaan (lebih baik di area urban). Air > 0.2.',
+    palette:['#7f3b08','#b35806','#e08214','#fdb863','#fee0b6','#d8daeb','#b2abd2','#8073ac','#542788','#2d004b'],
+    classes:[{lbl:'Air permukaan',min:.2,max:1,color:'#2d004b'},{lbl:'Basah/rawa',min:.05,max:.2,color:'#8073ac'},{lbl:'Normal',min:-.05,max:.05,color:'#fee0b6'},{lbl:'Kering',min:-.3,max:-.05,color:'#e08214'},{lbl:'Sangat kering',min:-1,max:-.3,color:'#7f3b08'}]
+  }
+};
+
+// ---- State ----
+const S = {
+  map:null, baseSat:null, baseOsm:null,
+  aoi:null,            // {W,S,E,N, latlngs, source}
+  aoiLayer:null,
+  drawing:false, drawStart:null, drawRect:null,
+  index:'NDVI',
+  overlay:null,        // L.imageOverlay
+  result:null,         // {grid, gw, gh, utm:[minX,minY,maxX,maxY], epsg, bounds, stats, valuesForCsv}
+  pool:null            // GeoTIFF.Pool (dekode paralel)
+};
+
+const $ = id => document.getElementById(id);
+const wgs84 = '+proj=longlat +datum=WGS84 +no_defs';
+
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600); }
+
+// ============================ MAP ============================
+function initMap(){
+  S.map = L.map('map',{ zoomControl:false, attributionControl:true, maxBounds:INDONESIA_BOUNDS, maxBoundsViscosity:.9, minZoom:5, maxZoom:18, tap:true });
+  S.baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Tiles © Esri'});
+  S.baseOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+  S.baseSat.addTo(S.map);
+  S.map.setView(BANTEN_VIEW.center, BANTEN_VIEW.zoom);
+
+  $('btnZoomIn').onclick = ()=>S.map.zoomIn();
+  $('btnZoomOut').onclick = ()=>S.map.zoomOut();
+  $('btnHome').onclick = ()=>S.map.setView(BANTEN_VIEW.center, BANTEN_VIEW.zoom);
+  $('bmSat').onclick = ()=>setBase('sat');
+  $('bmOsm').onclick = ()=>setBase('osm');
+
+  S.map.on('mousemove', onInspect);
+  S.map.on('click', onInspect);
+}
+function setBase(which){
+  if(which==='sat'){ S.map.removeLayer(S.baseOsm); S.baseSat.addTo(S.map); $('bmSat').classList.add('active'); $('bmOsm').classList.remove('active'); }
+  else { S.map.removeLayer(S.baseSat); S.baseOsm.addTo(S.map); $('bmOsm').classList.add('active'); $('bmSat').classList.remove('active'); }
+  if(S.overlay) S.overlay.bringToFront();
+}
+
+// ============================ AOI ============================
+function setAOI(W,S_,E,N, source){
+  // clamp ke Indonesia
+  W=Math.max(W,94); E=Math.min(E,141.5); S_=Math.max(S_,-11.5); N=Math.min(N,6.5);
+  if(!(E>W && N>S_)){ toast('Area tidak valid.'); return; }
+  S.aoi = { W, S:S_, E, N, source: source||'Area', latlngs:[[N,W],[N,E],[S_,E],[S_,W]] };
+  drawAOILayer();
+  updateAOIReadout();
+  $('btnProcess').disabled = false;
+}
+function drawAOILayer(){
+  if(S.aoiLayer){ S.map.removeLayer(S.aoiLayer); }
+  const a=S.aoi;
+  S.aoiLayer = L.rectangle([[a.S,a.W],[a.N,a.E]],{color:'#215bd6',weight:2,fillColor:'#215bd6',fillOpacity:.06,dashArray:'6,4'}).addTo(S.map);
+}
+function areaKm2(a){
+  const latM=(a.S+a.N)/2;
+  const dx=(a.E-a.W)*Math.cos(latM*Math.PI/180)*111.32;
+  const dy=(a.N-a.S)*111.32;
+  return Math.abs(dx*dy);
+}
+function updateAOIReadout(){
+  const a=S.aoi;
+  if(!a){ $('aoiReadout').innerHTML='<span class="muted">Belum ada area.</span>'; return; }
+  const km2=areaKm2(a);
+  $('aoiReadout').innerHTML =
+    '<b>'+a.source+'</b><br>'+
+    'Luas: <b>'+km2.toFixed(2)+' km²</b> ('+(km2*100).toFixed(0)+' ha)<br>'+
+    'Pusat: <b>'+((a.S+a.N)/2).toFixed(4)+', '+((a.W+a.E)/2).toFixed(4)+'</b><br>'+
+    '<span class="muted">BBox: '+a.W.toFixed(3)+', '+a.S.toFixed(3)+' → '+a.E.toFixed(3)+', '+a.N.toFixed(3)+'</span>';
+}
+function clearAOI(){
+  S.aoi=null;
+  if(S.aoiLayer){ S.map.removeLayer(S.aoiLayer); S.aoiLayer=null; }
+  clearResult();
+  updateAOIReadout();
+  $('btnProcess').disabled=true;
+}
+function loadSample(){
+  const b=BANTEN_SAMPLE;
+  setAOI(b.W,b.S,b.E,b.N,'Sampel Banten (Serang)');
+  S.map.fitBounds([[b.S,b.W],[b.N,b.E]],{padding:[40,40]});
+  toast('Sampel Banten dimuat. Tekan "Proses Analisis".');
+}
+function useCurrentView(){
+  const b=S.map.getBounds();
+  // batasi supaya tetap dalam Indonesia
+  const W=Math.max(b.getWest(),94), E=Math.min(b.getEast(),141.5), So=Math.max(b.getSouth(),-11.5), N=Math.min(b.getNorth(),6.5);
+  if(areaKm2({W,S:So,E,N}) > 2500){ toast('Perkecil dulu — area terlalu luas (>2500 km²).'); }
+  setAOI(W,So,E,N,'Tampilan Peta');
+}
+// Gambar kotak: klik titik pertama lalu titik kedua
+function startDraw(){
+  if(S.drawing) return;
+  S.drawing=true; S.drawStart=null;
+  if(S.drawRect){ S.map.removeLayer(S.drawRect); S.drawRect=null; }
+  $('btnDraw').classList.add('active');
+  toast('Klik titik sudut pertama, lalu sudut kedua.');
+  S.map.getContainer().style.cursor='crosshair';
+  S.map.on('click', onDrawClick);
+  S.map.on('mousemove', onDrawMove);
+}
+function onDrawClick(e){
+  if(!S.drawStart){ S.drawStart=e.latlng; return; }
+  const a=S.drawStart, b=e.latlng;
+  finishDraw();
+  setAOI(Math.min(a.lng,b.lng),Math.min(a.lat,b.lat),Math.max(a.lng,b.lng),Math.max(a.lat,b.lat),'Kotak Gambar');
+}
+function onDrawMove(e){
+  if(!S.drawStart) return;
+  if(S.drawRect) S.map.removeLayer(S.drawRect);
+  S.drawRect=L.rectangle([S.drawStart,e.latlng],{color:'#e0742a',weight:2,dashArray:'5,4',fillOpacity:.05}).addTo(S.map);
+}
+function finishDraw(){
+  S.drawing=false;
+  $('btnDraw').classList.remove('active');
+  S.map.getContainer().style.cursor='';
+  S.map.off('click', onDrawClick);
+  S.map.off('mousemove', onDrawMove);
+  if(S.drawRect){ S.map.removeLayer(S.drawRect); S.drawRect=null; }
+}
+
+// ============================ INDEX UI ============================
+function renderIndexUI(){
+  $('idxGrid').innerHTML = Object.keys(INDICES).map(k=>{
+    const i=INDICES[k];
+    return '<button class="idx'+(k===S.index?' active':'')+'" data-k="'+k+'"><b>'+i.label+'</b><small>'+i.sub+'</small></button>';
+  }).join('');
+  $('idxGrid').querySelectorAll('.idx').forEach(b=>b.onclick=()=>{ S.index=b.dataset.k; renderIndexUI(); });
+  const i=INDICES[S.index];
+  $('idxDesc').innerHTML='<span class="formula">'+i.label+' = '+i.formula+'</span><br>'+i.desc;
+}
+
+// ============================ PROCESSING ============================
+function utmDefFromEpsg(epsg){
+  const zone=epsg%100; const south=(epsg>=32700 && epsg<32800);
+  return '+proj=utm +zone='+zone+(south?' +south':'')+' +datum=WGS84 +units=m +no_defs';
+}
+function showProc(txt,sub){ $('procTxt').textContent=txt||'Memproses…'; $('procSub').textContent=sub||''; $('proc').classList.add('show'); }
+function hideProc(){ $('proc').classList.remove('show'); }
+function setStatus(kind,msg){ const s=$('status'); s.className='status show '+kind; s.innerHTML=msg; }
+
+async function stacSearch(){
+  const days=parseInt($('optPeriod').value);
+  const cloud=parseInt($('optCloud').value);
+  const to=new Date(); const from=new Date(); from.setDate(to.getDate()-days);
+  const fmt=d=>d.toISOString().slice(0,10);
+  const body={
+    collections:[STAC_COLLECTION],
+    bbox:[S.aoi.W,S.aoi.S,S.aoi.E,S.aoi.N],
+    datetime:fmt(from)+'T00:00:00Z/'+fmt(to)+'T23:59:59Z',
+    query:{'eo:cloud_cover':{lt:cloud}},
+    limit:12,
+    sortby:[{field:'properties.eo:cloud_cover',direction:'asc'}]
+  };
+  const res=await fetch(STAC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!res.ok) throw new Error('STAC '+res.status);
+  const j=await res.json();
+  return (j.features||[]);
+}
+
+async function readBand(href, epsg, targetMax){
+  // konversi bbox AOI (lon/lat) -> UTM item
+  const toUtm=utmDefFromEpsg(epsg);
+  const c1=proj4(wgs84,toUtm,[S.aoi.W,S.aoi.S]);
+  const c2=proj4(wgs84,toUtm,[S.aoi.E,S.aoi.S]);
+  const c3=proj4(wgs84,toUtm,[S.aoi.E,S.aoi.N]);
+  const c4=proj4(wgs84,toUtm,[S.aoi.W,S.aoi.N]);
+  const xs=[c1[0],c2[0],c3[0],c4[0]], ys=[c1[1],c2[1],c3[1],c4[1]];
+  const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+  const extX=maxX-minX, extY=maxY-minY;
+  let gw,gh;
+  if(extX>=extY){ gw=targetMax; gh=Math.max(1,Math.round(targetMax*extY/extX)); }
+  else { gh=targetMax; gw=Math.max(1,Math.round(targetMax*extX/extY)); }
+  // file-level readRasters otomatis memilih overview (piramida) COG → cepat & hemat data
+  const tiff=await GeoTIFF.fromUrl(href);
+  const opts={ bbox:[minX,minY,maxX,maxY], width:gw, height:gh, resampleMethod:'bilinear', fillValue:0, interleave:false };
+  if(S.pool) opts.pool=S.pool;   // dekode paralel (web worker) bila tersedia
+  const rasters=await tiff.readRasters(opts);
+  const band=rasters[0];
+  return { band, gw, gh, utm:[minX,minY,maxX,maxY] };
+}
+
+function computeIndex(A,B){
+  // (A - B)/(A + B), nodata jika salah satu = 0
+  const n=A.length, grid=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const a=A[i], b=B[i];
+    if(!a || !b){ grid[i]=NaN; continue; }
+    const s=a+b;
+    grid[i]= s===0 ? NaN : (a-b)/s;
+  }
+  return grid;
+}
+
+function computeStats(grid){
+  const vals=[];
+  for(let i=0;i<grid.length;i++){ const v=grid[i]; if(!Number.isNaN(v)) vals.push(v); }
+  if(!vals.length) return {count:0, nodata:grid.length};
+  vals.sort((a,b)=>a-b);
+  const n=vals.length, sum=vals.reduce((a,v)=>a+v,0), mean=sum/n;
+  const std=Math.sqrt(vals.reduce((a,v)=>a+(v-mean)*(v-mean),0)/n);
+  const q=p=>vals[Math.min(n-1,Math.floor(p*n))];
+  return { count:n, nodata:grid.length-n, min:vals[0], max:vals[n-1], mean, std, median:q(.5), p25:q(.25), p75:q(.75) };
+}
+
+function palColor(pal, t){
+  t=Math.max(0,Math.min(1,t));
+  const seg=(pal.length-1)*t, i=Math.floor(seg), f=seg-i;
+  const h2=h=>{ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; };
+  const c0=h2(pal[Math.min(i,pal.length-1)]), c1=h2(pal[Math.min(i+1,pal.length-1)]);
+  return [Math.round(c0[0]+(c1[0]-c0[0])*f),Math.round(c0[1]+(c1[1]-c0[1])*f),Math.round(c0[2]+(c1[2]-c0[2])*f)];
+}
+
+function renderCanvas(grid,gw,gh,idx){
+  const pal=INDICES[idx].palette;
+  const cv=document.createElement('canvas'); cv.width=gw; cv.height=gh;
+  const ctx=cv.getContext('2d');
+  const img=ctx.createImageData(gw,gh), d=img.data;
+  for(let i=0;i<grid.length;i++){
+    const v=grid[i], o=i*4;
+    if(Number.isNaN(v)){ d[o+3]=0; continue; }
+    const [r,g,b]=palColor(pal,(v+1)/2);
+    d[o]=r; d[o+1]=g; d[o+2]=b; d[o+3]=235;
+  }
+  ctx.putImageData(img,0,0);
+  return cv;
+}
+
+async function process(){
+  if(!S.aoi){ toast('Pilih area dulu.'); return; }
+  if(areaKm2(S.aoi) > 4000){ toast('Area terlalu luas (>4000 km²). Perkecil area.'); return; }
+  clearResult();
+  $('resultStep').style.display='block';
+  const idx=S.index, cfg=INDICES[idx];
+  const targetMax=parseInt($('optRes').value);
+  try{
+    showProc('Mencari citra Sentinel-2…','STAC · Earth Search');
+    setStatus('info','Mencari citra terbaik untuk area…');
+    const feats=await stacSearch();
+    if(!feats.length){ throw {soft:true, msg:'Tidak ada citra dengan kriteria ini. Perbesar periode atau naikkan batas awan.'}; }
+    // pilih yang bbox-nya menutupi AOI paling baik & awan terendah (sudah tersortir asc)
+    const feat=feats[0];
+    const epsg=feat.properties['proj:epsg'] || 32748;
+    const cloud=feat.properties['eo:cloud_cover'];
+    const date=(feat.properties.datetime||'').slice(0,10);
+
+    const aHref=feat.assets[cfg.bandA] && feat.assets[cfg.bandA].href;
+    const bHref=feat.assets[cfg.bandB] && feat.assets[cfg.bandB].href;
+    if(!aHref||!bHref) throw {soft:true, msg:'Band tidak tersedia pada citra ini.'};
+
+    showProc('Mengambil 2 band citra…','Membaca COG (range request, paralel)');
+    if(!S.pool && typeof GeoTIFF.Pool==='function'){ try{ S.pool=new GeoTIFF.Pool(); }catch(e){ S.pool=null; } }
+    const [A,B]=await Promise.all([ readBand(aHref, epsg, targetMax), readBand(bHref, epsg, targetMax) ]);
+
+    // samakan dimensi (ambil grid A sebagai acuan)
+    const gw=A.gw, gh=A.gh;
+    showProc('Menghitung '+idx+'…','Kalkulasi per-piksel');
+    const grid=computeIndex(A.band, B.band);
+    const stats=computeStats(grid);
+    if(!stats.count) throw {soft:true, msg:'Area di luar cakupan citra (hanya berisi nodata). Geser area sedikit.'};
+
+    const cv=renderCanvas(grid,gw,gh,idx);
+    const bounds=[[S.aoi.N,S.aoi.W],[S.aoi.S,S.aoi.E]];
+    S.overlay=L.imageOverlay(cv.toDataURL('image/png'),bounds,{opacity:parseInt($('opacityRange').value)/100,interactive:false}).addTo(S.map);
+    S.overlay.bringToFront();
+
+    S.result={ grid, gw, gh, utm:A.utm, epsg, bounds, stats, idx, sceneId:feat.id, date, cloud, dataUrl:cv.toDataURL('image/png') };
+    showResult(false);
+    hideProc();
+    toast(idx+' selesai · '+date+' · awan '+cloud.toFixed(1)+'%');
+  }catch(err){
+    hideProc();
+    if(err && err.soft){
+      setStatus('warn', err.msg+'<br><br>Menampilkan <b>mode demo</b> agar Anda tetap dapat melihat contoh keluaran.');
+      runDemo(idx,targetMax);
+    }else{
+      console.error(err);
+      setStatus('err','Gagal memuat data citra (koneksi/CORS). '+((err&&err.message)||'')+'<br><br>Menampilkan <b>mode demo</b>.');
+      runDemo(idx,targetMax);
+    }
+  }
+}
+
+// Fallback demo — pola sintetis supaya sampel selalu menghasilkan output
+function runDemo(idx,targetMax){
+  const a=S.aoi; if(!a) return;
+  const gw=targetMax, gh=Math.max(1,Math.round(targetMax*(a.N-a.S)/((a.E-a.W)||1)));
+  const grid=new Float32Array(gw*gh);
+  const n2=(x,y,f)=>Math.sin(x*f*0.8+1.3)*Math.cos(y*f*0.7+0.6)+0.5*Math.sin(x*f*1.9+2.1)*Math.cos(y*f*2.2+1.4);
+  for(let y=0;y<gh;y++)for(let x=0;x<gw;x++){
+    const nx=x/gw, ny=y/gh;
+    let v=0.15+0.55*n2(nx,ny,6)+0.22*n2(nx,ny,15);
+    v=Math.max(-1,Math.min(1,v));
+    grid[y*gw+x]=v;
+  }
+  const stats=computeStats(grid);
+  const cv=renderCanvas(grid,gw,gh,idx);
+  const bounds=[[a.N,a.W],[a.S,a.E]];
+  S.overlay=L.imageOverlay(cv.toDataURL('image/png'),bounds,{opacity:parseInt($('opacityRange').value)/100,interactive:false}).addTo(S.map);
+  S.overlay.bringToFront();
+  // UTM untuk export demo
+  const toUtm=utmDefFromEpsg(32748);
+  const p1=proj4(wgs84,toUtm,[a.W,a.S]), p3=proj4(wgs84,toUtm,[a.E,a.N]);
+  S.result={ grid, gw, gh, utm:[Math.min(p1[0],p3[0]),Math.min(p1[1],p3[1]),Math.max(p1[0],p3[0]),Math.max(p1[1],p3[1])], epsg:32748, bounds, stats, idx, sceneId:'DEMO', date:new Date().toISOString().slice(0,10), cloud:0, dataUrl:cv.toDataURL('image/png'), isDemo:true };
+  showResult(true);
+}
+
+// ============================ RESULT UI ============================
+function showResult(isDemo){
+  const r=S.result, cfg=INDICES[r.idx];
+  $('resultSub').textContent=r.idx+' · '+(isDemo?'mode demo':'Sentinel-2');
+  // scene
+  const sc=$('scene');
+  sc.className='scene show';
+  sc.innerHTML= isDemo
+    ? '<b>Mode Demo</b> — pola sintetis (bukan citra asli).<span class="pill">'+r.idx+'</span>'
+    : '<b>Sentinel-2 L2A</b><span class="pill">'+r.date+'</span><br>Tutupan awan: <b>'+r.cloud.toFixed(1)+'%</b> · EPSG:'+r.epsg+'<br><span style="font-family:var(--mono);font-size:9px">'+r.sceneId+'</span>';
+  if(!isDemo && $('status')) { setStatus('ok','Analisis berhasil. Klik pada peta untuk inspeksi nilai piksel.'); }
+
+  // opacity
+  $('opRow').style.display='flex';
+  // legend
+  const pal=cfg.palette;
+  $('legendBox').style.display='block';
+  $('legendBar').style.background='linear-gradient(90deg,'+pal.join(',')+')';
+  $('legendTicks').innerHTML='<span>−1.0</span><span>−0.5</span><span>0</span><span>+0.5</span><span>+1.0</span>';
+  // stats
+  const s=r.stats;
+  $('statGrid').style.display='grid';
+  const st=(v,l)=>'<div class="stat"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';
+  $('statGrid').innerHTML=
+    st(s.min.toFixed(3),'Min')+st(s.mean.toFixed(3),'Mean')+st(s.max.toFixed(3),'Max')+
+    st(s.median.toFixed(3),'Median')+st(s.std.toFixed(3),'Std')+st(s.count.toLocaleString('id'),'Piksel');
+  // histogram
+  $('histWrap').style.display='block';
+  drawHist(r.grid);
+  // classes
+  drawClasses(r.grid,cfg);
+  // export
+  $('exportStep').style.display='block';
+}
+function drawHist(grid){
+  const cv=$('histCanvas'), ctx=cv.getContext('2d');
+  const W=cv.width, H=cv.height; ctx.clearRect(0,0,W,H);
+  const bins=44, hist=new Array(bins).fill(0);
+  let maxc=0;
+  for(let i=0;i<grid.length;i++){ const v=grid[i]; if(Number.isNaN(v))continue; let bi=Math.floor((v+1)/2*bins); bi=Math.max(0,Math.min(bins-1,bi)); hist[bi]++; }
+  maxc=Math.max(...hist)||1;
+  const bw=W/bins;
+  for(let i=0;i<bins;i++){
+    const h=hist[i]/maxc*(H-6);
+    const [r,g,b]=palColor(INDICES[S.result.idx].palette, i/(bins-1));
+    ctx.fillStyle='rgb('+r+','+g+','+b+')';
+    ctx.fillRect(i*bw+0.5,H-h,bw-1,h);
+  }
+  // garis nol
+  ctx.strokeStyle='rgba(28,36,48,.3)'; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
+}
+function drawClasses(grid,cfg){
+  const box=$('classBox');
+  if(!cfg.classes||!cfg.classes.length){ box.style.display='none'; return; }
+  const vals=[]; for(let i=0;i<grid.length;i++){ if(!Number.isNaN(grid[i])) vals.push(grid[i]); }
+  const n=vals.length||1;
+  box.style.display='block';
+  box.innerHTML='<div class="cap" style="font-size:9.5px;color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Klasifikasi</div>'+
+    cfg.classes.map(c=>{
+      const cnt=vals.filter(v=>v>=c.min && v<c.max).length, pct=cnt/n*100;
+      return '<div class="cls-row"><span class="cls-sw" style="background:'+c.color+'"></span><span class="cls-lbl">'+c.lbl+'</span><span class="cls-track"><span class="cls-fill" style="width:'+pct.toFixed(1)+'%;background:'+c.color+'"></span></span><span class="cls-pct">'+pct.toFixed(1)+'%</span></div>';
+    }).join('');
+}
+function clearResult(){
+  if(S.overlay){ S.map.removeLayer(S.overlay); S.overlay=null; }
+  S.result=null;
+  ['scene','status'].forEach(id=>$(id).className=(id==='scene'?'scene':'status'));
+  ['opRow','legendBox','histWrap','classBox'].forEach(id=>$(id).style.display='none');
+  $('statGrid').style.display='none';
+  $('exportStep').style.display='none';
+  $('inspect').classList.remove('show');
+}
+
+// ============================ PIXEL INSPECTOR ============================
+function onInspect(e){
+  const r=S.result; const el=$('inspect');
+  if(!r || S.drawing){ el.classList.remove('show'); return; }
+  const b=L.latLngBounds(r.bounds);
+  if(!b.contains(e.latlng)){ el.classList.remove('show'); return; }
+  const toUtm=utmDefFromEpsg(r.epsg);
+  const p=proj4(wgs84,toUtm,[e.latlng.lng,e.latlng.lat]);
+  const [minX,minY,maxX,maxY]=r.utm;
+  let col=Math.floor((p[0]-minX)/(maxX-minX)*r.gw);
+  let row=Math.floor((maxY-p[1])/(maxY-minY)*r.gh);
+  if(col<0||row<0||col>=r.gw||row>=r.gh){ el.classList.remove('show'); return; }
+  const v=r.grid[row*r.gw+col];
+  const pt=S.map.latLngToContainerPoint(e.latlng);
+  el.style.left=pt.x+'px'; el.style.top=pt.y+'px';
+  el.innerHTML = Number.isNaN(v) ? 'nodata' : r.idx+' <b>'+v.toFixed(3)+'</b>';
+  el.classList.add('show');
+}
+
+// ============================ EXPORT ============================
+function dl(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500); }
+function fnameBase(){ const r=S.result; return r.idx+'_'+(r.date||'').replace(/-/g,'')+(r.isDemo?'_demo':''); }
+
+function exportPng(){
+  if(!S.result) return;
+  const r=S.result;
+  const img=new Image();
+  img.onload=()=>{
+    const pad=14, legendH=46, W=Math.max(img.width,340), H=img.height+legendH+pad;
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const ctx=cv.getContext('2d');
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+    ctx.drawImage(img,(W-img.width)/2,0);
+    // legend
+    const cfg=INDICES[r.idx], lx=pad, ly=img.height+12, lw=W-pad*2, lh=14;
+    const grad=ctx.createLinearGradient(lx,0,lx+lw,0);
+    cfg.palette.forEach((c,i)=>grad.addColorStop(i/(cfg.palette.length-1),c));
+    ctx.fillStyle=grad; ctx.fillRect(lx,ly,lw,lh);
+    ctx.strokeStyle='#dbe1ea'; ctx.strokeRect(lx,ly,lw,lh);
+    ctx.fillStyle='#5b6675'; ctx.font='10px monospace'; ctx.textBaseline='top';
+    ['−1.0','−0.5','0','+0.5','+1.0'].forEach((t,i)=>{ ctx.textAlign=i===0?'left':(i===4?'right':'center'); ctx.fillText(t, lx+lw*i/4, ly+lh+4); });
+    ctx.textAlign='left'; ctx.fillStyle='#1c2430'; ctx.font='bold 11px sans-serif';
+    ctx.fillText(r.idx+' · '+(r.isDemo?'DEMO':r.date), lx, ly-14);
+    cv.toBlob(b=>dl(b, fnameBase()+'.png'),'image/png');
+  };
+  img.src=r.dataUrl;
+}
+function exportCsv(){
+  if(!S.result) return;
+  const r=S.result, [minX,minY,maxX,maxY]=r.utm, toUtm=utmDefFromEpsg(r.epsg);
+  // sample maksimal ~5000 titik
+  const step=Math.max(1,Math.round(Math.sqrt(r.gw*r.gh/5000)));
+  let csv='lon,lat,x_utm,y_utm,'+r.idx+'\n';
+  for(let row=0;row<r.gh;row+=step)for(let col=0;col<r.gw;col+=step){
+    const v=r.grid[row*r.gw+col]; if(Number.isNaN(v)) continue;
+    const x=minX+(col+0.5)/r.gw*(maxX-minX), y=maxY-(row+0.5)/r.gh*(maxY-minY);
+    const ll=proj4(toUtm,wgs84,[x,y]);
+    csv+=ll[0].toFixed(6)+','+ll[1].toFixed(6)+','+x.toFixed(1)+','+y.toFixed(1)+','+v.toFixed(4)+'\n';
+  }
+  dl(new Blob([csv],{type:'text/csv'}), fnameBase()+'.csv');
+}
+function exportGeojson(){
+  if(!S.result) return;
+  const r=S.result, a=S.aoi, s=r.stats;
+  const gj={ type:'FeatureCollection', features:[{
+    type:'Feature',
+    properties:{ index:r.idx, source:r.isDemo?'demo':'sentinel-2-l2a', scene:r.sceneId, date:r.date, cloud_cover:r.cloud,
+      min:+s.min.toFixed(4), max:+s.max.toFixed(4), mean:+s.mean.toFixed(4), median:+s.median.toFixed(4), std:+s.std.toFixed(4), valid_pixels:s.count },
+    geometry:{ type:'Polygon', coordinates:[[[a.W,a.S],[a.E,a.S],[a.E,a.N],[a.W,a.N],[a.W,a.S]]] }
+  }]};
+  dl(new Blob([JSON.stringify(gj,null,2)],{type:'application/geo+json'}), fnameBase()+'.geojson');
+}
+function exportGeotiff(){
+  if(!S.result){ return; }
+  const r=S.result;
+  try{
+    if(!GeoTIFF.writeArrayBuffer) throw new Error('writer tidak tersedia');
+    const [minX,minY,maxX,maxY]=r.utm;
+    const psx=(maxX-minX)/r.gw, psy=(maxY-minY)/r.gh;
+    const vals=new Float32Array(r.gw*r.gh);
+    for(let i=0;i<vals.length;i++){ vals[i]=Number.isNaN(r.grid[i]) ? -9999 : r.grid[i]; }
+    const meta={
+      width:r.gw, height:r.gh,
+      ModelPixelScale:[psx,psy,0],
+      ModelTiepoint:[0,0,0,minX,maxY,0],
+      GTModelTypeGeoKey:1, GTRasterTypeGeoKey:1, ProjectedCSTypeGeoKey:r.epsg,
+      GDAL_NODATA:'-9999',
+      SamplesPerPixel:1, BitsPerSample:[32], SampleFormat:[3]
+    };
+    const buf=GeoTIFF.writeArrayBuffer(vals, meta);
+    dl(new Blob([buf],{type:'image/tiff'}), fnameBase()+'.tif');
+  }catch(e){
+    console.error(e);
+    toast('GeoTIFF gagal di perangkat ini — pakai GeoJSON/CSV.');
+  }
+}
+
+// ============================ WIRING ============================
+function init(){
+  initMap();
+  renderIndexUI();
+  $('btnSample').onclick=loadSample;
+  $('btnDraw').onclick=startDraw;
+  $('btnView').onclick=useCurrentView;
+  $('btnClear').onclick=clearAOI;
+  $('btnProcess').onclick=process;
+  $('optCloud').oninput=e=>$('cloudVal').textContent=e.target.value+'%';
+  $('opacityRange').oninput=e=>{ if(S.overlay) S.overlay.setOpacity(e.target.value/100); };
+  $('expPng').onclick=exportPng;
+  $('expTif').onclick=exportGeotiff;
+  $('expCsv').onclick=exportCsv;
+  $('expGeojson').onclick=exportGeojson;
+  // bottom sheet toggle (mobile)
+  $('sheetToggle').onclick=()=>$('side').classList.toggle('collapsed');
+  // default: pada layar kecil, mulai tercollapse sedikit? biarkan terbuka.
+  setTimeout(()=>S.map.invalidateSize(),300);
+  window.addEventListener('resize',()=>S.map.invalidateSize());
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+</script>
+</body>
+</html>
