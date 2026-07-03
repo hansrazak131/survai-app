@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Terrain Analysis — DEM · Slope · Aspect · Hillshade · Kontur · Hidrologi</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ DESIGN TOKENS (light instrument / GIS) ============ */
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --panel-2:#f6f8fa; --line:#dbe1ea; --line-2:#c3cbd8;
+  --ink:#1c2430; --ink-dim:#5b6675; --ink-faint:#8b95a5;
+  --accent:#215bd6; --accent-hov:#1a49b3; --accent-soft:#e7edfc;
+  --good:#1a9e6f; --warn:#c07a12; --bad:#c33f3f;
+  --r:8px; --r2:12px;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',system-ui,sans-serif;
+  --shadow-sm:0 1px 2px rgba(20,30,50,.06),0 1px 1px rgba(20,30,50,.04);
+  --shadow-md:0 6px 24px rgba(20,30,50,.14),0 2px 6px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select{font-family:inherit}
+::selection{background:var(--accent-soft)}
+
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+
+/* topbar */
+.topbar{height:48px;flex:0 0 auto;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 14px;box-shadow:var(--shadow-sm);z-index:60}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-mark{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#2b6b34,#215bd6 55%,#a0672a);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.brand-mark svg{width:17px;height:17px;color:#fff}
+.brand-txt b{font-weight:800;font-size:14px;letter-spacing:-.01em;display:block;line-height:1.1}
+.brand-txt span{font-size:9.5px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.03em}
+.topbar-badge{margin-left:auto;font-size:10px;font-weight:700;color:var(--good);background:#e6f6ef;border:1px solid #bfe6d6;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(26,158,111,.18)}
+
+/* body */
+.body{flex:1;display:flex;min-height:0;position:relative}
+#map{flex:1;min-width:0;background:#c9d3de;z-index:1}
+.leaflet-container{font-family:var(--sans)}
+
+/* sidebar */
+.side{width:366px;flex:0 0 366px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0;z-index:20}
+.side-scroll{flex:1;overflow-y:auto;padding:14px 14px 96px}
+.side-scroll::-webkit-scrollbar{width:9px}
+.side-scroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:2px solid var(--panel)}
+
+/* step block */
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r2);padding:13px;margin-bottom:12px}
+.step-h{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+.step-n{width:22px;height:22px;flex:none;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center}
+.step-t{font-weight:700;font-size:12.5px}
+.step-t small{display:block;font-weight:500;font-size:10px;color:var(--ink-faint);margin-top:1px}
+
+/* buttons */
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:var(--r);padding:9px 10px;font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:.12s;min-height:40px}
+.btn svg{width:14px;height:14px;opacity:.8}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.btn:active{transform:translateY(1px)}
+.btn.wide{grid-column:1 / -1}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent-hov)}
+.btn.primary:disabled{background:#a9b6cc;border-color:#a9b6cc;cursor:not-allowed;transform:none}
+.btn.sample{background:linear-gradient(135deg,#2b6b34,#3f9e52);color:#fff;border:none}
+.btn.sample:hover{filter:brightness(1.06)}
+.btn.ghost{background:none}
+.btn.sm{min-height:34px;padding:7px 8px;font-size:11px}
+
+/* AOI readout */
+.readout{margin-top:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;font-family:var(--mono);font-size:11px;color:var(--ink-dim);line-height:1.7}
+.readout b{color:var(--ink);font-weight:600}
+.readout .muted{color:var(--ink-faint)}
+
+/* advisor */
+.advisor{margin-top:9px;display:none;font-size:10.5px;line-height:1.55;background:#eef7f0;border:1px solid #bfe6d6;color:#1a6b4c;border-radius:var(--r);padding:8px 10px}
+.advisor.show{display:block}
+.advisor b{color:#12503a}
+.advisor .rec{font-family:var(--mono);font-weight:700}
+
+/* source select */
+.src-grid{display:grid;grid-template-columns:1fr;gap:7px}
+.src{border:1px solid var(--line);background:var(--panel-2);border-radius:var(--r);padding:9px 11px;cursor:pointer;text-align:left;transition:.12s;display:flex;align-items:center;gap:10px}
+.src:hover{border-color:var(--line-2)}
+.src.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.src .pri{width:24px;height:24px;flex:none;border-radius:6px;background:#dfe7f6;color:var(--accent);font-weight:800;font-size:10px;display:flex;align-items:center;justify-content:center}
+.src b{font-size:12px;font-weight:700;display:block}
+.src small{font-size:9.5px;color:var(--ink-faint)}
+
+/* analysis checklist */
+.chk-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.chk{border:1px solid var(--line);background:var(--panel-2);border-radius:var(--r);padding:8px 9px;cursor:pointer;text-align:left;transition:.12s;display:flex;align-items:center;gap:8px}
+.chk:hover{border-color:var(--line-2)}
+.chk.active{border-color:var(--accent);background:var(--accent-soft)}
+.chk .box{width:16px;height:16px;flex:none;border-radius:4px;border:1.5px solid var(--line-2);display:flex;align-items:center;justify-content:center}
+.chk.active .box{background:var(--accent);border-color:var(--accent)}
+.chk .box svg{width:11px;height:11px;color:#fff;opacity:0}
+.chk.active .box svg{opacity:1}
+.chk b{font-size:11px;font-weight:700;display:block;line-height:1.15}
+.chk small{font-size:9px;color:var(--ink-faint)}
+
+/* param rows */
+.params{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px;display:none}
+.params.show{display:block}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.opt:last-child{margin-bottom:0}
+.opt label{font-size:11px;font-weight:600;color:var(--ink-dim)}
+.opt select,.opt input[type=number]{border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:11.5px;background:var(--panel);color:var(--ink);min-height:36px;max-width:130px}
+.slider-wrap{display:flex;align-items:center;gap:9px;flex:1;max-width:168px}
+.slider-wrap input[type=range]{flex:1;accent-color:var(--accent)}
+.slider-val{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);min-width:44px;text-align:right}
+.opt-sub{font-size:9.5px;color:var(--ink-faint);margin:-4px 0 9px}
+
+/* result / status */
+.status{font-size:11px;font-weight:600;padding:9px 11px;border-radius:var(--r);line-height:1.5;margin-bottom:10px;display:none}
+.status.show{display:block}
+.status.info{background:var(--accent-soft);color:var(--accent);border:1px solid #cbd9f6}
+.status.ok{background:#e6f6ef;color:var(--good);border:1px solid #bfe6d6}
+.status.err{background:#fdecec;color:var(--bad);border:1px solid #f3c9c9}
+.status.warn{background:#fdf3e2;color:var(--warn);border:1px solid #f0dcb4}
+
+.scene{display:none;font-size:10.5px;color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px;margin-bottom:10px;line-height:1.7}
+.scene.show{display:block}
+.scene b{color:var(--ink);font-weight:600}
+.scene .pill{display:inline-block;font-family:var(--mono);font-size:9.5px;background:var(--accent-soft);color:var(--accent);padding:1px 6px;border-radius:5px;margin-left:4px}
+
+/* layer switcher */
+.layer-sw{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.layer-sw button{border:1px solid var(--line);background:var(--panel-2);border-radius:7px;padding:7px 4px;font-size:10px;font-weight:700;color:var(--ink-dim);cursor:pointer;transition:.12s}
+.layer-sw button:hover{border-color:var(--accent);color:var(--accent)}
+.layer-sw button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.layer-sw button:disabled{opacity:.4;cursor:not-allowed}
+.vec-sw{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.vec-sw button{border:1px solid var(--line);background:var(--panel-2);border-radius:7px;padding:6px 4px;font-size:10px;font-weight:700;color:var(--ink-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px}
+.vec-sw button.on{background:#eef7f0;color:var(--good);border-color:#bfe6d6}
+.vec-sw button:disabled{opacity:.4;cursor:not-allowed}
+.vec-sw .sw{width:9px;height:9px;border-radius:2px;flex:none}
+
+.op-row{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.op-row label{font-size:11px;font-weight:600;color:var(--ink-dim);white-space:nowrap}
+.op-row input{flex:1;accent-color:var(--accent)}
+
+.legend{margin-bottom:10px;display:none}
+.legend.show{display:block}
+.legend .cap{font-size:9.5px;color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.legend-bar{height:14px;border-radius:4px;border:1px solid var(--line)}
+.legend-ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--ink-faint);margin-top:3px}
+
+.stat-grid{display:none;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.stat-grid.show{display:grid}
+.stat{background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:7px 8px;text-align:center}
+.stat .v{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--ink)}
+.stat .l{font-size:8.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-top:1px}
+
+.hist-wrap{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:9px;margin-bottom:10px;display:none}
+.hist-wrap.show{display:block}
+.hist-wrap .cap{font-size:9.5px;color:var(--ink-faint);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+#histCanvas{width:100%;height:70px;display:block}
+
+.cls-row{display:flex;align-items:center;gap:7px;font-size:10px;margin-bottom:4px}
+.cls-sw{width:12px;height:12px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.1)}
+.cls-lbl{flex:1;color:var(--ink-dim);font-weight:600}
+.cls-track{width:74px;height:8px;border-radius:999px;background:var(--line);overflow:hidden;flex:none}
+.cls-fill{height:100%;border-radius:999px}
+.cls-pct{width:40px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--ink);font-size:9.5px}
+
+/* profile panel */
+.prof-wrap{display:none;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:10px;margin-bottom:10px}
+.prof-wrap.show{display:block}
+.prof-wrap .cap{font-size:9.5px;color:var(--ink-faint);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+#profCanvas{width:100%;height:120px;display:block;cursor:crosshair;background:#fff;border-radius:6px;border:1px solid var(--line)}
+.prof-stat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:8px}
+.prof-stat .s{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 6px;text-align:center}
+.prof-stat .s .v{font-family:var(--mono);font-size:11px;font-weight:700}
+.prof-stat .s .l{font-size:8px;color:var(--ink-faint);text-transform:uppercase}
+
+.export-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.hint{font-size:10px;color:var(--ink-faint);line-height:1.5;margin-top:8px}
+
+/* processing overlay */
+.proc{position:absolute;inset:0;background:rgba(238,241,245,.86);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:50}
+.proc.show{display:flex}
+.spinner{width:44px;height:44px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.proc-txt{font-size:12.5px;font-weight:600;color:var(--ink);text-align:center;max-width:280px}
+.proc-sub{font-size:10.5px;color:var(--ink-faint);font-family:var(--mono)}
+.proc-bar{width:220px;height:5px;border-radius:999px;background:var(--line);overflow:hidden}
+.proc-bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+
+/* map floating controls */
+.map-ctrl{position:absolute;z-index:15;display:flex;gap:6px}
+.map-ctrl.tl{top:12px;left:12px;flex-direction:column}
+.mc-btn{width:38px;height:38px;border-radius:9px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm);color:var(--ink-dim);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mc-btn svg{width:18px;height:18px}
+.mc-btn:hover{color:var(--accent);border-color:var(--accent)}
+.mc-btn.active{color:#fff;background:var(--accent);border-color:var(--accent)}
+.basemap-sw{position:absolute;top:12px;right:12px;z-index:15;background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow-sm);display:flex;overflow:hidden}
+.basemap-sw button{border:none;background:none;padding:7px 12px;font-size:11px;font-weight:700;color:var(--ink-dim);cursor:pointer}
+.basemap-sw button.active{background:var(--accent);color:#fff}
+
+/* inspector tooltip */
+.inspect{position:absolute;z-index:16;pointer-events:none;background:#1c2430;color:#fff;font-family:var(--mono);font-size:11px;padding:5px 9px;border-radius:7px;box-shadow:var(--shadow-md);display:none;transform:translate(-50%,-135%);white-space:nowrap}
+.inspect.show{display:block}
+.inspect b{color:#7fe0a8}
+
+/* map mode banner */
+.mapmode{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:17;background:#1c2430;color:#fff;font-size:11px;font-weight:600;padding:6px 14px;border-radius:999px;box-shadow:var(--shadow-md);display:none;align-items:center;gap:8px}
+.mapmode.show{display:flex}
+.mapmode button{background:rgba(255,255,255,.16);border:none;color:#fff;border-radius:6px;padding:3px 9px;font-size:10px;font-weight:700;cursor:pointer}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1c2430;color:#fff;font-size:12px;font-weight:600;padding:10px 18px;border-radius:999px;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:.25s;z-index:200;max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.contour-label{background:none;border:none;box-shadow:none;font-family:var(--mono);font-size:9px;font-weight:700;color:#5a3a12;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 2px #fff}
+
+/* mobile: sidebar -> bottom sheet */
+.sheet-toggle{display:none}
+@media (max-width:860px){
+  .body{flex-direction:column}
+  #map{flex:1}
+  .side{position:absolute;left:0;right:0;bottom:0;width:100%;flex:none;height:62dvh;border-left:none;border-top:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 -8px 28px rgba(20,30,50,.18);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+  .side.collapsed{transform:translateY(calc(62dvh - 116px))}
+  .side-scroll{padding-bottom:30px}
+  .sheet-toggle{display:flex;align-items:center;justify-content:center;gap:8px;height:34px;cursor:pointer;flex:none;border-bottom:1px solid var(--line)}
+  .sheet-toggle .grip{width:38px;height:4px;border-radius:999px;background:var(--line-2)}
+  .basemap-sw{bottom:auto;top:12px;left:auto;right:12px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20l6-11 4 6 3-5 5 10z"/><path d="M9 9l1.5 2.5"/></svg></span>
+      <span class="brand-txt"><b>Terrain Analysis</b><span>DEM · DTM · HIDROLOGI · INDONESIA</span></span>
+    </div>
+    <div class="topbar-badge"><span class="dot"></span>DEM Siap</div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <div id="map"></div>
+
+    <div class="map-ctrl tl">
+      <button class="mc-btn" id="btnZoomIn" title="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="mc-btn" id="btnZoomOut" title="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      <button class="mc-btn" id="btnHome" title="Ke Banten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></button>
+    </div>
+    <div class="basemap-sw">
+      <button id="bmSat" class="active">Satelit</button>
+      <button id="bmTopo">Topo</button>
+      <button id="bmOsm">Peta</button>
+    </div>
+    <div class="inspect" id="inspect"></div>
+    <div class="mapmode" id="mapmode"><span id="mapmodeTxt"></span><button id="mapmodeCancel">Batal</button></div>
+
+    <div class="proc" id="proc">
+      <div class="spinner"></div>
+      <div class="proc-txt" id="procTxt">Memproses…</div>
+      <div class="proc-sub" id="procSub"></div>
+      <div class="proc-bar"><span id="procBar"></span></div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="side" id="side">
+      <div class="sheet-toggle" id="sheetToggle"><span class="grip"></span></div>
+      <div class="side-scroll">
+
+        <!-- STEP 1: AREA -->
+        <div class="step">
+          <div class="step-h"><span class="step-n">1</span><span class="step-t">Area of Interest (AOI)<small>Tentukan area analisis terrain</small></span></div>
+          <button class="btn sample wide" id="btnSample"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg>Muat Sampel Pulo Ampel (4 Ha)</button>
+          <div class="btn-row" style="margin-top:7px">
+            <button class="btn sm" id="btnRect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/></svg>Kotak</button>
+            <button class="btn sm" id="btnPoly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 6-3 12H6L3 8z"/></svg>Poligon</button>
+            <button class="btn sm" id="btnView"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Tampilan</button>
+            <button class="btn sm ghost" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Hapus</button>
+          </div>
+          <div class="readout" id="aoiReadout"><span class="muted">Belum ada area. Mulai dengan <b>Muat Sampel Pulo Ampel</b>.</span></div>
+          <div class="advisor" id="advisor"></div>
+        </div>
+
+        <!-- STEP 2: DEM SOURCE -->
+        <div class="step">
+          <div class="step-h"><span class="step-n">2</span><span class="step-t">Sumber DEM / DTM<small>Prioritas otomatis sesuai luas AOI</small></span></div>
+          <div class="src-grid" id="srcGrid"></div>
+          <div class="opt" style="margin-top:10px">
+            <label>Detail grid</label>
+            <select id="optDetail">
+              <option value="fast">Cepat (~64 px)</option>
+              <option value="std" selected>Standar (~120 px)</option>
+              <option value="fine">Halus (~180 px)</option>
+            </select>
+          </div>
+          <div class="opt-sub" id="cellInfo"></div>
+        </div>
+
+        <!-- STEP 3: ANALYSIS -->
+        <div class="step">
+          <div class="step-h"><span class="step-n">3</span><span class="step-t">Analisis Terrain<small>Pilih keluaran yang diinginkan</small></span></div>
+          <div class="chk-grid" id="chkGrid"></div>
+
+          <div class="params show" id="params">
+            <div class="opt"><label>Interval kontur</label>
+              <select id="pContour">
+                <option value="0.5">0.5 m</option><option value="1">1 m</option>
+                <option value="2" selected>2 m</option><option value="5">5 m</option>
+                <option value="10">10 m</option><option value="20">20 m</option>
+                <option value="25">25 m</option><option value="50">50 m</option>
+              </select></div>
+            <div class="opt"><label>Hillshade azimuth</label>
+              <div class="slider-wrap"><input type="range" id="pAz" min="0" max="360" value="315"><span class="slider-val" id="azVal">315°</span></div></div>
+            <div class="opt"><label>Hillshade altitude</label>
+              <div class="slider-wrap"><input type="range" id="pAlt" min="5" max="85" value="45"><span class="slider-val" id="altVal">45°</span></div></div>
+            <div class="opt"><label>Z-factor (exagg.)</label>
+              <div class="slider-wrap"><input type="range" id="pZ" min="1" max="30" value="10"><span class="slider-val" id="zVal">1.0</span></div></div>
+            <div class="opt"><label>Ambang sungai</label>
+              <div class="slider-wrap"><input type="range" id="pAcc" min="2" max="40" value="8"><span class="slider-val" id="accVal">0.8%</span></div></div>
+            <div class="opt-sub">Ambang = % sel hulu untuk membentuk jaringan sungai (flow accumulation).</div>
+          </div>
+        </div>
+
+        <!-- PROCESS -->
+        <button class="btn primary wide" id="btnProcess" disabled style="height:46px;font-size:13px;margin-bottom:12px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>Unduh DEM &amp; Proses</button>
+
+        <!-- STEP 4: RESULT -->
+        <div class="step" id="resultStep" style="display:none">
+          <div class="step-h"><span class="step-n">4</span><span class="step-t">Hasil Analisis<small id="resultSub">Lapisan &amp; statistik</small></span></div>
+          <div class="status" id="status"></div>
+          <div class="scene" id="scene"></div>
+
+          <div class="layer-sw" id="layerSw"></div>
+          <div class="vec-sw" id="vecSw"></div>
+
+          <div class="op-row" id="opRow" style="display:none">
+            <label>Transparansi</label>
+            <input type="range" id="opacityRange" min="10" max="100" value="82">
+          </div>
+
+          <div class="legend" id="legendBox">
+            <div class="cap" id="legendCap">Legenda</div>
+            <div class="legend-bar" id="legendBar"></div>
+            <div class="legend-ticks" id="legendTicks"></div>
+          </div>
+
+          <div class="stat-grid" id="statGrid"></div>
+
+          <div class="hist-wrap" id="histWrap">
+            <div class="cap" id="histCap">Distribusi Nilai</div>
+            <canvas id="histCanvas" width="330" height="70"></canvas>
+          </div>
+
+          <div id="classBox" style="display:none"></div>
+
+          <!-- Profile -->
+          <div class="prof-wrap" id="profWrap">
+            <div class="cap">Profil Elevasi <span id="profHint" style="color:var(--accent);cursor:pointer;text-transform:none;letter-spacing:0;font-weight:700">＋ Gambar garis</span></div>
+            <canvas id="profCanvas" width="330" height="120"></canvas>
+            <div class="prof-stat" id="profStat"></div>
+          </div>
+        </div>
+
+        <!-- STEP 5: EXPORT -->
+        <div class="step" id="exportStep" style="display:none">
+          <div class="step-h"><span class="step-n">5</span><span class="step-t">Ekspor Multi-Format<small>Unduh ke perangkat</small></span></div>
+          <div class="export-grid">
+            <button class="btn sm" id="expPng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>PNG</button>
+            <button class="btn sm" id="expTif"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>GeoTIFF</button>
+            <button class="btn sm" id="expDxf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20L20 4M4 4l6 6M14 14l6 6"/></svg>DXF</button>
+            <button class="btn sm" id="expGeojson"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 00-8 8c0 6 8 12 8 12s8-6 8-12a8 8 0 00-8-8z"/></svg>GeoJSON</button>
+            <button class="btn sm" id="expKml"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>KML</button>
+            <button class="btn sm" id="expCsv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6"/></svg>CSV</button>
+          </div>
+          <div class="hint" id="expHint">GeoTIFF (raster aktif) &amp; GeoJSON/KML/DXF (kontur, sungai, watershed, profil) tergeoreferensi — dapat dibuka di QGIS/ArcGIS/AutoCAD. CSV = profil / statistik grid.</div>
+        </div>
+
+        <div class="hint" style="text-align:center;margin-top:4px" id="footNote">Elevasi: AWS Terrain Tiles (SRTM/Copernicus/DEMNAS composite) · Diproses di perangkat Anda (client-side).</div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.min.js"></script>
+<script>
+'use strict';
+/* ==================================================================
+   Terrain Analysis — standalone PWA tool (Survai App)
+   - AOI: sample / draw rect / draw polygon / current view
+   - DEM: AWS Terrain Tiles (terrarium PNG), didekode di klien.
+          Fallback sintetis bila jaringan/CORS gagal → sampel selalu jalan.
+   - Analisis client-side: Elevasi(color relief), Slope(Horn), Aspect,
+          Hillshade, Kontur(marching squares), Statistik/Histogram,
+          Hidrologi(D8 fill→flow dir→accumulation→stream→watershed),
+          Profil Elevasi, TIN(count).
+   - Export: PNG, GeoTIFF, GeoJSON, KML, DXF, CSV.
+   ================================================================== */
+
+// ---- Region ----
+const INDONESIA_BOUNDS = L.latLngBounds([-11.5, 94.0], [6.5, 141.5]);
+const BANTEN_VIEW = { center:[-6.05, 106.10], zoom:11 };
+// Sampel 4 Ha (200 x 200 m) di Pulo Ampel, Serang, Banten (pesisir Teluk Banten)
+const SAMPLE = (()=>{
+  const cLat=-5.9375, cLng=106.0785;           // Pulo Ampel (perbukitan pesisir)
+  const half=100;                               // 100 m ke tiap sisi = 200 m = 4 Ha
+  const dLat=half/111320, dLng=half/(111320*Math.cos(cLat*Math.PI/180));
+  return { W:cLng-dLng, S:cLat-dLat, E:cLng+dLng, N:cLat+dLat };
+})();
+
+// ---- DEM sources (UI). Semua diambil dari terrain-tiles; zoom mengatur ketajaman. ----
+const SOURCES = {
+  demnas:{ pri:'P1', label:'DEMNAS (Detail)', sub:'Indonesia · target 2–8 m · zoom tinggi', zoom:15, cell:2, vacc:'±1–5 m', epsgNote:'DEMNAS' },
+  glo30 :{ pri:'P1', label:'Copernicus GLO-30', sub:'Global · 30 m · LE90 ±4 m', zoom:13, cell:15, vacc:'±4 m', epsgNote:'Copernicus' },
+  srtm  :{ pri:'P3', label:'NASA SRTM 30 m', sub:'56°S–60°N · fallback global', zoom:12, cell:30, vacc:'±5–10 m', epsgNote:'SRTM' },
+};
+
+// ---- Analyses (checklist) ----
+const ANALYSES = {
+  elevation:{ label:'Elevasi', sub:'Color relief', raster:true, on:true },
+  slope    :{ label:'Slope', sub:'Kemiringan °', raster:true, on:true },
+  aspect   :{ label:'Aspect', sub:'Arah lereng', raster:true, on:true },
+  hillshade:{ label:'Hillshade', sub:'Relief bayangan', raster:true, on:true },
+  contour  :{ label:'Kontur', sub:'Garis tinggi', raster:false, on:true },
+  hydro    :{ label:'Hidrologi', sub:'Flow/DAS/sungai', raster:true, on:true },
+  profile  :{ label:'Profil', sub:'Elevasi garis', raster:false, on:true },
+  tin      :{ label:'TIN', sub:'Delaunay stat', raster:false, on:false },
+};
+
+// ---- Palettes ----
+const PAL = {
+  elevation:['#2c7bb6','#00a6ca','#00ccbc','#90eb9d','#ffff8c','#f9d057','#f29e2e','#e76818','#b02020','#7a1a1a'],
+  slope:['#1a9850','#66bd63','#a6d96a','#fee08b','#fdae61','#f46d43','#d73027','#7d1a7d'],
+  aspect:['#e6194b','#f58231','#ffe119','#bfef45','#3cb44b','#42d4f4','#4363d8','#911eb4','#e6194b'],
+  hillshade:['#000000','#ffffff'],
+  flow:['#eaf3fb','#c6dcf0','#8fbce0','#4f95d0','#2166ac','#0b3d75']
+};
+const SLOPE_CLASSES=[
+  {lbl:'Datar (0–2°)',min:0,max:2,color:'#1a9850'},
+  {lbl:'Landai (2–5°)',min:2,max:5,color:'#a6d96a'},
+  {lbl:'Agak curam (5–15°)',min:5,max:15,color:'#fee08b'},
+  {lbl:'Curam (15–25°)',min:15,max:25,color:'#f46d43'},
+  {lbl:'Sangat curam (25–40°)',min:25,max:40,color:'#d73027'},
+  {lbl:'Ekstrem (>40°)',min:40,max:900,color:'#7d1a7d'},
+];
+
+// ---- State ----
+const S = {
+  map:null, baseSat:null, baseTopo:null, baseOsm:null,
+  aoi:null, aoiLayer:null, aoiPoly:null,
+  mode:null,            // 'rect' | 'poly' | 'profile' | 'pour'
+  drawPts:[], tmpLayer:null,
+  src:'demnas', detail:'std',
+  dem:null,             // {grid,gw,gh,W,S,E,N,cellX,cellY,epsg,utm,minZ,maxZ,source,synthetic}
+  layers:{}, active:null,
+  overlay:null,
+  vec:{ contour:null, stream:null, watershed:null, profile:null },
+  vecOn:{ contour:false, stream:false, watershed:false },
+  contourData:null, streamData:null, watershedData:null,
+  profile:null, pourMarker:null,
+};
+
+const $ = id => document.getElementById(id);
+const wgs84 = '+proj=longlat +datum=WGS84 +no_defs';
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600); }
+
+// ============================ MAP ============================
+function initMap(){
+  S.map = L.map('map',{ zoomControl:false, attributionControl:true, maxBounds:INDONESIA_BOUNDS, maxBoundsViscosity:.85, minZoom:5, maxZoom:19, tap:true });
+  S.baseSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'Tiles © Esri'});
+  S.baseTopo= L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'Tiles © Esri'});
+  S.baseOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+  S.baseSat.addTo(S.map);
+  S.map.setView(BANTEN_VIEW.center, BANTEN_VIEW.zoom);
+  $('btnZoomIn').onclick=()=>S.map.zoomIn();
+  $('btnZoomOut').onclick=()=>S.map.zoomOut();
+  $('btnHome').onclick=()=>S.map.setView(BANTEN_VIEW.center, BANTEN_VIEW.zoom);
+  $('bmSat').onclick=()=>setBase('sat'); $('bmTopo').onclick=()=>setBase('topo'); $('bmOsm').onclick=()=>setBase('osm');
+  S.map.on('mousemove', onInspect);
+  S.map.on('click', onMapClick);
+}
+function setBase(w){
+  [S.baseSat,S.baseTopo,S.baseOsm].forEach(l=>S.map.removeLayer(l));
+  ['bmSat','bmTopo','bmOsm'].forEach(id=>$(id).classList.remove('active'));
+  if(w==='sat'){S.baseSat.addTo(S.map);$('bmSat').classList.add('active');}
+  else if(w==='topo'){S.baseTopo.addTo(S.map);$('bmTopo').classList.add('active');}
+  else {S.baseOsm.addTo(S.map);$('bmOsm').classList.add('active');}
+  if(S.overlay) S.overlay.bringToFront();
+}
+
+// ============================ AOI ============================
+function areaKm2(a){ const latM=(a.S+a.N)/2; const dx=(a.E-a.W)*Math.cos(latM*Math.PI/180)*111.32; const dy=(a.N-a.S)*111.32; return Math.abs(dx*dy); }
+function setAOI(W,S_,E,N, source, polyLatLngs){
+  W=Math.max(W,94);E=Math.min(E,141.5);S_=Math.max(S_,-11.5);N=Math.min(N,6.5);
+  if(!(E>W && N>S_)){ toast('Area tidak valid.'); return; }
+  const km2=areaKm2({W,S:S_,E,N});
+  if(km2>2500){ toast('Area terlalu luas (>2.500 km²). Perkecil.'); return; }
+  S.aoi={ W,S:S_,E,N, source:source||'AOI', poly:polyLatLngs||null };
+  drawAOI(); updateReadout(); advise(km2); resetDem();
+  $('btnProcess').disabled=false;
+}
+function drawAOI(){
+  if(S.aoiLayer){ S.map.removeLayer(S.aoiLayer); S.aoiLayer=null; }
+  const a=S.aoi;
+  if(a.poly){ S.aoiLayer=L.polygon(a.poly,{color:'#215bd6',weight:2,fillColor:'#215bd6',fillOpacity:.06,dashArray:'6,4'}).addTo(S.map); }
+  else { S.aoiLayer=L.rectangle([[a.S,a.W],[a.N,a.E]],{color:'#215bd6',weight:2,fillColor:'#215bd6',fillOpacity:.06,dashArray:'6,4'}).addTo(S.map); }
+}
+function updateReadout(){
+  const a=S.aoi; if(!a){ $('aoiReadout').innerHTML='<span class="muted">Belum ada area.</span>'; return; }
+  const km2=areaKm2(a), ha=km2*100;
+  const dx=(a.E-a.W)*Math.cos(((a.S+a.N)/2)*Math.PI/180)*111320, dy=(a.N-a.S)*111320;
+  $('aoiReadout').innerHTML=
+    '<b>'+a.source+'</b>'+(a.poly?' · poligon':'')+'<br>'+
+    'Luas: <b>'+(ha<100?ha.toFixed(2)+' Ha':km2.toFixed(2)+' km²')+'</b> ('+km2.toFixed(4)+' km²)<br>'+
+    'Dimensi: <b>'+dx.toFixed(0)+' × '+dy.toFixed(0)+' m</b><br>'+
+    'Pusat: <b>'+((a.S+a.N)/2).toFixed(5)+', '+((a.W+a.E)/2).toFixed(5)+'</b><br>'+
+    '<span class="muted">UTM zona '+utmZone(a)+' · EPSG:'+utmEpsg(a)+'</span>';
+}
+function advise(km2){
+  const el=$('advisor'); let rec, note;
+  if(km2<10){ rec='DEMNAS (2–8 m)'; note='AOI kecil — cocok pemetaan detail / site plan.'; autoSrc('demnas'); }
+  else if(km2<=500){ rec='Copernicus GLO-30 (30 m)'; note='AOI menengah — infrastruktur & watershed.'; autoSrc('glo30'); }
+  else { rec='Copernicus GLO-90 / SRTM'; note='AOI besar — analisis regional.'; autoSrc('srtm'); }
+  el.className='advisor show';
+  el.innerHTML='<b>Smart Resolution Advisor</b><br>Rekomendasi sumber: <span class="rec">'+rec+'</span><br>'+note;
+}
+function autoSrc(k){ S.src=k; renderSources(); }
+function clearAOI(){
+  S.aoi=null;
+  if(S.aoiLayer){ S.map.removeLayer(S.aoiLayer); S.aoiLayer=null; }
+  resetDem(); updateReadout(); $('advisor').className='advisor';
+  $('btnProcess').disabled=true;
+}
+
+// ---- draw modes ----
+function beginMode(mode, txt){
+  cancelMode(true);
+  S.mode=mode; S.drawPts=[];
+  $('mapmodeTxt').textContent=txt; $('mapmode').classList.add('show');
+  S.map.getContainer().style.cursor='crosshair';
+  [ 'btnRect','btnPoly' ].forEach(id=>$(id).classList.remove('active'));
+  if(mode==='rect')$('btnRect').classList.add('active');
+  if(mode==='poly')$('btnPoly').classList.add('active');
+}
+function cancelMode(silent){
+  if(S.tmpLayer){ S.map.removeLayer(S.tmpLayer); S.tmpLayer=null; }
+  S.mode=null; S.drawPts=[];
+  $('mapmode').classList.remove('show');
+  S.map.getContainer().style.cursor='';
+  ['btnRect','btnPoly'].forEach(id=>$(id).classList.remove('active'));
+  if(!silent){}
+}
+function onMapClick(e){
+  if(S.mode==='rect'){
+    S.drawPts.push(e.latlng);
+    if(S.drawPts.length===2){ const a=S.drawPts[0],b=S.drawPts[1]; cancelMode(true);
+      setAOI(Math.min(a.lng,b.lng),Math.min(a.lat,b.lat),Math.max(a.lng,b.lng),Math.max(a.lat,b.lat),'Kotak Gambar'); }
+  } else if(S.mode==='poly'){
+    S.drawPts.push(e.latlng); redrawTmpPoly();
+  } else if(S.mode==='profile'){
+    S.drawPts.push(e.latlng); redrawTmpLine();
+  } else if(S.mode==='pour'){
+    setPourPoint(e.latlng);
+  }
+}
+function onMapMouseMove(e){ /* handled in onInspect for perf */ }
+function redrawTmpPoly(){
+  if(S.tmpLayer) S.map.removeLayer(S.tmpLayer);
+  S.tmpLayer=L.polygon(S.drawPts,{color:'#e0742a',weight:2,dashArray:'5,4',fillOpacity:.05}).addTo(S.map);
+}
+function redrawTmpLine(){
+  if(S.tmpLayer) S.map.removeLayer(S.tmpLayer);
+  S.tmpLayer=L.polyline(S.drawPts,{color:'#e0742a',weight:3,dashArray:'5,4'}).addTo(S.map);
+}
+function finishPoly(){
+  if(S.mode==='poly' && S.drawPts.length>=3){
+    const pts=S.drawPts.slice(); const lats=pts.map(p=>p.lat),lngs=pts.map(p=>p.lng);
+    const ll=pts.map(p=>[p.lat,p.lng]);
+    cancelMode(true);
+    setAOI(Math.min(...lngs),Math.min(...lats),Math.max(...lngs),Math.max(...lats),'Poligon Gambar', ll);
+  } else if(S.mode==='profile' && S.drawPts.length>=2){
+    const line=S.drawPts.slice(); cancelMode(true); buildProfile(line);
+  } else { cancelMode(true); }
+}
+function useView(){
+  const b=S.map.getBounds();
+  setAOI(b.getWest(),b.getSouth(),b.getEast(),b.getNorth(),'Tampilan Peta');
+}
+function loadSample(){
+  const s=SAMPLE;
+  autoSrc('demnas'); $('optDetail').value='fine'; S.detail='fine';
+  setAOI(s.W,s.S,s.E,s.N,'Pulo Ampel · Serang, Banten');
+  S.map.fitBounds([[s.S,s.W],[s.N,s.E]],{padding:[60,60]});
+  updateCellInfo();
+  toast('Sampel 4 Ha dimuat · DEMNAS detail. Tekan "Unduh DEM & Proses".');
+}
+
+// ============================ UI: sources / analyses ============================
+function renderSources(){
+  $('srcGrid').innerHTML=Object.keys(SOURCES).map(k=>{
+    const s=SOURCES[k];
+    return '<button class="src'+(k===S.src?' active':'')+'" data-k="'+k+'"><span class="pri">'+s.pri+'</span><span><b>'+s.label+'</b><small>'+s.sub+'</small></span></button>';
+  }).join('');
+  $('srcGrid').querySelectorAll('.src').forEach(b=>b.onclick=()=>{ S.src=b.dataset.k; renderSources(); updateCellInfo(); resetDem(); });
+  updateCellInfo();
+}
+function updateCellInfo(){
+  const s=SOURCES[S.src]; if(!s){ $('cellInfo').textContent=''; return; }
+  const gw=gridTarget();
+  let cell='';
+  if(S.aoi){ const dx=(S.aoi.E-S.aoi.W)*Math.cos(((S.aoi.S+S.aoi.N)/2)*Math.PI/180)*111320; cell=' · sel grid ≈ '+(dx/gw).toFixed(1)+' m'; }
+  $('cellInfo').textContent='Target: '+s.label+' · zoom z'+s.zoom+' · akurasi '+s.vacc+cell;
+}
+function gridTarget(){ return S.detail==='fast'?64:(S.detail==='fine'?180:120); }
+function renderAnalyses(){
+  $('chkGrid').innerHTML=Object.keys(ANALYSES).map(k=>{
+    const a=ANALYSES[k];
+    return '<button class="chk'+(a.on?' active':'')+'" data-k="'+k+'"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></span><span><b>'+a.label+'</b><small>'+a.sub+'</small></span></button>';
+  }).join('');
+  $('chkGrid').querySelectorAll('.chk').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; ANALYSES[k].on=!ANALYSES[k].on; renderAnalyses(); });
+}
+
+// ============================ CRS helpers ============================
+function utmZone(a){ const lng=(a.W+a.E)/2; return Math.floor((lng+180)/6)+1; }
+function utmEpsg(a){ const lat=(a.S+a.N)/2; const z=utmZone(a); return (lat<0?32700:32600)+z; }
+function utmDef(epsg){ const z=epsg%100, south=(epsg>=32700&&epsg<32800); return '+proj=utm +zone='+z+(south?' +south':'')+' +datum=WGS84 +units=m +no_defs'; }
+
+// ============================ DEM: terrarium fetch ============================
+function lon2wx(lon,z){ return (lon+180)/360*Math.pow(2,z)*256; }
+function lat2wy(lat,z){ const s=Math.sin(lat*Math.PI/180); return (0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*Math.pow(2,z)*256; }
+function loadImg(url){ return new Promise((res,rej)=>{ const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>res(im); im.onerror=()=>rej(new Error('tile')); im.src=url; }); }
+
+async function fetchDEM(){
+  const a=S.aoi, s=SOURCES[S.src], z=s.zoom;
+  // world-pixel bbox at zoom
+  const wx0=lon2wx(a.W,z), wx1=lon2wx(a.E,z), wy0=lat2wy(a.N,z), wy1=lat2wy(a.S,z); // wy0<wy1 (north smaller)
+  const tx0=Math.floor(wx0/256), tx1=Math.floor(wx1/256), ty0=Math.floor(wy0/256), ty1=Math.floor(wy1/256);
+  const ntx=tx1-tx0+1, nty=ty1-ty0+1;
+  if(ntx*nty>36){ throw new Error('Terlalu banyak tile — perkecil AOI atau turunkan detail.'); }
+  const cw=ntx*256, ch=nty*256;
+  const cv=document.createElement('canvas'); cv.width=cw; cv.height=ch; const ctx=cv.getContext('2d');
+  const base=['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/','https://elevation-tiles-prod.s3.amazonaws.com/terrarium/'];
+  let done=0, total=ntx*nty;
+  for(let ty=ty0;ty<=ty1;ty++)for(let tx=tx0;tx<=tx1;tx++){
+    let im=null;
+    for(const b of base){ try{ im=await loadImg(b+z+'/'+tx+'/'+ty+'.png'); break; }catch(e){} }
+    if(!im) throw new Error('CORS/jaringan tile gagal');
+    ctx.drawImage(im,(tx-tx0)*256,(ty-ty0)*256);
+    done++; setProg(done/total*0.6, 'Mengunduh tile DEM '+done+'/'+total);
+  }
+  const px=ctx.getImageData(0,0,cw,ch).data;
+  const originWx=tx0*256, originWy=ty0*256;
+  // elevation sampler (bilinear) in world-pixel space
+  const decode=(ix,iy)=>{ ix=Math.max(0,Math.min(cw-1,ix)); iy=Math.max(0,Math.min(ch-1,iy)); const o=(iy*cw+ix)*4; return (px[o]*256+px[o+1]+px[o+2]/256)-32768; };
+  const sample=(lon,lat)=>{
+    const fx=lon2wx(lon,z)-originWx, fy=lat2wy(lat,z)-originWy;
+    const x0=Math.floor(fx), y0=Math.floor(fy), dx=fx-x0, dy=fy-y0;
+    const e00=decode(x0,y0),e10=decode(x0+1,y0),e01=decode(x0,y0+1),e11=decode(x0+1,y0+1);
+    return e00*(1-dx)*(1-dy)+e10*dx*(1-dy)+e01*(1-dx)*dy+e11*dx*dy;
+  };
+  return buildGrid(sample,false);
+}
+function fetchDEMSynthetic(){
+  // realistic hilly coastal terrain fallback (deterministic-ish)
+  const a=S.aoi;
+  const cx=(a.W+a.E)/2, cy=(a.S+a.N)/2;
+  const sample=(lon,lat)=>{
+    const u=(lon-a.W)/((a.E-a.W)||1), v=(lat-a.S)/((a.N-a.S)||1);
+    const f=(fx,fy)=>Math.sin(fx*6.1+1.3)*Math.cos(fy*5.3+0.6)+0.5*Math.sin(fx*13.7+2.1)*Math.cos(fy*11.9+1.4)+0.25*Math.sin(fx*27+0.4)*Math.cos(fy*24+2.2);
+    let h=32 + 26*f(u,v) + 18*(u*0.6+v*0.4) - 40*Math.max(0,0.25-((u-0.15)*(u-0.15)+(v-0.1)*(v-0.1)));
+    return Math.max(0,h);
+  };
+  return buildGrid(sample,true);
+}
+function buildGrid(sample, synthetic){
+  const a=S.aoi, gw=gridTarget();
+  const midLat=(a.S+a.N)/2;
+  const extX=(a.E-a.W)*Math.cos(midLat*Math.PI/180)*111320, extY=(a.N-a.S)*111320;
+  let GW,GH; if(extX>=extY){ GW=gw; GH=Math.max(8,Math.round(gw*extY/extX)); } else { GH=gw; GW=Math.max(8,Math.round(gw*extX/extY)); }
+  const grid=new Float32Array(GW*GH);
+  for(let r=0;r<GH;r++){ const lat=a.N-(r+0.5)/GH*(a.N-a.S);
+    for(let c=0;c<GW;c++){ const lon=a.W+(c+0.5)/GW*(a.E-a.W); grid[r*GW+c]=sample(lon,lat); } }
+  // mask polygon
+  let mask=null;
+  if(a.poly){ mask=new Uint8Array(GW*GH);
+    for(let r=0;r<GH;r++){ const lat=a.N-(r+0.5)/GH*(a.N-a.S);
+      for(let c=0;c<GW;c++){ const lon=a.W+(c+0.5)/GW*(a.E-a.W); mask[r*GW+c]=pointInPoly(lat,lon,a.poly)?1:0; } } }
+  const cellX=extX/GW, cellY=extY/GH;
+  const epsg=utmEpsg(a); const toU=utmDef(epsg);
+  const p1=proj4(wgs84,toU,[a.W,a.S]), p2=proj4(wgs84,toU,[a.E,a.S]), p3=proj4(wgs84,toU,[a.E,a.N]), p4=proj4(wgs84,toU,[a.W,a.N]);
+  const xs=[p1[0],p2[0],p3[0],p4[0]], ys=[p1[1],p2[1],p3[1],p4[1]];
+  return { grid, gw:GW, gh:GH, W:a.W,S:a.S,E:a.E,N:a.N, cellX, cellY, mask, epsg,
+    utm:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)], source:S.src, synthetic };
+}
+function pointInPoly(lat,lng,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const yi=poly[i][0],xi=poly[i][1],yj=poly[j][0],xj=poly[j][1];
+    if(((yi>lat)!==(yj>lat)) && (lng<(xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+  } return inside;
+}
+
+// ============================ TERRAIN ALGORITHMS ============================
+function z(grid,gw,gh,r,c){ r=r<0?0:(r>=gh?gh-1:r); c=c<0?0:(c>=gw?gw-1:c); return grid[r*gw+c]; }
+function gradients(dem,r,c){
+  const g=dem.grid,gw=dem.gw,gh=dem.gh;
+  const zN=z(g,gw,gh,r-1,c),zS=z(g,gw,gh,r+1,c),zE=z(g,gw,gh,r,c+1),zW=z(g,gw,gh,r,c-1);
+  const zNE=z(g,gw,gh,r-1,c+1),zNW=z(g,gw,gh,r-1,c-1),zSE=z(g,gw,gh,r+1,c+1),zSW=z(g,gw,gh,r+1,c-1);
+  const Gx=((zNE+2*zE+zSE)-(zNW+2*zW+zSW))/(8*dem.cellX);   // d z / d east
+  const Gy=((zNW+2*zN+zNE)-(zSW+2*zS+zSE))/(8*dem.cellY);   // d z / d north
+  return [Gx,Gy];
+}
+function computeSlope(dem){
+  const n=dem.gw*dem.gh, out=new Float32Array(n);
+  for(let r=0;r<dem.gh;r++)for(let c=0;c<dem.gw;c++){
+    const i=r*dem.gw+c; if(dem.mask&&!dem.mask[i]){ out[i]=NaN; continue; }
+    const [Gx,Gy]=gradients(dem,r,c); out[i]=Math.atan(Math.sqrt(Gx*Gx+Gy*Gy))*180/Math.PI;
+  } return out;
+}
+function computeAspect(dem){
+  const n=dem.gw*dem.gh, out=new Float32Array(n);
+  for(let r=0;r<dem.gh;r++)for(let c=0;c<dem.gw;c++){
+    const i=r*dem.gw+c; if(dem.mask&&!dem.mask[i]){ out[i]=NaN; continue; }
+    const [Gx,Gy]=gradients(dem,r,c);
+    if(Math.abs(Gx)<1e-9&&Math.abs(Gy)<1e-9){ out[i]=-1; continue; }
+    let asp=Math.atan2(-Gx,-Gy)*180/Math.PI; if(asp<0)asp+=360; out[i]=asp;
+  } return out;
+}
+function computeHillshade(dem,azimuth,altitude,zf){
+  const n=dem.gw*dem.gh, out=new Float32Array(n);
+  const az=azimuth*Math.PI/180, alt=altitude*Math.PI/180;
+  const Lx=Math.sin(az)*Math.cos(alt), Ly=Math.cos(az)*Math.cos(alt), Lz=Math.sin(alt);
+  for(let r=0;r<dem.gh;r++)for(let c=0;c<dem.gw;c++){
+    const i=r*dem.gw+c; if(dem.mask&&!dem.mask[i]){ out[i]=NaN; continue; }
+    const [Gx,Gy]=gradients(dem,r,c);
+    let nx=-Gx*zf, ny=-Gy*zf, nz=1; const len=Math.sqrt(nx*nx+ny*ny+nz*nz); nx/=len;ny/=len;nz/=len;
+    let v=nx*Lx+ny*Ly+nz*Lz; v=Math.max(0,v); out[i]=v*255;
+  } return out;
+}
+function stats(arr,mask){
+  const v=[]; for(let i=0;i<arr.length;i++){ if(mask&&!mask[i])continue; const x=arr[i]; if(!Number.isNaN(x)&&x>-1e6)v.push(x); }
+  if(!v.length) return {count:0};
+  v.sort((a,b)=>a-b); const n=v.length,sum=v.reduce((a,x)=>a+x,0),mean=sum/n;
+  const std=Math.sqrt(v.reduce((a,x)=>a+(x-mean)*(x-mean),0)/n); const q=p=>v[Math.min(n-1,Math.floor(p*n))];
+  return {count:n,min:v[0],max:v[n-1],mean,std,median:q(.5),p10:q(.1),p25:q(.25),p75:q(.75),p90:q(.9),range:v[n-1]-v[0]};
+}
+
+// ---- Hydrology: priority-flood fill + D8 ----
+function fillSinks(dem){
+  const gw=dem.gw,gh=dem.gh,n=gw*gh, src=dem.grid;
+  const filled=new Float32Array(n); for(let i=0;i<n;i++)filled[i]=Infinity;
+  const closed=new Uint8Array(n);
+  // min-heap of [elev, idx]
+  const heap=[]; const push=(e,i)=>{ heap.push([e,i]); let c=heap.length-1; while(c>0){const p=(c-1)>>1; if(heap[p][0]<=heap[c][0])break; [heap[p],heap[c]]=[heap[c],heap[p]]; c=p;} };
+  const pop=()=>{ const top=heap[0], last=heap.pop(); if(heap.length){ heap[0]=last; let c=0; for(;;){ let l=2*c+1,r=2*c+2,s=c; if(l<heap.length&&heap[l][0]<heap[s][0])s=l; if(r<heap.length&&heap[r][0]<heap[s][0])s=r; if(s===c)break; [heap[s],heap[c]]=[heap[c],heap[s]]; c=s; } } return top; };
+  for(let r=0;r<gh;r++)for(let c=0;c<gw;c++){ if(r===0||c===0||r===gh-1||c===gw-1){ const i=r*gw+c; filled[i]=src[i]; closed[i]=1; push(src[i],i); } }
+  const nb=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+  while(heap.length){ const [e,i]=pop(); const r=(i/gw)|0, c=i%gw;
+    for(const [dr,dc] of nb){ const nr=r+dr,nc=c+dc; if(nr<0||nc<0||nr>=gh||nc>=gw)continue; const j=nr*gw+nc; if(closed[j])continue;
+      filled[j]=Math.max(src[j], e+1e-4); closed[j]=1; push(filled[j], j); } }
+  return filled;
+}
+function computeHydro(dem, accThreshPct){
+  const gw=dem.gw,gh=dem.gh,n=gw*gh;
+  const fz=fillSinks(dem);
+  const dir=new Int8Array(n).fill(-1);           // 0..7 index into nb, -1 none
+  const nb=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+  const dist=[dem.cellY,dem.cellY,dem.cellX,dem.cellX,Math.hypot(dem.cellX,dem.cellY),Math.hypot(dem.cellX,dem.cellY),Math.hypot(dem.cellX,dem.cellY),Math.hypot(dem.cellX,dem.cellY)];
+  for(let r=0;r<gh;r++)for(let c=0;c<gw;c++){ const i=r*gw+c; let best=-1,bs=0;
+    for(let k=0;k<8;k++){ const nr=r+nb[k][0],nc=c+nb[k][1]; if(nr<0||nc<0||nr>=gh||nc>=gw)continue; const j=nr*gw+nc;
+      const s=(fz[i]-fz[j])/dist[k]; if(s>bs){ bs=s; best=k; } } dir[i]=best; }
+  // accumulation via topological order (sort by filled elev desc)
+  const order=Array.from({length:n},(_,i)=>i).sort((a,b)=>fz[b]-fz[a]);
+  const acc=new Float32Array(n).fill(1);
+  for(const i of order){ const k=dir[i]; if(k<0)continue; const r=(i/gw)|0,c=i%gw; const j=(r+nb[k][0])*gw+(c+nb[k][1]); acc[j]+=acc[i]; }
+  const thr=Math.max(2, Math.round(n*accThreshPct/100));
+  return { fz, dir, acc, nb, thr };
+}
+function streamSegments(dem,h){
+  // connect stream cell centers to their downstream cell
+  const gw=dem.gw,gh=dem.gh; const segs=[];
+  for(let r=0;r<gh;r++)for(let c=0;c<gw;c++){ const i=r*gw+c; if(h.acc[i]<h.thr)continue; const k=h.dir[i]; if(k<0)continue;
+    const nr=r+h.nb[k][0],nc=c+h.nb[k][1]; if(nr<0||nc<0||nr>=gh||nc>=gw)continue;
+    segs.push([cellLatLng(dem,r,c),cellLatLng(dem,nr,nc), h.acc[i]]);
+  } return segs;
+}
+function delineateWatershed(dem,h, pr,pc){
+  const gw=dem.gw,gh=dem.gh,n=gw*gh; const inW=new Uint8Array(n);
+  // reverse D8: cell j drains to pour if following dir reaches pour. BFS upstream.
+  const stack=[pr*gw+pc]; inW[pr*gw+pc]=1;
+  while(stack.length){ const i=stack.pop(); const r=(i/gw)|0,c=i%gw;
+    for(let k=0;k<8;k++){ const nr=r+h.nb[k][0],nc=c+h.nb[k][1]; if(nr<0||nc<0||nr>=gh||nc>=gw)continue; const j=nr*gw+nc; if(inW[j])continue;
+      const dk=h.dir[j]; if(dk<0)continue; const tr=nr+h.nb[dk][0],tc=nc+h.nb[dk][1]; if(tr===r&&tc===c){ inW[j]=1; stack.push(j); } } }
+  return inW;
+}
+function cellLatLng(dem,r,c){ return [dem.N-(r+0.5)/dem.gh*(dem.N-dem.S), dem.W+(c+0.5)/dem.gw*(dem.E-dem.W)]; }
+
+// ---- Marching squares contours ----
+function computeContours(dem, interval){
+  const g=dem.grid,gw=dem.gw,gh=dem.gh;
+  let mn=Infinity,mx=-Infinity; for(let i=0;i<g.length;i++){ if(dem.mask&&!dem.mask[i])continue; const v=g[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+  const levels=[]; const start=Math.ceil(mn/interval)*interval;
+  for(let L=start; L<mx; L+=interval){ levels.push(+L.toFixed(4)); if(levels.length>400)break; }
+  const out=[]; // {level, segs:[[[lat,lng],[lat,lng]]...]}
+  const pos=(r,c)=>[dem.N-(r)/(gh-1)*(dem.N-dem.S), dem.W+(c)/(gw-1)*(dem.E-dem.W)]; // corner at grid node
+  const interp=(p1,p2,v1,v2,L)=>{ const t=(L-v1)/((v2-v1)||1e-9); return [p1[0]+(p2[0]-p1[0])*t, p1[1]+(p2[1]-p1[1])*t]; };
+  for(const L of levels){ const segs=[];
+    for(let r=0;r<gh-1;r++)for(let c=0;c<gw-1;c++){
+      if(dem.mask){ if(!dem.mask[r*gw+c]||!dem.mask[r*gw+c+1]||!dem.mask[(r+1)*gw+c]||!dem.mask[(r+1)*gw+c+1])continue; }
+      const tl=g[r*gw+c],tr=g[r*gw+c+1],bl=g[(r+1)*gw+c],br=g[(r+1)*gw+c+1];
+      let idx=0; if(tl>=L)idx|=8; if(tr>=L)idx|=4; if(br>=L)idx|=2; if(bl>=L)idx|=1;
+      if(idx===0||idx===15)continue;
+      const Ptl=pos(r,c),Ptr=pos(r,c+1),Pbl=pos(r+1,c),Pbr=pos(r+1,c+1);
+      const eT=()=>interp(Ptl,Ptr,tl,tr,L), eR=()=>interp(Ptr,Pbr,tr,br,L), eB=()=>interp(Pbl,Pbr,bl,br,L), eL=()=>interp(Ptl,Pbl,tl,bl,L);
+      const push=(a,b)=>segs.push([a,b]);
+      switch(idx){
+        case 1:case 14: push(eL(),eB()); break;
+        case 2:case 13: push(eB(),eR()); break;
+        case 3:case 12: push(eL(),eR()); break;
+        case 4:case 11: push(eT(),eR()); break;
+        case 6:case 9:  push(eT(),eB()); break;
+        case 7:case 8:  push(eT(),eL()); break;
+        case 5:  push(eL(),eT()); push(eB(),eR()); break;
+        case 10: push(eT(),eR()); push(eL(),eB()); break;
+      }
+    }
+    if(segs.length) out.push({level:L, segs});
+  }
+  return {levels:out, min:mn, max:mx, interval};
+}
+function joinContour(segs){
+  // join short segments into polylines by endpoint hashing
+  const key=p=>p[0].toFixed(7)+','+p[1].toFixed(7);
+  const ends={}; const used=new Array(segs.length).fill(false);
+  segs.forEach((s,i)=>{ [0,1].forEach(e=>{ const k=key(s[e]); (ends[k]||(ends[k]=[])).push([i,e]); }); });
+  const lines=[];
+  for(let i=0;i<segs.length;i++){ if(used[i])continue; used[i]=true;
+    let line=[segs[i][0],segs[i][1]];
+    // extend forward
+    for(let guard=0;guard<segs.length;guard++){ const tail=line[line.length-1]; const cand=(ends[key(tail)]||[]).find(([j,e])=>!used[j]); if(!cand)break; const [j,e]=cand; used[j]=true; line.push(segs[j][e===0?1:0]); }
+    for(let guard=0;guard<segs.length;guard++){ const head=line[0]; const cand=(ends[key(head)]||[]).find(([j,e])=>!used[j]); if(!cand)break; const [j,e]=cand; used[j]=true; line.unshift(segs[j][e===0?1:0]); }
+    lines.push(line);
+  }
+  return lines;
+}
+
+// ============================ RENDER RASTER ============================
+function h2(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+function palColor(pal,t){ t=Math.max(0,Math.min(1,t)); const seg=(pal.length-1)*t,i=Math.floor(seg),f=seg-i; const c0=h2(pal[Math.min(i,pal.length-1)]),c1=h2(pal[Math.min(i+1,pal.length-1)]); return [Math.round(c0[0]+(c1[0]-c0[0])*f),Math.round(c0[1]+(c1[1]-c0[1])*f),Math.round(c0[2]+(c1[2]-c0[2])*f)]; }
+function renderRaster(layer){
+  const dem=S.dem, gw=dem.gw, gh=dem.gh, grid=layer.grid;
+  const cv=document.createElement('canvas'); cv.width=gw; cv.height=gh; const ctx=cv.getContext('2d');
+  const img=ctx.createImageData(gw,gh), d=img.data;
+  const lo=layer.lo, hi=layer.hi, pal=layer.pal, kind=layer.kind;
+  for(let i=0;i<grid.length;i++){ const v=grid[i], o=i*4;
+    if(Number.isNaN(v)){ d[o+3]=0; continue; }
+    let rgb;
+    if(kind==='aspect'){ if(v<0){ d[o]=210;d[o+1]=210;d[o+2]=210;d[o+3]=200; continue; } rgb=palColor(pal, v/360); }
+    else if(kind==='slopeClass'){ rgb=slopeClassColor(v); }
+    else if(kind==='flow'){ const t=Math.log(1+v)/Math.log(1+hi); rgb=palColor(pal,t); }
+    else { rgb=palColor(pal,(v-lo)/((hi-lo)||1)); }
+    d[o]=rgb[0]; d[o+1]=rgb[1]; d[o+2]=rgb[2]; d[o+3]=232;
+  }
+  ctx.putImageData(img,0,0);
+  return cv.toDataURL('image/png');
+}
+function slopeClassColor(v){ for(const c of SLOPE_CLASSES){ if(v>=c.min&&v<c.max) return h2(c.color); } return h2('#7d1a7d'); }
+
+// ============================ PROCESS ============================
+function setProg(f,txt){ $('procBar').style.width=Math.round(f*100)+'%'; if(txt)$('procSub').textContent=txt; }
+function showProc(t){ $('procTxt').textContent=t||'Memproses…'; $('procBar').style.width='0'; $('proc').classList.add('show'); }
+function hideProc(){ $('proc').classList.remove('show'); }
+function setStatus(k,m){ const s=$('status'); s.className='status show '+k; s.innerHTML=m; }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function process(){
+  if(!S.aoi){ toast('Pilih AOI dulu.'); return; }
+  resetResult();
+  showProc('Mengunduh DEM…');
+  setProg(0.02,'Menyiapkan tile '+SOURCES[S.src].label);
+  await sleep(30);
+  let dem, synthetic=false, warn='';
+  try{ dem=await fetchDEM(); }
+  catch(err){ synthetic=true; warn=err.message||'jaringan'; dem=fetchDEMSynthetic(); }
+  S.dem=dem;
+  setProg(0.66,'Menghitung terrain…'); await sleep(20);
+
+  const az=+$('pAz').value, alt=+$('pAlt').value, zf=+$('pZ').value/10, accPct=+$('pAcc').value/10;
+
+  // Raster layers
+  S.layers={};
+  const est=stats(dem.grid, dem.mask);
+  S.layers.elevation={ grid:dem.grid, kind:'elev', pal:PAL.elevation, lo:est.min, hi:est.max, stats:est, unit:'m', title:'Elevasi (m dpl)' };
+  if(ANALYSES.slope.on){ setProg(0.72,'Slope (Horn)…'); await sleep(0); const sl=computeSlope(dem); S.layers.slope={ grid:sl, kind:'slopeClass', pal:PAL.slope, lo:0, hi:Math.min(60,stats(sl,dem.mask).max||45), stats:stats(sl,dem.mask), unit:'°', title:'Slope (derajat)' }; }
+  if(ANALYSES.aspect.on){ setProg(0.78,'Aspect…'); await sleep(0); const as=computeAspect(dem); S.layers.aspect={ grid:as, kind:'aspect', pal:PAL.aspect, lo:0, hi:360, stats:stats(as,dem.mask), unit:'°', title:'Aspect (arah lereng)' }; }
+  if(ANALYSES.hillshade.on){ setProg(0.84,'Hillshade…'); await sleep(0); const hs=computeHillshade(dem,az,alt,zf); S.layers.hillshade={ grid:hs, kind:'shade', pal:PAL.hillshade, lo:0, hi:255, stats:stats(hs,dem.mask), unit:'', title:'Hillshade' }; }
+  if(ANALYSES.hydro.on){ setProg(0.9,'Hidrologi: fill → D8 → flow…'); await sleep(0);
+    const h=computeHydro(dem, accPct); S.hydro=h;
+    S.layers.flow={ grid:h.acc, kind:'flow', pal:PAL.flow, lo:1, hi:stats(h.acc,dem.mask).max||1, stats:stats(h.acc,dem.mask), unit:'sel', title:'Flow Accumulation' };
+    S.streamData=streamSegments(dem,h);
+  } else { S.hydro=null; S.streamData=null; }
+  if(ANALYSES.contour.on){ setProg(0.95,'Kontur…'); await sleep(0); S.contourData=computeContours(dem, +$('pContour').value); }
+  else S.contourData=null;
+  if(ANALYSES.tin.on){ S.tin=computeTIN(dem); } else S.tin=null;
+
+  setProg(1,'Selesai'); await sleep(60);
+  hideProc();
+  buildResultUI(synthetic, warn);
+  // draw default vectors
+  if(S.contourData) toggleVec('contour', true);
+  if(S.streamData) toggleVec('stream', true);
+  setActiveLayer('elevation');
+  const ha=areaKm2(dem)*100;
+  toast('Terrain diproses'+(synthetic?' (sintetis)':'')+' · '+dem.gw+'×'+dem.gh+' sel · '+ha.toFixed(2)+' Ha');
+}
+
+function computeTIN(dem){
+  // sample subset of grid nodes as TIN vertices; report Delaunay triangle count via simple grid triangulation
+  const step=Math.max(1,Math.round(Math.max(dem.gw,dem.gh)/40));
+  let verts=0; const rows=Math.floor((dem.gh-1)/step)+1, cols=Math.floor((dem.gw-1)/step)+1;
+  verts=rows*cols; const tris=(rows-1)*(cols-1)*2;
+  let mn=Infinity,mx=-Infinity; for(let i=0;i<dem.grid.length;i++){ if(dem.mask&&!dem.mask[i])continue; mn=Math.min(mn,dem.grid[i]); mx=Math.max(mx,dem.grid[i]); }
+  return { verts, tris, min:mn, max:mx, step };
+}
+
+// ============================ RESULT UI ============================
+function buildResultUI(synthetic, warn){
+  $('resultStep').style.display='block';
+  const dem=S.dem, s=SOURCES[dem.source];
+  $('resultSub').textContent=(synthetic?'DEM sintetis':s.label)+' · '+dem.gw+'×'+dem.gh;
+  const sc=$('scene'); sc.className='scene show';
+  const ha=areaKm2(dem)*100;
+  sc.innerHTML= synthetic
+    ? '<b>Mode DEM Sintetis</b> — tile online gagal ('+warn+'). Menampilkan terrain sintetis realistis agar alur analisis tetap jalan.<span class="pill">'+s.label+'</span>'
+    : '<b>'+s.label+'</b><span class="pill">z'+s.zoom+'</span><br>Sumber: AWS Terrain Tiles (SRTM/Copernicus/DEMNAS composite)<br>Sel grid: <b>'+dem.cellX.toFixed(1)+' × '+dem.cellY.toFixed(1)+' m</b> · EPSG:'+dem.epsg+' · Luas <b>'+ha.toFixed(2)+' Ha</b>';
+  setStatus('ok','Analisis selesai. Klik peta untuk inspeksi elevasi. Aktifkan lapisan/vektor di bawah.');
+
+  // layer switcher (rasters present)
+  const order=['elevation','slope','aspect','hillshade','flow'];
+  const names={elevation:'Elevasi',slope:'Slope',aspect:'Aspect',hillshade:'Hillshade',flow:'Flow Acc'};
+  $('layerSw').innerHTML=order.map(k=> S.layers[k]?'<button data-k="'+k+'">'+names[k]+'</button>':'').join('');
+  $('layerSw').querySelectorAll('button').forEach(b=>b.onclick=()=>setActiveLayer(b.dataset.k));
+
+  // vector switcher
+  const vecs=[
+    S.contourData?{k:'contour',lbl:'Kontur',sw:'#8a5a1e'}:null,
+    S.streamData?{k:'stream',lbl:'Sungai',sw:'#1e6fd6'}:null,
+    {k:'watershed',lbl:'Watershed',sw:'#8b1a8b'},
+  ].filter(Boolean);
+  $('vecSw').innerHTML=vecs.map(v=>'<button data-k="'+v.k+'"'+((v.k==='watershed'&&!S.hydro)?' disabled':'')+'><span class="sw" style="background:'+v.sw+'"></span>'+v.lbl+'</button>').join('');
+  $('vecSw').querySelectorAll('button').forEach(b=>b.onclick=()=>{ if(b.dataset.k==='watershed'){ startPourMode(); } else { toggleVec(b.dataset.k, !S.vecOn[b.dataset.k]); } });
+
+  $('opRow').style.display='flex';
+  $('profWrap').classList.toggle('show', ANALYSES.profile.on);
+  $('exportStep').style.display='block';
+  if(S.tin){ setStatus('ok','TIN: <b>'+S.tin.tris.toLocaleString('id')+'</b> segitiga, '+S.tin.verts.toLocaleString('id')+' titik · elev '+S.tin.min.toFixed(1)+'–'+S.tin.max.toFixed(1)+' m. Lapisan raster & vektor siap.'); }
+}
+
+function setActiveLayer(k){
+  const layer=S.layers[k]; if(!layer) return; S.active=k;
+  $('layerSw').querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.k===k));
+  if(S.overlay){ S.map.removeLayer(S.overlay); S.overlay=null; }
+  const url=renderRaster(layer);
+  const dem=S.dem, bounds=[[dem.N,dem.W],[dem.S,dem.E]];
+  S.overlay=L.imageOverlay(url,bounds,{opacity:+$('opacityRange').value/100,interactive:false}).addTo(S.map);
+  S.overlay.bringToFront(); bringVectors();
+  drawLegend(layer); drawStatsUI(layer); drawHist(layer); drawClasses(layer);
+}
+function bringVectors(){ ['contour','stream','watershed','profile'].forEach(k=>{ if(S.vec[k]) S.vec[k].bringToFront?.(); }); }
+
+function drawLegend(layer){
+  const box=$('legendBox'); box.classList.add('show'); $('legendCap').textContent='Legenda · '+layer.title;
+  if(layer.kind==='slopeClass'){
+    box.querySelector('#legendBar').style.background='linear-gradient(90deg,'+SLOPE_CLASSES.map(c=>c.color).join(',')+')';
+    $('legendTicks').innerHTML='<span>0°</span><span>5°</span><span>15°</span><span>25°</span><span>40°+</span>';
+  } else if(layer.kind==='aspect'){
+    $('legendBar').style.background='linear-gradient(90deg,'+PAL.aspect.join(',')+')';
+    $('legendTicks').innerHTML='<span>N</span><span>E</span><span>S</span><span>W</span><span>N</span>';
+  } else if(layer.kind==='shade'){
+    $('legendBar').style.background='linear-gradient(90deg,#000,#fff)'; $('legendTicks').innerHTML='<span>bayangan</span><span>terang</span>';
+  } else if(layer.kind==='flow'){
+    $('legendBar').style.background='linear-gradient(90deg,'+PAL.flow.join(',')+')'; $('legendTicks').innerHTML='<span>1</span><span>hulu →</span><span>'+Math.round(layer.hi)+'</span>';
+  } else {
+    $('legendBar').style.background='linear-gradient(90deg,'+PAL.elevation.join(',')+')';
+    const lo=layer.lo,hi=layer.hi; $('legendTicks').innerHTML=[0,.25,.5,.75,1].map(t=>'<span>'+(lo+(hi-lo)*t).toFixed(0)+'</span>').join('');
+  }
+}
+function drawStatsUI(layer){
+  const g=$('statGrid'); const s=layer.stats; if(!s.count){ g.classList.remove('show'); return; }
+  g.classList.add('show'); const u=layer.unit; const f=v=>(Math.abs(v)>=100?v.toFixed(0):v.toFixed(2));
+  const cell=(v,l)=>'<div class="stat"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';
+  g.innerHTML=cell(f(s.min)+u,'Min')+cell(f(s.mean)+u,'Mean')+cell(f(s.max)+u,'Max')+
+    cell(f(s.median)+u,'Median')+cell(f(s.std)+u,'Std')+cell(s.count.toLocaleString('id'),'Sel');
+}
+function drawHist(layer){
+  const w=$('histWrap'); if(!layer.stats.count){ w.classList.remove('show'); return; } w.classList.add('show');
+  $('histCap').textContent='Distribusi · '+layer.title;
+  const cv=$('histCanvas'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height; ctx.clearRect(0,0,W,H);
+  const s=layer.stats, lo=s.min, hi=s.max, bins=46, hist=new Array(bins).fill(0);
+  for(let i=0;i<layer.grid.length;i++){ if(S.dem.mask&&!S.dem.mask[i])continue; const v=layer.grid[i]; if(Number.isNaN(v)||v<-1e5)continue; let bi=Math.floor((v-lo)/((hi-lo)||1)*bins); bi=Math.max(0,Math.min(bins-1,bi)); hist[bi]++; }
+  const mx=Math.max(...hist)||1, bw=W/bins;
+  for(let i=0;i<bins;i++){ const h=hist[i]/mx*(H-4); let rgb;
+    if(layer.kind==='slopeClass')rgb=slopeClassColor(lo+(i+.5)/bins*(hi-lo)); else rgb=palColor(layer.pal, i/(bins-1));
+    ctx.fillStyle='rgb('+rgb[0]+','+rgb[1]+','+rgb[2]+')'; ctx.fillRect(i*bw+.5,H-h,bw-1,h); }
+}
+function drawClasses(layer){
+  const box=$('classBox'); if(layer.kind!=='slopeClass'){ box.style.display='none'; return; }
+  const vals=[]; for(let i=0;i<layer.grid.length;i++){ if(S.dem.mask&&!S.dem.mask[i])continue; const v=layer.grid[i]; if(!Number.isNaN(v))vals.push(v); }
+  const n=vals.length||1; box.style.display='block';
+  box.innerHTML='<div style="font-size:9.5px;color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Klasifikasi Kemiringan</div>'+
+    SLOPE_CLASSES.map(c=>{ const cnt=vals.filter(v=>v>=c.min&&v<c.max).length,pct=cnt/n*100;
+      return '<div class="cls-row"><span class="cls-sw" style="background:'+c.color+'"></span><span class="cls-lbl">'+c.lbl+'</span><span class="cls-track"><span class="cls-fill" style="width:'+pct.toFixed(1)+'%;background:'+c.color+'"></span></span><span class="cls-pct">'+pct.toFixed(1)+'%</span></div>'; }).join('');
+}
+
+// ============================ VECTOR LAYERS ============================
+function toggleVec(k, on){
+  S.vecOn[k]=on;
+  const btn=$('vecSw').querySelector('[data-k="'+k+'"]'); if(btn)btn.classList.toggle('on',on);
+  if(S.vec[k]){ S.map.removeLayer(S.vec[k]); S.vec[k]=null; }
+  if(!on) return;
+  if(k==='contour' && S.contourData) drawContours();
+  if(k==='stream' && S.streamData) drawStreams();
+  bringVectors();
+}
+function drawContours(){
+  const grp=L.featureGroup(); const cd=S.contourData; const majorEvery=5;
+  cd.levels.forEach((lv,idx)=>{
+    const isMajor=(Math.round(lv.level/cd.interval)%majorEvery)===0;
+    const poly=L.polyline(lv.segs.map(s=>s), {color:isMajor?'#6b4416':'#a07a45', weight:isMajor?1.6:0.8, opacity:isMajor?0.95:0.7, interactive:false});
+    grp.addLayer(poly);
+    if(isMajor && lv.segs.length){ const mid=lv.segs[Math.floor(lv.segs.length/2)][0];
+      L.marker(mid,{icon:L.divIcon({className:'contour-label',html:lv.level.toFixed(lv.level%1?1:0),iconSize:[24,10]}),interactive:false}).addTo(grp); }
+  });
+  grp.addTo(S.map); S.vec.contour=grp;
+}
+function drawStreams(){
+  const grp=L.featureGroup(); const maxAcc=S.layers.flow?S.layers.flow.hi:1;
+  S.streamData.forEach(seg=>{ const w=0.8+2.6*Math.min(1,Math.log(1+seg[2])/Math.log(1+maxAcc));
+    L.polyline([seg[0],seg[1]],{color:'#1e6fd6',weight:w,opacity:.9,interactive:false}).addTo(grp); });
+  grp.addTo(S.map); S.vec.stream=grp;
+}
+
+// pour point → watershed
+function startPourMode(){
+  if(!S.hydro){ toast('Aktifkan analisis Hidrologi lalu proses ulang.'); return; }
+  beginMode('pour','Klik titik outlet (pour point) di dalam AOI');
+}
+function setPourPoint(latlng){
+  const dem=S.dem;
+  if(latlng.lat>dem.N||latlng.lat<dem.S||latlng.lng<dem.W||latlng.lng>dem.E){ toast('Titik di luar AOI.'); return; }
+  let c=Math.floor((latlng.lng-dem.W)/(dem.E-dem.W)*dem.gw), r=Math.floor((dem.N-latlng.lat)/(dem.N-dem.S)*dem.gh);
+  // snap to highest accumulation in 3x3 window
+  let best=-1,br=r,bc=c;
+  for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){ const nr=r+dr,nc=c+dc; if(nr<0||nc<0||nr>=dem.gh||nc>=dem.gw)continue; const a=S.hydro.acc[nr*dem.gw+nc]; if(a>best){best=a;br=nr;bc=nc;} }
+  cancelMode(true);
+  const inW=delineateWatershed(dem,S.hydro,br,bc);
+  S.watershedData=inW;
+  drawWatershed(inW,br,bc);
+}
+function drawWatershed(inW,pr,pc){
+  const dem=S.dem;
+  if(S.vec.watershed){ S.map.removeLayer(S.vec.watershed); }
+  const grp=L.featureGroup();
+  // outline: mark boundary cells as small rectangles union → draw filled cells lightly + boundary
+  for(let r=0;r<dem.gh;r++)for(let c=0;c<dem.gw;c++){ if(!inW[r*dem.gw+c])continue;
+    // boundary if any 4-neighbor outside
+    const b=(r===0||!inW[(r-1)*dem.gw+c])||(r===dem.gh-1||!inW[(r+1)*dem.gw+c])||(c===0||!inW[r*dem.gw+c-1])||(c===dem.gw-1||!inW[r*dem.gw+c+1]);
+    const latN=dem.N-r/dem.gh*(dem.N-dem.S), latS=dem.N-(r+1)/dem.gh*(dem.N-dem.S);
+    const lngW=dem.W+c/dem.gw*(dem.E-dem.W), lngE=dem.W+(c+1)/dem.gw*(dem.E-dem.W);
+    L.rectangle([[latS,lngW],[latN,lngE]],{stroke:false,fill:true,fillColor:'#8b1a8b',fillOpacity:b?0.32:0.14,interactive:false}).addTo(grp);
+  }
+  // pour marker
+  const pll=cellLatLng(dem,pr,pc);
+  L.circleMarker(pll,{radius:6,color:'#fff',weight:2,fillColor:'#8b1a8b',fillOpacity:1}).addTo(grp);
+  grp.addTo(S.map); S.vec.watershed=grp; S.vecOn.watershed=true;
+  const btn=$('vecSw').querySelector('[data-k="watershed"]'); if(btn)btn.classList.add('on');
+  // stats
+  let cnt=0,mn=Infinity,mx=-Infinity,sum=0;
+  for(let i=0;i<inW.length;i++){ if(inW[i]){ cnt++; const e=dem.grid[i]; mn=Math.min(mn,e);mx=Math.max(mx,e);sum+=e; } }
+  const areaHa=cnt*dem.cellX*dem.cellY/10000;
+  toast('Watershed: '+cnt+' sel · '+areaHa.toFixed(2)+' Ha · elev '+mn.toFixed(1)+'–'+mx.toFixed(1)+' m');
+  setStatus('ok','<b>Watershed terdelineasi</b> dari pour point. Luas <b>'+areaHa.toFixed(2)+' Ha</b> · '+cnt+' sel · elev '+mn.toFixed(1)+'–'+mx.toFixed(1)+' m (mean '+(sum/Math.max(1,cnt)).toFixed(1)+' m). Ekspor via GeoJSON/KML.');
+  bringVectors();
+}
+
+// ============================ ELEVATION PROFILE ============================
+function startProfile(){ beginMode('profile','Klik titik-titik garis, tekan Enter / dobel-klik untuk selesai'); }
+function buildProfile(latlngs){
+  const dem=S.dem; if(!dem){ toast('Proses DEM dulu.'); return; }
+  // sample along polyline
+  const epsg=dem.epsg, toU=utmDef(epsg);
+  const pts=latlngs.map(ll=>proj4(wgs84,toU,[ll.lng,ll.lat]));
+  let total=0; const segLen=[]; for(let i=1;i<pts.length;i++){ const d=Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]); segLen.push(d); total+=d; }
+  const interval=Math.max(1, total/240);
+  const out=[]; let acc=0;
+  for(let i=1;i<pts.length;i++){ const a=pts[i-1],b=pts[i],L=segLen[i-1]; const steps=Math.max(1,Math.round(L/interval));
+    for(let s=0;s<steps;s++){ const t=s/steps; const x=a[0]+(b[0]-a[0])*t, y=a[1]+(b[1]-a[1])*t; const ll=proj4(toU,wgs84,[x,y]);
+      const e=sampleDemLL(dem,ll[1],ll[0]); out.push({d:acc+L*t, e, lat:ll[1], lng:ll[0]}); } }
+  const last=pts[pts.length-1], lll=proj4(toU,wgs84,last); out.push({d:total, e:sampleDemLL(dem,lll[1],lll[0]), lat:lll[1], lng:lll[0]});
+  // stats
+  let mn=Infinity,mx=-Infinity, maxGrade=0, gsum=0, gc=0;
+  for(let i=0;i<out.length;i++){ mn=Math.min(mn,out[i].e); mx=Math.max(mx,out[i].e);
+    if(i>0){ const dd=out[i].d-out[i-1].d; if(dd>0){ const gr=Math.abs((out[i].e-out[i-1].e)/dd)*100; maxGrade=Math.max(maxGrade,gr); gsum+=gr; gc++; } } }
+  S.profile={ points:out, total, min:mn, max:mx, start:out[0].e, end:out[out.length-1].e, maxGrade, avgGrade:gsum/Math.max(1,gc), latlngs };
+  // draw line on map
+  if(S.vec.profile) S.map.removeLayer(S.vec.profile);
+  S.vec.profile=L.polyline(latlngs,{color:'#e0742a',weight:3,opacity:.95}).addTo(S.map);
+  $('profWrap').classList.add('show');
+  drawProfileChart(); drawProfileStats();
+  toast('Profil: '+total.toFixed(0)+' m · Δ'+(mx-mn).toFixed(1)+' m · grade maks '+maxGrade.toFixed(1)+'%');
+}
+function sampleDemLL(dem,lat,lng){
+  const fc=(lng-dem.W)/(dem.E-dem.W)*dem.gw-0.5, fr=(dem.N-lat)/(dem.N-dem.S)*dem.gh-0.5;
+  const c0=Math.floor(fc),r0=Math.floor(fr),dx=fc-c0,dy=fr-r0;
+  const g=(r,c)=>z(dem.grid,dem.gw,dem.gh,r,c);
+  return g(r0,c0)*(1-dx)*(1-dy)+g(r0,c0+1)*dx*(1-dy)+g(r0+1,c0)*(1-dx)*dy+g(r0+1,c0+1)*dx*dy;
+}
+function drawProfileChart(){
+  const p=S.profile, cv=$('profCanvas'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H); const padL=34,padB=16,padT=8,padR=6;
+  const mn=p.min,mx=p.max, rng=(mx-mn)||1;
+  const X=d=>padL+(d/p.total)*(W-padL-padR), Y=e=>padT+(1-(e-mn)/rng)*(H-padT-padB);
+  // grid
+  ctx.strokeStyle='#e3e8ef'; ctx.lineWidth=1; ctx.fillStyle='#8b95a5'; ctx.font='8px monospace'; ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){ const e=mn+rng*i/4, y=Y(e); ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke(); ctx.textAlign='right'; ctx.fillText(e.toFixed(0),padL-3,y); }
+  // area fill
+  ctx.beginPath(); ctx.moveTo(X(0),Y(p.points[0].e));
+  p.points.forEach(pt=>ctx.lineTo(X(pt.d),Y(pt.e)));
+  ctx.lineTo(X(p.total),H-padB); ctx.lineTo(X(0),H-padB); ctx.closePath();
+  const grad=ctx.createLinearGradient(0,padT,0,H-padB); grad.addColorStop(0,'rgba(224,116,42,.35)'); grad.addColorStop(1,'rgba(224,116,42,.04)'); ctx.fillStyle=grad; ctx.fill();
+  ctx.beginPath(); p.points.forEach((pt,i)=>{ const x=X(pt.d),y=Y(pt.e); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.strokeStyle='#e0742a'; ctx.lineWidth=1.6; ctx.stroke();
+  ctx.textAlign='center'; ctx.fillStyle='#8b95a5'; ctx.fillText('0',X(0),H-6); ctx.fillText(p.total.toFixed(0)+' m',W-padR-14,H-6);
+  cv.onmousemove=(ev)=>{ const rect=cv.getBoundingClientRect(); const mx2=(ev.clientX-rect.left)*(W/rect.width);
+    const d=(mx2-padL)/(W-padL-padR)*p.total; const pt=p.points.reduce((a,b)=>Math.abs(b.d-d)<Math.abs(a.d-d)?b:a,p.points[0]);
+    drawProfileChart(); const x=X(pt.d),y=Y(pt.e); ctx.strokeStyle='#215bd6';ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,H-padB);ctx.stroke();
+    ctx.fillStyle='#215bd6';ctx.beginPath();ctx.arc(x,y,3,0,7);ctx.fill();
+    ctx.fillStyle='#1c2430';ctx.textAlign='center';ctx.font='bold 9px monospace';ctx.fillText(pt.e.toFixed(1)+' m',x, y-8);
+    if(S.profHover) S.map.removeLayer(S.profHover); S.profHover=L.circleMarker([pt.lat,pt.lng],{radius:5,color:'#215bd6',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(S.map);
+  };
+  cv.onmouseleave=()=>{ drawProfileChart(); if(S.profHover){ S.map.removeLayer(S.profHover); S.profHover=null; } };
+}
+function drawProfileStats(){
+  const p=S.profile, g=$('profStat');
+  const c=(v,l)=>'<div class="s"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';
+  g.innerHTML=c(p.total.toFixed(0)+' m','Panjang')+c(p.min.toFixed(1)+'/'+p.max.toFixed(1),'Min/Max')+c('Δ'+(p.max-p.min).toFixed(1)+' m','Beda Tinggi')+
+    c(p.start.toFixed(1)+'→'+p.end.toFixed(1),'Awal→Akhir')+c(p.avgGrade.toFixed(1)+'%','Grade Rata²')+c(p.maxGrade.toFixed(1)+'%','Grade Maks');
+}
+
+// ============================ INSPECTOR ============================
+function onInspect(e){
+  if(S.mode==='poly'){ /* live preview handled on click */ }
+  const dem=S.dem, el=$('inspect');
+  if(!dem){ el.classList.remove('show'); return; }
+  if(e.latlng.lat>dem.N||e.latlng.lat<dem.S||e.latlng.lng<dem.W||e.latlng.lng>dem.E){ el.classList.remove('show'); return; }
+  const c=Math.floor((e.latlng.lng-dem.W)/(dem.E-dem.W)*dem.gw), r=Math.floor((dem.N-e.latlng.lat)/(dem.N-dem.S)*dem.gh);
+  if(c<0||r<0||c>=dem.gw||r>=dem.gh){ el.classList.remove('show'); return; }
+  const i=r*dem.gw+c; if(dem.mask&&!dem.mask[i]){ el.classList.remove('show'); return; }
+  const elev=dem.grid[i]; const layer=S.active&&S.layers[S.active];
+  const pt=S.map.latLngToContainerPoint(e.latlng); el.style.left=pt.x+'px'; el.style.top=pt.y+'px';
+  let extra=''; if(layer && S.active!=='elevation'){ const v=layer.grid[i]; if(!Number.isNaN(v)) extra=' · '+layer.title.split(' ')[0]+' <b>'+(S.active==='aspect'&&v<0?'flat':v.toFixed(S.active==='flow'?0:1))+layer.unit+'</b>'; }
+  el.innerHTML='Elev <b>'+elev.toFixed(1)+' m</b>'+extra; el.classList.add('show');
+}
+
+// ============================ EXPORT ============================
+function dl(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1500); }
+function fbase(){ return 'terrain_'+(S.aoi&&S.aoi.source||'aoi').replace(/[^a-z0-9]+/gi,'_').toLowerCase(); }
+
+function exportPng(){
+  if(!S.active||!S.layers[S.active]) return toast('Pilih lapisan raster.');
+  const layer=S.layers[S.active];
+  const img=new Image(); img.onload=()=>{
+    const scale=Math.max(1,Math.round(700/img.width)); const iw=img.width*scale, ih=img.height*scale;
+    const pad=14,legendH=48,W=Math.max(iw,360),H=ih+legendH+pad+18;
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+    ctx.imageSmoothingEnabled=false; ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#1c2430';ctx.font='bold 12px sans-serif';ctx.textBaseline='top';ctx.fillText('Terrain · '+layer.title,pad,4);
+    ctx.drawImage(img,(W-iw)/2,20,iw,ih);
+    // legend bar reuse
+    const lx=pad,ly=ih+20+12,lw=W-pad*2,lh=14;
+    const bar=$('legendBar').style.background; // gradient string
+    const grad=ctx.createLinearGradient(lx,0,lx+lw,0);
+    (layer.kind==='slopeClass'?SLOPE_CLASSES.map(c=>c.color):(layer.kind==='aspect'?PAL.aspect:(layer.kind==='shade'?['#000','#fff']:(layer.kind==='flow'?PAL.flow:PAL.elevation)))).forEach((c,i,arr)=>grad.addColorStop(i/(arr.length-1),c));
+    ctx.fillStyle=grad;ctx.fillRect(lx,ly,lw,lh);ctx.strokeStyle='#dbe1ea';ctx.strokeRect(lx,ly,lw,lh);
+    cv.toBlob(b=>dl(b,fbase()+'_'+S.active+'.png'),'image/png');
+  }; img.src=renderRaster(layer);
+}
+function exportGeotiff(){
+  if(!S.active||!S.layers[S.active]) return;
+  const dem=S.dem, layer=S.layers[S.active];
+  try{ if(!GeoTIFF.writeArrayBuffer) throw new Error('no writer');
+    const [minX,minY,maxX,maxY]=dem.utm, psx=(maxX-minX)/dem.gw, psy=(maxY-minY)/dem.gh;
+    const vals=new Float32Array(dem.gw*dem.gh);
+    for(let i=0;i<vals.length;i++){ const v=layer.grid[i]; vals[i]=(Number.isNaN(v)||(dem.mask&&!dem.mask[i]))?-9999:v; }
+    const meta={ width:dem.gw,height:dem.gh,ModelPixelScale:[psx,psy,0],ModelTiepoint:[0,0,0,minX,maxY,0],
+      GTModelTypeGeoKey:1,GTRasterTypeGeoKey:1,ProjectedCSTypeGeoKey:dem.epsg,GDAL_NODATA:'-9999',
+      SamplesPerPixel:1,BitsPerSample:[32],SampleFormat:[3] };
+    dl(new Blob([GeoTIFF.writeArrayBuffer(vals,meta)],{type:'image/tiff'}), fbase()+'_'+S.active+'.tif');
+    toast('GeoTIFF '+S.active+' diekspor.');
+  }catch(e){ console.error(e); toast('GeoTIFF gagal — pakai GeoJSON/CSV.'); }
+}
+function contourLines(){ // {level, latlngs:[[lat,lng]...]}
+  if(!S.contourData) return [];
+  const out=[]; S.contourData.levels.forEach(lv=>{ joinContour(lv.segs).forEach(line=>out.push({level:lv.level, line})); }); return out;
+}
+function exportGeojson(){
+  const feats=[];
+  // AOI
+  const a=S.aoi; const ring=a.poly?a.poly.map(p=>[p[1],p[0]]).concat([[a.poly[0][1],a.poly[0][0]]]):[[a.W,a.S],[a.E,a.S],[a.E,a.N],[a.W,a.N],[a.W,a.S]];
+  feats.push({type:'Feature',properties:{type:'aoi',source:SOURCES[S.dem.source].label,area_ha:+(areaKm2(S.dem)*100).toFixed(3),epsg:S.dem.epsg},geometry:{type:'Polygon',coordinates:[ring]}});
+  // contours
+  contourLines().forEach(cl=>feats.push({type:'Feature',properties:{type:'contour',elev:cl.level},geometry:{type:'LineString',coordinates:cl.line.map(p=>[+p[1].toFixed(7),+p[0].toFixed(7)])}}));
+  // streams
+  if(S.streamData) S.streamData.forEach(s=>feats.push({type:'Feature',properties:{type:'stream',accum:Math.round(s[2])},geometry:{type:'LineString',coordinates:[[+s[0][1].toFixed(7),+s[0][0].toFixed(7)],[+s[1][1].toFixed(7),+s[1][0].toFixed(7)]]}}));
+  // watershed as MultiPolygon of cells (simplified)
+  if(S.watershedData){ const dem=S.dem, polys=[];
+    for(let r=0;r<dem.gh;r++)for(let c=0;c<dem.gw;c++){ if(!S.watershedData[r*dem.gw+c])continue;
+      const latN=dem.N-r/dem.gh*(dem.N-dem.S),latS=dem.N-(r+1)/dem.gh*(dem.N-dem.S),lngW=dem.W+c/dem.gw*(dem.E-dem.W),lngE=dem.W+(c+1)/dem.gw*(dem.E-dem.W);
+      polys.push([[[lngW,latS],[lngE,latS],[lngE,latN],[lngW,latN],[lngW,latS]]]); }
+    if(polys.length) feats.push({type:'Feature',properties:{type:'watershed',cells:polys.length},geometry:{type:'MultiPolygon',coordinates:polys}}); }
+  // profile
+  if(S.profile) feats.push({type:'Feature',properties:{type:'profile',length_m:+S.profile.total.toFixed(1),max_grade_pct:+S.profile.maxGrade.toFixed(2)},geometry:{type:'LineString',coordinates:S.profile.latlngs.map(l=>[+l.lng.toFixed(7),+l.lat.toFixed(7)])}});
+  dl(new Blob([JSON.stringify({type:'FeatureCollection',features:feats},null,1)],{type:'application/geo+json'}), fbase()+'.geojson');
+  toast(feats.length+' fitur diekspor ke GeoJSON.');
+}
+function exportKml(){
+  let k='<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Terrain Analysis</name>';
+  k+='<Style id="c"><LineStyle><color>ff166b8a</color><width>1.4</width></LineStyle></Style>';
+  k+='<Style id="s"><LineStyle><color>ffd66f1e</color><width>2</width></LineStyle></Style>';
+  contourLines().forEach(cl=>{ k+='<Placemark><name>'+cl.level+' m</name><styleUrl>#c</styleUrl><LineString><coordinates>'+cl.line.map(p=>p[1].toFixed(7)+','+p[0].toFixed(7)+',0').join(' ')+'</coordinates></LineString></Placemark>'; });
+  if(S.streamData) S.streamData.forEach(s=>{ k+='<Placemark><styleUrl>#s</styleUrl><LineString><coordinates>'+s[0][1].toFixed(7)+','+s[0][0].toFixed(7)+',0 '+s[1][1].toFixed(7)+','+s[1][0].toFixed(7)+',0</coordinates></LineString></Placemark>'; });
+  if(S.profile){ k+='<Placemark><name>Profil</name><LineString><coordinates>'+S.profile.latlngs.map(l=>l.lng.toFixed(7)+','+l.lat.toFixed(7)+',0').join(' ')+'</coordinates></LineString></Placemark>'; }
+  k+='</Document></kml>';
+  dl(new Blob([k],{type:'application/vnd.google-earth.kml+xml'}), fbase()+'.kml');
+  toast('KML diekspor.');
+}
+function exportDxf(){
+  const dem=S.dem, toU=utmDef(dem.epsg);
+  let d='0\nSECTION\n2\nENTITIES\n';
+  const line=(x1,y1,x2,y2,layer,z)=>{ d+='0\nLINE\n8\n'+layer+'\n10\n'+x1.toFixed(3)+'\n20\n'+y1.toFixed(3)+'\n30\n'+(z||0).toFixed(3)+'\n11\n'+x2.toFixed(3)+'\n21\n'+y2.toFixed(3)+'\n31\n'+(z||0).toFixed(3)+'\n'; };
+  contourLines().forEach(cl=>{ const ll='CONTOUR_'+String(cl.level).replace(/[.\-]/g,'_'); for(let i=1;i<cl.line.length;i++){ const p1=proj4(wgs84,toU,[cl.line[i-1][1],cl.line[i-1][0]]),p2=proj4(wgs84,toU,[cl.line[i][1],cl.line[i][0]]); line(p1[0],p1[1],p2[0],p2[1],ll,cl.level); } });
+  if(S.streamData) S.streamData.forEach(s=>{ const p1=proj4(wgs84,toU,[s[0][1],s[0][0]]),p2=proj4(wgs84,toU,[s[1][1],s[1][0]]); line(p1[0],p1[1],p2[0],p2[1],'STREAM',0); });
+  d+='0\nENDSEC\n0\nEOF\n';
+  dl(new Blob([d],{type:'application/dxf'}), fbase()+'_kontur.dxf');
+  toast('DXF (kontur+sungai, UTM) diekspor.');
+}
+function exportCsv(){
+  const dem=S.dem;
+  if(S.profile){ let csv='distance_m,elevation_m,lat,lng\n'; S.profile.points.forEach(p=>{ csv+=p.d.toFixed(2)+','+p.e.toFixed(3)+','+p.lat.toFixed(7)+','+p.lng.toFixed(7)+'\n'; });
+    dl(new Blob([csv],{type:'text/csv'}), fbase()+'_profil.csv'); toast('CSV profil diekspor.'); return; }
+  // grid elevation sample
+  const [minX,minY,maxX,maxY]=dem.utm, toU=utmDef(dem.epsg);
+  const step=Math.max(1,Math.round(Math.sqrt(dem.gw*dem.gh/4000)));
+  let csv='lon,lat,x_utm,y_utm,elev_m'+(S.layers.slope?',slope_deg':'')+(S.layers.aspect?',aspect_deg':'')+'\n';
+  for(let r=0;r<dem.gh;r+=step)for(let c=0;c<dem.gw;c+=step){ const i=r*dem.gw+c; if(dem.mask&&!dem.mask[i])continue;
+    const x=minX+(c+0.5)/dem.gw*(maxX-minX), y=maxY-(r+0.5)/dem.gh*(maxY-minY); const ll=proj4(toU,wgs84,[x,y]);
+    csv+=ll[0].toFixed(6)+','+ll[1].toFixed(6)+','+x.toFixed(1)+','+y.toFixed(1)+','+dem.grid[i].toFixed(2)+(S.layers.slope?','+(Number.isNaN(S.layers.slope.grid[i])?'':S.layers.slope.grid[i].toFixed(2)):'')+(S.layers.aspect?','+(S.layers.aspect.grid[i]<0?'':S.layers.aspect.grid[i].toFixed(1)):'')+'\n'; }
+  dl(new Blob([csv],{type:'text/csv'}), fbase()+'_grid.csv'); toast('CSV grid elevasi diekspor.');
+}
+
+// ============================ RESET ============================
+function resetDem(){ /* AOI changed → require reprocess */ S.dem=null; }
+function resetResult(){
+  if(S.overlay){ S.map.removeLayer(S.overlay); S.overlay=null; }
+  ['contour','stream','watershed','profile'].forEach(k=>{ if(S.vec[k]){ S.map.removeLayer(S.vec[k]); S.vec[k]=null; } });
+  S.vecOn={contour:false,stream:false,watershed:false}; S.contourData=S.streamData=S.watershedData=S.profile=null; S.active=null; S.layers={};
+  if(S.profHover){ S.map.removeLayer(S.profHover); S.profHover=null; }
+  $('resultStep').style.display='none'; $('exportStep').style.display='none';
+}
+
+// ============================ WIRING ============================
+function init(){
+  initMap(); renderSources(); renderAnalyses();
+  $('btnSample').onclick=loadSample;
+  $('btnRect').onclick=()=>beginMode('rect','Klik sudut pertama lalu sudut kedua (kotak AOI)');
+  $('btnPoly').onclick=()=>beginMode('poly','Klik titik-titik poligon, tekan Enter untuk selesai');
+  $('btnView').onclick=useView;
+  $('btnClear').onclick=clearAOI;
+  $('btnProcess').onclick=process;
+  $('optDetail').onchange=e=>{ S.detail=e.target.value; updateCellInfo(); resetDem(); };
+  $('mapmodeCancel').onclick=()=>cancelMode();
+  $('pAz').oninput=e=>$('azVal').textContent=e.target.value+'°';
+  $('pAlt').oninput=e=>$('altVal').textContent=e.target.value+'°';
+  $('pZ').oninput=e=>$('zVal').textContent=(e.target.value/10).toFixed(1);
+  $('pAcc').oninput=e=>$('accVal').textContent=(e.target.value/10).toFixed(1)+'%';
+  $('opacityRange').oninput=e=>{ if(S.overlay)S.overlay.setOpacity(e.target.value/100); };
+  $('profHint').onclick=startProfile;
+  $('expPng').onclick=exportPng; $('expTif').onclick=exportGeotiff; $('expDxf').onclick=exportDxf;
+  $('expGeojson').onclick=exportGeojson; $('expKml').onclick=exportKml; $('expCsv').onclick=exportCsv;
+  $('sheetToggle').onclick=()=>$('side').classList.toggle('collapsed');
+  // finish poly/profile on Enter or dblclick
+  S.map.on('dblclick', e=>{ if(S.mode==='poly'||S.mode==='profile'){ L.DomEvent.stop(e); finishPoly(); } });
+  document.addEventListener('keydown', e=>{ if(e.key==='Enter'&&(S.mode==='poly'||S.mode==='profile'))finishPoly(); if(e.key==='Escape')cancelMode(); });
+  S.map.doubleClickZoom.disable();
+  setTimeout(()=>S.map.invalidateSize(),300);
+  window.addEventListener('resize',()=>S.map.invalidateSize());
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+</script>
+</body>
+</html>
