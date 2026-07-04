@@ -1,0 +1,3107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d1420">
+<title>CAD Engine — DWG/DXF Viewer · Draw · Edit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ DESIGN TOKENS — CAD dark canvas + instrument chrome ============ */
+:root{
+  --bg:#0d1420; --panel:#141c2b; --panel-2:#1a2436; --line:#243044; --line-2:#31405a;
+  --ink:#e6ecf5; --ink-dim:#93a1b8; --ink-faint:#5f6f8a;
+  --accent:#3b82f6; --accent-ink:#2563eb; --accent-soft:rgba(59,130,246,.16);
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --cyan:#22d3ee;
+  --r:9px; --r2:13px;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --shadow:0 8px 28px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;-webkit-font-smoothing:antialiased;overscroll-behavior:none;touch-action:none}
+button,input,select,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+
+/* ---------- TOPBAR ---------- */
+.topbar{flex:0 0 auto;height:50px;display:flex;align-items:center;gap:8px;padding:0 10px;
+  background:var(--panel);border-bottom:1px solid var(--line);z-index:60}
+.brand{display:flex;align-items:center;gap:8px;min-width:0}
+.brand-mark{width:30px;height:30px;flex:none;border-radius:8px;background:linear-gradient(135deg,#2563eb,#0e9aa7);
+  display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.brand-mark svg{width:18px;height:18px;color:#fff}
+.brand-txt{line-height:1.05;min-width:0}
+.brand-txt b{font-size:13.5px;font-weight:800;letter-spacing:-.01em;display:block;white-space:nowrap}
+.brand-txt span{font-size:9px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.05em;white-space:nowrap}
+.topbar .sp{flex:1}
+.tb-btn{height:36px;min-width:36px;padding:0 9px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);font-size:11.5px;font-weight:600;white-space:nowrap}
+.tb-btn:active{transform:scale(.95)}
+.tb-btn.on{background:var(--accent-soft);border-color:var(--accent);color:#cfe3ff}
+.tb-btn svg{width:17px;height:17px;flex:none}
+.tb-btn:disabled{opacity:.35;pointer-events:none}
+@media(max-width:640px){ .tb-btn .lbl{display:none} .brand-txt span{display:none} }
+@media(max-width:470px){ .brand-txt{display:none} }
+
+/* ---------- RIBBON ---------- */
+.ribbon{flex:0 0 auto;background:var(--panel);border-bottom:1px solid var(--line);z-index:55}
+.rib-tabs{display:flex;gap:2px;padding:6px 10px 0}
+.rib-tab{padding:7px 13px;border-radius:8px 8px 0 0;font-size:11.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.02em}
+.rib-tab.on{background:var(--panel-2);color:var(--ink);box-shadow:inset 0 1px 0 var(--line-2)}
+.rib-body{background:var(--panel-2);padding:8px 10px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.rib-body::-webkit-scrollbar{display:none}
+.rtool{flex:none;width:62px;padding:7px 2px 6px;border-radius:10px;display:flex;flex-direction:column;align-items:center;gap:4px;
+  color:var(--ink-dim);border:1px solid transparent}
+.rtool svg{width:21px;height:21px}
+.rtool span{font-size:9.5px;font-weight:600;line-height:1.1;text-align:center;white-space:nowrap}
+.rtool:active{transform:scale(.94)}
+.rtool.on{background:var(--accent-soft);border-color:var(--accent);color:#cfe3ff}
+.rib-sep{flex:none;width:1px;background:var(--line);margin:4px 2px}
+
+/* ---------- CANVAS ---------- */
+.stage{flex:1;position:relative;min-height:0;background:#0a0f18}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.hud-measure{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(13,20,32,.92);
+  border:1px solid var(--line-2);border-radius:11px;padding:8px 14px;font-family:var(--mono);font-size:12px;color:var(--cyan);
+  display:none;max-width:92%;text-align:center;pointer-events:none;z-index:20;box-shadow:var(--shadow)}
+.hud-measure.show{display:block}
+.hud-hint{position:absolute;left:10px;top:10px;background:rgba(13,20,32,.85);border:1px solid var(--line);
+  border-radius:9px;padding:6px 10px;font-size:11px;color:var(--ink-dim);pointer-events:none;z-index:20;max-width:70%}
+.drop-hint{position:absolute;inset:14px;border:2px dashed var(--accent);border-radius:16px;display:none;
+  align-items:center;justify-content:center;background:rgba(37,99,235,.12);z-index:40;pointer-events:none;
+  font-weight:700;color:#cfe3ff;font-size:15px}
+.stage.dragover .drop-hint{display:flex}
+
+/* ---------- COMMAND LINE ---------- */
+.cmdwrap{flex:0 0 auto;background:var(--panel);border-top:1px solid var(--line);z-index:60}
+.cmdlog{max-height:130px;overflow-y:auto;padding:6px 12px;font-family:var(--mono);font-size:11px;color:var(--ink-dim);
+  border-bottom:1px solid var(--line);display:none;background:#0f1624}
+.cmdlog.show{display:block}
+.cmdlog .l-cmd{color:var(--cyan)}
+.cmdlog .l-err{color:var(--bad)}
+.cmdlog .l-ok{color:var(--good)}
+.cmdrow{display:flex;align-items:center;gap:8px;padding:7px 10px}
+.cmd-prompt{flex:none;font-family:var(--mono);font-size:11px;color:var(--accent);font-weight:600;max-width:46%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd-input{flex:1;min-width:60px;height:36px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+  padding:0 11px;font-family:var(--mono);font-size:12.5px;outline:none}
+.cmd-input:focus{border-color:var(--accent)}
+.cmd-btn{width:36px;height:36px;flex:none;border-radius:9px;background:var(--panel-2);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--ink-dim)}
+.cmd-btn.on{background:var(--accent-soft);border-color:var(--accent);color:#cfe3ff}
+.cmd-btn svg{width:17px;height:17px}
+
+/* ---------- STATUSBAR ---------- */
+.statusbar{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:5px 10px calc(5px + env(safe-area-inset-bottom,0px));
+  background:#0f1624;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;color:var(--ink-faint);overflow-x:auto;scrollbar-width:none}
+.statusbar::-webkit-scrollbar{display:none}
+.st-toggle{flex:none;padding:4px 8px;border-radius:7px;border:1px solid var(--line);color:var(--ink-faint);
+  font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.04em}
+.st-toggle.on{background:var(--accent-soft);border-color:var(--accent);color:#cfe3ff}
+.st-coord{flex:none;margin-left:auto;color:var(--cyan);white-space:nowrap}
+.st-layer{flex:none;display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:7px;border:1px solid var(--line);white-space:nowrap}
+.st-layer i{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+/* ---------- SHEETS (layer / props / export / help) ---------- */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:190;display:none}
+.sheet-backdrop.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:200;background:var(--panel);border-radius:18px 18px 0 0;
+  border-top:1px solid var(--line-2);max-height:78dvh;display:none;flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:var(--shadow)}
+.sheet.open{display:flex}
+@media(min-width:760px){
+  .sheet{left:auto;right:12px;bottom:12px;width:400px;border-radius:16px;border:1px solid var(--line-2)}
+}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.sheet-head h2{font-size:14.5px;font-weight:800}
+.sheet-x{width:32px;height:32px;border-radius:9px;background:var(--panel-2);display:grid;place-items:center;color:var(--ink-dim);font-size:17px}
+.sheet-body{flex:1;overflow-y:auto;padding:12px 16px 18px}
+.sheet-body::-webkit-scrollbar{width:8px}
+.sheet-body::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
+
+/* layer rows */
+.lay-row{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid var(--line);border-radius:11px;margin-bottom:7px;background:var(--panel-2)}
+.lay-row.cur{border-color:var(--accent);background:var(--accent-soft)}
+.lay-ico{width:30px;height:30px;flex:none;border-radius:8px;display:grid;place-items:center;color:var(--ink-dim);border:1px solid transparent}
+.lay-ico:active{transform:scale(.9)}
+.lay-ico.off{color:var(--ink-faint);opacity:.45}
+.lay-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lay-name small{display:block;font-size:9.5px;color:var(--ink-faint);font-family:var(--mono);font-weight:500}
+.lay-color{width:26px;height:26px;flex:none;border-radius:7px;border:1px solid var(--line-2);padding:0;background:none;overflow:hidden}
+.lay-color::-webkit-color-swatch-wrapper{padding:2px}
+.lay-color::-webkit-color-swatch{border:0;border-radius:5px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 14px;border-radius:11px;
+  background:var(--panel-2);border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--ink)}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--accent-ink);border-color:var(--accent-ink);color:#fff}
+.btn.full{width:100%}
+.btn.danger{color:#fca5a5;border-color:#7f1d1d}
+.form-row{margin-bottom:11px}
+.form-row label{display:block;font-size:10.5px;font-weight:700;color:var(--ink-dim);letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
+.form-row input[type=text],.form-row input[type=number],.form-row select,.form-row textarea{
+  width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;min-height:40px;padding:8px 11px;font-size:13px;outline:none}
+.form-row textarea{min-height:70px;resize:vertical;font-family:var(--mono)}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--accent)}
+.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.exp-item{display:flex;align-items:center;gap:11px;width:100%;padding:11px;border:1px solid var(--line);border-radius:12px;
+  background:var(--panel-2);margin-bottom:8px;text-align:left}
+.exp-item:active{transform:scale(.98)}
+.exp-item .ei{width:38px;height:38px;flex:none;border-radius:10px;background:var(--accent-soft);display:grid;place-items:center;color:#9ec5ff}
+.exp-item .ei svg{width:19px;height:19px}
+.exp-item b{font-size:12.5px;display:block}
+.exp-item small{font-size:10.5px;color:var(--ink-faint)}
+.help-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.help-table td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.help-table td:first-child{font-family:var(--mono);color:var(--cyan);white-space:nowrap;font-size:11px}
+.help-sec{font-size:10.5px;font-weight:800;color:var(--ink-dim);letter-spacing:.07em;text-transform:uppercase;margin:14px 0 6px}
+
+/* modal (center) */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line-2);border-radius:16px;width:100%;max-width:380px;max-height:84dvh;
+  overflow-y:auto;padding:18px;box-shadow:var(--shadow)}
+.modal h3{font-size:15px;font-weight:800;margin-bottom:6px}
+.modal p{font-size:12px;color:var(--ink-dim);line-height:1.55;margin-bottom:12px}
+.modal .mrow{display:flex;gap:9px;margin-top:14px}
+.modal .mrow .btn{flex:1}
+
+.toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%) translateY(20px);background:#0f1624;border:1px solid var(--line-2);
+  color:var(--ink);padding:10px 16px;border-radius:12px;font-size:12px;font-weight:600;z-index:400;opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;box-shadow:var(--shadow);max-width:88%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l6-4v14"/><path d="M9 17l6-4V3l6 4v14l-6-4"/><path d="M9 17l-6 4M15 13l6 8"/></svg></div>
+      <div class="brand-txt"><b>CAD Engine</b><span>DWG/DXF · DRAW · EDIT · v1</span></div>
+    </div>
+    <div class="sp"></div>
+    <button class="tb-btn" id="btnOpen" title="Buka file (DWG/DXF/SVDRAW)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-8L9 4H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1z"/></svg>
+      <span class="lbl">Buka</span>
+    </button>
+    <button class="tb-btn" id="btnSave" title="Simpan (.svdraw)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+      <span class="lbl">Simpan</span>
+    </button>
+    <button class="tb-btn" id="btnExport" title="Ekspor DXF / SVG / GeoJSON / PDF / PNG">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <span class="lbl">Ekspor</span>
+    </button>
+    <button class="tb-btn" id="btnUndo" title="Undo (Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>
+    </button>
+    <button class="tb-btn" id="btnRedo" title="Redo (Ctrl+Y)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>
+    </button>
+    <button class="tb-btn" id="btnLayers" title="Layer Manager">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+      <span class="lbl">Layer</span>
+    </button>
+    <button class="tb-btn" id="btnHelp" title="Daftar perintah">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.8.5-1.2 1-1.2 1.8v.5"/><path d="M12 17h.01"/></svg>
+    </button>
+  </div>
+
+  <!-- RIBBON -->
+  <div class="ribbon">
+    <div class="rib-tabs" id="ribTabs"></div>
+    <div class="rib-body" id="ribBody"></div>
+  </div>
+
+  <!-- STAGE -->
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud-hint" id="hudHint">Buka file DXF/DWG atau mulai menggambar — ketik perintah di bawah (mis. LINE)</div>
+    <div class="hud-measure" id="hudMeasure"></div>
+    <div class="drop-hint">Lepaskan file DXF / DWG / SVDRAW di sini</div>
+  </div>
+
+  <!-- COMMAND LINE -->
+  <div class="cmdwrap">
+    <div class="cmdlog" id="cmdLog"></div>
+    <div class="cmdrow">
+      <div class="cmd-prompt" id="cmdPrompt">Perintah:</div>
+      <input class="cmd-input" id="cmdInput" type="text" placeholder="LINE, CIRCLE, MOVE, DIST … (F2 log)" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button class="cmd-btn" id="btnCmdLog" title="Riwayat perintah (F2)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+      </button>
+      <button class="cmd-btn" id="btnEnter" title="Enter / selesai">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10l-5 4 5 4"/><path d="M4 14h11a5 5 0 0 0 5-5V5"/></svg>
+      </button>
+      <button class="cmd-btn" id="btnEsc" title="Esc / batal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- STATUSBAR -->
+  <div class="statusbar" id="statusbar">
+    <button class="st-toggle on" id="stSnap">SNAP</button>
+    <button class="st-toggle on" id="stGrid">GRID</button>
+    <button class="st-toggle" id="stOrtho">ORTHO</button>
+    <button class="st-toggle" id="stPan">PAN</button>
+    <button class="st-layer" id="stLayer"><i id="stLayerSw" style="background:#fff"></i><span id="stLayerName">0</span></button>
+    <span class="st-coord" id="stCoord">0.000, 0.000</span>
+  </div>
+</div>
+
+<!-- SHEETS -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+
+<div class="sheet" id="sheetLayers">
+  <div class="sheet-head"><h2>Layer Manager</h2><button class="sheet-x" data-close>×</button></div>
+  <div class="sheet-body">
+    <div id="layList"></div>
+    <button class="btn full" id="btnAddLayer">+ Layer Baru</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetProps">
+  <div class="sheet-head"><h2 id="propsTitle">Properti</h2><button class="sheet-x" data-close>×</button></div>
+  <div class="sheet-body" id="propsBody"></div>
+</div>
+
+<div class="sheet" id="sheetExport">
+  <div class="sheet-head"><h2>Ekspor & Cetak</h2><button class="sheet-x" data-close>×</button></div>
+  <div class="sheet-body" id="exportBody"></div>
+</div>
+
+<div class="sheet" id="sheetHelp">
+  <div class="sheet-head"><h2>Perintah CAD</h2><button class="sheet-x" data-close>×</button></div>
+  <div class="sheet-body" id="helpBody"></div>
+</div>
+
+<!-- CENTER MODAL -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept=".dxf,.dwg,.svdraw,.json" style="display:none">
+
+<script>
+'use strict';
+/* =====================================================================
+   CAD ENGINE — Survai App
+   Implementasi PRD "CAD Engine Product Requirement Document":
+   Core (command dispatcher, undo/redo, event) · Geometry kernel ·
+   Entity model · Drawing DB · Rendering · Editing · Selection · Snapping ·
+   Measurement · Layer · Annotation · Dimension · Hatch · Text ·
+   Import/Export (DXF/SVG/GeoJSON/PNG/PDF) · GIS-lite (CRS tag)
+   ===================================================================== */
+
+/* ---------------- STATE ---------------- */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const stage = document.getElementById('stage');
+let DPR = Math.max(1, window.devicePixelRatio || 1);
+let CW = 0, CH = 0;                    // ukuran canvas dalam px CSS
+
+// View transform: world -> screen. sx=(wx-view.x)*view.s ; sy=CH-(wy-view.y)*view.s
+const view = { x: -10, y: -10, s: 30 };
+
+// Drawing database (single source of truth)
+const D = {
+  name: 'Drawing1',
+  crs: '',            // EPSG tag (GIS integration-lite)
+  units: 'm',
+  decimals: 3,
+  clayer: '0',
+  layers: [
+    { name: '0',      color: '#e6ecf5', on: true, frozen: false, locked: false, lt: 'continuous' },
+    { name: 'MARKUP', color: '#f59e0b', on: true, frozen: false, locked: false, lt: 'continuous' },
+  ],
+  entities: [],
+  blocks: {},         // name -> {base:[x,y], ents:[...]}
+};
+
+let _uid = 1;
+const uid = () => 'e' + (_uid++);
+
+const sel = new Set();                 // id entitas terpilih
+let undoStack = [], redoStack = [];
+const UNDO_CAP = 120;
+
+const settings = {
+  snap: true, grid: true, ortho: false, panMode: false,
+  snapModes: { END:true, MID:true, CEN:true, QUA:false, INT:true, NEA:false, NOD:true, GRID:false },
+};
+
+let cursorW = [0, 0];                  // posisi kursor (world, sudah snap)
+let cursorRaw = [0, 0];                // posisi kursor mentah (world)
+let snapHit = null;                    // {p:[x,y], kind:'END'|...}
+let tool = null;                       // tool aktif (state machine perintah)
+let lastCmd = '';
+let dirty = false;   // guard rAF: true saat frame sudah dijadwalkan
+
+/* ---------------- UTIL ---------------- */
+const fmt = n => Number(n).toFixed(D.decimals);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const deg = r => r * 180 / Math.PI;
+const rad = d => d * Math.PI / 180;
+
+function toast(msg, ms = 2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), ms);
+}
+function logLine(text, cls = '') {
+  const log = document.getElementById('cmdLog');
+  const div = document.createElement('div');
+  if (cls) div.className = cls;
+  div.textContent = text;
+  log.appendChild(div);
+  while (log.children.length > 300) log.removeChild(log.firstChild);
+  log.scrollTop = 1e9;
+}
+function setPrompt(t) { document.getElementById('cmdPrompt').textContent = t; }
+function setHint(t) {
+  const h = document.getElementById('hudHint');
+  if (t) { h.textContent = t; h.style.display = 'block'; } else h.style.display = 'none';
+}
+function showMeasure(t) {
+  const m = document.getElementById('hudMeasure');
+  if (t) { m.innerHTML = t; m.classList.add('show'); } else m.classList.remove('show');
+}
+
+/* ---------------- ACI COLOR (DXF) ---------------- */
+const ACI = { 1:'#ff0000',2:'#ffff00',3:'#00ff00',4:'#00ffff',5:'#0000ff',6:'#ff00ff',7:'#e6ecf5',8:'#808080',9:'#c0c0c0' };
+function aciToHex(i) {
+  i = Math.abs(i | 0);
+  if (ACI[i]) return ACI[i];
+  if (i >= 250 && i <= 255) { const v = 50 + (i - 250) * 40; return rgbHex(v, v, v); }
+  if (i < 10 || i > 249) return '#e6ecf5';
+  // aproksimasi roda warna ACI standar
+  const g = Math.floor((i - 10) / 24);           // 0..9 hue group
+  const idx = (i - 10) % 24;
+  const hue = g * 36;
+  const shade = Math.floor(idx / 2);             // 0..11 makin gelap
+  const light = idx % 2 === 1;                   // odd = pucat
+  const val = 255 - shade * 17;
+  const sat = light ? 0.45 : 1;
+  return hslHex(hue, sat, val / 255 * (light ? 0.75 : 0.5) + (light ? 0.2 : 0));
+}
+function hexToAci(hex) {
+  const m = { '#ff0000':1,'#ffff00':2,'#00ff00':3,'#00ffff':4,'#0000ff':5,'#ff00ff':6 };
+  if (m[hex?.toLowerCase()]) return m[hex.toLowerCase()];
+  if (!hex) return 7;
+  const [r, g, b] = hexRgb(hex);
+  // pilih dari 6 warna dasar + putih/abu berdasarkan jarak
+  const cands = [[255,0,0,1],[255,255,0,2],[0,255,0,3],[0,255,255,4],[0,0,255,5],[255,0,255,6],[235,235,245,7],[128,128,128,8]];
+  let best = 7, bd = 1e9;
+  for (const [cr, cg, cb, ci] of cands) {
+    const d2 = (r-cr)**2 + (g-cg)**2 + (b-cb)**2;
+    if (d2 < bd) { bd = d2; best = ci; }
+  }
+  return best;
+}
+function rgbHex(r, g, b) { return '#' + [r, g, b].map(v => clamp(Math.round(v),0,255).toString(16).padStart(2,'0')).join(''); }
+function hexRgb(h) { h = h.replace('#',''); if (h.length===3) h = h.split('').map(c=>c+c).join(''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+function hslHex(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = n => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1))); };
+  return rgbHex(f(0) * 255, f(8) * 255, f(4) * 255);
+}
+
+/* ---------------- GEOMETRY KERNEL ---------------- */
+const V = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1]],
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1]],
+  mul: (a, k) => [a[0] * k, a[1] * k],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1],
+  cross: (a, b) => a[0] * b[1] - a[1] * b[0],
+  len: a => Math.hypot(a[0], a[1]),
+  dist: (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]),
+  mid: (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+  ang: (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]),
+  norm: a => { const l = Math.hypot(a[0], a[1]) || 1; return [a[0] / l, a[1] / l]; },
+  perp: a => [-a[1], a[0]],
+  rot: (p, c, th) => {
+    const s = Math.sin(th), co = Math.cos(th), dx = p[0] - c[0], dy = p[1] - c[1];
+    return [c[0] + dx * co - dy * s, c[1] + dx * s + dy * co];
+  },
+};
+
+function distPtSeg(p, a, b) {
+  const ab = V.sub(b, a), ap = V.sub(p, a);
+  const L2 = V.dot(ab, ab);
+  if (L2 < 1e-12) return V.dist(p, a);
+  const t = clamp(V.dot(ap, ab) / L2, 0, 1);
+  return V.dist(p, V.add(a, V.mul(ab, t)));
+}
+function projPtSeg(p, a, b) {
+  const ab = V.sub(b, a), L2 = V.dot(ab, ab);
+  const t = L2 < 1e-12 ? 0 : clamp(V.dot(V.sub(p, a), ab) / L2, 0, 1);
+  return V.add(a, V.mul(ab, t));
+}
+// perpotongan 2 segmen (atau garis tak hingga jika seg=false)
+function segInt(p1, p2, p3, p4, seg = true) {
+  const d1 = V.sub(p2, p1), d2 = V.sub(p4, p3);
+  const den = V.cross(d1, d2);
+  if (Math.abs(den) < 1e-12) return null;
+  const t = V.cross(V.sub(p3, p1), d2) / den;
+  const u = V.cross(V.sub(p3, p1), d1) / den;
+  if (seg && (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9)) return null;
+  return V.add(p1, V.mul(d1, t));
+}
+function segCircleInt(a, b, c, r, seg = true) {
+  const d = V.sub(b, a), f = V.sub(a, c);
+  const A = V.dot(d, d), B = 2 * V.dot(f, d), C = V.dot(f, f) - r * r;
+  const disc = B * B - 4 * A * C;
+  if (disc < 0 || A < 1e-12) return [];
+  const s = Math.sqrt(disc), out = [];
+  for (const t of [(-B - s) / (2 * A), (-B + s) / (2 * A)]) {
+    if (!seg || (t >= -1e-9 && t <= 1 + 1e-9)) out.push(V.add(a, V.mul(d, t)));
+  }
+  return out;
+}
+function circleCircleInt(c1, r1, c2, r2) {
+  const d = V.dist(c1, c2);
+  if (d < 1e-12 || d > r1 + r2 || d < Math.abs(r1 - r2)) return [];
+  const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d);
+  const h2 = r1 * r1 - a * a;
+  if (h2 < 0) return [];
+  const h = Math.sqrt(h2);
+  const pm = V.add(c1, V.mul(V.sub(c2, c1), a / d));
+  const per = V.mul(V.perp(V.norm(V.sub(c2, c1))), h);
+  return h < 1e-9 ? [pm] : [V.add(pm, per), V.sub(pm, per)];
+}
+function polyArea(pts) {
+  let s = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    s += a[0] * b[1] - b[0] * a[1];
+  }
+  return s / 2;
+}
+function polyLen(pts, closed) {
+  let L = 0;
+  for (let i = 0; i < pts.length - 1; i++) L += V.dist(pts[i], pts[i + 1]);
+  if (closed && pts.length > 2) L += V.dist(pts[pts.length - 1], pts[0]);
+  return L;
+}
+// bulge -> arc {c,r,a1,a2,ccw}; p1->p2 dengan bulge b
+function bulgeArc(p1, p2, b) {
+  const th = 4 * Math.atan(b);
+  const chord = V.dist(p1, p2);
+  if (Math.abs(th) < 1e-12 || chord < 1e-12) return null;
+  const r = chord / (2 * Math.sin(Math.abs(th) / 2));
+  const mid = V.mid(p1, p2);
+  const d = Math.sqrt(Math.max(0, r * r - chord * chord / 4)) * (b > 0 ? 1 : -1) * (Math.abs(th) > Math.PI ? -1 : 1);
+  const per = V.perp(V.norm(V.sub(p2, p1)));
+  const c = V.add(mid, V.mul(per, d));
+  return { c, r, a1: Math.atan2(p1[1] - c[1], p1[0] - c[0]), a2: Math.atan2(p2[1] - c[1], p2[0] - c[0]), ccw: b > 0 };
+}
+function tessArc(c, r, a1, a2, ccw = true, seg = 24) {
+  // normalisasi sweep
+  let sweep = a2 - a1;
+  if (ccw) { while (sweep <= 0) sweep += 2 * Math.PI; }
+  else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+  const n = Math.max(4, Math.ceil(Math.abs(sweep) / (2 * Math.PI) * seg * 2));
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const a = a1 + sweep * i / n;
+    out.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]);
+  }
+  return out;
+}
+// offset polyline sederhana (miter join)
+function offsetPoly(pts, dist, closed) {
+  const n = pts.length;
+  if (n < 2) return null;
+  const segs = [];
+  const cnt = closed ? n : n - 1;
+  for (let i = 0; i < cnt; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    const off = V.mul(V.perp(V.norm(V.sub(b, a))), dist);
+    segs.push([V.add(a, off), V.add(b, off)]);
+  }
+  const out = [];
+  if (!closed) out.push(segs[0][0]);
+  const m = segs.length;
+  const jcnt = closed ? m : m - 1;
+  for (let i = 0; i < jcnt; i++) {
+    const s1 = segs[i], s2 = segs[(i + 1) % m];
+    const ip = segInt(s1[0], s1[1], s2[0], s2[1], false);
+    out.push(ip || s1[1]);
+  }
+  if (!closed) out.push(segs[m - 1][1]);
+  else out.unshift(out.pop());
+  return out;
+}
+function bboxUnion(b1, b2) {
+  if (!b1) return b2; if (!b2) return b1;
+  return [Math.min(b1[0], b2[0]), Math.min(b1[1], b2[1]), Math.max(b1[2], b2[2]), Math.max(b1[3], b2[3])];
+}
+function bboxOfPts(pts) {
+  let x1 = 1e18, y1 = 1e18, x2 = -1e18, y2 = -1e18;
+  for (const p of pts) { x1 = Math.min(x1, p[0]); y1 = Math.min(y1, p[1]); x2 = Math.max(x2, p[0]); y2 = Math.max(y2, p[1]); }
+  return [x1, y1, x2, y2];
+}
+
+/* ---------------- COORD TRANSFORM ---------------- */
+function W2S(p) { return [(p[0] - view.x) * view.s, CH - (p[1] - view.y) * view.s]; }
+function S2W(sx, sy) { return [sx / view.s + view.x, (CH - sy) / view.s + view.y]; }
+
+/* ---------------- LAYER API ---------------- */
+function layerOf(name) { return D.layers.find(l => l.name === name) || D.layers[0]; }
+function ensureLayer(name, color) {
+  let l = D.layers.find(x => x.name === name);
+  if (!l) { l = { name, color: color || '#e6ecf5', on: true, frozen: false, locked: false, lt: 'continuous' }; D.layers.push(l); }
+  return l;
+}
+function entColor(e) {
+  if (e.color && e.color !== 'bylayer') return e.color;
+  return layerOf(e.layer).color;
+}
+function entVisible(e) { const l = layerOf(e.layer); return l.on && !l.frozen; }
+function entLocked(e) { return layerOf(e.layer).locked; }
+
+/* ---------------- UNDO / REDO ---------------- */
+function snapshot() {
+  return JSON.stringify({ entities: D.entities, layers: D.layers, clayer: D.clayer, blocks: D.blocks });
+}
+function restore(s) {
+  const o = JSON.parse(s);
+  D.entities = o.entities; D.layers = o.layers; D.clayer = o.clayer; D.blocks = o.blocks || {};
+  sel.clear(); refreshLayerUI(); redraw();
+}
+function pushUndo() {
+  undoStack.push(snapshot());
+  if (undoStack.length > UNDO_CAP) undoStack.shift();
+  redoStack.length = 0;
+  updateUndoBtns();
+}
+function doUndo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapshot());
+  restore(undoStack.pop());
+  updateUndoBtns(); logLine('UNDO', 'l-ok');
+}
+function doRedo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapshot());
+  restore(redoStack.pop());
+  updateUndoBtns(); logLine('REDO', 'l-ok');
+}
+function updateUndoBtns() {
+  document.getElementById('btnUndo').disabled = !undoStack.length;
+  document.getElementById('btnRedo').disabled = !redoStack.length;
+}
+
+/* ---------------- ENTITY HELPERS ---------------- */
+function addEnt(e, keepUndo) {
+  e.id = e.id || uid();
+  e.layer = e.layer || D.clayer;
+  e.color = e.color || 'bylayer';
+  e.lt = e.lt || 'bylayer';
+  e.lw = e.lw || 0;
+  D.entities.push(e);
+  return e;
+}
+function entById(id) { return D.entities.find(e => e.id === id); }
+function removeEnts(ids) { const s = new Set(ids); D.entities = D.entities.filter(e => !s.has(e.id)); for (const i of ids) sel.delete(i); }
+
+// titik-titik representatif entitas (untuk bbox / transform)
+function entPts(e) {
+  switch (e.type) {
+    case 'line': return [e.a, e.b];
+    case 'poly': case 'cloud': case 'solid': case 'hatch': return e.pts;
+    case 'circle': return [[e.c[0]-e.r,e.c[1]-e.r],[e.c[0]+e.r,e.c[1]+e.r]];
+    case 'arc': { const t = tessArc(e.c, e.r, e.a1, e.a2, e.ccw !== false, 12); return t; }
+    case 'point': return [e.p];
+    case 'text': { const w = (e.text||'').length * e.h * 0.62; return [e.p, [e.p[0]+Math.cos(e.rot||0)*w, e.p[1]+Math.sin(e.rot||0)*w+e.h]]; }
+    case 'insert': {
+      const blk = D.blocks[e.name]; if (!blk) return [e.p];
+      let bb = null;
+      for (const ce of blk.ents) { const b = entBBox(ce); bb = bboxUnion(bb, b); }
+      if (!bb) return [e.p];
+      const cs = [[bb[0],bb[1]],[bb[2],bb[1]],[bb[2],bb[3]],[bb[0],bb[3]]];
+      return cs.map(p => insXform(e, blk, p));
+    }
+    case 'dim': return [e.p1, e.p2, e.off];
+    case 'leader': return e.pts;
+    default: return [];
+  }
+}
+function entBBox(e) {
+  const pts = entPts(e);
+  if (!pts.length) return null;
+  const bb = bboxOfPts(pts);
+  if (e.type === 'text') { /* sudah termasuk tinggi */ }
+  return bb;
+}
+function insXform(e, blk, p) {
+  // transform titik lokal block -> world utk INSERT
+  let x = (p[0] - blk.base[0]) * (e.sx || 1), y = (p[1] - blk.base[1]) * (e.sy || 1);
+  const th = e.rot || 0, co = Math.cos(th), si = Math.sin(th);
+  return [e.p[0] + x * co - y * si, e.p[1] + x * si + y * co];
+}
+
+// transform generik: fn(pt)->pt. scaleK dipakai utk radius/tinggi teks.
+function transformEnt(e, fn, scaleK = 1, mirror = false) {
+  switch (e.type) {
+    case 'line': e.a = fn(e.a); e.b = fn(e.b); break;
+    case 'poly': case 'cloud': case 'solid': case 'hatch': case 'leader':
+      if (e.pts) e.pts = e.pts.map(fn); break;
+    case 'circle': e.c = fn(e.c); e.r *= scaleK; break;
+    case 'arc': {
+      const p1 = fn([e.c[0] + e.r * Math.cos(e.a1), e.c[1] + e.r * Math.sin(e.a1)]);
+      const p2 = fn([e.c[0] + e.r * Math.cos(e.a2), e.c[1] + e.r * Math.sin(e.a2)]);
+      e.c = fn(e.c); e.r *= scaleK;
+      e.a1 = Math.atan2(p1[1] - e.c[1], p1[0] - e.c[0]);
+      e.a2 = Math.atan2(p2[1] - e.c[1], p2[0] - e.c[0]);
+      if (mirror) { const t = e.a1; e.a1 = e.a2; e.a2 = t; }
+      break;
+    }
+    case 'point': e.p = fn(e.p); break;
+    case 'text': {
+      const dir = fn([e.p[0] + Math.cos(e.rot || 0), e.p[1] + Math.sin(e.rot || 0)]);
+      e.p = fn(e.p);
+      e.rot = Math.atan2(dir[1] - e.p[1], dir[0] - e.p[0]);
+      e.h *= scaleK;
+      break;
+    }
+    case 'insert': {
+      const dir = fn([e.p[0] + Math.cos(e.rot || 0), e.p[1] + Math.sin(e.rot || 0)]);
+      e.p = fn(e.p);
+      e.rot = Math.atan2(dir[1] - e.p[1], dir[0] - e.p[0]);
+      e.sx = (e.sx || 1) * scaleK; e.sy = (e.sy || 1) * scaleK;
+      break;
+    }
+    case 'dim': e.p1 = fn(e.p1); e.p2 = fn(e.p2); e.off = fn(e.off); break;
+  }
+  return e;
+}
+
+/* segmen-segmen entitas (untuk hit test / snap INT) */
+function entSegs(e) {
+  const segs = [];
+  const pushPoly = (pts, closed) => {
+    for (let i = 0; i < pts.length - 1; i++) segs.push([pts[i], pts[i + 1]]);
+    if (closed && pts.length > 2) segs.push([pts[pts.length - 1], pts[0]]);
+  };
+  switch (e.type) {
+    case 'line': segs.push([e.a, e.b]); break;
+    case 'poly': pushPoly(e.pts, e.closed); break;
+    case 'solid': case 'hatch': pushPoly(e.pts, true); break;
+    case 'cloud': pushPoly(e.pts, true); break;
+    case 'leader': pushPoly(e.pts, false); break;
+    case 'dim': {
+      const g = dimGeom(e); if (g) { pushPoly([g.e1a, g.e1b], false); pushPoly([g.e2a, g.e2b], false); pushPoly([g.d1, g.d2], false); }
+      break;
+    }
+  }
+  return segs;
+}
+
+/* hit test: jarak layar (px) */
+function entHit(e, wp, tolW) {
+  switch (e.type) {
+    case 'line': return distPtSeg(wp, e.a, e.b) <= tolW;
+    case 'poly': case 'cloud': case 'solid': case 'hatch': case 'leader': case 'dim': {
+      for (const s of entSegs(e)) if (distPtSeg(wp, s[0], s[1]) <= tolW) return true;
+      if ((e.type === 'hatch' || e.type === 'solid') && pointInPoly(wp, e.pts)) return true;
+      return false;
+    }
+    case 'circle': return Math.abs(V.dist(wp, e.c) - e.r) <= tolW;
+    case 'arc': {
+      if (Math.abs(V.dist(wp, e.c) - e.r) > tolW) return false;
+      return angleInArc(Math.atan2(wp[1]-e.c[1], wp[0]-e.c[0]), e);
+    }
+    case 'point': return V.dist(wp, e.p) <= tolW * 1.5;
+    case 'text': {
+      const bb = entBBox(e);
+      return wp[0] >= bb[0]-tolW && wp[0] <= bb[2]+tolW && wp[1] >= bb[1]-tolW && wp[1] <= bb[3]+tolW;
+    }
+    case 'insert': {
+      const bb = entBBox(e);
+      if (!bb) return false;
+      return wp[0] >= bb[0]-tolW && wp[0] <= bb[2]+tolW && wp[1] >= bb[1]-tolW && wp[1] <= bb[3]+tolW;
+    }
+    default: return false;
+  }
+}
+function angleInArc(a, e) {
+  const ccw = e.ccw !== false;
+  let sweep = e.a2 - e.a1;
+  if (ccw) { while (sweep <= 0) sweep += 2*Math.PI; } else { while (sweep >= 0) sweep -= 2*Math.PI; }
+  let rel = a - e.a1;
+  if (ccw) { while (rel < 0) rel += 2*Math.PI; return rel <= sweep + 1e-9; }
+  while (rel > 0) rel -= 2*Math.PI; return rel >= sweep - 1e-9;
+}
+function pointInPoly(p, pts) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
+    if (((yi > p[1]) !== (yj > p[1])) && (p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+
+/* grip points utk editing langsung */
+function entGrips(e) {
+  switch (e.type) {
+    case 'line': return [{ p: e.a, k: 'a' }, { p: e.b, k: 'b' }, { p: V.mid(e.a, e.b), k: 'mid' }];
+    case 'poly': case 'cloud': case 'solid': case 'hatch': case 'leader':
+      return (e.pts || []).map((p, i) => ({ p, k: 'v' + i }));
+    case 'circle': return [{ p: e.c, k: 'c' }, { p: [e.c[0] + e.r, e.c[1]], k: 'r' }];
+    case 'arc': return [{ p: e.c, k: 'c' },
+      { p: [e.c[0]+e.r*Math.cos(e.a1), e.c[1]+e.r*Math.sin(e.a1)], k: 'a1' },
+      { p: [e.c[0]+e.r*Math.cos(e.a2), e.c[1]+e.r*Math.sin(e.a2)], k: 'a2' }];
+    case 'point': return [{ p: e.p, k: 'p' }];
+    case 'text': case 'insert': return [{ p: e.p, k: 'p' }];
+    case 'dim': return [{ p: e.p1, k: 'p1' }, { p: e.p2, k: 'p2' }, { p: e.off, k: 'off' }];
+    default: return [];
+  }
+}
+function applyGrip(e, k, wp) {
+  if (e.type === 'line') { if (k === 'a') e.a = wp; else if (k === 'b') e.b = wp; else { const d = V.sub(wp, V.mid(e.a, e.b)); e.a = V.add(e.a, d); e.b = V.add(e.b, d); } }
+  else if (k[0] === 'v' && e.pts) e.pts[+k.slice(1)] = wp;
+  else if (e.type === 'circle') { if (k === 'c') e.c = wp; else e.r = Math.max(1e-9, V.dist(wp, e.c)); }
+  else if (e.type === 'arc') {
+    if (k === 'c') e.c = wp;
+    else if (k === 'a1') e.a1 = Math.atan2(wp[1]-e.c[1], wp[0]-e.c[0]);
+    else e.a2 = Math.atan2(wp[1]-e.c[1], wp[0]-e.c[0]);
+  }
+  else if (e.type === 'point') e.p = wp;
+  else if (e.type === 'text' || e.type === 'insert') e.p = wp;
+  else if (e.type === 'dim') { if (k === 'p1') e.p1 = wp; else if (k === 'p2') e.p2 = wp; else e.off = wp; }
+}
+
+/* geometri dimensi aligned */
+function dimGeom(e) {
+  const dir = V.norm(V.sub(e.p2, e.p1));
+  if (!isFinite(dir[0])) return null;
+  const per = V.perp(dir);
+  const h = V.dot(V.sub(e.off, e.p1), per);       // jarak offset bertanda
+  const d1 = V.add(e.p1, V.mul(per, h)), d2 = V.add(e.p2, V.mul(per, h));
+  const ext = Math.sign(h || 1) * 0.12 * Math.abs(h || 1);
+  return {
+    e1a: e.p1, e1b: V.add(d1, V.mul(per, Math.sign(h||1) * dimScale() * 1.2)),
+    e2a: e.p2, e2b: V.add(d2, V.mul(per, Math.sign(h||1) * dimScale() * 1.2)),
+    d1, d2, mid: V.mid(d1, d2), dir, per,
+    len: V.dist(e.p1, e.p2), rot: Math.atan2(dir[1], dir[0]),
+  };
+}
+function dimScale() { return 10 / view.s; }   // ukuran panah/teks dim adaptif zoom
+
+/* =====================================================================
+   RENDERING ENGINE — canvas 2D, world Y ke atas, regen via rAF
+   ===================================================================== */
+function resize() {
+  DPR = Math.max(1, window.devicePixelRatio || 1);
+  CW = stage.clientWidth; CH = stage.clientHeight;
+  cv.width = Math.round(CW * DPR); cv.height = Math.round(CH * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  redraw();
+}
+function redraw() {
+  if (dirty) return;
+  dirty = true;
+  requestAnimationFrame(() => { dirty = false; paint(); });
+}
+function ltDash(lt, px) {
+  const u = Math.max(3, px || 8);
+  if (lt === 'dashed') return [u * 1.6, u];
+  if (lt === 'dotted') return [1.5, u * 0.9];
+  if (lt === 'dashdot') return [u * 1.6, u * 0.7, 1.5, u * 0.7];
+  return [];
+}
+function paint() {
+  ctx.clearRect(0, 0, CW, CH);
+  paintGrid();
+  // entitas
+  for (const e of D.entities) {
+    if (!entVisible(e)) continue;
+    drawEnt(ctx, e, null, sel.has(e.id));
+  }
+  // grips
+  if (sel.size === 1 && !tool) {
+    const e = entById([...sel][0]);
+    if (e) for (const g of entGrips(e)) {
+      const s = W2S(g.p);
+      ctx.fillStyle = '#3b82f6'; ctx.strokeStyle = '#dbeafe'; ctx.lineWidth = 1;
+      ctx.fillRect(s[0] - 4, s[1] - 4, 8, 8); ctx.strokeRect(s[0] - 4, s[1] - 4, 8, 8);
+    }
+  }
+  // preview tool aktif
+  if (tool && tool.preview) {
+    ctx.save();
+    ctx.strokeStyle = '#22d3ee'; ctx.fillStyle = 'rgba(34,211,238,.15)';
+    ctx.lineWidth = 1.1; ctx.setLineDash([6, 4]);
+    tool.preview(ctx, cursorW);
+    ctx.restore();
+  }
+  // box seleksi
+  if (boxSel) {
+    const a = W2S(boxSel.a), b = W2S(boxSel.b);
+    const cross = boxSel.b[0] < boxSel.a[0];
+    ctx.save();
+    ctx.fillStyle = cross ? 'rgba(34,197,94,.12)' : 'rgba(59,130,246,.12)';
+    ctx.strokeStyle = cross ? '#22c55e' : '#3b82f6';
+    ctx.lineWidth = 1; ctx.setLineDash(cross ? [5, 4] : []);
+    ctx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1]));
+    ctx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1]));
+    ctx.restore();
+  }
+  paintSnapMarker();
+  paintCursor();
+}
+function paintGrid() {
+  if (!settings.grid) { paintAxes(); return; }
+  // spacing adaptif: 1,2,5 × 10^n dengan jarak layar 28..120px
+  let step = Math.pow(10, Math.floor(Math.log10(60 / view.s)));
+  for (const m of [1, 2, 5, 10]) { if (step * m * view.s >= 28) { step *= m; break; } }
+  const x0 = Math.floor(view.x / step) * step;
+  const y0 = Math.floor(view.y / step) * step;
+  const nx = Math.ceil(CW / (step * view.s)) + 1;
+  const ny = Math.ceil(CH / (step * view.s)) + 1;
+  ctx.fillStyle = 'rgba(147,161,184,.35)';
+  const major = step * 5;
+  for (let i = 0; i <= nx; i++) {
+    for (let j = 0; j <= ny; j++) {
+      const wx = x0 + i * step, wy = y0 + j * step;
+      const s = W2S([wx, wy]);
+      const isMajor = Math.abs(wx / major - Math.round(wx / major)) < 1e-6 && Math.abs(wy / major - Math.round(wy / major)) < 1e-6;
+      ctx.globalAlpha = isMajor ? 0.75 : 0.35;
+      ctx.fillRect(s[0] - (isMajor ? 1 : 0.5), s[1] - (isMajor ? 1 : 0.5), isMajor ? 2 : 1, isMajor ? 2 : 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+  paintAxes();
+  paintGrid._step = step;
+}
+function paintAxes() {
+  const o = W2S([0, 0]);
+  ctx.save(); ctx.lineWidth = 1.2;
+  if (o[1] >= -10 && o[1] <= CH + 10) { // sumbu X merah
+    ctx.strokeStyle = 'rgba(239,68,68,.5)';
+    ctx.beginPath(); ctx.moveTo(0, o[1]); ctx.lineTo(CW, o[1]); ctx.stroke();
+  }
+  if (o[0] >= -10 && o[0] <= CW + 10) { // sumbu Y hijau
+    ctx.strokeStyle = 'rgba(34,197,94,.5)';
+    ctx.beginPath(); ctx.moveTo(o[0], 0); ctx.lineTo(o[0], CH); ctx.stroke();
+  }
+  ctx.restore();
+}
+function paintCursor() {
+  const s = W2S(cursorW);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(230,236,245,.55)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(s[0] - 26, s[1]); ctx.lineTo(s[0] + 26, s[1]);
+  ctx.moveTo(s[0], s[1] - 26); ctx.lineTo(s[0], s[1] + 26);
+  ctx.stroke();
+  ctx.strokeRect(s[0] - 4.5, s[1] - 4.5, 9, 9);
+  ctx.restore();
+}
+function paintSnapMarker() {
+  if (!snapHit) return;
+  const s = W2S(snapHit.p);
+  ctx.save();
+  ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.8; ctx.fillStyle = 'rgba(245,158,11,.15)';
+  const r = 7;
+  ctx.beginPath();
+  switch (snapHit.kind) {
+    case 'END': ctx.rect(s[0]-r, s[1]-r, 2*r, 2*r); break;
+    case 'MID': ctx.moveTo(s[0], s[1]-r-1); ctx.lineTo(s[0]-r-1, s[1]+r); ctx.lineTo(s[0]+r+1, s[1]+r); ctx.closePath(); break;
+    case 'CEN': ctx.arc(s[0], s[1], r, 0, 2*Math.PI); break;
+    case 'QUA': case 'NOD': ctx.moveTo(s[0], s[1]-r-1); ctx.lineTo(s[0]+r+1, s[1]); ctx.lineTo(s[0], s[1]+r+1); ctx.lineTo(s[0]-r-1, s[1]); ctx.closePath(); break;
+    case 'INT': ctx.moveTo(s[0]-r, s[1]-r); ctx.lineTo(s[0]+r, s[1]+r); ctx.moveTo(s[0]+r, s[1]-r); ctx.lineTo(s[0]-r, s[1]+r); break;
+    default: ctx.moveTo(s[0]-r, s[1]-r); ctx.lineTo(s[0]+r, s[1]+r); ctx.moveTo(s[0]+r, s[1]-r); ctx.lineTo(s[0]-r, s[1]+r); break;
+  }
+  ctx.stroke();
+  ctx.font = '600 9px ' + getComputedStyle(document.body).getPropertyValue('--mono');
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillText(snapHit.kind, s[0] + 10, s[1] - 10);
+  ctx.restore();
+}
+
+/* gambar satu entitas (dgn transform INSERT opsional) */
+function drawEnt(g, e, xf, hl) {
+  const T = xf ? (p => xf(p)) : (p => p);
+  const col = hl ? '#22d3ee' : entColor(e);
+  const lt = e.lt === 'bylayer' || !e.lt ? layerOf(e.layer).lt : e.lt;
+  g.save();
+  g.strokeStyle = col; g.fillStyle = col;
+  g.lineWidth = Math.max(hl ? 2 : 1, (e.lw || 0) * view.s / 100);
+  g.setLineDash(hl ? [7, 4] : ltDash(lt, 9));
+  const P = p => W2S(T(p));
+  const path = (pts, closed) => {
+    g.beginPath();
+    pts.forEach((p, i) => { const s = P(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+    if (closed) g.closePath();
+  };
+  switch (e.type) {
+    case 'line': { const a = P(e.a), b = P(e.b); g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke(); break; }
+    case 'poly': path(e.pts, e.closed); g.stroke(); break;
+    case 'solid': path(e.pts, true); g.globalAlpha = hl ? .5 : .8; g.fill(); g.globalAlpha = 1; g.stroke(); break;
+    case 'hatch': {
+      path(e.pts, true); g.stroke();
+      g.save(); path(e.pts, true); g.clip();
+      if (e.pattern === 'SOLID') { g.globalAlpha = .45; path(e.pts, true); g.fill(); }
+      else {
+        // pola garis diagonal (ANSI31)
+        const bb = bboxOfPts(e.pts.map(T));
+        const s1 = W2S([bb[0], bb[1]]), s2 = W2S([bb[2], bb[3]]);
+        const x1 = Math.min(s1[0], s2[0]), x2 = Math.max(s1[0], s2[0]);
+        const y1 = Math.min(s1[1], s2[1]), y2 = Math.max(s1[1], s2[1]);
+        const sp = Math.max(5, (e.spacing || 1) * view.s * 0.4);
+        g.lineWidth = 0.8; g.setLineDash([]); g.globalAlpha = .75;
+        g.beginPath();
+        for (let x = x1 - (y2 - y1); x < x2 + (y2 - y1); x += sp) {
+          g.moveTo(x, y2); g.lineTo(x + (y2 - y1), y1);
+        }
+        g.stroke();
+      }
+      g.restore();
+      break;
+    }
+    case 'circle': { const c = P(e.c); g.beginPath(); g.arc(c[0], c[1], e.r * view.s, 0, 2*Math.PI); g.stroke(); break; }
+    case 'arc': {
+      const c = P(e.c);
+      g.beginPath();
+      g.arc(c[0], c[1], e.r * view.s, -e.a1, -e.a2, e.ccw !== false);
+      g.stroke(); break;
+    }
+    case 'point': {
+      const p = P(e.p);
+      g.beginPath(); g.moveTo(p[0]-5, p[1]); g.lineTo(p[0]+5, p[1]); g.moveTo(p[0], p[1]-5); g.lineTo(p[0], p[1]+5); g.stroke();
+      g.beginPath(); g.arc(p[0], p[1], 2, 0, 2*Math.PI); g.fill();
+      break;
+    }
+    case 'text': {
+      const p = P(e.p);
+      const px = Math.max(2, e.h * view.s);
+      g.setLineDash([]);
+      g.font = '500 ' + px + 'px ' + getComputedStyle(document.body).getPropertyValue('--sans');
+      g.save(); g.translate(p[0], p[1]); g.rotate(-(e.rot || 0));
+      const lines = String(e.text || '').split('\n');
+      lines.forEach((ln, i) => g.fillText(ln, 0, i * px * 1.25));
+      g.restore();
+      break;
+    }
+    case 'insert': {
+      const blk = D.blocks[e.name];
+      if (!blk) { // block hilang: gambar tanda
+        const p = P(e.p); g.strokeRect(p[0]-6, p[1]-6, 12, 12); break;
+      }
+      const depth = (drawEnt._depth = (drawEnt._depth || 0) + 1);
+      if (depth < 8) {
+        const xf2 = p => (xf ? xf(insXform(e, blk, p)) : insXform(e, blk, p));
+        for (const ce of blk.ents) drawEnt(g, ce, xf2, hl);
+      }
+      drawEnt._depth--;
+      break;
+    }
+    case 'dim': {
+      const gm = dimGeom(e); if (!gm) break;
+      g.setLineDash([]);
+      const A = P(gm.e1a), B = P(gm.e1b), C2 = P(gm.e2a), D2 = P(gm.e2b), d1 = P(gm.d1), d2 = P(gm.d2);
+      g.lineWidth = Math.max(hl ? 2 : 1, 1);
+      g.beginPath();
+      g.moveTo(A[0],A[1]); g.lineTo(B[0],B[1]);
+      g.moveTo(C2[0],C2[1]); g.lineTo(D2[0],D2[1]);
+      g.moveTo(d1[0],d1[1]); g.lineTo(d2[0],d2[1]);
+      g.stroke();
+      drawArrow(g, d1, d2); drawArrow(g, d2, d1);
+      const mid = P(gm.mid);
+      const txt = (e.text && e.text !== '<>') ? e.text : fmt(gm.len);
+      const px = Math.max(9, dimScale() * view.s * 1.15);
+      g.font = '600 ' + px + 'px ' + getComputedStyle(document.body).getPropertyValue('--sans');
+      g.save(); g.translate(mid[0], mid[1]);
+      let rot = -gm.rot; if (rot > Math.PI/2 || rot < -Math.PI/2) rot += Math.PI;
+      g.rotate(rot);
+      const tw = g.measureText(txt).width;
+      g.fillText(txt, -tw/2, -4);
+      g.restore();
+      break;
+    }
+    case 'leader': {
+      path(e.pts, false); g.stroke();
+      if (e.pts.length >= 2) drawArrow(g, P(e.pts[0]), P(e.pts[1]));
+      const last = P(e.pts[e.pts.length - 1]);
+      const px = Math.max(9, (e.h || dimScale()) * view.s);
+      g.setLineDash([]);
+      g.font = '500 ' + px + 'px ' + getComputedStyle(document.body).getPropertyValue('--sans');
+      const left = e.pts[e.pts.length-1][0] >= e.pts[0][0];
+      const tw = g.measureText(e.text || '').width;
+      g.fillText(e.text || '', left ? last[0] + 5 : last[0] - tw - 5, last[1] + px * 0.35);
+      break;
+    }
+    case 'cloud': {
+      // revision cloud: busur-busur di sepanjang keliling poligon
+      g.beginPath();
+      const pts = e.pts, n = pts.length;
+      const rW = e.r || 1;
+      for (let i = 0; i < n; i++) {
+        const a = pts[i], b = pts[(i + 1) % n];
+        const L = V.dist(a, b);
+        const m = Math.max(1, Math.round(L / (2 * rW)));
+        for (let k = 0; k < m; k++) {
+          const p1 = V.add(a, V.mul(V.sub(b, a), k / m));
+          const p2 = V.add(a, V.mul(V.sub(b, a), (k + 1) / m));
+          const s1 = P(p1), s2 = P(p2);
+          const mx = (s1[0]+s2[0])/2, my = (s1[1]+s2[1])/2;
+          const dx = s2[0]-s1[0], dy = s2[1]-s1[1];
+          const nx = -dy, ny = dx; // keluar (screen)
+          const nl = Math.hypot(nx, ny) || 1;
+          const bump = Math.hypot(dx, dy) * 0.45;
+          if (k === 0 && i === 0) g.moveTo(s1[0], s1[1]);
+          g.quadraticCurveTo(mx + nx / nl * bump, my + ny / nl * bump, s2[0], s2[1]);
+        }
+      }
+      g.stroke();
+      break;
+    }
+  }
+  g.restore();
+}
+function drawArrow(g, tip, from) {
+  const a = Math.atan2(from[1] - tip[1], from[0] - tip[0]);
+  const L = 9;
+  g.save(); g.setLineDash([]);
+  g.beginPath();
+  g.moveTo(tip[0], tip[1]);
+  g.lineTo(tip[0] + L * Math.cos(a + 0.32), tip[1] + L * Math.sin(a + 0.32));
+  g.lineTo(tip[0] + L * Math.cos(a - 0.32), tip[1] + L * Math.sin(a - 0.32));
+  g.closePath(); g.fill();
+  g.restore();
+}
+
+/* ---------------- VIEW OPS ---------------- */
+function drawingBBox() {
+  let bb = null;
+  for (const e of D.entities) { if (!entVisible(e)) continue; bb = bboxUnion(bb, entBBox(e)); }
+  return bb;
+}
+function zoomExtents() {
+  const bb = drawingBBox();
+  if (!bb) { view.x = -10; view.y = -10; view.s = 30; redraw(); return; }
+  const w = Math.max(bb[2] - bb[0], 1e-6), h = Math.max(bb[3] - bb[1], 1e-6);
+  view.s = Math.min(CW / w, CH / h) * 0.85;
+  view.s = clamp(view.s, 1e-7, 1e7);
+  view.x = (bb[0] + bb[2]) / 2 - CW / (2 * view.s);
+  view.y = (bb[1] + bb[3]) / 2 - CH / (2 * view.s);
+  redraw();
+}
+function zoomAt(sx, sy, factor) {
+  const before = S2W(sx, sy);
+  view.s = clamp(view.s * factor, 1e-7, 1e7);
+  const after = S2W(sx, sy);
+  view.x += before[0] - after[0];
+  view.y += before[1] - after[1];
+  redraw();
+}
+
+/* =====================================================================
+   SNAPPING ENGINE
+   ===================================================================== */
+function computeSnap(rawW) {
+  if (!settings.snap) return null;
+  const apPx = 14, apW = apPx / view.s;
+  const cand = [];
+  const near = [];
+  for (const e of D.entities) {
+    if (!entVisible(e)) continue;
+    const bb = entBBox(e);
+    if (bb && (rawW[0] < bb[0]-apW*3 || rawW[0] > bb[2]+apW*3 || rawW[1] < bb[1]-apW*3 || rawW[1] > bb[3]+apW*3)) continue;
+    collectSnapPts(e, rawW, apW, cand, near);
+  }
+  // INT: perpotongan antar segmen dekat kursor
+  if (settings.snapModes.INT && near.length > 1 && near.length < 60) {
+    for (let i = 0; i < near.length; i++) for (let j = i + 1; j < near.length; j++) {
+      const A = near[i], B = near[j];
+      if (A.kind === 'seg' && B.kind === 'seg') {
+        const ip = segInt(A.a, A.b, B.a, B.b); if (ip) cand.push({ p: ip, kind: 'INT', pr: 1 });
+      } else if (A.kind === 'seg' && B.kind === 'cir') {
+        for (const ip of segCircleInt(A.a, A.b, B.c, B.r)) cand.push({ p: ip, kind: 'INT', pr: 1 });
+      } else if (A.kind === 'cir' && B.kind === 'seg') {
+        for (const ip of segCircleInt(B.a, B.b, A.c, A.r)) cand.push({ p: ip, kind: 'INT', pr: 1 });
+      } else if (A.kind === 'cir' && B.kind === 'cir') {
+        for (const ip of circleCircleInt(A.c, A.r, B.c, B.r)) cand.push({ p: ip, kind: 'INT', pr: 1 });
+      }
+    }
+  }
+  // GRID snap
+  if (settings.snapModes.GRID && paintGrid._step) {
+    const st = paintGrid._step;
+    cand.push({ p: [Math.round(rawW[0]/st)*st, Math.round(rawW[1]/st)*st], kind: 'GRID', pr: 9 });
+  }
+  let best = null, bd = apW;
+  for (const c of cand) {
+    const d = V.dist(c.p, rawW) + (c.pr || 5) * apW * 0.01;
+    if (d <= bd) { bd = d; best = c; }
+  }
+  return best;
+}
+function collectSnapPts(e, rawW, apW, cand, near) {
+  const M = settings.snapModes;
+  const push = (p, kind, pr) => { if (M[kind] && V.dist(p, rawW) < apW * 2) cand.push({ p, kind, pr: pr || 3 }); };
+  switch (e.type) {
+    case 'line':
+      push(e.a, 'END', 1); push(e.b, 'END', 1); push(V.mid(e.a, e.b), 'MID', 2);
+      if (M.NEA && distPtSeg(rawW, e.a, e.b) < apW) cand.push({ p: projPtSeg(rawW, e.a, e.b), kind: 'NEA', pr: 8 });
+      if (distPtSeg(rawW, e.a, e.b) < apW * 3) near.push({ kind: 'seg', a: e.a, b: e.b });
+      break;
+    case 'poly': case 'cloud': case 'solid': case 'hatch': case 'leader': case 'dim': {
+      const segs = entSegs(e);
+      for (const s of segs) {
+        push(s[0], 'END', 1); push(s[1], 'END', 1); push(V.mid(s[0], s[1]), 'MID', 2);
+        if (M.NEA && distPtSeg(rawW, s[0], s[1]) < apW) cand.push({ p: projPtSeg(rawW, s[0], s[1]), kind: 'NEA', pr: 8 });
+        if (distPtSeg(rawW, s[0], s[1]) < apW * 3) near.push({ kind: 'seg', a: s[0], b: s[1] });
+      }
+      break;
+    }
+    case 'circle':
+      push(e.c, 'CEN', 2);
+      for (const q of [0, Math.PI/2, Math.PI, 3*Math.PI/2]) push([e.c[0]+e.r*Math.cos(q), e.c[1]+e.r*Math.sin(q)], 'QUA', 3);
+      if (M.NEA && Math.abs(V.dist(rawW, e.c) - e.r) < apW) {
+        const a = Math.atan2(rawW[1]-e.c[1], rawW[0]-e.c[0]);
+        cand.push({ p: [e.c[0]+e.r*Math.cos(a), e.c[1]+e.r*Math.sin(a)], kind: 'NEA', pr: 8 });
+      }
+      if (Math.abs(V.dist(rawW, e.c) - e.r) < apW * 3) near.push({ kind: 'cir', c: e.c, r: e.r });
+      break;
+    case 'arc': {
+      push(e.c, 'CEN', 2);
+      push([e.c[0]+e.r*Math.cos(e.a1), e.c[1]+e.r*Math.sin(e.a1)], 'END', 1);
+      push([e.c[0]+e.r*Math.cos(e.a2), e.c[1]+e.r*Math.sin(e.a2)], 'END', 1);
+      if (Math.abs(V.dist(rawW, e.c) - e.r) < apW * 3) near.push({ kind: 'cir', c: e.c, r: e.r });
+      break;
+    }
+    case 'point': push(e.p, 'NOD', 1); break;
+    case 'text': case 'insert': push(e.p, 'NOD', 4); break;
+  }
+}
+
+/* ortho: kunci sumbu relatif titik terakhir tool */
+function applyConstraints(wp) {
+  let p = wp;
+  if (settings.ortho && tool && tool.lastPt) {
+    const lp = tool.lastPt();
+    if (lp) {
+      const dx = Math.abs(p[0] - lp[0]), dy = Math.abs(p[1] - lp[1]);
+      p = dx >= dy ? [p[0], lp[1]] : [lp[0], p[1]];
+    }
+  }
+  return p;
+}
+
+/* =====================================================================
+   SELECTION ENGINE
+   ===================================================================== */
+let boxSel = null; // {a:[wx,wy], b:[wx,wy]}
+function pickAt(wp) {
+  const tolW = 8 / view.s;
+  // dari atas (digambar terakhir) ke bawah
+  for (let i = D.entities.length - 1; i >= 0; i--) {
+    const e = D.entities[i];
+    if (!entVisible(e) || entLocked(e)) continue;
+    if (entHit(e, wp, tolW)) return e;
+  }
+  return null;
+}
+function applyBoxSelect(a, b, add) {
+  const crossing = b[0] < a[0];
+  const x1 = Math.min(a[0], b[0]), x2 = Math.max(a[0], b[0]);
+  const y1 = Math.min(a[1], b[1]), y2 = Math.max(a[1], b[1]);
+  if (!add) sel.clear();
+  for (const e of D.entities) {
+    if (!entVisible(e) || entLocked(e)) continue;
+    const bb = entBBox(e); if (!bb) continue;
+    const inside = bb[0] >= x1 && bb[2] <= x2 && bb[1] >= y1 && bb[3] <= y2;
+    const overlap = bb[0] <= x2 && bb[2] >= x1 && bb[1] <= y2 && bb[3] >= y1;
+    if (inside || (crossing && overlap)) sel.add(e.id);
+  }
+  onSelChange();
+}
+function onSelChange() {
+  redraw();
+  if (sel.size) setHint(sel.size + ' objek terpilih — MOVE/COPY/ROTATE/ERASE, atau buka Properti');
+  else if (!tool) setHint('');
+  updatePropsBtn();
+}
+function updatePropsBtn() {
+  // properti otomatis tampil dari ribbon "Ubah > Properti"
+}
+
+/* =====================================================================
+   POINTER / GESTURE INPUT
+   ===================================================================== */
+const pointers = new Map();
+let panState = null;       // {sx,sy,vx,vy}
+let pinchState = null;     // {d0,s0,cx,cy}
+let dragState = null;      // {mode:'box'|'grip', ...}
+let downInfo = null;
+
+cv.addEventListener('pointerdown', ev => {
+  cv.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  const rect = cv.getBoundingClientRect();
+  const sx = ev.clientX - rect.left, sy = ev.clientY - rect.top;
+
+  if (pointers.size === 2) {
+    // pinch/pan dua jari — batalkan drag apa pun
+    dragState = null; boxSel = null;
+    const pts = [...pointers.values()];
+    pinchState = {
+      d0: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+      s0: view.s,
+      cx: (pts[0].x + pts[1].x) / 2 - rect.left,
+      cy: (pts[0].y + pts[1].y) / 2 - rect.top,
+      vx: view.x, vy: view.y,
+    };
+    return;
+  }
+
+  const isPan = settings.panMode || ev.button === 1;
+  if (isPan) { panState = { sx, sy, vx: view.x, vy: view.y }; return; }
+  if (ev.button === 2) return; // klik kanan ditangani contextmenu
+
+  const wpRaw = S2W(sx, sy);
+  downInfo = { sx, sy, wpRaw, moved: false, t: Date.now() };
+
+  // grip drag?
+  if (!tool && sel.size === 1) {
+    const e = entById([...sel][0]);
+    if (e && !entLocked(e)) {
+      for (const g of entGrips(e)) {
+        const s = W2S(g.p);
+        if (Math.hypot(s[0] - sx, s[1] - sy) < 12) {
+          dragState = { mode: 'grip', ent: e, k: g.k, before: snapshot() };
+          return;
+        }
+      }
+    }
+  }
+});
+
+cv.addEventListener('pointermove', ev => {
+  const rect = cv.getBoundingClientRect();
+  const sx = ev.clientX - rect.left, sy = ev.clientY - rect.top;
+  if (pointers.has(ev.pointerId)) pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+  if (pinchState && pointers.size >= 2) {
+    const pts = [...pointers.values()];
+    const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    const cx = (pts[0].x + pts[1].x) / 2 - rect.left;
+    const cy = (pts[0].y + pts[1].y) / 2 - rect.top;
+    const k = d / (pinchState.d0 || 1);
+    view.s = clamp(pinchState.s0 * k, 1e-7, 1e7);
+    // jaga titik tengah pinch tetap
+    const w = [pinchState.cx / (pinchState.s0) + pinchState.vx, (CH - pinchState.cy) / pinchState.s0 + pinchState.vy];
+    view.x = w[0] - cx / view.s;
+    view.y = w[1] - (CH - cy) / view.s;
+    redraw();
+    return;
+  }
+  if (panState) {
+    view.x = panState.vx - (sx - panState.sx) / view.s;
+    view.y = panState.vy + (sy - panState.sy) / view.s;
+    redraw();
+    return;
+  }
+
+  cursorRaw = S2W(sx, sy);
+  snapHit = (tool || dragState) ? computeSnap(cursorRaw) : null;
+  cursorW = applyConstraints(snapHit ? snapHit.p : cursorRaw);
+  updateCoordHUD();
+
+  if (dragState && dragState.mode === 'grip') {
+    downInfo && (downInfo.moved = true);
+    applyGrip(dragState.ent, dragState.k, snapHit ? snapHit.p : cursorRaw);
+    redraw();
+    return;
+  }
+  if (downInfo && !tool) {
+    const dx = sx - downInfo.sx, dy = sy - downInfo.sy;
+    if (Math.hypot(dx, dy) > 6) {
+      downInfo.moved = true;
+      boxSel = { a: downInfo.wpRaw, b: cursorRaw };
+    }
+  } else if (downInfo && tool) {
+    const dx = sx - downInfo.sx, dy = sy - downInfo.sy;
+    if (Math.hypot(dx, dy) > 6) downInfo.moved = true;
+  }
+  if (tool && tool.onMove) tool.onMove(cursorW);
+  redraw();
+});
+
+function finishPointer(ev) {
+  pointers.delete(ev.pointerId);
+  if (pointers.size < 2) pinchState = null;
+  if (panState) { panState = null; return; }
+
+  if (dragState && dragState.mode === 'grip') {
+    undoStack.push(dragState.before);
+    if (undoStack.length > UNDO_CAP) undoStack.shift();
+    redoStack.length = 0; updateUndoBtns();
+    dragState = null; redraw();
+    downInfo = null;
+    return;
+  }
+  if (!downInfo) return;
+  const info = downInfo; downInfo = null;
+
+  if (boxSel) {
+    applyBoxSelect(boxSel.a, boxSel.b, ev.shiftKey);
+    boxSel = null; redraw();
+    return;
+  }
+  if (info.moved) return;
+
+  // klik: tool point atau pick seleksi
+  const p = cursorW.slice();
+  if (tool) { tool.onPoint && tool.onPoint(p); redraw(); return; }
+
+  const hit = pickAt(cursorRaw);
+  if (!ev.shiftKey) sel.clear();
+  if (hit) { if (sel.has(hit.id) && ev.shiftKey) sel.delete(hit.id); else sel.add(hit.id); }
+  onSelChange();
+}
+cv.addEventListener('pointerup', finishPointer);
+cv.addEventListener('pointercancel', ev => { pointers.delete(ev.pointerId); pinchState = null; panState = null; dragState = null; downInfo = null; boxSel = null; redraw(); });
+
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const rect = cv.getBoundingClientRect();
+  zoomAt(ev.clientX - rect.left, ev.clientY - rect.top, ev.deltaY < 0 ? 1.18 : 1 / 1.18);
+}, { passive: false });
+
+cv.addEventListener('contextmenu', ev => {
+  ev.preventDefault();
+  if (tool) { tool.onEnter ? tool.onEnter() : endTool(); }
+  else if (sel.size) { sel.clear(); onSelChange(); }
+});
+
+function updateCoordHUD() {
+  document.getElementById('stCoord').textContent = fmt(cursorW[0]) + ', ' + fmt(cursorW[1]);
+}
+
+/* =====================================================================
+   COMMAND DISPATCHER + TOOL FRAMEWORK (Core Engine)
+   ===================================================================== */
+const CMDS = {};   // NAME -> {run, desc, primary, aliases}
+function reg(names, desc, run) {
+  const list = names.split(',').map(s => s.trim().toUpperCase());
+  const def = { run, desc, primary: list[0], aliases: list.slice(1) };
+  for (const n of list) CMDS[n] = def;
+}
+function runCommand(name, arg) {
+  const key = String(name || '').trim().toUpperCase();
+  if (!key) return false;
+  const def = CMDS[key];
+  if (!def) { logLine('Perintah tidak dikenal: ' + key, 'l-err'); toast('Perintah tidak dikenal: ' + key); return false; }
+  logLine('> ' + def.primary + (arg ? ' ' + arg : ''), 'l-cmd');
+  lastCmd = def.primary;
+  try { def.run(arg); } catch (err) { logLine('Error: ' + err.message, 'l-err'); console.error(err); endTool(); }
+  return true;
+}
+function setTool(t) {
+  tool = t;
+  setPrompt(t ? (t.name + ' — ' + (t.hint || '')) : 'Perintah:');
+  setHint(t ? (t.name + ': ' + (t.hint || '')) : '');
+  markRibbonActive(t ? t.name : null);
+  redraw();
+}
+function updToolHint() { if (tool) { setPrompt(tool.name + ' — ' + (tool.hint || '')); setHint(tool.name + ': ' + (tool.hint || '')); } }
+function endTool() {
+  tool = null; showMeasure(''); setPrompt('Perintah:'); setHint(sel.size ? sel.size + ' objek terpilih' : '');
+  markRibbonActive(null); redraw();
+}
+
+/* input command line: perintah / titik "x,y" / relatif "@dx,dy" / angka */
+function handleCmdInput(raw) {
+  const s = raw.trim();
+  if (!s) { // Enter kosong = enter tool / ulang perintah terakhir
+    if (tool) { tool.onEnter ? tool.onEnter() : endTool(); }
+    else if (lastCmd) runCommand(lastCmd);
+    return;
+  }
+  // koordinat absolut x,y
+  const mAbs = s.match(/^(-?\d*\.?\d+)\s*[, ]\s*(-?\d*\.?\d+)$/);
+  const mRel = s.match(/^@(-?\d*\.?\d+)\s*[, ]\s*(-?\d*\.?\d+)$/);
+  const mNum = s.match(/^-?\d*\.?\d+$/);
+  if (tool && mRel && tool.lastPt && tool.lastPt()) {
+    const lp = tool.lastPt();
+    tool.onPoint && tool.onPoint([lp[0] + parseFloat(mRel[1]), lp[1] + parseFloat(mRel[2])]);
+    redraw(); return;
+  }
+  if (tool && mAbs) {
+    tool.onPoint && tool.onPoint([parseFloat(mAbs[1]), parseFloat(mAbs[2])]);
+    redraw(); return;
+  }
+  if (tool && mNum) {
+    if (tool.onNumber) { tool.onNumber(parseFloat(s)); redraw(); return; }
+    // angka = jarak ke arah kursor dari titik terakhir
+    if (tool.lastPt && tool.lastPt()) {
+      const lp = tool.lastPt();
+      const dir = V.norm(V.sub(cursorW, lp));
+      if (isFinite(dir[0])) {
+        tool.onPoint && tool.onPoint(V.add(lp, V.mul(dir, parseFloat(s))));
+        redraw(); return;
+      }
+    }
+  }
+  if (tool && tool.onText) { tool.onText(s); return; }
+  // opsi satu huruf utk tool (mis. C = close)
+  if (tool && tool.onOption && tool.onOption(s.toUpperCase())) { redraw(); return; }
+  // parse "CMD arg"
+  const sp = s.indexOf(' ');
+  const nm = sp < 0 ? s : s.slice(0, sp);
+  const arg = sp < 0 ? '' : s.slice(sp + 1).trim();
+  runCommand(nm, arg);
+}
+
+/* ---------------- helpers utk command interaktif ---------------- */
+function ghostEnts(ids, fn) {
+  // gambar ghost hasil transform utk preview
+  return (g) => {
+    for (const id of ids) {
+      const e = entById(id); if (!e) continue;
+      const c = JSON.parse(JSON.stringify(e));
+      transformEnt(c, fn, 1);
+      drawEnt(g, c, null, true);
+    }
+  };
+}
+function needSelection(next, verb) {
+  if (sel.size) { next([...sel]); return; }
+  const picked = [];
+  setTool({
+    name: verb, hint: 'Pilih objek lalu Enter (klik satu-satu / Shift tambah)',
+    onPoint(p) {
+      const hit = pickAt(cursorRaw.slice());
+      if (hit) {
+        if (picked.includes(hit.id)) { picked.splice(picked.indexOf(hit.id), 1); sel.delete(hit.id); }
+        else { picked.push(hit.id); sel.add(hit.id); }
+        this.hint = picked.length + ' objek — Enter untuk lanjut';
+        updToolHint(); redraw();
+      }
+    },
+    onEnter() {
+      if (!picked.length) { endTool(); return; }
+      next(picked.slice());
+    },
+    lastPt: () => null,
+  });
+}
+
+/* =====================================================================
+   DRAW COMMANDS
+   ===================================================================== */
+reg('LINE,L', 'Garis dari titik ke titik', () => {
+  const pts = [];
+  setTool({
+    name: 'LINE', hint: 'Klik titik awal',
+    onPoint(p) {
+      if (pts.length) { pushUndo(); addEnt({ type: 'line', a: pts[pts.length - 1].slice(), b: p.slice() }); }
+      pts.push(p.slice());
+      this.hint = 'Titik berikutnya (Enter/klik kanan selesai, angka = jarak)';
+      updToolHint();
+    },
+    preview(g, cur) {
+      if (!pts.length) return;
+      const a = W2S(pts[pts.length - 1]), b = W2S(cur);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      showMeasure('L = ' + fmt(V.dist(pts[pts.length - 1], cur)) + ' ' + D.units +
+        ' · θ = ' + fmt(deg(V.ang(pts[pts.length - 1], cur))) + '°');
+    },
+    onEnter() { endTool(); },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+reg('PLINE,PL,POLYLINE', 'Polyline multi-titik (C = tutup)', () => {
+  const pts = [];
+  setTool({
+    name: 'PLINE', hint: 'Klik titik awal',
+    onPoint(p) { pts.push(p.slice()); this.hint = 'Titik berikut (Enter selesai, ketik C tutup)'; updToolHint(); },
+    onOption(op) {
+      if (op === 'C' && pts.length > 2) { pushUndo(); addEnt({ type: 'poly', pts: pts.slice(), closed: true }); endTool(); return true; }
+      return false;
+    },
+    preview(g, cur) {
+      if (!pts.length) return;
+      g.beginPath();
+      pts.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      const c = W2S(cur); g.lineTo(c[0], c[1]); g.stroke();
+      showMeasure('Seg = ' + fmt(V.dist(pts[pts.length-1], cur)) + ' · Total = ' + fmt(polyLen(pts.concat([cur]), false)));
+    },
+    onEnter() {
+      if (pts.length >= 2) { pushUndo(); addEnt({ type: 'poly', pts: pts.slice(), closed: false }); }
+      endTool();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+reg('RECT,REC,RECTANGLE', 'Persegi dari 2 sudut', () => {
+  let p1 = null;
+  setTool({
+    name: 'RECT', hint: 'Klik sudut pertama',
+    onPoint(p) {
+      if (!p1) { p1 = p.slice(); this.hint = 'Klik sudut kedua'; updToolHint(); return; }
+      pushUndo();
+      addEnt({ type: 'poly', pts: [[p1[0],p1[1]],[p[0],p1[1]],[p[0],p[1]],[p1[0],p[1]]], closed: true });
+      endTool();
+    },
+    preview(g, cur) {
+      if (!p1) return;
+      const a = W2S(p1), b = W2S(cur);
+      g.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1]));
+      showMeasure(fmt(Math.abs(cur[0]-p1[0])) + ' × ' + fmt(Math.abs(cur[1]-p1[1])));
+    },
+    lastPt() { return p1; },
+  });
+});
+
+reg('CIRCLE,C', 'Lingkaran pusat + radius (angka = radius)', () => {
+  let c = null;
+  setTool({
+    name: 'CIRCLE', hint: 'Klik titik pusat',
+    onPoint(p) {
+      if (!c) { c = p.slice(); this.hint = 'Klik radius atau ketik angka'; updToolHint(); return; }
+      const r = V.dist(c, p); if (r < 1e-9) return;
+      pushUndo(); addEnt({ type: 'circle', c: c.slice(), r }); endTool();
+    },
+    onNumber(n) { if (c && n > 0) { pushUndo(); addEnt({ type: 'circle', c: c.slice(), r: n }); endTool(); } },
+    preview(g, cur) {
+      if (!c) return;
+      const s = W2S(c), r = V.dist(c, cur) * view.s;
+      g.beginPath(); g.arc(s[0], s[1], r, 0, 2*Math.PI); g.stroke();
+      showMeasure('R = ' + fmt(V.dist(c, cur)) + ' · D = ' + fmt(2*V.dist(c, cur)));
+    },
+    lastPt() { return c; },
+  });
+});
+
+reg('ARC,A', 'Busur 3 titik (awal–lewat–akhir)', () => {
+  const pts = [];
+  setTool({
+    name: 'ARC', hint: 'Klik titik awal busur',
+    onPoint(p) {
+      pts.push(p.slice());
+      this.hint = pts.length === 1 ? 'Klik titik tengah (di busur)' : 'Klik titik akhir';
+      updToolHint();
+      if (pts.length === 3) {
+        const a = arc3pt(pts[0], pts[1], pts[2]);
+        if (a) { pushUndo(); addEnt({ type: 'arc', ...a }); }
+        else { pushUndo(); addEnt({ type: 'line', a: pts[0], b: pts[2] }); }
+        endTool();
+      }
+    },
+    preview(g, cur) {
+      const tmp = pts.concat([cur]);
+      if (tmp.length < 2) return;
+      if (tmp.length === 2) { const a = W2S(tmp[0]), b = W2S(tmp[1]); g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke(); return; }
+      const a = arc3pt(tmp[0], tmp[1], tmp[2]);
+      if (!a) return;
+      const s = W2S(a.c);
+      g.beginPath(); g.arc(s[0], s[1], a.r * view.s, -a.a1, -a.a2, a.ccw); g.stroke();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+function arc3pt(p1, p2, p3) {
+  const ax = p1[0], ay = p1[1], bx = p2[0], by = p2[1], cx = p3[0], cy = p3[1];
+  const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+  if (Math.abs(d) < 1e-12) return null;
+  const ux = ((ax*ax+ay*ay)*(by-cy) + (bx*bx+by*by)*(cy-ay) + (cx*cx+cy*cy)*(ay-by)) / d;
+  const uy = ((ax*ax+ay*ay)*(cx-bx) + (bx*bx+by*by)*(ax-cx) + (cx*cx+cy*cy)*(bx-ax)) / d;
+  const c = [ux, uy], r = V.dist(c, p1);
+  const a1 = Math.atan2(ay-uy, ax-ux), am = Math.atan2(by-uy, bx-ux), a2 = Math.atan2(cy-uy, cx-ux);
+  // pilih arah yang melewati p2
+  const e = { a1, a2, ccw: true };
+  if (!angleInArc(am, { ...e, c, r })) e.ccw = false;
+  return { c, r, a1, a2: a2, ccw: e.ccw };
+}
+
+reg('POINT,PO', 'Titik (node)', () => {
+  setTool({
+    name: 'POINT', hint: 'Klik lokasi titik (Enter selesai)',
+    onPoint(p) { pushUndo(); addEnt({ type: 'point', p: p.slice() }); },
+    onEnter() { endTool(); },
+    lastPt: () => null,
+  });
+});
+
+reg('TEXT,T,MTEXT,MT', 'Teks pada titik', () => {
+  setTool({
+    name: 'TEXT', hint: 'Klik titik sisip teks',
+    onPoint(p) {
+      const ins = p.slice();
+      openModal('Teks', [
+        { k: 'text', label: 'Isi teks', type: 'textarea', v: '' },
+        { k: 'h', label: 'Tinggi teks (' + D.units + ')', type: 'number', v: suggestTextH() },
+        { k: 'rot', label: 'Rotasi (°)', type: 'number', v: 0 },
+      ], vals => {
+        if (!vals.text.trim()) return;
+        pushUndo();
+        addEnt({ type: 'text', p: ins, text: vals.text, h: Math.max(1e-6, parseFloat(vals.h) || 1), rot: rad(parseFloat(vals.rot) || 0) });
+        redraw();
+      });
+      endTool();
+    },
+    lastPt: () => null,
+  });
+});
+function suggestTextH() {
+  const bb = drawingBBox();
+  const v = bb ? Math.max(bb[2]-bb[0], bb[3]-bb[1]) / 60 : 12 / view.s;
+  return +v.toPrecision(2);
+}
+
+/* =====================================================================
+   ANNOTATION (markup di layer MARKUP)
+   ===================================================================== */
+reg('CLOUD,REVCLOUD', 'Revision cloud (2 sudut)', () => {
+  let p1 = null;
+  setTool({
+    name: 'CLOUD', hint: 'Klik sudut pertama area',
+    onPoint(p) {
+      if (!p1) { p1 = p.slice(); this.hint = 'Klik sudut kedua'; updToolHint(); return; }
+      pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+      const w = Math.abs(p[0]-p1[0]), h = Math.abs(p[1]-p1[1]);
+      addEnt({ type: 'cloud', layer: 'MARKUP',
+        pts: [[Math.min(p1[0],p[0]),Math.min(p1[1],p[1])],[Math.max(p1[0],p[0]),Math.min(p1[1],p[1])],[Math.max(p1[0],p[0]),Math.max(p1[1],p[1])],[Math.min(p1[0],p[0]),Math.max(p1[1],p[1])]],
+        r: Math.max(w, h) / 14 });
+      endTool();
+    },
+    preview(g, cur) {
+      if (!p1) return;
+      const a = W2S(p1), b = W2S(cur);
+      g.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1]));
+    },
+    lastPt() { return p1; },
+  });
+});
+
+reg('LEADER,LE', 'Leader panah + teks', () => {
+  const pts = [];
+  setTool({
+    name: 'LEADER', hint: 'Klik ujung panah (target)',
+    onPoint(p) {
+      pts.push(p.slice());
+      this.hint = pts.length === 1 ? 'Klik titik siku/teks' : 'Klik titik teks atau Enter';
+      updToolHint();
+      if (pts.length === 3) this.onEnter();
+    },
+    onEnter() {
+      if (pts.length < 2) { endTool(); return; }
+      const fixed = pts.slice();
+      openModal('Teks Leader', [
+        { k: 'text', label: 'Isi teks', type: 'text', v: '' },
+      ], vals => {
+        if (!vals.text.trim()) return;
+        pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+        addEnt({ type: 'leader', layer: 'MARKUP', pts: fixed, text: vals.text, h: suggestTextH() });
+        redraw();
+      });
+      endTool();
+    },
+    preview(g, cur) {
+      if (!pts.length) return;
+      g.beginPath();
+      pts.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      const c = W2S(cur); g.lineTo(c[0], c[1]); g.stroke();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+reg('STAMP', 'Stempel APPROVED / FOR REVIEW', () => {
+  setTool({
+    name: 'STAMP', hint: 'Klik lokasi stempel',
+    onPoint(p) {
+      const ins = p.slice();
+      openModal('Stempel', [
+        { k: 'text', label: 'Teks stempel', type: 'select', v: 'APPROVED', opts: ['APPROVED', 'FOR REVIEW', 'AS BUILT', 'PRELIMINARY', 'CEK ELEVASI'] },
+      ], vals => {
+        pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+        const h = suggestTextH() * 1.6;
+        const w = vals.text.length * h * 0.65 + h;
+        addEnt({ type: 'poly', layer: 'MARKUP', pts: [[ins[0],ins[1]],[ins[0]+w,ins[1]],[ins[0]+w,ins[1]+h*1.8],[ins[0],ins[1]+h*1.8]], closed: true });
+        addEnt({ type: 'text', layer: 'MARKUP', p: [ins[0]+h*0.5, ins[1]+h*0.55], text: vals.text, h, rot: 0 });
+        redraw();
+      });
+      endTool();
+    },
+    lastPt: () => null,
+  });
+});
+
+/* =====================================================================
+   DIMENSION
+   ===================================================================== */
+reg('DIM,DIMALIGNED,DAL,DIMLINEAR,DLI', 'Dimensi aligned (2 titik + offset)', () => {
+  const pts = [];
+  setTool({
+    name: 'DIM', hint: 'Klik titik pertama',
+    onPoint(p) {
+      pts.push(p.slice());
+      this.hint = pts.length === 1 ? 'Klik titik kedua' : 'Klik posisi garis dimensi';
+      updToolHint();
+      if (pts.length === 3) {
+        pushUndo();
+        addEnt({ type: 'dim', p1: pts[0], p2: pts[1], off: pts[2], text: '<>' });
+        endTool();
+      }
+    },
+    preview(g, cur) {
+      if (pts.length === 1) { const a = W2S(pts[0]), b = W2S(cur); g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+        showMeasure('L = ' + fmt(V.dist(pts[0], cur))); }
+      else if (pts.length === 2) {
+        const tmp = { type: 'dim', p1: pts[0], p2: pts[1], off: cur, text: '<>', layer: D.clayer, color: 'bylayer' };
+        drawEnt(g, tmp, null, true);
+      }
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+/* =====================================================================
+   HATCH
+   ===================================================================== */
+reg('HATCH,H,BHATCH', 'Arsir objek tertutup (pilih poly/circle)', () => {
+  setTool({
+    name: 'HATCH', hint: 'Klik objek tertutup (polyline/lingkaran)',
+    onPoint() {
+      const hit = pickAt(cursorRaw.slice());
+      if (!hit) { toast('Tidak ada objek'); return; }
+      let pts = null;
+      if (hit.type === 'poly' && hit.closed) pts = hit.pts.slice();
+      else if (hit.type === 'circle') pts = tessArc(hit.c, hit.r, 0, 2 * Math.PI - 1e-9, true, 48);
+      else if (hit.type === 'solid' || hit.type === 'hatch') pts = hit.pts.slice();
+      else { toast('Objek harus tertutup (polyline tertutup / lingkaran)'); return; }
+      openModal('Hatch', [
+        { k: 'pattern', label: 'Pola', type: 'select', v: 'ANSI31', opts: ['ANSI31', 'SOLID'] },
+        { k: 'spacing', label: 'Jarak pola (' + D.units + ')', type: 'number', v: +(Math.sqrt(Math.abs(polyArea(pts)))/20).toPrecision(2) || 1 },
+      ], vals => {
+        pushUndo();
+        addEnt({ type: 'hatch', pts, pattern: vals.pattern, spacing: Math.max(1e-6, parseFloat(vals.spacing) || 1) });
+        redraw();
+      });
+      endTool();
+    },
+    lastPt: () => null,
+  });
+});
+
+/* =====================================================================
+   EDITING ENGINE
+   ===================================================================== */
+function xlate(d) { return p => [p[0] + d[0], p[1] + d[1]]; }
+
+reg('MOVE,M', 'Pindahkan objek', () => {
+  needSelection(ids => startMoveCopy(ids, false), 'MOVE');
+});
+reg('COPY,CO,CP', 'Salin objek (multi)', () => {
+  needSelection(ids => startMoveCopy(ids, true), 'COPY');
+});
+function startMoveCopy(ids, isCopy) {
+  let base = null;
+  setTool({
+    name: isCopy ? 'COPY' : 'MOVE', hint: 'Klik titik basis',
+    onPoint(p) {
+      if (!base) { base = p.slice(); this.hint = 'Klik titik tujuan'; updToolHint(); return; }
+      const d = V.sub(p, base);
+      pushUndo();
+      if (isCopy) {
+        const clones = [];
+        for (const id of ids) {
+          const e = entById(id); if (!e) continue;
+          const c = JSON.parse(JSON.stringify(e)); c.id = uid();
+          transformEnt(c, xlate(d)); D.entities.push(c); clones.push(c.id);
+        }
+        logLine(clones.length + ' objek disalin', 'l-ok');
+        // COPY multiple: basis tetap, terus menempatkan
+        redraw();
+      } else {
+        for (const id of ids) { const e = entById(id); if (e) transformEnt(e, xlate(d)); }
+        endTool(); sel.clear(); onSelChange();
+      }
+    },
+    preview(g, cur) {
+      if (!base) return;
+      const a = W2S(base), b = W2S(cur);
+      g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      ghostEnts(ids, xlate(V.sub(cur, base)))(g);
+      showMeasure('Δ = ' + fmt(cur[0]-base[0]) + ', ' + fmt(cur[1]-base[1]) + ' · d = ' + fmt(V.dist(base, cur)));
+    },
+    onEnter() { endTool(); sel.clear(); onSelChange(); },
+    lastPt() { return base; },
+  });
+}
+
+reg('ROTATE,RO', 'Putar objek (angka = derajat)', () => {
+  needSelection(ids => {
+    let base = null;
+    setTool({
+      name: 'ROTATE', hint: 'Klik titik pusat rotasi',
+      onPoint(p) {
+        if (!base) { base = p.slice(); this.hint = 'Klik arah sudut atau ketik derajat'; updToolHint(); return; }
+        const th = V.ang(base, p);
+        applyRot(ids, base, th);
+      },
+      onNumber(n) { if (base) applyRot(ids, base, rad(n)); },
+      preview(g, cur) {
+        if (!base) return;
+        const th = V.ang(base, cur);
+        ghostEnts(ids, p => V.rot(p, base, th))(g);
+        showMeasure('θ = ' + fmt(deg(th)) + '°');
+      },
+      lastPt() { return base; },
+    });
+    function applyRot(ids2, base2, th) {
+      pushUndo();
+      for (const id of ids2) { const e = entById(id); if (e) transformEnt(e, p => V.rot(p, base2, th)); }
+      endTool(); sel.clear(); onSelChange();
+    }
+  }, 'ROTATE');
+});
+
+reg('SCALE,SC', 'Skala objek (angka = faktor)', () => {
+  needSelection(ids => {
+    let base = null, ref = null;
+    setTool({
+      name: 'SCALE', hint: 'Klik titik basis',
+      onPoint(p) {
+        if (!base) { base = p.slice(); this.hint = 'Ketik faktor skala, atau klik jarak acuan'; updToolHint(); return; }
+        if (!ref) { ref = V.dist(base, p) || 1; this.hint = 'Klik jarak baru (faktor = baru/acuan)'; updToolHint(); return; }
+        const k = (V.dist(base, p) || 1) / ref;
+        applyScale(k);
+      },
+      onNumber(n) { if (base && n > 0) applyScale(n); },
+      preview(g, cur) {
+        if (!base) return;
+        const k = ref ? (V.dist(base, cur) || 1) / ref : 1;
+        if (ref) { ghostEnts(ids, p => V.add(base, V.mul(V.sub(p, base), k)))(g); showMeasure('k = ' + fmt(k)); }
+      },
+      lastPt() { return base; },
+    });
+    function applyScale(k) {
+      pushUndo();
+      for (const id of ids) { const e = entById(id); if (e) transformEnt(e, p => V.add(base, V.mul(V.sub(p, base), k)), k); }
+      endTool(); sel.clear(); onSelChange();
+    }
+  }, 'SCALE');
+});
+
+reg('MIRROR,MI', 'Cermin objek (salinan) dgn sumbu 2 titik', () => {
+  needSelection(ids => {
+    let a = null;
+    setTool({
+      name: 'MIRROR', hint: 'Klik titik pertama sumbu cermin',
+      onPoint(p) {
+        if (!a) { a = p.slice(); this.hint = 'Klik titik kedua sumbu'; updToolHint(); return; }
+        const fn = mirrorFn(a, p);
+        pushUndo();
+        for (const id of ids) {
+          const e = entById(id); if (!e) continue;
+          const c = JSON.parse(JSON.stringify(e)); c.id = uid();
+          transformEnt(c, fn, 1, true); D.entities.push(c);
+        }
+        endTool(); sel.clear(); onSelChange();
+      },
+      preview(g, cur) {
+        if (!a) return;
+        const s1 = W2S(a), s2 = W2S(cur);
+        g.beginPath(); g.moveTo(s1[0],s1[1]); g.lineTo(s2[0],s2[1]); g.stroke();
+        ghostEnts(ids, mirrorFn(a, cur))(g);
+      },
+      lastPt() { return a; },
+    });
+  }, 'MIRROR');
+});
+function mirrorFn(a, b) {
+  const d = V.norm(V.sub(b, a));
+  if (!isFinite(d[0])) return p => p;
+  return p => {
+    const ap = V.sub(p, a);
+    const proj = V.mul(d, V.dot(ap, d));
+    const perp = V.sub(ap, proj);
+    return V.add(a, V.sub(proj, perp));
+  };
+}
+
+reg('OFFSET,O', 'Offset sejajar (angka = jarak)', () => {
+  let dist = null;
+  setTool({
+    name: 'OFFSET', hint: 'Ketik jarak offset (angka)',
+    onNumber(n) { if (n > 0) { dist = n; this.hint = 'Klik objek yang di-offset'; updToolHint(); } },
+    onPoint(p) {
+      if (dist == null) { toast('Ketik jarak offset dulu'); return; }
+      if (!this._ent) {
+        const hit = pickAt(cursorRaw.slice());
+        if (!hit) { toast('Tidak ada objek'); return; }
+        if (!['line','poly','circle','arc'].includes(hit.type)) { toast('Offset: line/poly/circle/arc saja'); return; }
+        this._ent = hit; this.hint = 'Klik sisi arah offset'; updToolHint(); return;
+      }
+      const e = this._ent, side = p;
+      pushUndo();
+      const out = offsetEntity(e, dist, side);
+      if (out) { addEnt(out); logLine('OFFSET ' + fmt(dist), 'l-ok'); }
+      this._ent = null; this.hint = 'Klik objek berikutnya (Enter selesai)'; updToolHint();
+    },
+    onEnter() { endTool(); },
+    lastPt: () => null,
+  });
+});
+function offsetEntity(e, d, side) {
+  if (e.type === 'line') {
+    const per = V.perp(V.norm(V.sub(e.b, e.a)));
+    const sgn = Math.sign(V.dot(V.sub(side, e.a), per)) || 1;
+    const off = V.mul(per, d * sgn);
+    return { type: 'line', a: V.add(e.a, off), b: V.add(e.b, off), layer: e.layer, color: e.color, lt: e.lt };
+  }
+  if (e.type === 'circle') {
+    const r = V.dist(side, e.c) > e.r ? e.r + d : Math.max(1e-9, e.r - d);
+    return { type: 'circle', c: e.c.slice(), r, layer: e.layer, color: e.color, lt: e.lt };
+  }
+  if (e.type === 'arc') {
+    const r = V.dist(side, e.c) > e.r ? e.r + d : Math.max(1e-9, e.r - d);
+    return { type: 'arc', c: e.c.slice(), r, a1: e.a1, a2: e.a2, ccw: e.ccw, layer: e.layer, color: e.color, lt: e.lt };
+  }
+  if (e.type === 'poly') {
+    // tentukan sisi: coba +d dan -d, pilih yang lebih dekat ke titik klik
+    const o1 = offsetPoly(e.pts, d, e.closed), o2 = offsetPoly(e.pts, -d, e.closed);
+    if (!o1 || !o2) return null;
+    const d1 = Math.min(...o1.map((p, i) => distPtSeg(side, p, o1[(i+1) % o1.length])));
+    const d2 = Math.min(...o2.map((p, i) => distPtSeg(side, p, o2[(i+1) % o2.length])));
+    return { type: 'poly', pts: d1 <= d2 ? o1 : o2, closed: e.closed, layer: e.layer, color: e.color, lt: e.lt };
+  }
+  return null;
+}
+
+reg('ERASE,E,DEL,DELETE', 'Hapus objek', () => {
+  needSelection(ids => {
+    pushUndo(); removeEnts(ids);
+    logLine(ids.length + ' objek dihapus', 'l-ok');
+    endTool(); onSelChange();
+  }, 'ERASE');
+});
+
+reg('EXPLODE,X', 'Pecah block/polyline/dimensi', () => {
+  needSelection(ids => {
+    pushUndo();
+    let n = 0;
+    for (const id of ids) {
+      const e = entById(id); if (!e) continue;
+      const parts = explodeEnt(e);
+      if (parts) {
+        removeEnts([id]);
+        for (const p of parts) { p.id = uid(); D.entities.push(p); }
+        n++;
+      }
+    }
+    logLine(n + ' objek dipecah', 'l-ok');
+    endTool(); sel.clear(); onSelChange();
+  }, 'EXPLODE');
+});
+function explodeEnt(e) {
+  const base = { layer: e.layer, color: e.color, lt: e.lt, lw: e.lw };
+  if (e.type === 'poly') {
+    const out = [];
+    for (const s of entSegs(e)) out.push({ ...base, type: 'line', a: s[0].slice(), b: s[1].slice() });
+    return out;
+  }
+  if (e.type === 'insert') {
+    const blk = D.blocks[e.name]; if (!blk) return null;
+    const out = [];
+    const k = Math.abs(e.sx || 1);
+    for (const ce of blk.ents) {
+      const c = JSON.parse(JSON.stringify(ce));
+      transformEnt(c, p => insXform(e, blk, p), k);
+      c.layer = c.layer === '0' ? e.layer : c.layer;
+      out.push(c);
+    }
+    return out;
+  }
+  if (e.type === 'dim') {
+    const g = dimGeom(e); if (!g) return null;
+    return [
+      { ...base, type: 'line', a: g.e1a, b: g.e1b },
+      { ...base, type: 'line', a: g.e2a, b: g.e2b },
+      { ...base, type: 'line', a: g.d1, b: g.d2 },
+      { ...base, type: 'text', p: g.mid.slice(), text: fmt(g.len), h: dimScale() * 1.2, rot: g.rot },
+    ];
+  }
+  if (e.type === 'leader') {
+    const out = [];
+    for (const s of entSegs(e)) out.push({ ...base, type: 'line', a: s[0].slice(), b: s[1].slice() });
+    out.push({ ...base, type: 'text', p: e.pts[e.pts.length-1].slice(), text: e.text || '', h: e.h || 1, rot: 0 });
+    return out;
+  }
+  if (e.type === 'hatch' || e.type === 'solid' || e.type === 'cloud') {
+    return [{ ...base, type: 'poly', pts: e.pts.map(p => p.slice()), closed: true }];
+  }
+  return null;
+}
+
+reg('SELECTALL,ALL,SELALL', 'Pilih semua objek', () => {
+  sel.clear();
+  for (const e of D.entities) if (entVisible(e) && !entLocked(e)) sel.add(e.id);
+  onSelChange(); logLine(sel.size + ' objek terpilih', 'l-ok');
+});
+
+/* =====================================================================
+   MEASUREMENT ENGINE
+   ===================================================================== */
+reg('DIST,DI', 'Ukur jarak 2 titik', () => {
+  let p1 = null;
+  setTool({
+    name: 'DIST', hint: 'Klik titik pertama',
+    onPoint(p) {
+      if (!p1) { p1 = p.slice(); this.hint = 'Klik titik kedua'; updToolHint(); return; }
+      const d = V.dist(p1, p), dx = p[0]-p1[0], dy = p[1]-p1[1];
+      const msg = 'Jarak = ' + fmt(d) + ' ' + D.units + ' · ΔX = ' + fmt(dx) + ' · ΔY = ' + fmt(dy) + ' · Azimut = ' + fmt((90 - deg(Math.atan2(dy, dx)) + 360) % 360) + '°';
+      logLine(msg, 'l-ok'); showMeasure(msg); toast('Jarak: ' + fmt(d) + ' ' + D.units);
+      p1 = null; this.hint = 'Klik titik pertama (Enter selesai)'; updToolHint();
+    },
+    preview(g, cur) {
+      if (!p1) return;
+      const a = W2S(p1), b = W2S(cur);
+      g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke();
+      showMeasure('d = ' + fmt(V.dist(p1, cur)) + ' ' + D.units);
+    },
+    onEnter() { endTool(); },
+    lastPt() { return p1; },
+  });
+});
+
+reg('AREA,AA', 'Ukur luas dari titik-titik (Enter tutup) atau pilih objek', () => {
+  const pts = [];
+  setTool({
+    name: 'AREA', hint: 'Klik titik batas (atau klik polyline tertutup); Enter selesai',
+    onPoint(p) {
+      if (!pts.length) {
+        const hit = pickAt(cursorRaw.slice());
+        if (hit && ((hit.type === 'poly' && hit.closed) || hit.type === 'circle' || hit.type === 'hatch' || hit.type === 'solid')) {
+          let A, L;
+          if (hit.type === 'circle') { A = Math.PI * hit.r * hit.r; L = 2 * Math.PI * hit.r; }
+          else { A = Math.abs(polyArea(hit.pts)); L = polyLen(hit.pts, true); }
+          const msg = 'Luas = ' + fmt(A) + ' ' + D.units + '² · Keliling = ' + fmt(L) + ' ' + D.units;
+          logLine(msg, 'l-ok'); showMeasure(msg); toast(msg, 3500);
+          endTool(); return;
+        }
+      }
+      pts.push(p.slice());
+      this.hint = pts.length + ' titik — Enter untuk hitung'; updToolHint();
+    },
+    preview(g, cur) {
+      if (!pts.length) return;
+      g.beginPath();
+      pts.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      const c = W2S(cur); g.lineTo(c[0], c[1]); g.closePath(); g.stroke(); g.fill();
+      if (pts.length >= 2) showMeasure('Luas ≈ ' + fmt(Math.abs(polyArea(pts.concat([cur])))) + ' ' + D.units + '²');
+    },
+    onEnter() {
+      if (pts.length >= 3) {
+        const A = Math.abs(polyArea(pts)), L = polyLen(pts, true);
+        const msg = 'Luas = ' + fmt(A) + ' ' + D.units + '² · Keliling = ' + fmt(L) + ' ' + D.units;
+        logLine(msg, 'l-ok'); toast(msg, 4000); showMeasure(msg);
+      }
+      endTool();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+reg('ANGLE,AN', 'Ukur sudut 3 titik (vertex di tengah)', () => {
+  const pts = [];
+  setTool({
+    name: 'ANGLE', hint: 'Klik titik kaki pertama',
+    onPoint(p) {
+      pts.push(p.slice());
+      this.hint = pts.length === 1 ? 'Klik titik vertex (pusat sudut)' : 'Klik titik kaki kedua';
+      updToolHint();
+      if (pts.length === 3) {
+        const a1 = V.ang(pts[1], pts[0]), a2 = V.ang(pts[1], pts[2]);
+        let dth = Math.abs(deg(a2 - a1)) % 360; if (dth > 180) dth = 360 - dth;
+        const msg = 'Sudut = ' + fmt(dth) + '° (' + dmsStr(dth) + ')';
+        logLine(msg, 'l-ok'); toast(msg, 3500); showMeasure(msg);
+        endTool();
+      }
+    },
+    preview(g, cur) {
+      const tmp = pts.concat([cur]);
+      if (tmp.length < 2) return;
+      g.beginPath();
+      tmp.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      g.stroke();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+function dmsStr(d) {
+  const dd = Math.floor(d), m = Math.floor((d - dd) * 60), s = ((d - dd) * 60 - m) * 60;
+  return dd + '° ' + m + "' " + s.toFixed(1) + '"';
+}
+
+reg('ID', 'Identifikasi koordinat titik', () => {
+  setTool({
+    name: 'ID', hint: 'Klik titik',
+    onPoint(p) {
+      const msg = 'X = ' + fmt(p[0]) + ' · Y = ' + fmt(p[1]);
+      logLine(msg, 'l-ok'); showMeasure(msg);
+    },
+    onEnter() { endTool(); },
+    lastPt: () => null,
+  });
+});
+
+/* =====================================================================
+   VIEW / UTILITY COMMANDS
+   ===================================================================== */
+reg('ZOOMEXT,ZE,ZOOM', 'Zoom extents (seluruh gambar)', () => { zoomExtents(); logLine('Zoom extents', 'l-ok'); });
+reg('REGEN,RE', 'Regenerasi tampilan', () => redraw());
+reg('GRID', 'Toggle grid', () => { settings.grid = !settings.grid; syncToggles(); redraw(); });
+reg('ORTHO,OR', 'Toggle mode ortho', () => { settings.ortho = !settings.ortho; syncToggles(); });
+reg('SNAP,OSNAP,OS', 'Toggle object snap', () => { settings.snap = !settings.snap; syncToggles(); redraw(); });
+reg('UNDO,U', 'Undo', () => doUndo());
+reg('REDO,RR', 'Redo', () => doRedo());
+reg('ERASEALL,NEW', 'Gambar baru (hapus semua)', () => {
+  confirmModal('Gambar Baru', 'Hapus semua objek dan mulai gambar baru?', () => {
+    pushUndo(); D.entities = []; sel.clear(); D.blocks = {}; onSelChange(); redraw();
+  });
+});
+reg('LAYER,LA', 'Buka Layer Manager', () => openSheet('sheetLayers'));
+reg('PROPS,PR,PROPERTIES,CH', 'Properti objek terpilih', () => openProps());
+reg('EXPORT,EXP', 'Menu ekspor', () => openExportSheet());
+reg('SAVE,QSAVE', 'Simpan .svdraw', () => saveSvdraw());
+reg('OPEN', 'Buka file', () => document.getElementById('fileInput').click());
+reg('HELP,?,F1', 'Bantuan perintah', () => openHelp());
+reg('CRS,EPSG', 'Set kode EPSG drawing (GIS)', (arg) => {
+  if (arg) { D.crs = arg.replace(/[^0-9]/g,''); toast('CRS: EPSG:' + D.crs); return; }
+  openModal('Sistem Koordinat (GIS)', [
+    { k: 'crs', label: 'Kode EPSG (mis. 32748 UTM 48S)', type: 'text', v: D.crs || '' },
+    { k: 'units', label: 'Satuan', type: 'select', v: D.units, opts: ['m', 'ft', 'mm'] },
+    { k: 'dec', label: 'Desimal', type: 'number', v: D.decimals },
+  ], vals => {
+    D.crs = vals.crs.replace(/[^0-9]/g, '');
+    D.units = vals.units;
+    D.decimals = clamp(parseInt(vals.dec) || 3, 0, 8);
+    toast('CRS diset' + (D.crs ? ': EPSG:' + D.crs : ''));
+  });
+});
+
+/* =====================================================================
+   IMPORT / EXPORT — DXF (baca/tulis), SVG, GeoJSON, PNG, PDF, SVDRAW
+   ===================================================================== */
+
+/* ---------- DXF READER (ASCII) ---------- */
+function parseDXF(text) {
+  // baca pasangan group-code
+  const lines = text.split(/\r\n|\r|\n/);
+  const pairs = [];
+  for (let i = 0; i + 1 < lines.length; i += 2) {
+    const code = parseInt(lines[i].trim(), 10);
+    if (Number.isNaN(code)) continue;
+    pairs.push([code, lines[i + 1]]);
+  }
+  const out = { entities: [], layers: [], blocks: {}, warnings: {}, skipped: 0 };
+  let i = 0;
+  const peek = () => pairs[i];
+  const next = () => pairs[i++];
+
+  function readEntity(typeName) {
+    // kumpulkan group codes sampai code 0 berikutnya
+    const g = { _type: typeName, _multi: {} };
+    const arr = c => (g._multi[c] = g._multi[c] || []);
+    while (i < pairs.length && peek()[0] !== 0) {
+      const [c, vRaw] = next();
+      const v = vRaw.trim();
+      if ([10,20,30,11,21,31,40,41,42,50,51,70,71,72,73,90,92,93].includes(c)) arr(c).push(parseFloat(v));
+      if (c === 1 || c === 3) arr(c).push(vRaw);
+      g[c] = (c === 1 || c === 3 || c === 2 || c === 6 || c === 7 || c === 8) ? vRaw.trim() : parseFloat(v);
+      if (c === 1 || c === 3) g[c] = vRaw; // pertahankan spasi teks
+    }
+    return g;
+  }
+  function baseProps(g) {
+    return {
+      layer: (g[8] || '0'),
+      color: g[62] != null && !Number.isNaN(g[62]) ? (g[62] === 256 ? 'bylayer' : aciToHex(g[62])) : 'bylayer',
+      lt: 'bylayer', lw: 0,
+    };
+  }
+  function toEnt(g) {
+    const bp = baseProps(g);
+    const M = g._multi;
+    const t = g._type;
+    try {
+      if (t === 'LINE') return { ...bp, type: 'line', a: [M[10][0], M[20][0]], b: [M[11][0], M[21][0]] };
+      if (t === 'CIRCLE') return { ...bp, type: 'circle', c: [M[10][0], M[20][0]], r: M[40][0] };
+      if (t === 'ARC') return { ...bp, type: 'arc', c: [M[10][0], M[20][0]], r: M[40][0], a1: rad(M[50][0]), a2: rad(M[51][0]), ccw: true };
+      if (t === 'POINT') return { ...bp, type: 'point', p: [M[10][0], M[20][0]] };
+      if (t === 'LWPOLYLINE') {
+        const xs = M[10] || [], ys = M[20] || [], bs = M[42];
+        const closed = ((g[70] || 0) & 1) === 1;
+        let pts = xs.map((x, k) => [x, ys[k]]);
+        // bulge -> tesselasi busur
+        if (bs && bs.some(b => Math.abs(b) > 1e-9)) {
+          // DXF: bulge index sesuai vertex; perlu pemetaan kasar (asumsi urutan sama & penuh)
+          const out2 = [];
+          for (let k = 0; k < pts.length; k++) {
+            out2.push(pts[k]);
+            const b = bs[k] || 0;
+            const nx = pts[k + 1] || (closed ? pts[0] : null);
+            if (nx && Math.abs(b) > 1e-9) {
+              const arc = bulgeArc(pts[k], nx, b);
+              if (arc) { const tp = tessArc(arc.c, arc.r, arc.a1, arc.a2, arc.ccw, 16); out2.push(...tp.slice(1, -1)); }
+            }
+          }
+          pts = out2;
+        }
+        if (pts.length < 2) return null;
+        return { ...bp, type: 'poly', pts, closed };
+      }
+      if (t === 'TEXT') return { ...bp, type: 'text', p: [M[10][0], M[20][0]], text: (M[1] && M[1][0] || '').trim(), h: M[40] ? M[40][0] : 1, rot: M[50] ? rad(M[50][0]) : 0 };
+      if (t === 'MTEXT') {
+        let txt = ((M[3] || []).join('') + ((M[1] && M[1][0]) || ''));
+        txt = txt.replace(/\\P/g, '\n').replace(/\{\\[^;]*;/g, '').replace(/\}/g, '').replace(/\\[A-Za-z][^;\\]*;/g, '').trim();
+        return { ...bp, type: 'text', p: [M[10][0], M[20][0]], text: txt, h: M[40] ? M[40][0] : 1, rot: M[50] ? rad(M[50][0]) : 0 };
+      }
+      if (t === 'ELLIPSE') {
+        const c = [M[10][0], M[20][0]], mj = [M[11][0], M[21][0]];
+        const ratio = M[40] ? M[40][0] : 1;
+        const t1 = M[41] ? M[41][0] : 0, t2 = M[42] ? M[42][0] : 2 * Math.PI;
+        const a = Math.hypot(mj[0], mj[1]), b2 = a * ratio, rot = Math.atan2(mj[1], mj[0]);
+        const pts = [];
+        const n = 48;
+        let sweep = t2 - t1; if (sweep <= 0) sweep += 2 * Math.PI;
+        for (let k = 0; k <= n; k++) {
+          const tt = t1 + sweep * k / n;
+          const x = a * Math.cos(tt), y = b2 * Math.sin(tt);
+          pts.push([c[0] + x * Math.cos(rot) - y * Math.sin(rot), c[1] + x * Math.sin(rot) + y * Math.cos(rot)]);
+        }
+        const closed = Math.abs(sweep - 2 * Math.PI) < 1e-6;
+        return { ...bp, type: 'poly', pts, closed };
+      }
+      if (t === 'SPLINE') {
+        const fx = M[11], fy = M[21], cx2 = M[10], cy2 = M[20];
+        let pts = null;
+        if (fx && fx.length > 1) pts = fx.map((x, k) => [x, fy[k]]);
+        else if (cx2 && cx2.length > 1) {
+          pts = cx2.map((x, k) => [x, cy2[k]]);
+          for (let it = 0; it < 3; it++) pts = chaikin(pts, ((g[70]||0)&1)===1);
+        }
+        if (!pts || pts.length < 2) return null;
+        return { ...bp, type: 'poly', pts, closed: ((g[70] || 0) & 1) === 1 };
+      }
+      if (t === 'SOLID' || t === '3DFACE') {
+        const xs = M[10] || [], ys = M[20] || [];
+        const p1 = [g[10], g[20]];
+        // SOLID pakai 10/20,11/21,12/22,13/23 — dikumpulkan per kode
+        const px = [g[10], g[11], g[12], g[13]].filter(v => v != null && !Number.isNaN(v));
+        const py = [g[20], g[21], g[22], g[23]].filter(v => v != null && !Number.isNaN(v));
+        if (px.length >= 3) {
+          const pts = px.map((x, k) => [x, py[k]]);
+          if (pts.length === 4) { const t2 = pts[2]; pts[2] = pts[3]; pts[3] = t2; } // urutan SOLID zigzag
+          return { ...bp, type: 'solid', pts };
+        }
+        return null;
+      }
+      if (t === 'HATCH') {
+        const xs = M[10] || [], ys = M[20] || [];
+        if (xs.length > 2) {
+          const solid = (g[70] === 1);
+          const pts = xs.map((x, k) => [x, ys[k]]).filter(p => isFinite(p[0]) && isFinite(p[1]));
+          if (pts.length > 2) return { ...bp, type: 'hatch', pts, pattern: solid ? 'SOLID' : 'ANSI31', spacing: (g[41] || 1) };
+        }
+        return null;
+      }
+      if (t === 'INSERT') {
+        return { ...bp, type: 'insert', name: g[2], p: [M[10][0], M[20][0]],
+          sx: M[41] ? M[41][0] : 1, sy: M[42] ? M[42][0] : (M[41] ? M[41][0] : 1), rot: M[50] ? rad(M[50][0]) : 0 };
+      }
+      if (t === 'DIMENSION') {
+        // render blok anonim *D jika ada; jika tidak, aproksimasi dari def points
+        const bname = g[2];
+        if (bname && out.blocks[bname]) return { ...bp, type: 'insert', name: bname, p: [0, 0], sx: 1, sy: 1, rot: 0 };
+        if (M[13] && M[14]) return { ...bp, type: 'dim', p1: [g[13], g[23]], p2: [g[14], g[24]], off: [M[10][0], M[20][0]], text: (g[1] || '<>').trim() || '<>' };
+        return null;
+      }
+    } catch (err) { /* entitas rusak: lewati */ }
+    return null;
+  }
+
+  // pass utama
+  let section = '', inBlock = null;
+  while (i < pairs.length) {
+    const [c, vRaw] = next();
+    const v = vRaw.trim().toUpperCase();
+    if (c !== 0) {
+      if (c === 2 && section === '?') section = v;
+      continue;
+    }
+    if (v === 'SECTION') { section = '?'; continue; }
+    if (v === 'ENDSEC') { section = ''; inBlock = null; continue; }
+    if (v === 'EOF') break;
+
+    if (section === 'TABLES' && v === 'LAYER') {
+      const g = readEntity('LAYER');
+      if (g[2]) {
+        const flags = g[70] || 0;
+        out.layers.push({
+          name: g[2], color: aciToHex(Math.abs(g[62] || 7)),
+          on: (g[62] || 7) >= 0, frozen: (flags & 1) === 1, locked: (flags & 4) === 4, lt: 'continuous',
+        });
+      }
+      continue;
+    }
+    if (section === 'BLOCKS') {
+      if (v === 'BLOCK') {
+        const g = readEntity('BLOCK');
+        inBlock = { name: g[2] || ('BLK' + Math.random().toString(36).slice(2, 6)), base: [g[10] || 0, g[20] || 0], ents: [] };
+        continue;
+      }
+      if (v === 'ENDBLK') {
+        if (inBlock) { readEntity('ENDBLK'); if (!inBlock.name.startsWith('*Model') && !inBlock.name.startsWith('*Paper')) out.blocks[inBlock.name] = inBlock; }
+        inBlock = null; continue;
+      }
+      if (inBlock) {
+        const g = readEntity(v);
+        const e = toEnt(g);
+        if (e) inBlock.ents.push(e);
+        else { out.skipped++; out.warnings[v] = (out.warnings[v] || 0) + 1; }
+        continue;
+      }
+    }
+    if (section === 'ENTITIES') {
+      if (v === 'POLYLINE') {
+        // POLYLINE lawas + VERTEX + SEQEND
+        const g = readEntity('POLYLINE');
+        const closed = ((g[70] || 0) & 1) === 1;
+        const pts = [];
+        while (i < pairs.length) {
+          const [c2, v2] = peek();
+          if (c2 === 0 && v2.trim().toUpperCase() === 'VERTEX') {
+            next(); const vg = readEntity('VERTEX');
+            if (vg[10] != null) pts.push([vg[10], vg[20]]);
+          } else if (c2 === 0 && v2.trim().toUpperCase() === 'SEQEND') { next(); readEntity('SEQEND'); break; }
+          else break;
+        }
+        if (pts.length > 1) out.entities.push({ ...{ layer: g[8] || '0', color: g[62] != null ? (g[62] === 256 ? 'bylayer' : aciToHex(g[62])) : 'bylayer', lt: 'bylayer', lw: 0 }, type: 'poly', pts, closed });
+        continue;
+      }
+      const g = readEntity(v);
+      const e = toEnt(g);
+      if (e) out.entities.push(e);
+      else if (!['SEQEND', 'VIEWPORT', 'ATTDEF', 'ATTRIB', 'XLINE', 'RAY', 'REGION', 'BODY', 'WIPEOUT', 'IMAGE', 'OLE2FRAME', 'MLINE', 'LEADER', 'MLEADER', 'ACAD_PROXY_ENTITY'].includes(v) && v) {
+        out.skipped++; out.warnings[v] = (out.warnings[v] || 0) + 1;
+      } else if (v) { out.skipped++; out.warnings[v] = (out.warnings[v] || 0) + 1; }
+      continue;
+    }
+  }
+  return out;
+}
+function chaikin(pts, closed) {
+  const out = [];
+  const n = pts.length;
+  const cnt = closed ? n : n - 1;
+  if (!closed) out.push(pts[0]);
+  for (let i = 0; i < cnt; i++) {
+    const a = pts[i], b = pts[(i + 1) % n];
+    out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+    out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+  }
+  if (!closed) out.push(pts[n - 1]);
+  return out;
+}
+
+/* ---------- DXF WRITER (R12 — kompatibilitas maksimum) ---------- */
+function writeDXF() {
+  const L = [];
+  const w = (c, v) => { L.push(String(c)); L.push(String(v)); };
+  w(0, 'SECTION'); w(2, 'HEADER');
+  w(9, '$ACADVER'); w(1, 'AC1009');
+  const bb = drawingBBox() || [0, 0, 100, 100];
+  w(9, '$EXTMIN'); w(10, bb[0]); w(20, bb[1]); w(30, 0);
+  w(9, '$EXTMAX'); w(10, bb[2]); w(20, bb[3]); w(30, 0);
+  w(0, 'ENDSEC');
+  // TABLES: LAYER
+  w(0, 'SECTION'); w(2, 'TABLES');
+  w(0, 'TABLE'); w(2, 'LAYER'); w(70, D.layers.length);
+  for (const l of D.layers) {
+    w(0, 'LAYER'); w(2, l.name); w(70, (l.frozen ? 1 : 0) | (l.locked ? 4 : 0));
+    w(62, (l.on ? 1 : -1) * hexToAci(l.color)); w(6, 'CONTINUOUS');
+  }
+  w(0, 'ENDTAB'); w(0, 'ENDSEC');
+  // ENTITIES
+  w(0, 'SECTION'); w(2, 'ENTITIES');
+  const colorCode = e => { if (e.color && e.color !== 'bylayer') { w(62, hexToAci(e.color)); } };
+  const emitPoly = (pts, closed, e) => {
+    w(0, 'POLYLINE'); w(8, e.layer); colorCode(e); w(66, 1); w(70, closed ? 1 : 0);
+    w(10, 0); w(20, 0); w(30, 0);
+    for (const p of pts) { w(0, 'VERTEX'); w(8, e.layer); w(10, p[0]); w(20, p[1]); w(30, 0); }
+    w(0, 'SEQEND'); w(8, e.layer);
+  };
+  const emitText = (p, text, h, rot, e) => {
+    const linesT = String(text || '').split('\n');
+    linesT.forEach((ln, k) => {
+      w(0, 'TEXT'); w(8, e.layer); colorCode(e);
+      w(10, p[0] - Math.sin(rot||0) * k * h * 1.25); w(20, p[1] - Math.cos(rot||0) * k * h * 1.25); w(30, 0);
+      w(40, h); w(1, ln); w(50, deg(rot || 0));
+    });
+  };
+  for (const e of D.entities) {
+    switch (e.type) {
+      case 'line': w(0, 'LINE'); w(8, e.layer); colorCode(e); w(10, e.a[0]); w(20, e.a[1]); w(30, 0); w(11, e.b[0]); w(21, e.b[1]); w(31, 0); break;
+      case 'circle': w(0, 'CIRCLE'); w(8, e.layer); colorCode(e); w(10, e.c[0]); w(20, e.c[1]); w(30, 0); w(40, e.r); break;
+      case 'arc': {
+        let a1 = e.a1, a2 = e.a2;
+        if (e.ccw === false) { const t = a1; a1 = a2; a2 = t; }
+        w(0, 'ARC'); w(8, e.layer); colorCode(e); w(10, e.c[0]); w(20, e.c[1]); w(30, 0); w(40, e.r);
+        w(50, ((deg(a1) % 360) + 360) % 360); w(51, ((deg(a2) % 360) + 360) % 360); break;
+      }
+      case 'point': w(0, 'POINT'); w(8, e.layer); colorCode(e); w(10, e.p[0]); w(20, e.p[1]); w(30, 0); break;
+      case 'poly': emitPoly(e.pts, e.closed, e); break;
+      case 'cloud': case 'hatch': emitPoly(e.pts, true, e); break;
+      case 'solid': {
+        const p = e.pts;
+        w(0, 'SOLID'); w(8, e.layer); colorCode(e);
+        w(10, p[0][0]); w(20, p[0][1]); w(30, 0);
+        w(11, p[1][0]); w(21, p[1][1]); w(31, 0);
+        w(12, p[3] ? p[3][0] : p[2][0]); w(22, p[3] ? p[3][1] : p[2][1]); w(32, 0);
+        w(13, p[2][0]); w(23, p[2][1]); w(33, 0);
+        break;
+      }
+      case 'text': emitText(e.p, e.text, e.h, e.rot, e); break;
+      case 'dim': { // ekspor sbg geometri (exploded)
+        const parts = explodeEnt(e) || [];
+        for (const pe of parts) {
+          if (pe.type === 'line') { w(0, 'LINE'); w(8, e.layer); colorCode(e); w(10, pe.a[0]); w(20, pe.a[1]); w(30, 0); w(11, pe.b[0]); w(21, pe.b[1]); w(31, 0); }
+          else if (pe.type === 'text') emitText(pe.p, pe.text, pe.h, pe.rot, e);
+        }
+        break;
+      }
+      case 'leader': {
+        emitPoly(e.pts, false, e);
+        emitText(e.pts[e.pts.length - 1], e.text, e.h || 1, 0, e);
+        break;
+      }
+      case 'insert': { // explode insert saat ekspor R12 sederhana
+        const parts = explodeEnt(e) || [];
+        for (const pe of parts) {
+          if (pe.type === 'line') { w(0, 'LINE'); w(8, pe.layer); w(10, pe.a[0]); w(20, pe.a[1]); w(30, 0); w(11, pe.b[0]); w(21, pe.b[1]); w(31, 0); }
+          else if (pe.type === 'circle') { w(0, 'CIRCLE'); w(8, pe.layer); w(10, pe.c[0]); w(20, pe.c[1]); w(30, 0); w(40, pe.r); }
+          else if (pe.type === 'poly') emitPoly(pe.pts, pe.closed, pe);
+          else if (pe.type === 'text') emitText(pe.p, pe.text, pe.h, pe.rot, pe);
+          else if (pe.type === 'point') { w(0, 'POINT'); w(8, pe.layer); w(10, pe.p[0]); w(20, pe.p[1]); w(30, 0); }
+          else if (pe.type === 'arc') { w(0,'ARC'); w(8, pe.layer); w(10, pe.c[0]); w(20, pe.c[1]); w(30,0); w(40, pe.r); w(50, ((deg(pe.a1)%360)+360)%360); w(51, ((deg(pe.a2)%360)+360)%360); }
+        }
+        break;
+      }
+    }
+  }
+  w(0, 'ENDSEC'); w(0, 'EOF');
+  return L.join('\r\n');
+}
+
+/* ---------- SVG EXPORT ---------- */
+function writeSVG() {
+  const bb = drawingBBox() || [0, 0, 100, 100];
+  const pad = Math.max(bb[2] - bb[0], bb[3] - bb[1]) * 0.03 + 1e-6;
+  const x1 = bb[0] - pad, y1 = bb[1] - pad, w = bb[2] - bb[0] + 2 * pad, h = bb[3] - bb[1] + 2 * pad;
+  const Y = y => (y1 + h) - (y - y1);   // flip Y
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const sw = Math.max(w, h) / 600;
+  let body = '';
+  for (const e of D.entities) {
+    if (!entVisible(e)) continue;
+    const col = entColor(e);
+    const st = `stroke="${col}" stroke-width="${sw}" fill="none" vector-effect="non-scaling-stroke"`;
+    const ptsStr = pts => pts.map(p => p[0].toFixed(4) + ',' + Y(p[1]).toFixed(4)).join(' ');
+    switch (e.type) {
+      case 'line': body += `<line x1="${e.a[0]}" y1="${Y(e.a[1])}" x2="${e.b[0]}" y2="${Y(e.b[1])}" ${st}/>\n`; break;
+      case 'poly': body += `<${e.closed?'polygon':'polyline'} points="${ptsStr(e.pts)}" ${st}/>\n`; break;
+      case 'circle': body += `<circle cx="${e.c[0]}" cy="${Y(e.c[1])}" r="${e.r}" ${st}/>\n`; break;
+      case 'arc': { const p = tessArc(e.c, e.r, e.a1, e.a2, e.ccw !== false, 32); body += `<polyline points="${ptsStr(p)}" ${st}/>\n`; break; }
+      case 'point': body += `<circle cx="${e.p[0]}" cy="${Y(e.p[1])}" r="${sw*2}" fill="${col}"/>\n`; break;
+      case 'solid': body += `<polygon points="${ptsStr(e.pts)}" fill="${col}" fill-opacity="0.8"/>\n`; break;
+      case 'hatch': body += `<polygon points="${ptsStr(e.pts)}" ${st} fill="${col}" fill-opacity="0.25"/>\n`; break;
+      case 'cloud': body += `<polygon points="${ptsStr(e.pts)}" ${st} stroke-dasharray="${sw*3},${sw*2}"/>\n`; break;
+      case 'text': {
+        const fs = e.h;
+        const lines2 = String(e.text||'').split('\n');
+        lines2.forEach((ln, k) => {
+          body += `<text x="${e.p[0]}" y="${Y(e.p[1]) + k*fs*1.25}" font-size="${fs}" fill="${col}" font-family="Inter,Arial" transform="rotate(${-deg(e.rot||0)} ${e.p[0]} ${Y(e.p[1])})">${esc(ln)}</text>\n`;
+        });
+        break;
+      }
+      case 'dim': case 'leader': case 'insert': {
+        const parts = explodeEnt(e) || [];
+        for (const pe of parts) {
+          if (pe.type === 'line') body += `<line x1="${pe.a[0]}" y1="${Y(pe.a[1])}" x2="${pe.b[0]}" y2="${Y(pe.b[1])}" ${st}/>\n`;
+          else if (pe.type === 'text') body += `<text x="${pe.p[0]}" y="${Y(pe.p[1])}" font-size="${pe.h}" fill="${col}" font-family="Inter,Arial">${esc(pe.text)}</text>\n`;
+          else if (pe.type === 'circle') body += `<circle cx="${pe.c[0]}" cy="${Y(pe.c[1])}" r="${pe.r}" ${st}/>\n`;
+          else if (pe.type === 'poly') body += `<${pe.closed?'polygon':'polyline'} points="${ptsStr(pe.pts)}" ${st}/>\n`;
+        }
+        break;
+      }
+    }
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x1} ${y1} ${w} ${h}" width="${(w*10).toFixed(0)}" height="${(h*10).toFixed(0)}">\n<rect x="${x1}" y="${y1}" width="${w}" height="${h}" fill="white"/>\n${body}</svg>`;
+}
+
+/* ---------- GeoJSON EXPORT ---------- */
+function writeGeoJSON() {
+  const feats = [];
+  const props = e => ({ layer: e.layer, color: entColor(e), type: e.type });
+  for (const e of D.entities) {
+    if (!entVisible(e)) continue;
+    let geom = null, extra = {};
+    switch (e.type) {
+      case 'line': geom = { type: 'LineString', coordinates: [e.a, e.b] }; break;
+      case 'poly': geom = e.closed
+        ? { type: 'Polygon', coordinates: [e.pts.concat([e.pts[0]])] }
+        : { type: 'LineString', coordinates: e.pts };
+        break;
+      case 'circle': geom = { type: 'Polygon', coordinates: [tessArc(e.c, e.r, 0, 2*Math.PI - 1e-9, true, 36).concat([[e.c[0]+e.r, e.c[1]]])] }; extra.radius = e.r; break;
+      case 'arc': geom = { type: 'LineString', coordinates: tessArc(e.c, e.r, e.a1, e.a2, e.ccw !== false, 24) }; break;
+      case 'point': geom = { type: 'Point', coordinates: e.p }; break;
+      case 'text': geom = { type: 'Point', coordinates: e.p }; extra.text = e.text; extra.height = e.h; break;
+      case 'hatch': case 'solid': case 'cloud': geom = { type: 'Polygon', coordinates: [e.pts.concat([e.pts[0]])] }; break;
+      case 'leader': geom = { type: 'LineString', coordinates: e.pts }; extra.text = e.text; break;
+    }
+    if (geom) feats.push({ type: 'Feature', geometry: geom, properties: { ...props(e), ...extra } });
+  }
+  const gj = { type: 'FeatureCollection', features: feats };
+  if (D.crs) gj.crs = { type: 'name', properties: { name: 'urn:ogc:def:crs:EPSG::' + D.crs } };
+  return JSON.stringify(gj, null, 1);
+}
+
+/* ---------- download helper ---------- */
+function download(name, text, mime) {
+  const blob = text instanceof Blob ? text : new Blob([text], { type: mime || 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+function baseName() { return (D.name || 'drawing').replace(/\.(dxf|dwg|svdraw|json)$/i, ''); }
+
+function saveSvdraw() {
+  const data = JSON.stringify({ app: 'survai-cad', version: 1, saved: new Date().toISOString(),
+    name: D.name, crs: D.crs, units: D.units, decimals: D.decimals, clayer: D.clayer,
+    layers: D.layers, entities: D.entities, blocks: D.blocks });
+  download(baseName() + '.svdraw', data, 'application/json');
+  toast('Tersimpan: ' + baseName() + '.svdraw');
+  logLine('SAVE ' + baseName() + '.svdraw (' + D.entities.length + ' entitas)', 'l-ok');
+}
+function exportPNG() {
+  const tmp = document.createElement('canvas');
+  tmp.width = cv.width; tmp.height = cv.height;
+  const g = tmp.getContext('2d');
+  g.fillStyle = '#0a0f18'; g.fillRect(0, 0, tmp.width, tmp.height);
+  g.drawImage(cv, 0, 0);
+  tmp.toBlob(b => download(baseName() + '.png', b, 'image/png'), 'image/png');
+}
+function printPDF() {
+  const svg = writeSVG();
+  const win = window.open('', '_blank');
+  if (!win) { toast('Popup diblokir — izinkan popup untuk cetak'); return; }
+  win.document.write('<html><head><title>' + baseName() + '</title><style>@page{margin:8mm}body{margin:0}svg{width:100%;height:auto;max-height:96vh}</style></head><body>' + svg + '<script>setTimeout(function(){window.print()},400)<\/script></body></html>');
+  win.document.close();
+}
+
+/* ---------- FILE OPEN ---------- */
+function openFileObj(file) {
+  const nm = file.name;
+  const ext = nm.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  if (ext === 'dwg') {
+    reader.onload = () => {
+      const head = new Uint8Array(reader.result.slice(0, 6));
+      const sig = String.fromCharCode(...head);
+      dwgNotice(nm, sig);
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+  reader.onload = () => {
+    const text = reader.result;
+    try {
+      if (ext === 'svdraw' || ext === 'json') { loadSvdraw(JSON.parse(text), nm); return; }
+      loadDXFText(text, nm);
+    } catch (err) {
+      toast('Gagal membuka file: ' + err.message, 3500);
+      logLine('OPEN gagal: ' + err.message, 'l-err');
+    }
+  };
+  reader.readAsText(file);
+}
+function loadSvdraw(o, nm) {
+  if (!o || !Array.isArray(o.entities)) throw new Error('Bukan file svdraw yang valid');
+  pushUndo();
+  D.name = o.name || nm; D.crs = o.crs || ''; D.units = o.units || 'm';
+  D.decimals = o.decimals != null ? o.decimals : 3;
+  D.layers = o.layers && o.layers.length ? o.layers : D.layers;
+  D.clayer = o.clayer && o.layers.some(l => l.name === o.clayer) ? o.clayer : D.layers[0].name;
+  D.entities = o.entities; D.blocks = o.blocks || {};
+  let mx = 0; for (const e of D.entities) { const n2 = parseInt(String(e.id || '').replace(/\D/g, '')) || 0; mx = Math.max(mx, n2); }
+  _uid = mx + 1;
+  sel.clear(); refreshLayerUI(); zoomExtents();
+  toast('Dibuka: ' + nm + ' (' + D.entities.length + ' entitas)');
+  logLine('OPEN ' + nm + ' — ' + D.entities.length + ' entitas', 'l-ok');
+}
+function loadDXFText(text, nm) {
+  if (text.slice(0, 2) === 'AC' || /^\x41\x43\x31\x30/.test(text)) { dwgNotice(nm, text.slice(0, 6)); return; }
+  const res = parseDXF(text);
+  if (!res.entities.length && !Object.keys(res.blocks).length) throw new Error('Tidak ada entitas terbaca — pastikan DXF ASCII');
+  pushUndo();
+  D.name = nm;
+  // merge layer dari file
+  for (const l of res.layers) if (!D.layers.some(x => x.name === l.name)) D.layers.push(l);
+  for (const e of res.entities) ensureLayer(e.layer);
+  for (const b in res.blocks) { D.blocks[b] = res.blocks[b]; for (const ce of res.blocks[b].ents) { ce.id = uid(); ensureLayer(ce.layer); } }
+  D.entities = res.entities.map(e => (e.id = uid(), e));
+  sel.clear(); refreshLayerUI(); zoomExtents();
+  const wcount = res.skipped ? ' · ' + res.skipped + ' entitas dilewati (' + Object.keys(res.warnings).slice(0, 4).join(', ') + ')' : '';
+  toast('DXF dibuka: ' + res.entities.length + ' entitas' + wcount, 4200);
+  logLine('OPEN ' + nm + ' — ' + res.entities.length + ' entitas, ' + res.layers.length + ' layer' + wcount, 'l-ok');
+}
+function dwgNotice(nm, sig) {
+  const ver = { AC1014: 'R14', AC1015: '2000', AC1018: '2004', AC1021: '2007', AC1024: '2010', AC1027: '2013', AC1032: '2018+' }[sig] || sig;
+  openModal('File DWG Terdeteksi', null, null, `
+    <h3>File DWG (${ver})</h3>
+    <p><b>${nm}</b> adalah DWG biner. Parser DWG native (libredwg/Teigha) adalah roadmap Fase 2 PRD dan belum tersedia di browser secara offline.</p>
+    <p>Solusi cepat: konversi ke <b>DXF ASCII</b> lalu buka di sini — hasilnya identik:</p>
+    <p style="font-size:11.5px">• AutoCAD/DWG TrueView: <i>SAVEAS → DXF (ASCII)</i><br>• ODA File Converter (gratis, offline)<br>• Konverter daring (CloudConvert dsb.)</p>
+    <div class="mrow"><button class="btn pri full" onclick="closeModal();document.getElementById('fileInput').click()">Pilih File DXF</button></div>
+  `);
+}
+
+/* drag & drop */
+stage.addEventListener('dragover', ev => { ev.preventDefault(); stage.classList.add('dragover'); });
+stage.addEventListener('dragleave', () => stage.classList.remove('dragover'));
+stage.addEventListener('drop', ev => {
+  ev.preventDefault(); stage.classList.remove('dragover');
+  const f = ev.dataTransfer.files && ev.dataTransfer.files[0];
+  if (f) openFileObj(f);
+});
+document.getElementById('fileInput').addEventListener('change', ev => {
+  const f = ev.target.files && ev.target.files[0];
+  if (f) openFileObj(f);
+  ev.target.value = '';
+});
+
+/* autosave localStorage */
+const AUTOSAVE_KEY = 'survai_cad_autosave_v1';
+setInterval(() => {
+  if (!D.entities.length) return;
+  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ t: Date.now(), name: D.name, crs: D.crs, units: D.units, decimals: D.decimals, clayer: D.clayer, layers: D.layers, entities: D.entities, blocks: D.blocks })); } catch (e) {}
+}, 20000);
+function tryRestoreAutosave() {
+  try {
+    const o = JSON.parse(localStorage.getItem(AUTOSAVE_KEY) || 'null');
+    if (o && o.entities && o.entities.length) {
+      const ago = Math.round((Date.now() - o.t) / 60000);
+      confirmModal('Pulihkan Sesi', 'Ditemukan autosave "' + (o.name || 'Drawing') + '" (' + o.entities.length + ' entitas, ' + (ago < 1 ? 'baru saja' : ago + ' menit lalu') + '). Pulihkan?', () => {
+        loadSvdraw(o, o.name || 'Autosave');
+      });
+    }
+  } catch (e) {}
+}
+
+/* =====================================================================
+   UI — RIBBON, SHEETS, MODAL, TOGGLES
+   ===================================================================== */
+const iso = p => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+const RIBBON = [
+  { tab: 'Gambar', tools: [
+    { cmd: 'LINE',   lbl: 'Line',    ico: iso('<path d="M4 20L20 4"/><circle cx="4" cy="20" r="1.6"/><circle cx="20" cy="4" r="1.6"/>') },
+    { cmd: 'PLINE',  lbl: 'Polyline',ico: iso('<path d="M3 18l5-9 5 5 8-10"/><circle cx="3" cy="18" r="1.4"/><circle cx="8" cy="9" r="1.4"/><circle cx="13" cy="14" r="1.4"/>') },
+    { cmd: 'RECT',   lbl: 'Rect',    ico: iso('<rect x="4" y="6" width="16" height="12" rx="1"/>') },
+    { cmd: 'CIRCLE', lbl: 'Circle',  ico: iso('<circle cx="12" cy="12" r="8"/><path d="M12 12h8"/>') },
+    { cmd: 'ARC',    lbl: 'Arc',     ico: iso('<path d="M4 18a10 10 0 0 1 16 0"/><circle cx="4" cy="18" r="1.4"/><circle cx="20" cy="18" r="1.4"/>') },
+    { cmd: 'POINT',  lbl: 'Point',   ico: iso('<path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="2.4"/>') },
+    { cmd: 'TEXT',   lbl: 'Text',    ico: iso('<path d="M5 6h14M12 6v13"/>') },
+    { cmd: 'HATCH',  lbl: 'Hatch',   ico: iso('<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 12l8-8M4 20L20 4M12 20l8-8"/>') },
+  ]},
+  { tab: 'Ubah', tools: [
+    { cmd: 'MOVE',   lbl: 'Move',    ico: iso('<path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>') },
+    { cmd: 'COPY',   lbl: 'Copy',    ico: iso('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>') },
+    { cmd: 'ROTATE', lbl: 'Rotate',  ico: iso('<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v4h-4"/>') },
+    { cmd: 'SCALE',  lbl: 'Scale',   ico: iso('<path d="M21 3l-7 7M21 3h-6M21 3v6"/><rect x="3" y="11" width="10" height="10" rx="1"/>') },
+    { cmd: 'MIRROR', lbl: 'Mirror',  ico: iso('<path d="M12 3v18"/><path d="M8 7L4 12l4 5M16 7l4 5-4 5"/>') },
+    { cmd: 'OFFSET', lbl: 'Offset',  ico: iso('<path d="M5 19V8a3 3 0 0 1 3-3h11"/><path d="M9 23v-11a3 3 0 0 1 3-3h11" transform="translate(-4 -8) scale(1)"/><path d="M9 15V12a3 3 0 0 1 3-3h7" transform="translate(0 8)"/>') },
+    { cmd: 'ERASE',  lbl: 'Erase',   ico: iso('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>') },
+    { cmd: 'EXPLODE',lbl: 'Explode', ico: iso('<path d="M12 8V3M16 9l4-4M17 13h5M15 16l4 4M12 17v5M8 15l-4 4M7 12H2M9 8L5 4"/><circle cx="12" cy="12" r="2"/>') },
+    { cmd: 'PROPS',  lbl: 'Properti',ico: iso('<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="15" r="3"/><path d="M18 12.5v-1M18 18.5v-1"/>') },
+  ]},
+  { tab: 'Anotasi', tools: [
+    { cmd: 'DIM',    lbl: 'Dimensi', ico: iso('<path d="M3 17h18"/><path d="M3 14v6M21 14v6"/><path d="M6 17l2-1.6M6 17l2 1.6M18 17l-2-1.6M18 17l-2 1.6"/><path d="M7 7l10-0"/>') },
+    { cmd: 'LEADER', lbl: 'Leader',  ico: iso('<path d="M4 20l7-7h9"/><path d="M8 17l-4 3 1.5-4.5z"/>') },
+    { cmd: 'CLOUD',  lbl: 'Cloud',   ico: iso('<path d="M6 15a3.2 3.2 0 0 1 0-6.4 4.6 4.6 0 0 1 8.8-1.4A3.8 3.8 0 1 1 17 15z"/>') },
+    { cmd: 'STAMP',  lbl: 'Stamp',   ico: iso('<rect x="4" y="8" width="16" height="9" rx="2"/><path d="M8 12.5h8"/>') },
+    { cmd: 'TEXT',   lbl: 'Markup',  ico: iso('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>') },
+  ]},
+  { tab: 'Ukur', tools: [
+    { cmd: 'DIST',  lbl: 'Jarak', ico: iso('<path d="M3 21L21 3"/><path d="M6 18l1.5 1.5M9 15l1.5 1.5M12 12l1.5 1.5M15 9l1.5 1.5"/>') },
+    { cmd: 'AREA',  lbl: 'Luas',  ico: iso('<path d="M4 4h12l4 6-6 10H6z"/><path d="M9 10h6"/>') },
+    { cmd: 'ANGLE', lbl: 'Sudut', ico: iso('<path d="M4 20L20 8"/><path d="M4 20h16"/><path d="M11 20a8 8 0 0 0-1.6-4.8"/>') },
+    { cmd: 'ID',    lbl: 'Koord', ico: iso('<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>') },
+    { cmd: 'ZOOMEXT', lbl: 'Zoom Fit', ico: iso('<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>') },
+    { cmd: 'CRS',   lbl: 'CRS/GIS', ico: iso('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18M12 3c-3 3.5-3 14 0 18"/>') },
+  ]},
+];
+let ribTab = 0;
+function buildRibbon() {
+  const tabs = document.getElementById('ribTabs');
+  tabs.innerHTML = '';
+  RIBBON.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.className = 'rib-tab' + (i === ribTab ? ' on' : '');
+    b.textContent = r.tab;
+    b.onclick = () => { ribTab = i; buildRibbon(); };
+    tabs.appendChild(b);
+  });
+  const body = document.getElementById('ribBody');
+  body.innerHTML = '';
+  RIBBON[ribTab].tools.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'rtool';
+    b.dataset.cmd = t.cmd;
+    b.innerHTML = t.ico + '<span>' + t.lbl + '</span>';
+    b.onclick = () => { if (tool && tool.name === t.cmd) { endTool(); } else { endToolQuiet(); runCommand(t.cmd); } };
+    body.appendChild(b);
+  });
+  markRibbonActive(tool ? tool.name : null);
+}
+function endToolQuiet() { tool = null; showMeasure(''); }
+function markRibbonActive(name) {
+  document.querySelectorAll('.rtool').forEach(b => b.classList.toggle('on', !!name && b.dataset.cmd === name));
+}
+
+/* ---------- sheets ---------- */
+function openSheet(id) {
+  closeSheets();
+  document.getElementById('sheetBackdrop').classList.add('open');
+  document.getElementById(id).classList.add('open');
+  if (id === 'sheetLayers') refreshLayerUI();
+}
+function closeSheets() {
+  document.getElementById('sheetBackdrop').classList.remove('open');
+  document.querySelectorAll('.sheet').forEach(s => s.classList.remove('open'));
+}
+document.getElementById('sheetBackdrop').onclick = closeSheets;
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheets);
+
+/* ---------- layer manager ---------- */
+function refreshLayerUI() {
+  const box = document.getElementById('layList');
+  if (!box) return;
+  box.innerHTML = '';
+  const eye = on => iso(on ? '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>' : '<path d="M3 3l18 18"/><path d="M10.5 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4M6.6 6.6C3.8 8.5 2 12 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6"/>');
+  const lock = l => iso(l ? '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>' : '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.8-1.2"/>');
+  for (const l of D.layers) {
+    const row = document.createElement('div');
+    row.className = 'lay-row' + (l.name === D.clayer ? ' cur' : '');
+    const count = D.entities.filter(e => e.layer === l.name).length;
+    row.innerHTML =
+      `<button class="lay-ico ${l.on ? '' : 'off'}" data-a="on" title="On/Off">${eye(l.on)}</button>` +
+      `<button class="lay-ico ${l.locked ? '' : 'off'}" data-a="lock" title="Lock">${lock(l.locked)}</button>` +
+      `<div class="lay-name" data-a="cur">${l.name}<small>${count} entitas${l.frozen ? ' · frozen' : ''}${l.name === D.clayer ? ' · AKTIF' : ''}</small></div>` +
+      `<input type="color" class="lay-color" value="${toHex6(l.color)}" title="Warna layer">` +
+      (count === 0 && D.layers.length > 1 && l.name !== '0'
+        ? `<button class="lay-ico" data-a="del" title="Hapus layer">${iso('<path d="M18 6L6 18M6 6l12 12"/>')}</button>` : '');
+    row.querySelector('[data-a=on]').onclick = () => { l.on = !l.on; refreshLayerUI(); redraw(); };
+    row.querySelector('[data-a=lock]').onclick = () => { l.locked = !l.locked; refreshLayerUI(); };
+    row.querySelector('[data-a=cur]').onclick = () => { D.clayer = l.name; refreshLayerUI(); syncLayerChip(); };
+    row.querySelector('.lay-color').oninput = ev => { l.color = ev.target.value; syncLayerChip(); redraw(); };
+    const del = row.querySelector('[data-a=del]');
+    if (del) del.onclick = () => { D.layers = D.layers.filter(x => x !== l); if (D.clayer === l.name) D.clayer = D.layers[0].name; refreshLayerUI(); syncLayerChip(); };
+    box.appendChild(row);
+  }
+  syncLayerChip();
+}
+function toHex6(c) {
+  if (/^#[0-9a-f]{6}$/i.test(c)) return c;
+  try { const [r, g, b] = hexRgb(c); return rgbHex(r, g, b); } catch (e) { return '#e6ecf5'; }
+}
+function syncLayerChip() {
+  const l = layerOf(D.clayer);
+  document.getElementById('stLayerName').textContent = l.name;
+  document.getElementById('stLayerSw').style.background = l.color;
+}
+document.getElementById('btnAddLayer').onclick = () => {
+  openModal('Layer Baru', [
+    { k: 'name', label: 'Nama layer', type: 'text', v: 'LAYER' + D.layers.length },
+    { k: 'color', label: 'Warna', type: 'color', v: '#22d3ee' },
+  ], vals => {
+    const nm = vals.name.trim().toUpperCase().replace(/[^A-Z0-9_\-\.]/g, '_');
+    if (!nm) return;
+    if (D.layers.some(l => l.name === nm)) { toast('Layer sudah ada'); return; }
+    D.layers.push({ name: nm, color: vals.color, on: true, frozen: false, locked: false, lt: 'continuous' });
+    D.clayer = nm;
+    refreshLayerUI();
+  });
+};
+
+/* ---------- properties ---------- */
+function openProps() {
+  if (!sel.size) { toast('Pilih objek dulu'); return; }
+  const ids = [...sel];
+  const ents = ids.map(entById).filter(Boolean);
+  const first = ents[0];
+  const same = k => ents.every(e => e[k] === first[k]);
+  document.getElementById('propsTitle').textContent = 'Properti — ' + ents.length + ' objek';
+  const body = document.getElementById('propsBody');
+  const layerOpts = D.layers.map(l => `<option ${same('layer') && first.layer === l.name ? 'selected' : ''}>${l.name}</option>`).join('');
+  const co = same('color') ? first.color : 'bylayer';
+  const lt = same('lt') ? (first.lt || 'bylayer') : 'bylayer';
+  let extra = '';
+  if (ents.length === 1 && first.type === 'text') {
+    extra = `<div class="form-row"><label>Isi Teks</label><textarea id="prText">${String(first.text||'').replace(/</g,'&lt;')}</textarea></div>
+      <div class="form-row"><label>Tinggi (${D.units})</label><input type="number" id="prTextH" value="${first.h}" step="any"></div>`;
+  }
+  if (ents.length === 1) {
+    const bb = entBBox(first);
+    let info = 'Tipe: ' + first.type.toUpperCase();
+    if (first.type === 'line') info += ' · L = ' + fmt(V.dist(first.a, first.b));
+    if (first.type === 'poly') info += ' · L = ' + fmt(polyLen(first.pts, first.closed)) + (first.closed ? ' · A = ' + fmt(Math.abs(polyArea(first.pts))) : '');
+    if (first.type === 'circle') info += ' · R = ' + fmt(first.r) + ' · A = ' + fmt(Math.PI * first.r * first.r);
+    if (first.type === 'arc') info += ' · R = ' + fmt(first.r);
+    extra = `<p style="font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);margin-bottom:12px">${info}</p>` + extra;
+  }
+  body.innerHTML = extra + `
+    <div class="form-row"><label>Layer</label><select id="prLayer">${layerOpts}</select></div>
+    <div class="form-grid2">
+      <div class="form-row"><label>Warna</label><select id="prColorMode">
+        <option value="bylayer" ${co === 'bylayer' ? 'selected' : ''}>ByLayer</option>
+        <option value="custom" ${co !== 'bylayer' ? 'selected' : ''}>Kustom</option></select></div>
+      <div class="form-row"><label>&nbsp;</label><input type="color" id="prColor" class="lay-color" style="width:100%;height:40px" value="${co !== 'bylayer' ? toHex6(co) : '#22d3ee'}"></div>
+    </div>
+    <div class="form-grid2">
+      <div class="form-row"><label>Linetype</label><select id="prLt">
+        ${['bylayer','continuous','dashed','dotted','dashdot'].map(x => `<option ${lt === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+      <div class="form-row"><label>Lineweight</label><select id="prLw">
+        ${[0,15,25,35,50,70,100].map(x => `<option value="${x}" ${same('lw') && (first.lw||0) === x ? 'selected' : ''}>${x === 0 ? 'Default' : (x/100).toFixed(2) + ' mm'}</option>`).join('')}</select></div>
+    </div>
+    <button class="btn pri full" id="prApply">Terapkan</button>
+    <div style="height:8px"></div>
+    <button class="btn danger full" id="prDelete">Hapus Objek</button>`;
+  document.getElementById('prApply').onclick = () => {
+    pushUndo();
+    const lay = document.getElementById('prLayer').value;
+    const mode = document.getElementById('prColorMode').value;
+    const col = mode === 'bylayer' ? 'bylayer' : document.getElementById('prColor').value;
+    const lt2 = document.getElementById('prLt').value;
+    const lw2 = parseInt(document.getElementById('prLw').value) || 0;
+    for (const e of ents) { e.layer = lay; e.color = col; e.lt = lt2; e.lw = lw2; }
+    const txtEl = document.getElementById('prText');
+    if (txtEl && ents.length === 1) { ents[0].text = txtEl.value; ents[0].h = Math.max(1e-6, parseFloat(document.getElementById('prTextH').value) || ents[0].h); }
+    closeSheets(); redraw(); toast('Properti diterapkan');
+  };
+  document.getElementById('prDelete').onclick = () => {
+    pushUndo(); removeEnts(ids); closeSheets(); onSelChange(); redraw();
+  };
+  openSheet('sheetProps');
+}
+
+/* ---------- export sheet ---------- */
+function openExportSheet() {
+  const body = document.getElementById('exportBody');
+  const items = [
+    { t: 'DXF (R12 ASCII)', d: 'Kompatibel AutoCAD & semua CAD', ic: '<path d="M14 3v5h5"/><path d="M5 3h9l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M8 14l2 4M10 14l-2 4M13 14v4h2a1.4 1.4 0 0 0 0-4z" stroke-width="1.4"/>', f: () => { download(baseName() + '.dxf', writeDXF(), 'application/dxf'); toast('DXF diekspor'); } },
+    { t: 'SVDRAW (Native)', d: 'Format kerja Survai — semua data utuh', ic: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>', f: saveSvdraw },
+    { t: 'SVG (Vektor)', d: 'Untuk laporan, web, Inkscape/Illustrator', ic: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>', f: () => { download(baseName() + '.svg', writeSVG(), 'image/svg+xml'); toast('SVG diekspor'); } },
+    { t: 'GeoJSON (GIS)', d: 'Overlay ke QGIS / peta' + (D.crs ? ' · EPSG:' + D.crs : ' · set CRS dulu (opsional)'), ic: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18M12 3c-3 3.5-3 14 0 18"/>', f: () => { download(baseName() + '.geojson', writeGeoJSON(), 'application/geo+json'); toast('GeoJSON diekspor'); } },
+    { t: 'PNG (Gambar)', d: 'Tangkapan tampilan saat ini', ic: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5-5 3 3 4-4 4 4"/>', f: exportPNG },
+    { t: 'PDF (Cetak)', d: 'Plot vektor via dialog cetak', ic: '<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M7 17v4h10v-4"/>', f: printPDF },
+  ];
+  body.innerHTML = '';
+  for (const it of items) {
+    const b = document.createElement('button');
+    b.className = 'exp-item';
+    b.innerHTML = `<div class="ei">${iso(it.ic)}</div><div><b>${it.t}</b><small>${it.d}</small></div>`;
+    b.onclick = () => { closeSheets(); it.f(); };
+    body.appendChild(b);
+  }
+  openSheet('sheetExport');
+}
+
+/* ---------- help ---------- */
+function openHelp() {
+  const body = document.getElementById('helpBody');
+  const groups = {};
+  const seen = new Set();
+  for (const k in CMDS) {
+    const d = CMDS[k];
+    if (seen.has(d.primary)) continue;
+    seen.add(d.primary);
+    (groups[''] = groups[''] || []).push(d);
+  }
+  const rows = groups[''].sort((a, b) => a.primary.localeCompare(b.primary))
+    .map(d => `<tr><td>${d.primary}${d.aliases.length ? ' <span style="color:var(--ink-faint)">(' + d.aliases.join(', ') + ')</span>' : ''}</td><td>${d.desc}</td></tr>`).join('');
+  body.innerHTML = `
+    <div class="help-sec">Navigasi</div>
+    <table class="help-table">
+      <tr><td>Scroll / Pinch</td><td>Zoom (dua jari di layar sentuh)</td></tr>
+      <tr><td>Drag 2 jari / tombol tengah / PAN</td><td>Geser tampilan</td></tr>
+      <tr><td>Klik kanan / Enter</td><td>Selesaikan perintah aktif</td></tr>
+      <tr><td>Esc</td><td>Batalkan perintah / kosongkan seleksi</td></tr>
+      <tr><td>Drag kiri→kanan</td><td>Window select (biru, harus penuh)</td></tr>
+      <tr><td>Drag kanan→kiri</td><td>Crossing select (hijau, tersentuh)</td></tr>
+    </table>
+    <div class="help-sec">Input Command Line</div>
+    <table class="help-table">
+      <tr><td>10,20</td><td>Koordinat absolut X,Y</td></tr>
+      <tr><td>@5,0</td><td>Koordinat relatif dari titik terakhir</td></tr>
+      <tr><td>12.5</td><td>Jarak ke arah kursor / nilai perintah</td></tr>
+    </table>
+    <div class="help-sec">Daftar Perintah (${seen.size})</div>
+    <table class="help-table">${rows}</table>
+    <div class="help-sec">Roadmap (PRD Fase 2–3)</div>
+    <p style="font-size:11px;color:var(--ink-dim);line-height:1.6">Parser DWG biner (libredwg), TRIM/EXTEND/FILLET, block editor, xref, dynamic block, paper space layout, plot style CTB, LandXML/terrain, long & cross section.</p>`;
+  openSheet('sheetHelp');
+}
+
+/* ---------- modal generik ---------- */
+let _modalCb = null;
+function openModal(title, fields, cb, rawHtml) {
+  const box = document.getElementById('modalBox');
+  if (rawHtml) { box.innerHTML = rawHtml; }
+  else {
+    _modalCb = cb;
+    let html = '<h3>' + title + '</h3>';
+    for (const f of fields) {
+      html += '<div class="form-row"><label>' + f.label + '</label>';
+      if (f.type === 'textarea') html += `<textarea id="mf_${f.k}">${f.v || ''}</textarea>`;
+      else if (f.type === 'select') html += `<select id="mf_${f.k}">${f.opts.map(o => `<option ${o === f.v ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+      else if (f.type === 'color') html += `<input type="color" id="mf_${f.k}" value="${f.v}" style="width:100%;height:42px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)">`;
+      else html += `<input type="${f.type || 'text'}" id="mf_${f.k}" value="${f.v != null ? f.v : ''}" step="any">`;
+      html += '</div>';
+    }
+    html += '<div class="mrow"><button class="btn" onclick="closeModal()">Batal</button><button class="btn pri" id="mOk">OK</button></div>';
+    box.innerHTML = html;
+    document.getElementById('mOk').onclick = () => {
+      const vals = {};
+      for (const f of fields) vals[f.k] = document.getElementById('mf_' + f.k).value;
+      closeModal();
+      _modalCb && _modalCb(vals);
+    };
+    // fokus field pertama
+    setTimeout(() => { const el = document.getElementById('mf_' + fields[0].k); el && el.focus(); }, 60);
+  }
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+function closeModal() { document.getElementById('modalBackdrop').classList.remove('open'); }
+function confirmModal(title, msg, onYes) {
+  openModal(title, null, null,
+    `<h3>${title}</h3><p>${msg}</p><div class="mrow"><button class="btn" onclick="closeModal()">Batal</button><button class="btn pri" id="mYes">Ya</button></div>`);
+  document.getElementById('mYes').onclick = () => { closeModal(); onYes(); };
+}
+document.getElementById('modalBackdrop').addEventListener('click', ev => { if (ev.target.id === 'modalBackdrop') closeModal(); });
+
+/* ---------- toggles & buttons ---------- */
+function syncToggles() {
+  document.getElementById('stSnap').classList.toggle('on', settings.snap);
+  document.getElementById('stGrid').classList.toggle('on', settings.grid);
+  document.getElementById('stOrtho').classList.toggle('on', settings.ortho);
+  document.getElementById('stPan').classList.toggle('on', settings.panMode);
+  cv.style.cursor = settings.panMode ? 'grab' : 'crosshair';
+}
+document.getElementById('stSnap').onclick = () => { settings.snap = !settings.snap; snapHit = null; syncToggles(); redraw(); };
+document.getElementById('stGrid').onclick = () => { settings.grid = !settings.grid; syncToggles(); redraw(); };
+document.getElementById('stOrtho').onclick = () => { settings.ortho = !settings.ortho; syncToggles(); };
+document.getElementById('stPan').onclick = () => { settings.panMode = !settings.panMode; syncToggles(); };
+document.getElementById('stLayer').onclick = () => openSheet('sheetLayers');
+
+document.getElementById('btnOpen').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('btnSave').onclick = saveSvdraw;
+document.getElementById('btnExport').onclick = openExportSheet;
+document.getElementById('btnUndo').onclick = doUndo;
+document.getElementById('btnRedo').onclick = doRedo;
+document.getElementById('btnLayers').onclick = () => openSheet('sheetLayers');
+document.getElementById('btnHelp').onclick = openHelp;
+document.getElementById('btnCmdLog').onclick = () => document.getElementById('cmdLog').classList.toggle('show');
+document.getElementById('btnEnter').onclick = () => handleCmdInput(takeCmdInput());
+document.getElementById('btnEsc').onclick = () => { if (tool) { endTool(); logLine('*Batal*'); } else { sel.clear(); onSelChange(); } };
+
+const cmdInput = document.getElementById('cmdInput');
+const cmdHist = []; let histIdx = -1;
+function takeCmdInput() { const v = cmdInput.value; cmdInput.value = ''; return v; }
+cmdInput.addEventListener('keydown', ev => {
+  if (ev.key === 'Enter') {
+    const v = takeCmdInput();
+    if (v.trim()) { cmdHist.push(v); histIdx = cmdHist.length; }
+    handleCmdInput(v);
+  } else if (ev.key === 'Escape') {
+    cmdInput.value = '';
+    if (tool) { endTool(); logLine('*Batal*'); }
+  } else if (ev.key === 'ArrowUp') {
+    if (histIdx > 0) { histIdx--; cmdInput.value = cmdHist[histIdx] || ''; ev.preventDefault(); }
+  } else if (ev.key === 'ArrowDown') {
+    if (histIdx < cmdHist.length) { histIdx++; cmdInput.value = cmdHist[histIdx] || ''; ev.preventDefault(); }
+  }
+});
+
+/* keyboard global */
+document.addEventListener('keydown', ev => {
+  if (ev.target === cmdInput || /INPUT|TEXTAREA|SELECT/.test(ev.target.tagName)) return;
+  if (ev.key === 'F2') { ev.preventDefault(); document.getElementById('cmdLog').classList.toggle('show'); return; }
+  if (ev.key === 'F8') { ev.preventDefault(); settings.ortho = !settings.ortho; syncToggles(); return; }
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); ev.shiftKey ? doRedo() : doUndo(); return; }
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') { ev.preventDefault(); doRedo(); return; }
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { ev.preventDefault(); saveSvdraw(); return; }
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'o') { ev.preventDefault(); document.getElementById('fileInput').click(); return; }
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'a') { ev.preventDefault(); runCommand('SELECTALL'); return; }
+  if (ev.key === 'Escape') {
+    if (document.getElementById('modalBackdrop').classList.contains('open')) { closeModal(); return; }
+    closeSheets();
+    if (tool) { endTool(); logLine('*Batal*'); } else { sel.clear(); onSelChange(); }
+    return;
+  }
+  if (ev.key === 'Delete' || ev.key === 'Backspace') {
+    if (sel.size) { pushUndo(); removeEnts([...sel]); onSelChange(); redraw(); }
+    return;
+  }
+  if (ev.key === 'Enter') { if (tool) { tool.onEnter ? tool.onEnter() : endTool(); } else if (lastCmd) runCommand(lastCmd); return; }
+  // ketik huruf -> fokus ke command line (rasa AutoCAD)
+  if (/^[a-zA-Z0-9@.,-]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    cmdInput.focus();
+  }
+});
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+window.addEventListener('resize', resize);
+buildRibbon();
+syncToggles();
+syncLayerChip();
+resize();
+setTimeout(() => { resize(); zoomExtents(); }, 60);
+logLine('CAD Engine siap. Ketik HELP untuk daftar perintah.', 'l-ok');
+tryRestoreAutosave();
+
+/* test hook (e2e) */
+window.CADENG = {
+  D, view, sel, settings,
+  exec: (c, a) => runCommand(c, a),
+  input: s => handleCmdInput(s),
+  parseDXF, writeDXF, writeSVG, writeGeoJSON,
+  addEnt, pushUndo, zoomExtents, redraw,
+  clickAt: (wx, wy) => { cursorRaw = [wx, wy]; cursorW = applyConstraints([wx, wy]); if (tool && tool.onPoint) { tool.onPoint([wx, wy]); redraw(); } },
+};
+
+</script>
+</body>
+</html>
