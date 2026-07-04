@@ -50,7 +50,9 @@ button{cursor:pointer;border:0;background:none}
 
 /* ---------- RIBBON ---------- */
 .ribbon{flex:0 0 auto;background:var(--panel);border-bottom:1px solid var(--line);z-index:55}
-.rib-tabs{display:flex;gap:2px;padding:6px 10px 0}
+.rib-tabs{display:flex;gap:2px;padding:6px 10px 0;overflow-x:auto;scrollbar-width:none}
+.rib-tabs::-webkit-scrollbar{display:none}
+.rib-tab{flex:none;white-space:nowrap}
 .rib-tab{padding:7px 13px;border-radius:8px 8px 0 0;font-size:11.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.02em}
 .rib-tab.on{background:var(--panel-2);color:var(--ink);box-shadow:inset 0 1px 0 var(--line-2)}
 .rib-body{background:var(--panel-2);padding:8px 10px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
@@ -252,6 +254,9 @@ button{cursor:pointer;border:0;background:none}
     <button class="st-toggle" id="stOrtho">ORTHO</button>
     <button class="st-toggle" id="stPan">PAN</button>
     <button class="st-layer" id="stLayer"><i id="stLayerSw" style="background:#fff"></i><span id="stLayerName">0</span></button>
+    <button class="st-toggle" id="stSpace" title="Model / Layout"><span id="stSpaceName">MODEL</span></button>
+    <button class="st-toggle" id="stStyle" title="Visual style">2D</button>
+    <button class="st-layer" id="stColor" title="Warna aktif"><i id="stColorSw" style="background:#e6ecf5"></i><span>WARNA</span></button>
     <span class="st-coord" id="stCoord">0.000, 0.000</span>
   </div>
 </div>
@@ -289,6 +294,7 @@ button{cursor:pointer;border:0;background:none}
 
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept=".dxf,.dwg,.svdraw,.json" style="display:none">
+<input type="file" id="imgInput" accept="image/*" style="display:none">
 
 <script>
 'use strict';
@@ -324,7 +330,12 @@ const D = {
   ],
   entities: [],
   blocks: {},         // name -> {base:[x,y], ents:[...]}
+  mscale: 1,          // faktor skala hasil ukur (Measure > Scale)
 };
+// Layout engine: model space + paper space sederhana
+D.spaces = { 'Model': D.entities, 'Layout1': [], 'Layout2': [] };
+D.cspace = 'Model';
+D.paper = { w: 420, h: 297 };   // A3 landscape (mm sebagai unit kertas)
 
 let _uid = 1;
 const uid = () => 'e' + (_uid++);
@@ -335,8 +346,15 @@ const UNDO_CAP = 120;
 
 const settings = {
   snap: true, grid: true, ortho: false, panMode: false,
+  vstyle: '2d',            // '2d' | 'wire' | 'real' | 'hide'
+  ccolor: 'bylayer',       // warna aktif utk entitas baru
   snapModes: { END:true, MID:true, CEN:true, QUA:false, INT:true, NEA:false, NOD:true, GRID:false },
 };
+const RESULTS = [];        // riwayat hasil pengukuran (Measure > Result)
+function pushResult(kind, text) {
+  RESULTS.push({ kind, text, t: new Date().toLocaleTimeString() });
+  if (RESULTS.length > 200) RESULTS.shift();
+}
 
 let cursorW = [0, 0];                  // posisi kursor (world, sudah snap)
 let cursorRaw = [0, 0];                // posisi kursor mentah (world)
@@ -570,12 +588,17 @@ function entLocked(e) { return layerOf(e.layer).locked; }
 
 /* ---------------- UNDO / REDO ---------------- */
 function snapshot() {
-  return JSON.stringify({ entities: D.entities, layers: D.layers, clayer: D.clayer, blocks: D.blocks });
+  D.spaces[D.cspace] = D.entities;
+  return JSON.stringify({ spaces: D.spaces, cspace: D.cspace, layers: D.layers, clayer: D.clayer, blocks: D.blocks });
 }
 function restore(s) {
   const o = JSON.parse(s);
-  D.entities = o.entities; D.layers = o.layers; D.clayer = o.clayer; D.blocks = o.blocks || {};
-  sel.clear(); refreshLayerUI(); redraw();
+  if (o.spaces) {
+    D.spaces = o.spaces; D.cspace = o.cspace || 'Model';
+    D.entities = D.spaces[D.cspace] = D.spaces[D.cspace] || [];
+  } else { D.entities = o.entities; D.spaces = { Model: D.entities, Layout1: [], Layout2: [] }; D.cspace = 'Model'; }
+  D.layers = o.layers; D.clayer = o.clayer; D.blocks = o.blocks || {};
+  sel.clear(); refreshLayerUI(); syncSpaceChip(); redraw();
 }
 function pushUndo() {
   undoStack.push(snapshot());
@@ -604,7 +627,7 @@ function updateUndoBtns() {
 function addEnt(e, keepUndo) {
   e.id = e.id || uid();
   e.layer = e.layer || D.clayer;
-  e.color = e.color || 'bylayer';
+  e.color = e.color || settings.ccolor || 'bylayer';
   e.lt = e.lt || 'bylayer';
   e.lw = e.lw || 0;
   D.entities.push(e);
@@ -613,11 +636,27 @@ function addEnt(e, keepUndo) {
 function entById(id) { return D.entities.find(e => e.id === id); }
 function removeEnts(ids) { const s = new Set(ids); D.entities = D.entities.filter(e => !s.has(e.id)); for (const i of ids) sel.delete(i); }
 
+/* tesselasi ellipse {c, a(major vec), ratio} */
+function ellipsePts(e, n = 48) {
+  const rot = Math.atan2(e.a[1], e.a[0]), rx = V.len(e.a), ry = rx * e.ratio;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = 2 * Math.PI * i / n, x = rx * Math.cos(t), y = ry * Math.sin(t);
+    out.push([e.c[0] + x * Math.cos(rot) - y * Math.sin(rot), e.c[1] + x * Math.sin(rot) + y * Math.cos(rot)]);
+  }
+  return out;
+}
 // titik-titik representatif entitas (untuk bbox / transform)
 function entPts(e) {
   switch (e.type) {
     case 'line': return [e.a, e.b];
     case 'poly': case 'cloud': case 'solid': case 'hatch': return e.pts;
+    case 'ellipse': return ellipsePts(e, 24);
+    case 'image': return [e.p, [e.p[0] + e.w, e.p[1] + e.h]];
+    case 'audio': { const s = 14 / view.s; return [[e.p[0]-s, e.p[1]-s], [e.p[0]+s, e.p[1]+s]]; }
+    case 'dimang': return tessArc(e.p, e.r, e.a1, e.a2, e.ccw !== false, 12).concat([e.p]);
+    case 'dimrad': return [e.pos, [e.c[0] + e.r, e.c[1]], [e.c[0] - e.r, e.c[1]]];
+    case 'dimarc': return tessArc(e.c, e.roff, e.a1, e.a2, e.ccw !== false, 12);
     case 'circle': return [[e.c[0]-e.r,e.c[1]-e.r],[e.c[0]+e.r,e.c[1]+e.r]];
     case 'arc': { const t = tessArc(e.c, e.r, e.a1, e.a2, e.ccw !== false, 12); return t; }
     case 'point': return [e.p];
@@ -681,6 +720,32 @@ function transformEnt(e, fn, scaleK = 1, mirror = false) {
       break;
     }
     case 'dim': e.p1 = fn(e.p1); e.p2 = fn(e.p2); e.off = fn(e.off); break;
+    case 'ellipse': {
+      const pa = fn(V.add(e.c, e.a));
+      e.c = fn(e.c); e.a = V.sub(pa, e.c);
+      break;
+    }
+    case 'image': e.p = fn(e.p); e.w *= scaleK; e.h *= scaleK; break;
+    case 'audio': e.p = fn(e.p); break;
+    case 'dimang': {
+      const q1 = fn([e.p[0] + Math.cos(e.a1), e.p[1] + Math.sin(e.a1)]);
+      const q2 = fn([e.p[0] + Math.cos(e.a2), e.p[1] + Math.sin(e.a2)]);
+      e.p = fn(e.p); e.r *= scaleK;
+      e.a1 = Math.atan2(q1[1] - e.p[1], q1[0] - e.p[0]);
+      e.a2 = Math.atan2(q2[1] - e.p[1], q2[0] - e.p[0]);
+      if (mirror) { const t = e.a1; e.a1 = e.a2; e.a2 = t; }
+      break;
+    }
+    case 'dimrad': e.c = fn(e.c); e.pos = fn(e.pos); e.r *= scaleK; break;
+    case 'dimarc': {
+      const q1 = fn([e.c[0] + e.r * Math.cos(e.a1), e.c[1] + e.r * Math.sin(e.a1)]);
+      const q2 = fn([e.c[0] + e.r * Math.cos(e.a2), e.c[1] + e.r * Math.sin(e.a2)]);
+      e.c = fn(e.c); e.r *= scaleK; e.roff *= scaleK;
+      e.a1 = Math.atan2(q1[1] - e.c[1], q1[0] - e.c[0]);
+      e.a2 = Math.atan2(q2[1] - e.c[1], q2[0] - e.c[0]);
+      if (mirror) { const t = e.a1; e.a1 = e.a2; e.a2 = t; }
+      break;
+    }
   }
   return e;
 }
@@ -698,10 +763,14 @@ function entSegs(e) {
     case 'solid': case 'hatch': pushPoly(e.pts, true); break;
     case 'cloud': pushPoly(e.pts, true); break;
     case 'leader': pushPoly(e.pts, false); break;
+    case 'ellipse': pushPoly(ellipsePts(e, 36), true); break;
     case 'dim': {
       const g = dimGeom(e); if (g) { pushPoly([g.e1a, g.e1b], false); pushPoly([g.e2a, g.e2b], false); pushPoly([g.d1, g.d2], false); }
       break;
     }
+    case 'dimang': pushPoly(tessArc(e.p, e.r, e.a1, e.a2, e.ccw !== false, 16), false); break;
+    case 'dimrad': { const dir = V.norm(V.sub(e.pos, e.c)); segs.push([e.pos, V.add(e.c, V.mul(dir, e.r))]); break; }
+    case 'dimarc': pushPoly(tessArc(e.c, e.roff, e.a1, e.a2, e.ccw !== false, 16), false); break;
   }
   return segs;
 }
@@ -710,7 +779,8 @@ function entSegs(e) {
 function entHit(e, wp, tolW) {
   switch (e.type) {
     case 'line': return distPtSeg(wp, e.a, e.b) <= tolW;
-    case 'poly': case 'cloud': case 'solid': case 'hatch': case 'leader': case 'dim': {
+    case 'poly': case 'cloud': case 'solid': case 'hatch': case 'leader': case 'dim':
+    case 'ellipse': case 'dimang': case 'dimrad': case 'dimarc': {
       for (const s of entSegs(e)) if (distPtSeg(wp, s[0], s[1]) <= tolW) return true;
       if ((e.type === 'hatch' || e.type === 'solid') && pointInPoly(wp, e.pts)) return true;
       return false;
@@ -725,7 +795,7 @@ function entHit(e, wp, tolW) {
       const bb = entBBox(e);
       return wp[0] >= bb[0]-tolW && wp[0] <= bb[2]+tolW && wp[1] >= bb[1]-tolW && wp[1] <= bb[3]+tolW;
     }
-    case 'insert': {
+    case 'insert': case 'image': case 'audio': {
       const bb = entBBox(e);
       if (!bb) return false;
       return wp[0] >= bb[0]-tolW && wp[0] <= bb[2]+tolW && wp[1] >= bb[1]-tolW && wp[1] <= bb[3]+tolW;
@@ -761,10 +831,21 @@ function entGrips(e) {
       { p: [e.c[0]+e.r*Math.cos(e.a1), e.c[1]+e.r*Math.sin(e.a1)], k: 'a1' },
       { p: [e.c[0]+e.r*Math.cos(e.a2), e.c[1]+e.r*Math.sin(e.a2)], k: 'a2' }];
     case 'point': return [{ p: e.p, k: 'p' }];
-    case 'text': case 'insert': return [{ p: e.p, k: 'p' }];
+    case 'text': case 'insert': case 'audio': return [{ p: e.p, k: 'p' }];
     case 'dim': return [{ p: e.p1, k: 'p1' }, { p: e.p2, k: 'p2' }, { p: e.off, k: 'off' }];
+    case 'ellipse': return [{ p: e.c, k: 'c' }, { p: V.add(e.c, e.a), k: 'a' },
+      { p: V.add(e.c, V.mul(V.perp(V.norm(e.a)), V.len(e.a) * e.ratio)), k: 'b' }];
+    case 'image': return [{ p: e.p, k: 'p' }, { p: [e.p[0] + e.w, e.p[1] + e.h], k: 'sz' }];
+    case 'dimang': { const am = midAngle(e.a1, e.a2, e.ccw !== false); return [{ p: [e.p[0] + e.r * Math.cos(am), e.p[1] + e.r * Math.sin(am)], k: 'r' }]; }
+    case 'dimrad': return [{ p: e.pos, k: 'pos' }];
+    case 'dimarc': { const am = midAngle(e.a1, e.a2, e.ccw !== false); return [{ p: [e.c[0] + e.roff * Math.cos(am), e.c[1] + e.roff * Math.sin(am)], k: 'roff' }]; }
     default: return [];
   }
+}
+function midAngle(a1, a2, ccw) {
+  let sweep = a2 - a1;
+  if (ccw) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+  return a1 + sweep / 2;
 }
 function applyGrip(e, k, wp) {
   if (e.type === 'line') { if (k === 'a') e.a = wp; else if (k === 'b') e.b = wp; else { const d = V.sub(wp, V.mid(e.a, e.b)); e.a = V.add(e.a, d); e.b = V.add(e.b, d); } }
@@ -776,25 +857,55 @@ function applyGrip(e, k, wp) {
     else e.a2 = Math.atan2(wp[1]-e.c[1], wp[0]-e.c[0]);
   }
   else if (e.type === 'point') e.p = wp;
-  else if (e.type === 'text' || e.type === 'insert') e.p = wp;
+  else if (e.type === 'text' || e.type === 'insert' || e.type === 'audio') e.p = wp;
   else if (e.type === 'dim') { if (k === 'p1') e.p1 = wp; else if (k === 'p2') e.p2 = wp; else e.off = wp; }
+  else if (e.type === 'ellipse') {
+    if (k === 'c') e.c = wp;
+    else if (k === 'a') e.a = V.sub(wp, e.c);
+    else e.ratio = clamp(V.dist(wp, e.c) / (V.len(e.a) || 1e-9), 0.01, 100);
+  }
+  else if (e.type === 'image') {
+    if (k === 'p') e.p = wp;
+    else { e.w = Math.max(1e-6, wp[0] - e.p[0]); e.h = Math.max(1e-6, wp[1] - e.p[1]); }
+  }
+  else if (e.type === 'dimang' && k === 'r') e.r = Math.max(1e-9, V.dist(wp, e.p));
+  else if (e.type === 'dimrad') e.pos = wp;
+  else if (e.type === 'dimarc') e.roff = Math.max(1e-9, V.dist(wp, e.c));
 }
 
-/* geometri dimensi aligned */
+/* geometri dimensi aligned / linear (mode 'h' = garis dim horizontal, 'v' = vertikal) */
 function dimGeom(e) {
-  const dir = V.norm(V.sub(e.p2, e.p1));
-  if (!isFinite(dir[0])) return null;
+  let dir, d1, d2, len;
+  if (e.mode === 'h') {
+    dir = e.p2[0] >= e.p1[0] ? [1, 0] : [-1, 0];
+    d1 = [e.p1[0], e.off[1]]; d2 = [e.p2[0], e.off[1]];
+    len = Math.abs(e.p2[0] - e.p1[0]);
+  } else if (e.mode === 'v') {
+    dir = e.p2[1] >= e.p1[1] ? [0, 1] : [0, -1];
+    d1 = [e.off[0], e.p1[1]]; d2 = [e.off[0], e.p2[1]];
+    len = Math.abs(e.p2[1] - e.p1[1]);
+  } else {
+    dir = V.norm(V.sub(e.p2, e.p1));
+    if (!isFinite(dir[0])) return null;
+    const per0 = V.perp(dir);
+    const h = V.dot(V.sub(e.off, e.p1), per0);   // jarak offset bertanda
+    d1 = V.add(e.p1, V.mul(per0, h)); d2 = V.add(e.p2, V.mul(per0, h));
+    len = V.dist(e.p1, e.p2);
+  }
+  if (len < 1e-12 && e.mode) return null;
   const per = V.perp(dir);
-  const h = V.dot(V.sub(e.off, e.p1), per);       // jarak offset bertanda
-  const d1 = V.add(e.p1, V.mul(per, h)), d2 = V.add(e.p2, V.mul(per, h));
-  const ext = Math.sign(h || 1) * 0.12 * Math.abs(h || 1);
+  const s1 = Math.sign(V.dot(V.sub(d1, e.p1), per) || 1);
+  const s2 = Math.sign(V.dot(V.sub(d2, e.p2), per) || 1);
   return {
-    e1a: e.p1, e1b: V.add(d1, V.mul(per, Math.sign(h||1) * dimScale() * 1.2)),
-    e2a: e.p2, e2b: V.add(d2, V.mul(per, Math.sign(h||1) * dimScale() * 1.2)),
+    e1a: e.p1, e1b: V.add(d1, V.mul(per, s1 * dimScale() * 1.2)),
+    e2a: e.p2, e2b: V.add(d2, V.mul(per, s2 * dimScale() * 1.2)),
     d1, d2, mid: V.mid(d1, d2), dir, per,
-    len: V.dist(e.p1, e.p2), rot: Math.atan2(dir[1], dir[0]),
+    len, rot: Math.atan2(dir[1], dir[0]),
   };
 }
+/* format hasil ukur dgn faktor skala (Measure > Scale) */
+const fmtd = v => fmt(v * (D.mscale || 1));
+const fmtA = v => fmt(v * (D.mscale || 1) * (D.mscale || 1));
 function dimScale() { return 10 / view.s; }   // ukuran panah/teks dim adaptif zoom
 
 /* =====================================================================
@@ -819,12 +930,38 @@ function ltDash(lt, px) {
   if (lt === 'dashdot') return [u * 1.6, u * 0.7, 1.5, u * 0.7];
   return [];
 }
+const HIDE_TYPES = { dim:1, dimang:1, dimrad:1, dimarc:1, leader:1, cloud:1, text:1, audio:1 };
+function isLightBg() { return settings.vstyle === 'real'; }
+function isLightInk() { return settings.vstyle === 'real' || D.cspace !== 'Model'; }  // layout = kertas terang
+function visColor(col) {
+  // sesuaikan warna agar kontras dgn latar visual style / kertas layout
+  try {
+    const [r, g, b] = hexRgb(col);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    if (isLightInk() && lum > 0.82) return '#1c2430';
+    if (!isLightInk() && lum < 0.12) return '#e6ecf5';
+  } catch (err) {}
+  return col;
+}
 function paint() {
-  ctx.clearRect(0, 0, CW, CH);
+  ctx.fillStyle = isLightBg() ? '#eef1f6' : '#0a0f18';
+  ctx.fillRect(0, 0, CW, CH);
+  // paper space: gambar "kertas"
+  if (D.cspace !== 'Model') {
+    const a = W2S([0, 0]), b = W2S([D.paper.w, D.paper.h]);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 18;
+    ctx.fillStyle = isLightBg() ? '#ffffff' : '#dfe5ee';
+    ctx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1]));
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(100,116,139,.6)'; ctx.lineWidth = 1;
+    ctx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1]));
+  }
   paintGrid();
   // entitas
   for (const e of D.entities) {
     if (!entVisible(e)) continue;
+    if (settings.vstyle === 'hide' && (HIDE_TYPES[e.type] || e.layer === 'MARKUP')) continue;
     drawEnt(ctx, e, null, sel.has(e.id));
   }
   // grips
@@ -843,6 +980,14 @@ function paint() {
     ctx.lineWidth = 1.1; ctx.setLineDash([6, 4]);
     tool.preview(ctx, cursorW);
     ctx.restore();
+  }
+  // goresan freehand (SKETCH / SMARTPEN) yang sedang berjalan
+  if (dragState && dragState.mode === 'sketch' && dragState.pts.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 1.4; ctx.setLineDash([]);
+    ctx.beginPath();
+    dragState.pts.forEach((p, i) => { const s = W2S(p); i ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); });
+    ctx.stroke(); ctx.restore();
   }
   // box seleksi
   if (boxSel) {
@@ -868,7 +1013,7 @@ function paintGrid() {
   const y0 = Math.floor(view.y / step) * step;
   const nx = Math.ceil(CW / (step * view.s)) + 1;
   const ny = Math.ceil(CH / (step * view.s)) + 1;
-  ctx.fillStyle = 'rgba(147,161,184,.35)';
+  ctx.fillStyle = isLightBg() ? 'rgba(71,85,105,.4)' : 'rgba(147,161,184,.35)';
   const major = step * 5;
   for (let i = 0; i <= nx; i++) {
     for (let j = 0; j <= ny; j++) {
@@ -899,7 +1044,7 @@ function paintAxes() {
 function paintCursor() {
   const s = W2S(cursorW);
   ctx.save();
-  ctx.strokeStyle = 'rgba(230,236,245,.55)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = isLightBg() ? 'rgba(28,36,48,.55)' : 'rgba(230,236,245,.55)'; ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(s[0] - 26, s[1]); ctx.lineTo(s[0] + 26, s[1]);
   ctx.moveTo(s[0], s[1] - 26); ctx.lineTo(s[0], s[1] + 26);
@@ -932,7 +1077,8 @@ function paintSnapMarker() {
 /* gambar satu entitas (dgn transform INSERT opsional) */
 function drawEnt(g, e, xf, hl) {
   const T = xf ? (p => xf(p)) : (p => p);
-  const col = hl ? '#22d3ee' : entColor(e);
+  const col = hl ? '#22d3ee' : visColor(entColor(e));
+  const wire = settings.vstyle === 'wire';
   const lt = e.lt === 'bylayer' || !e.lt ? layerOf(e.layer).lt : e.lt;
   g.save();
   g.strokeStyle = col; g.fillStyle = col;
@@ -947,9 +1093,13 @@ function drawEnt(g, e, xf, hl) {
   switch (e.type) {
     case 'line': { const a = P(e.a), b = P(e.b); g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke(); break; }
     case 'poly': path(e.pts, e.closed); g.stroke(); break;
-    case 'solid': path(e.pts, true); g.globalAlpha = hl ? .5 : .8; g.fill(); g.globalAlpha = 1; g.stroke(); break;
+    case 'solid':
+      path(e.pts, true);
+      if (!wire) { g.globalAlpha = hl ? .5 : .8; g.fill(); g.globalAlpha = 1; }
+      g.stroke(); break;
     case 'hatch': {
       path(e.pts, true); g.stroke();
+      if (wire) break;
       g.save(); path(e.pts, true); g.clip();
       if (e.pattern === 'SOLID') { g.globalAlpha = .45; path(e.pts, true); g.fill(); }
       else {
@@ -1018,7 +1168,7 @@ function drawEnt(g, e, xf, hl) {
       g.stroke();
       drawArrow(g, d1, d2); drawArrow(g, d2, d1);
       const mid = P(gm.mid);
-      const txt = (e.text && e.text !== '<>') ? e.text : fmt(gm.len);
+      const txt = (e.text && e.text !== '<>') ? e.text : fmtd(gm.len);
       const px = Math.max(9, dimScale() * view.s * 1.15);
       g.font = '600 ' + px + 'px ' + getComputedStyle(document.body).getPropertyValue('--sans');
       g.save(); g.translate(mid[0], mid[1]);
@@ -1066,8 +1216,129 @@ function drawEnt(g, e, xf, hl) {
       g.stroke();
       break;
     }
+    case 'ellipse': {
+      const c = P(e.c);
+      const rot = Math.atan2(e.a[1], e.a[0]), rx = V.len(e.a) * view.s, ry = rx * e.ratio;
+      g.beginPath();
+      g.ellipse(c[0], c[1], rx, ry, -rot, 0, 2 * Math.PI);
+      g.stroke();
+      break;
+    }
+    case 'image': {
+      const bl = P(e.p), tr = P([e.p[0] + e.w, e.p[1] + e.h]);
+      const x = Math.min(bl[0], tr[0]), y = Math.min(bl[1], tr[1]);
+      const w = Math.abs(tr[0] - bl[0]), h2 = Math.abs(tr[1] - bl[1]);
+      const img = getImg(e);
+      g.setLineDash([]);
+      if (img && img.complete && img.naturalWidth && !wire) {
+        try { g.drawImage(img, x, y, w, h2); } catch (err) {}
+      } else {
+        g.strokeRect(x, y, w, h2);
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + w, y + h2); g.moveTo(x + w, y); g.lineTo(x, y + h2); g.stroke();
+      }
+      if (hl) { g.setLineDash([7, 4]); g.strokeRect(x, y, w, h2); }
+      break;
+    }
+    case 'audio': {
+      const p = P(e.p);
+      g.setLineDash([]);
+      g.fillStyle = hl ? '#22d3ee' : '#f59e0b';
+      g.strokeStyle = g.fillStyle;
+      // marker speaker (ukuran layar tetap)
+      g.beginPath(); g.arc(p[0], p[1], 11, 0, 2 * Math.PI);
+      g.globalAlpha = .18; g.fill(); g.globalAlpha = 1; g.stroke();
+      g.beginPath();
+      g.moveTo(p[0] - 5, p[1] - 2.5); g.lineTo(p[0] - 2, p[1] - 2.5); g.lineTo(p[0] + 1.5, p[1] - 5.5);
+      g.lineTo(p[0] + 1.5, p[1] + 5.5); g.lineTo(p[0] - 2, p[1] + 2.5); g.lineTo(p[0] - 5, p[1] + 2.5);
+      g.closePath(); g.fill();
+      g.beginPath(); g.arc(p[0] + 3.4, p[1], 4.4, -0.9, 0.9); g.stroke();
+      break;
+    }
+    case 'dimang': {
+      g.setLineDash([]);
+      const c = P(e.p), rr = e.r * view.s;
+      const ccw = e.ccw !== false;
+      g.beginPath(); g.arc(c[0], c[1], rr, -e.a1, -e.a2, ccw); g.stroke();
+      const t1 = [e.p[0] + e.r * Math.cos(e.a1), e.p[1] + e.r * Math.sin(e.a1)];
+      const t2 = [e.p[0] + e.r * Math.cos(e.a2), e.p[1] + e.r * Math.sin(e.a2)];
+      // garis kaki dari vertex ke busur
+      g.globalAlpha = .55;
+      g.beginPath(); g.moveTo(c[0], c[1]);
+      const s1 = P(t1); g.lineTo(s1[0], s1[1]);
+      g.moveTo(c[0], c[1]);
+      const s2 = P(t2); g.lineTo(s2[0], s2[1]); g.stroke();
+      g.globalAlpha = 1;
+      drawArrow(g, s1, P(V.rot(t1, e.p, ccw ? 0.12 : -0.12)));
+      drawArrow(g, s2, P(V.rot(t2, e.p, ccw ? -0.12 : 0.12)));
+      let sweep = e.a2 - e.a1;
+      if (ccw) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+      const am = e.a1 + sweep / 2;
+      const tp = P([e.p[0] + (e.r + dimScale() * 1.6) * Math.cos(am), e.p[1] + (e.r + dimScale() * 1.6) * Math.sin(am)]);
+      const px = Math.max(9, dimScale() * view.s * 1.15);
+      g.font = '600 ' + px + 'px ' + getComputedStyle(document.body).getPropertyValue('--sans');
+      const txt = fmt(Math.abs(deg(sweep))) + '°';
+      g.fillText(txt, tp[0] - g.measureText(txt).width / 2, tp[1] + px * 0.35);
+      break;
+    }
+    case 'dimrad': {
+      g.setLineDash([]);
+      const dir = V.norm(V.sub(e.pos, e.c));
+      if (!isFinite(dir[0])) break;
+      const tip = V.add(e.c, V.mul(dir, e.r));
+      const sp = P(e.pos), st = P(tip);
+      g.beginPath(); g.moveTo(sp[0], sp[1]); g.lineTo(st[0], st[1]);
+      if (e.dia) { const t2 = P(V.sub(e.c, V.mul(dir, e.r))); g.moveTo(st[0], st[1]); g.lineTo(t2[0], t2[1]); drawArrow(g, t2, st); }
+      g.stroke();
+      drawArrow(g, st, sp);
+      const px = Math.max(9, dimScale() * view.s * 1.15);
+      g.font = '600 ' + px + 'px ' + getComputedStyle(document.body).getPropertyValue('--sans');
+      const txt = (e.dia ? '⌀' + fmtd(2 * e.r) : 'R' + fmtd(e.r));
+      const left = e.pos[0] >= e.c[0];
+      g.fillText(txt, left ? sp[0] + 4 : sp[0] - g.measureText(txt).width - 4, sp[1] - 4);
+      break;
+    }
+    case 'dimarc': {
+      g.setLineDash([]);
+      const c = P(e.c), ccw = e.ccw !== false;
+      g.beginPath(); g.arc(c[0], c[1], e.roff * view.s, -e.a1, -e.a2, ccw); g.stroke();
+      // garis ekstensi dari busur asli ke busur dimensi
+      for (const aa of [e.a1, e.a2]) {
+        const q1 = P([e.c[0] + e.r * Math.cos(aa), e.c[1] + e.r * Math.sin(aa)]);
+        const q2 = P([e.c[0] + e.roff * Math.cos(aa), e.c[1] + e.roff * Math.sin(aa)]);
+        g.globalAlpha = .55;
+        g.beginPath(); g.moveTo(q1[0], q1[1]); g.lineTo(q2[0], q2[1]); g.stroke();
+        g.globalAlpha = 1;
+      }
+      const t1 = [e.c[0] + e.roff * Math.cos(e.a1), e.c[1] + e.roff * Math.sin(e.a1)];
+      const t2 = [e.c[0] + e.roff * Math.cos(e.a2), e.c[1] + e.roff * Math.sin(e.a2)];
+      drawArrow(g, P(t1), P(V.rot(t1, e.c, ccw ? 0.1 : -0.1)));
+      drawArrow(g, P(t2), P(V.rot(t2, e.c, ccw ? -0.1 : 0.1)));
+      let sweep = e.a2 - e.a1;
+      if (ccw) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+      const arcLen = Math.abs(sweep) * e.r;
+      const am = e.a1 + sweep / 2;
+      const tp = P([e.c[0] + (e.roff + dimScale() * 1.6) * Math.cos(am), e.c[1] + (e.roff + dimScale() * 1.6) * Math.sin(am)]);
+      const px = Math.max(9, dimScale() * view.s * 1.15);
+      g.font = '600 ' + px + 'px ' + getComputedStyle(document.body).getPropertyValue('--sans');
+      const txt = '⌒ ' + fmtd(arcLen);
+      g.fillText(txt, tp[0] - g.measureText(txt).width / 2, tp[1] + px * 0.35);
+      break;
+    }
   }
   g.restore();
+}
+/* cache gambar utk entitas image */
+const IMGCACHE = new Map();
+function getImg(e) {
+  if (!e.src) return null;
+  let img = IMGCACHE.get(e.id);
+  if (!img) {
+    img = new Image();
+    img.onload = () => redraw();
+    img.src = e.src;
+    IMGCACHE.set(e.id, img);
+  }
+  return img;
 }
 function drawArrow(g, tip, from) {
   const a = Math.atan2(from[1] - tip[1], from[0] - tip[0]);
@@ -1088,7 +1359,8 @@ function drawingBBox() {
   return bb;
 }
 function zoomExtents() {
-  const bb = drawingBBox();
+  let bb = drawingBBox();
+  if (!bb && D.cspace !== 'Model') bb = [0, 0, D.paper.w, D.paper.h];
   if (!bb) { view.x = -10; view.y = -10; view.s = 30; redraw(); return; }
   const w = Math.max(bb[2] - bb[0], 1e-6), h = Math.max(bb[3] - bb[1], 1e-6);
   view.s = Math.min(CW / w, CH / h) * 0.85;
@@ -1182,7 +1454,19 @@ function collectSnapPts(e, rawW, apW, cand, near) {
       break;
     }
     case 'point': push(e.p, 'NOD', 1); break;
-    case 'text': case 'insert': push(e.p, 'NOD', 4); break;
+    case 'text': case 'insert': case 'audio': push(e.p, 'NOD', 4); break;
+    case 'ellipse': {
+      push(e.c, 'CEN', 2);
+      const per = V.mul(V.perp(V.norm(e.a)), V.len(e.a) * e.ratio);
+      for (const q of [V.add(e.c, e.a), V.sub(e.c, e.a), V.add(e.c, per), V.sub(e.c, per)]) push(q, 'QUA', 3);
+      for (const s of entSegs(e)) if (distPtSeg(rawW, s[0], s[1]) < apW * 3) near.push({ kind: 'seg', a: s[0], b: s[1] });
+      break;
+    }
+    case 'image': {
+      push(e.p, 'END', 3); push([e.p[0]+e.w, e.p[1]+e.h], 'END', 3);
+      push([e.p[0]+e.w, e.p[1]], 'END', 3); push([e.p[0], e.p[1]+e.h], 'END', 3);
+      break;
+    }
   }
 }
 
@@ -1273,6 +1557,12 @@ cv.addEventListener('pointerdown', ev => {
   const wpRaw = S2W(sx, sy);
   downInfo = { sx, sy, wpRaw, moved: false, t: Date.now() };
 
+  // tool freehand (SKETCH/SMARTPEN): mulai goresan
+  if (tool && tool.freehand) {
+    dragState = { mode: 'sketch', pts: [wpRaw] };
+    return;
+  }
+
   // grip drag?
   if (!tool && sel.size === 1) {
     const e = entById([...sel][0]);
@@ -1319,6 +1609,13 @@ cv.addEventListener('pointermove', ev => {
   cursorW = applyConstraints(snapHit ? snapHit.p : cursorRaw);
   updateCoordHUD();
 
+  if (dragState && dragState.mode === 'sketch') {
+    downInfo && (downInfo.moved = true);
+    const last = dragState.pts[dragState.pts.length - 1];
+    if (V.dist(cursorRaw, last) > 2.5 / view.s) dragState.pts.push(cursorRaw.slice());
+    redraw();
+    return;
+  }
   if (dragState && dragState.mode === 'grip') {
     downInfo && (downInfo.moved = true);
     applyGrip(dragState.ent, dragState.k, snapHit ? snapHit.p : cursorRaw);
@@ -1344,6 +1641,13 @@ function finishPointer(ev) {
   if (pointers.size < 2) pinchState = null;
   if (panState) { panState = null; return; }
 
+  if (dragState && dragState.mode === 'sketch') {
+    const pts = dragState.pts;
+    dragState = null; downInfo = null;
+    if (tool && tool.onStroke && pts.length > 1) tool.onStroke(pts);
+    redraw();
+    return;
+  }
   if (dragState && dragState.mode === 'grip') {
     undoStack.push(dragState.before);
     if (undoStack.length > UNDO_CAP) undoStack.shift();
@@ -1746,7 +2050,7 @@ reg('STAMP', 'Stempel APPROVED / FOR REVIEW', () => {
 /* =====================================================================
    DIMENSION
    ===================================================================== */
-reg('DIM,DIMALIGNED,DAL,DIMLINEAR,DLI', 'Dimensi aligned (2 titik + offset)', () => {
+reg('DIM,DIMALIGNED,DAL', 'Dimensi aligned (2 titik + offset)', () => {
   const pts = [];
   setTool({
     name: 'DIM', hint: 'Klik titik pertama',
@@ -2036,7 +2340,7 @@ function explodeEnt(e) {
       { ...base, type: 'line', a: g.e1a, b: g.e1b },
       { ...base, type: 'line', a: g.e2a, b: g.e2b },
       { ...base, type: 'line', a: g.d1, b: g.d2 },
-      { ...base, type: 'text', p: g.mid.slice(), text: fmt(g.len), h: dimScale() * 1.2, rot: g.rot },
+      { ...base, type: 'text', p: g.mid.slice(), text: fmtd(g.len), h: dimScale() * 1.2, rot: g.rot },
     ];
   }
   if (e.type === 'leader') {
@@ -2047,6 +2351,33 @@ function explodeEnt(e) {
   }
   if (e.type === 'hatch' || e.type === 'solid' || e.type === 'cloud') {
     return [{ ...base, type: 'poly', pts: e.pts.map(p => p.slice()), closed: true }];
+  }
+  if (e.type === 'ellipse') return [{ ...base, type: 'poly', pts: ellipsePts(e, 48), closed: true }];
+  if (e.type === 'dimang') {
+    let sweep = e.a2 - e.a1;
+    if (e.ccw !== false) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+    const am = e.a1 + sweep / 2;
+    return [
+      { ...base, type: 'arc', c: e.p.slice(), r: e.r, a1: e.a1, a2: e.a2, ccw: e.ccw !== false },
+      { ...base, type: 'text', p: [e.p[0] + e.r * 1.15 * Math.cos(am), e.p[1] + e.r * 1.15 * Math.sin(am)], text: fmt(Math.abs(deg(sweep))) + ' deg', h: dimScale() * 1.2, rot: 0 },
+    ];
+  }
+  if (e.type === 'dimrad') {
+    const dir = V.norm(V.sub(e.pos, e.c));
+    const tip = V.add(e.c, V.mul(dir, e.r));
+    return [
+      { ...base, type: 'line', a: e.pos.slice(), b: tip },
+      { ...base, type: 'text', p: e.pos.slice(), text: (e.dia ? 'D ' + fmtd(2 * e.r) : 'R ' + fmtd(e.r)), h: dimScale() * 1.2, rot: 0 },
+    ];
+  }
+  if (e.type === 'dimarc') {
+    let sweep = e.a2 - e.a1;
+    if (e.ccw !== false) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+    const am = e.a1 + sweep / 2;
+    return [
+      { ...base, type: 'arc', c: e.c.slice(), r: e.roff, a1: e.a1, a2: e.a2, ccw: e.ccw !== false },
+      { ...base, type: 'text', p: [e.c[0] + e.roff * 1.1 * Math.cos(am), e.c[1] + e.roff * 1.1 * Math.sin(am)], text: fmtd(Math.abs(sweep) * e.r), h: dimScale() * 1.2, rot: 0 },
+    ];
   }
   return null;
 }
@@ -2067,8 +2398,9 @@ reg('DIST,DI', 'Ukur jarak 2 titik', () => {
     onPoint(p) {
       if (!p1) { p1 = p.slice(); this.hint = 'Klik titik kedua'; updToolHint(); return; }
       const d = V.dist(p1, p), dx = p[0]-p1[0], dy = p[1]-p1[1];
-      const msg = 'Jarak = ' + fmt(d) + ' ' + D.units + ' · ΔX = ' + fmt(dx) + ' · ΔY = ' + fmt(dy) + ' · Azimut = ' + fmt((90 - deg(Math.atan2(dy, dx)) + 360) % 360) + '°';
-      logLine(msg, 'l-ok'); showMeasure(msg); toast('Jarak: ' + fmt(d) + ' ' + D.units);
+      const msg = 'Jarak = ' + fmtd(d) + ' ' + D.units + ' · ΔX = ' + fmtd(dx) + ' · ΔY = ' + fmtd(dy) + ' · Azimut = ' + fmt((90 - deg(Math.atan2(dy, dx)) + 360) % 360) + '°';
+      logLine(msg, 'l-ok'); showMeasure(msg); toast('Jarak: ' + fmtd(d) + ' ' + D.units);
+      pushResult('Jarak', msg);
       p1 = null; this.hint = 'Klik titik pertama (Enter selesai)'; updToolHint();
     },
     preview(g, cur) {
@@ -2093,8 +2425,9 @@ reg('AREA,AA', 'Ukur luas dari titik-titik (Enter tutup) atau pilih objek', () =
           let A, L;
           if (hit.type === 'circle') { A = Math.PI * hit.r * hit.r; L = 2 * Math.PI * hit.r; }
           else { A = Math.abs(polyArea(hit.pts)); L = polyLen(hit.pts, true); }
-          const msg = 'Luas = ' + fmt(A) + ' ' + D.units + '² · Keliling = ' + fmt(L) + ' ' + D.units;
+          const msg = 'Luas = ' + fmtA(A) + ' ' + D.units + '² · Keliling = ' + fmtd(L) + ' ' + D.units;
           logLine(msg, 'l-ok'); showMeasure(msg); toast(msg, 3500);
+          pushResult('Luas', msg);
           endTool(); return;
         }
       }
@@ -2111,8 +2444,9 @@ reg('AREA,AA', 'Ukur luas dari titik-titik (Enter tutup) atau pilih objek', () =
     onEnter() {
       if (pts.length >= 3) {
         const A = Math.abs(polyArea(pts)), L = polyLen(pts, true);
-        const msg = 'Luas = ' + fmt(A) + ' ' + D.units + '² · Keliling = ' + fmt(L) + ' ' + D.units;
+        const msg = 'Luas = ' + fmtA(A) + ' ' + D.units + '² · Keliling = ' + fmtd(L) + ' ' + D.units;
         logLine(msg, 'l-ok'); toast(msg, 4000); showMeasure(msg);
+        pushResult('Luas', msg);
       }
       endTool();
     },
@@ -2133,6 +2467,7 @@ reg('ANGLE,AN', 'Ukur sudut 3 titik (vertex di tengah)', () => {
         let dth = Math.abs(deg(a2 - a1)) % 360; if (dth > 180) dth = 360 - dth;
         const msg = 'Sudut = ' + fmt(dth) + '° (' + dmsStr(dth) + ')';
         logLine(msg, 'l-ok'); toast(msg, 3500); showMeasure(msg);
+        pushResult('Sudut', msg);
         endTool();
       }
     },
@@ -2197,6 +2532,992 @@ reg('CRS,EPSG', 'Set kode EPSG drawing (GIS)', (arg) => {
     toast('CRS diset' + (D.crs ? ': EPSG:' + D.crs : ''));
   });
 });
+
+/* =====================================================================
+   DRAW LANJUTAN — ELLIPSE, SPLINE, SKETCH, SMART PEN, DIVIDE
+   ===================================================================== */
+reg('ELLIPSE,EL', 'Elips: pusat, ujung sumbu, rasio', () => {
+  let c = null, ax = null;
+  setTool({
+    name: 'ELLIPSE', hint: 'Klik titik pusat elips',
+    onPoint(p) {
+      if (!c) { c = p.slice(); this.hint = 'Klik ujung sumbu panjang'; updToolHint(); return; }
+      if (!ax) {
+        ax = V.sub(p, c);
+        if (V.len(ax) < 1e-9) { ax = null; return; }
+        this.hint = 'Klik lebar sumbu pendek (atau ketik rasio 0–1)'; updToolHint(); return;
+      }
+      const ratio = clamp(V.dist(p, c) / V.len(ax), 0.01, 1);
+      pushUndo(); addEnt({ type: 'ellipse', c, a: ax, ratio }); endTool();
+    },
+    onNumber(n) {
+      if (c && ax && n > 0) { pushUndo(); addEnt({ type: 'ellipse', c, a: ax, ratio: clamp(n, 0.01, 1) }); endTool(); }
+    },
+    preview(g, cur) {
+      if (!c) return;
+      const s = W2S(c);
+      if (!ax) { const b = W2S(cur); g.beginPath(); g.moveTo(s[0], s[1]); g.lineTo(b[0], b[1]); g.stroke(); return; }
+      const rot = Math.atan2(ax[1], ax[0]);
+      const rx = V.len(ax) * view.s;
+      const ry = clamp(V.dist(cur, c) / V.len(ax), 0.01, 1) * rx;
+      g.beginPath(); g.ellipse(s[0], s[1], rx, ry, -rot, 0, 2 * Math.PI); g.stroke();
+    },
+    lastPt() { return c; },
+  });
+});
+
+reg('SPLINE,SPL', 'Kurva halus melalui titik-titik', () => {
+  const pts = [];
+  setTool({
+    name: 'SPLINE', hint: 'Klik titik-titik kurva (Enter selesai)',
+    onPoint(p) { pts.push(p.slice()); },
+    preview(g, cur) {
+      const tmp = pts.concat([cur]);
+      if (tmp.length < 2) return;
+      let sm = tmp; for (let i = 0; i < 2; i++) sm = chaikin(sm, false);
+      g.beginPath();
+      sm.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      g.stroke();
+    },
+    onEnter() {
+      if (pts.length >= 3) {
+        let sm = pts; for (let i = 0; i < 3; i++) sm = chaikin(sm, false);
+        pushUndo(); addEnt({ type: 'poly', pts: sm, closed: false });
+      } else if (pts.length === 2) { pushUndo(); addEnt({ type: 'line', a: pts[0], b: pts[1] }); }
+      endTool();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+/* Douglas-Peucker utk penyederhanaan goresan */
+function simplifyDP(pts, eps) {
+  if (pts.length < 3) return pts.slice();
+  let dmax = 0, idx = 0;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const d = distPtSeg(pts[i], pts[0], pts[pts.length - 1]);
+    if (d > dmax) { dmax = d; idx = i; }
+  }
+  if (dmax <= eps) return [pts[0], pts[pts.length - 1]];
+  const l = simplifyDP(pts.slice(0, idx + 1), eps);
+  const r = simplifyDP(pts.slice(idx), eps);
+  return l.slice(0, -1).concat(r);
+}
+
+reg('SKETCH,SK', 'Coretan bebas (freehand)', () => {
+  setTool({
+    name: 'SKETCH', freehand: true, hint: 'Gores dengan jari/mouse (Esc selesai)',
+    onStroke(pts) {
+      const simp = simplifyDP(pts, 1.2 / view.s);
+      if (simp.length < 2) return;
+      pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+      addEnt({ type: 'poly', pts: simp, closed: false, layer: 'MARKUP' });
+    },
+    lastPt: () => null,
+  });
+});
+
+reg('SMARTPEN,SP', 'Smart Pen: goresan dikenali jadi bentuk', () => {
+  setTool({
+    name: 'SMARTPEN', freehand: true, hint: 'Gores bentuk: garis/lingkaran/persegi (Esc selesai)',
+    onStroke(pts) {
+      const e = recognizeStroke(pts);
+      if (!e) return;
+      pushUndo(); addEnt(e);
+      logLine('Smart Pen: ' + e.type.toUpperCase(), 'l-ok');
+    },
+    lastPt: () => null,
+  });
+});
+function recognizeStroke(pts) {
+  if (pts.length < 2) return null;
+  const start = pts[0], end = pts[pts.length - 1];
+  const chord = V.dist(start, end);
+  const total = polyLen(pts, false);
+  if (total < 1e-9) return null;
+  const bb = bboxOfPts(pts);
+  const size = Math.max(bb[2] - bb[0], bb[3] - bb[1]);
+  const closed = chord < size * 0.25;
+  // garis: hampir lurus
+  let maxDev = 0;
+  for (const p of pts) maxDev = Math.max(maxDev, distPtSeg(p, start, end));
+  if (!closed && maxDev < size * 0.06) return { type: 'line', a: start.slice(), b: end.slice() };
+  if (closed) {
+    // lingkaran: jarak ke centroid seragam
+    const c = [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+    const rs = pts.map(p => V.dist(p, c));
+    const rm = rs.reduce((a, b) => a + b, 0) / rs.length;
+    const dev = Math.sqrt(rs.reduce((s, r) => s + (r - rm) ** 2, 0) / rs.length);
+    if (dev < rm * 0.14) return { type: 'circle', c, r: rm };
+    // persegi: simplifikasi jadi ±4 sudut siku
+    const simp = simplifyDP(pts.concat([pts[0]]), size * 0.05);
+    if (simp.length >= 4 && simp.length <= 6) {
+      return { type: 'poly', pts: [[bb[0],bb[1]],[bb[2],bb[1]],[bb[2],bb[3]],[bb[0],bb[3]]], closed: true };
+    }
+    return { type: 'poly', pts: simplifyDP(pts, size * 0.02), closed: true };
+  }
+  let sm = simplifyDP(pts, size * 0.015);
+  return { type: 'poly', pts: sm, closed: false };
+}
+
+reg('DIVIDE,DIV', 'Bagi objek jadi N segmen (titik node)', () => {
+  setTool({
+    name: 'DIVIDE', hint: 'Klik objek yang akan dibagi',
+    onPoint() {
+      const hit = pickAt(cursorRaw.slice());
+      if (!hit) { toast('Tidak ada objek'); return; }
+      if (!['line', 'poly', 'circle', 'arc', 'ellipse'].includes(hit.type)) { toast('DIVIDE: line/poly/circle/arc/ellipse'); return; }
+      openModal('Divide', [
+        { k: 'n', label: 'Jumlah segmen (N)', type: 'number', v: 4 },
+      ], vals => {
+        const N = clamp(parseInt(vals.n) || 2, 2, 500);
+        const out = dividePts(hit, N);
+        if (!out.length) return;
+        pushUndo();
+        for (const p of out) addEnt({ type: 'point', p, layer: hit.layer });
+        toast(out.length + ' titik dibuat'); redraw();
+      });
+      endTool();
+    },
+    lastPt: () => null,
+  });
+});
+function dividePts(e, N) {
+  const out = [];
+  if (e.type === 'line') { for (let i = 1; i < N; i++) out.push(V.add(e.a, V.mul(V.sub(e.b, e.a), i / N))); return out; }
+  if (e.type === 'circle') { for (let i = 0; i < N; i++) { const a = 2 * Math.PI * i / N; out.push([e.c[0] + e.r * Math.cos(a), e.c[1] + e.r * Math.sin(a)]); } return out; }
+  if (e.type === 'arc') {
+    let sweep = e.a2 - e.a1;
+    const ccw = e.ccw !== false;
+    if (ccw) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+    for (let i = 1; i < N; i++) { const a = e.a1 + sweep * i / N; out.push([e.c[0] + e.r * Math.cos(a), e.c[1] + e.r * Math.sin(a)]); }
+    return out;
+  }
+  // poly / ellipse: sepanjang keliling
+  const pts = e.type === 'ellipse' ? ellipsePts(e, 96).concat([ellipsePts(e, 96)[0]]) : (e.closed ? e.pts.concat([e.pts[0]]) : e.pts);
+  const total = polyLen(pts, false);
+  let target = total / N, acc = 0, ti = 1;
+  for (let i = 0; i < pts.length - 1 && ti < N; i++) {
+    const L = V.dist(pts[i], pts[i + 1]);
+    while (acc + L >= target * ti - 1e-9 && ti < N) {
+      const t = (target * ti - acc) / L;
+      out.push(V.add(pts[i], V.mul(V.sub(pts[i + 1], pts[i]), t)));
+      ti++;
+    }
+    acc += L;
+  }
+  return out;
+}
+
+/* =====================================================================
+   EDITING LANJUTAN — TRIM, EXTEND, FILLET, CHAMFER
+   ===================================================================== */
+function cloneBase(e) { return { layer: e.layer, color: e.color, lt: e.lt, lw: e.lw }; }
+/* primitif utk perhitungan perpotongan antar entitas */
+function entPrims(e) {
+  if (e.type === 'circle') return [{ kind: 'cir', c: e.c, r: e.r }];
+  if (e.type === 'arc') return [{ kind: 'cir', c: e.c, r: e.r, a1: e.a1, a2: e.a2, ccw: e.ccw !== false, arc: true }];
+  return entSegs(e).map(s => ({ kind: 'seg', a: s[0], b: s[1] }));
+}
+function onArcPrim(q, pr) {
+  if (!pr.arc) return true;
+  return angleInArc(Math.atan2(q[1] - pr.c[1], q[0] - pr.c[0]), { a1: pr.a1, a2: pr.a2, ccw: pr.ccw });
+}
+function primInts(p1, p2) {
+  if (p1.kind === 'seg' && p2.kind === 'seg') { const ip = segInt(p1.a, p1.b, p2.a, p2.b); return ip ? [ip] : []; }
+  if (p1.kind === 'seg') return segCircleInt(p1.a, p1.b, p2.c, p2.r).filter(q => onArcPrim(q, p2));
+  if (p2.kind === 'seg') return primInts(p2, p1);
+  return circleCircleInt(p1.c, p1.r, p2.c, p2.r).filter(q => onArcPrim(q, p1) && onArcPrim(q, p2));
+}
+function entIntersections(target, boundary) {
+  const out = [];
+  for (const pa of entPrims(target)) for (const pb of entPrims(boundary)) out.push(...primInts(pa, pb));
+  return out;
+}
+function normAng(a) { while (a < 0) a += 2 * Math.PI; while (a >= 2 * Math.PI) a -= 2 * Math.PI; return a; }
+
+/* rantai polyline: param sepanjang keliling utk trim */
+function polyChain(e) {
+  const pts = e.closed ? e.pts.concat([e.pts[0]]) : e.pts;
+  const cum = [0];
+  for (let i = 0; i < pts.length - 1; i++) cum.push(cum[i] + V.dist(pts[i], pts[i + 1]));
+  return { pts, cum, total: cum[cum.length - 1], closed: !!e.closed };
+}
+function chainParamOf(ch, q) {
+  let best = 1e18, bs = 0;
+  for (let i = 0; i < ch.pts.length - 1; i++) {
+    const d = distPtSeg(q, ch.pts[i], ch.pts[i + 1]);
+    if (d < best) {
+      best = d;
+      const pr = projPtSeg(q, ch.pts[i], ch.pts[i + 1]);
+      bs = ch.cum[i] + V.dist(ch.pts[i], pr);
+    }
+  }
+  return bs;
+}
+function chainSub(ch, s1, s2) {
+  // sub-rantai maju dari s1 ke s2 (bisa wrap jika closed)
+  if (s2 < s1) s2 += ch.total;
+  const out = [];
+  const at = s => {
+    let ss = s % ch.total; if (ss < 0) ss += ch.total;
+    for (let i = 0; i < ch.pts.length - 1; i++) {
+      if (ss <= ch.cum[i + 1] + 1e-9) {
+        const L = ch.cum[i + 1] - ch.cum[i] || 1e-12;
+        return V.add(ch.pts[i], V.mul(V.sub(ch.pts[i + 1], ch.pts[i]), (ss - ch.cum[i]) / L));
+      }
+    }
+    return ch.pts[ch.pts.length - 1].slice();
+  };
+  out.push(at(s1));
+  for (let k = 0; k < 2; k++) {   // maksimum 2 putaran
+    for (let i = 0; i < ch.pts.length; i++) {
+      const s = ch.cum[i] + k * ch.total;
+      if (s > s1 + 1e-9 && s < s2 - 1e-9) out.push(ch.pts[i].slice());
+    }
+    if (s2 <= (k + 1) * ch.total) break;
+  }
+  out.push(at(s2));
+  return out;
+}
+
+reg('TRIM,TR', 'Potong objek pada batas (pilih batas, lalu klik bagian dibuang)', () => {
+  let boundary = null;
+  setTool({
+    name: 'TRIM', hint: 'Klik objek batas (cutting edge)',
+    onPoint() {
+      const hit = pickAt(cursorRaw.slice());
+      if (!hit) { toast('Tidak ada objek'); return; }
+      if (!boundary) { boundary = hit; this.hint = 'Klik bagian objek yang DIBUANG (Enter selesai)'; updToolHint(); sel.clear(); sel.add(hit.id); redraw(); return; }
+      if (hit.id === boundary.id) { toast('Itu objek batas'); return; }
+      const cuts = entIntersections(hit, boundary);
+      if (!cuts.length) { toast('Tidak berpotongan dengan batas'); return; }
+      const parts = trimEntity(hit, cuts, cursorRaw.slice());
+      if (parts == null) { toast('TRIM tidak didukung untuk tipe ini'); return; }
+      pushUndo();
+      removeEnts([hit.id]);
+      for (const p of parts) { p.id = uid(); D.entities.push(p); }
+      logLine('TRIM ok', 'l-ok'); redraw();
+    },
+    onEnter() { sel.clear(); endTool(); },
+    lastPt: () => null,
+  });
+});
+function trimEntity(e, cuts, clickW) {
+  if (e.type === 'line') {
+    const dirv = V.sub(e.b, e.a), L2 = V.dot(dirv, dirv);
+    if (L2 < 1e-18) return null;
+    const tOf = p => V.dot(V.sub(p, e.a), dirv) / L2;
+    const ts = cuts.map(tOf).filter(t => t > 1e-6 && t < 1 - 1e-6).sort((x, y) => x - y);
+    if (!ts.length) return [];
+    const tc = clamp(tOf(clickW), 0, 1);
+    let lo = 0, hi = 1;
+    for (const t of ts) { if (t <= tc) lo = Math.max(lo, t); else hi = Math.min(hi, t); }
+    const parts = [];
+    if (lo > 1e-6) parts.push({ ...cloneBase(e), type: 'line', a: e.a.slice(), b: V.add(e.a, V.mul(dirv, lo)) });
+    if (hi < 1 - 1e-6) parts.push({ ...cloneBase(e), type: 'line', a: V.add(e.a, V.mul(dirv, hi)), b: e.b.slice() });
+    return parts;
+  }
+  if (e.type === 'circle') {
+    const angs = [...new Set(cuts.map(q => normAng(Math.atan2(q[1] - e.c[1], q[0] - e.c[0])).toFixed(9)))].map(Number).sort((x, y) => x - y);
+    if (angs.length < 2) return [];
+    const ac = normAng(Math.atan2(clickW[1] - e.c[1], clickW[0] - e.c[0]));
+    let i = 0; while (i < angs.length && angs[i] <= ac) i++;
+    const aNext = angs[i % angs.length], aPrev = angs[(i - 1 + angs.length) % angs.length];
+    return [{ ...cloneBase(e), type: 'arc', c: e.c.slice(), r: e.r, a1: aNext, a2: aPrev, ccw: true }];
+  }
+  if (e.type === 'arc') {
+    const ccw = e.ccw !== false;
+    let sweep = e.a2 - e.a1;
+    if (ccw) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+    const relOf = q => {
+      let rel = Math.atan2(q[1] - e.c[1], q[0] - e.c[0]) - e.a1;
+      if (ccw) { while (rel < 0) rel += 2 * Math.PI; } else { while (rel > 0) rel -= 2 * Math.PI; }
+      return rel / sweep;   // 0..1 sepanjang busur
+    };
+    const ts = cuts.map(relOf).filter(t => t > 1e-6 && t < 1 - 1e-6).sort((x, y) => x - y);
+    if (!ts.length) return [];
+    const tc = clamp(relOf(clickW), 0, 1);
+    let lo = 0, hi = 1;
+    for (const t of ts) { if (t <= tc) lo = Math.max(lo, t); else hi = Math.min(hi, t); }
+    const parts = [];
+    if (lo > 1e-6) parts.push({ ...cloneBase(e), type: 'arc', c: e.c.slice(), r: e.r, a1: e.a1, a2: e.a1 + sweep * lo, ccw });
+    if (hi < 1 - 1e-6) parts.push({ ...cloneBase(e), type: 'arc', c: e.c.slice(), r: e.r, a1: e.a1 + sweep * hi, a2: e.a2, ccw });
+    return parts;
+  }
+  if (e.type === 'poly') {
+    const ch = polyChain(e);
+    const ss = [...new Set(cuts.map(q => chainParamOf(ch, q).toFixed(7)))].map(Number)
+      .filter(s => s > 1e-6 && s < ch.total - 1e-6).sort((x, y) => x - y);
+    if (!ss.length) return [];
+    const sc = chainParamOf(ch, clickW);
+    const parts = [];
+    if (ch.closed) {
+      if (ss.length < 2) return [];
+      let lo = -1, hi = -1;
+      for (const s of ss) { if (s <= sc) lo = s; }
+      for (let i = ss.length - 1; i >= 0; i--) { if (ss[i] > sc) hi = ss[i]; }
+      if (lo < 0) lo = ss[ss.length - 1] - ch.total;      // wrap
+      if (hi < 0) hi = ss[0] + ch.total;
+      const keep = chainSub(ch, hi % ch.total, (lo + ch.total) % ch.total);
+      if (keep.length >= 2) parts.push({ ...cloneBase(e), type: 'poly', pts: keep, closed: false });
+      return parts;
+    }
+    let lo = 0, hi = ch.total;
+    for (const s of ss) { if (s <= sc) lo = Math.max(lo, s); else hi = Math.min(hi, s); }
+    if (lo > 1e-6) { const p1 = chainSub(ch, 0, lo); if (p1.length >= 2) parts.push({ ...cloneBase(e), type: 'poly', pts: p1, closed: false }); }
+    if (hi < ch.total - 1e-6) { const p2 = chainSub(ch, hi, ch.total); if (p2.length >= 2) parts.push({ ...cloneBase(e), type: 'poly', pts: p2, closed: false }); }
+    return parts;
+  }
+  return null;
+}
+
+reg('EXTEND,EX', 'Perpanjang garis sampai batas', () => {
+  let boundary = null;
+  setTool({
+    name: 'EXTEND', hint: 'Klik objek batas (boundary edge)',
+    onPoint() {
+      const hit = pickAt(cursorRaw.slice());
+      if (!hit) { toast('Tidak ada objek'); return; }
+      if (!boundary) { boundary = hit; this.hint = 'Klik ujung garis yang diperpanjang (Enter selesai)'; updToolHint(); sel.clear(); sel.add(hit.id); redraw(); return; }
+      if (hit.id === boundary.id) { toast('Itu objek batas'); return; }
+      if (!extendEntity(hit, boundary, cursorRaw.slice())) toast('Tidak menemukan perpotongan dgn batas');
+      else { logLine('EXTEND ok', 'l-ok'); redraw(); }
+    },
+    onEnter() { sel.clear(); endTool(); },
+    lastPt: () => null,
+  });
+});
+function extendEntity(e, boundary, clickW) {
+  // dukungan: line & polyline (segmen ujung); busur: arc
+  function rayHit(base, tip) {
+    // titik potong garis tak-hingga (base->tip) dgn boundary, di depan tip
+    const dirv = V.sub(tip, base), L = V.len(dirv);
+    if (L < 1e-12) return null;
+    const cands = [];
+    for (const pr of entPrims(boundary)) {
+      let pts = [];
+      if (pr.kind === 'seg') {
+        const ip = segInt(base, tip, pr.a, pr.b, false);
+        if (ip) {
+          const d2 = V.sub(pr.b, pr.a), u = V.dot(V.sub(ip, pr.a), d2) / (V.dot(d2, d2) || 1e-12);
+          if (u >= -1e-9 && u <= 1 + 1e-9) pts.push(ip);
+        }
+      } else pts = segCircleInt(base, tip, pr.c, pr.r, false).filter(q => onArcPrim(q, pr));
+      for (const q of pts) {
+        const t = V.dot(V.sub(q, base), dirv) / (L * L);
+        if (t > 1 + 1e-9) cands.push({ q, t });
+      }
+    }
+    if (!cands.length) return null;
+    cands.sort((x, y) => x.t - y.t);
+    return cands[0].q;
+  }
+  if (e.type === 'line') {
+    const nearA = V.dist(clickW, e.a) < V.dist(clickW, e.b);
+    const q = nearA ? rayHit(e.b, e.a) : rayHit(e.a, e.b);
+    if (!q) return false;
+    pushUndo();
+    if (nearA) e.a = q; else e.b = q;
+    return true;
+  }
+  if (e.type === 'poly' && !e.closed && e.pts.length >= 2) {
+    const n = e.pts.length;
+    const nearFirst = V.dist(clickW, e.pts[0]) < V.dist(clickW, e.pts[n - 1]);
+    const q = nearFirst ? rayHit(e.pts[1], e.pts[0]) : rayHit(e.pts[n - 2], e.pts[n - 1]);
+    if (!q) return false;
+    pushUndo();
+    if (nearFirst) e.pts[0] = q; else e.pts[n - 1] = q;
+    return true;
+  }
+  if (e.type === 'arc') {
+    const ints = circlePrimInts(e, boundary);
+    if (!ints.length) return false;
+    const ccw = e.ccw !== false;
+    const nearA1 = angDist(Math.atan2(clickW[1]-e.c[1], clickW[0]-e.c[0]), e.a1) < angDist(Math.atan2(clickW[1]-e.c[1], clickW[0]-e.c[0]), e.a2);
+    // pilih perpotongan terdekat di luar sweep saat ini, searah ujung yang diklik
+    let best = null, bd = 1e18;
+    for (const q of ints) {
+      const a = Math.atan2(q[1] - e.c[1], q[0] - e.c[0]);
+      if (angleInArc(a, e)) continue;
+      const d = nearA1 ? angDist(a, e.a1) : angDist(a, e.a2);
+      if (d < bd) { bd = d; best = a; }
+    }
+    if (best == null) return false;
+    pushUndo();
+    if (nearA1) e.a1 = best; else e.a2 = best;
+    return true;
+  }
+  return false;
+}
+function circlePrimInts(arcEnt, boundary) {
+  const out = [];
+  for (const pr of entPrims(boundary)) {
+    if (pr.kind === 'seg') out.push(...segCircleInt(pr.a, pr.b, arcEnt.c, arcEnt.r));
+    else out.push(...circleCircleInt(arcEnt.c, arcEnt.r, pr.c, pr.r).filter(q => onArcPrim(q, pr)));
+  }
+  return out;
+}
+function angDist(a, b) { let d = Math.abs(normAng(a) - normAng(b)); return Math.min(d, 2 * Math.PI - d); }
+
+reg('FILLET,F', 'Fillet dua garis (angka = radius)', () => startFilletChamfer(false));
+reg('CHAMFER,CHA', 'Chamfer dua garis (angka = jarak)', () => startFilletChamfer(true));
+function startFilletChamfer(isCham) {
+  let r = isCham ? (settings.chamferD || 0) : (settings.filletR || 0);
+  let first = null;
+  setTool({
+    name: isCham ? 'CHAMFER' : 'FILLET',
+    hint: (isCham ? 'Jarak' : 'Radius') + ' = ' + fmt(r) + ' — ketik angka utk ubah, klik garis pertama',
+    onNumber(n) {
+      r = Math.max(0, n);
+      if (isCham) settings.chamferD = r; else settings.filletR = r;
+      this.hint = (isCham ? 'Jarak' : 'Radius') + ' = ' + fmt(r) + ' — klik garis pertama'; updToolHint();
+    },
+    onPoint() {
+      const hit = pickAt(cursorRaw.slice());
+      if (!hit || hit.type !== 'line') { toast('Pilih garis (LINE)'); return; }
+      if (!first) { first = { e: hit, q: cursorRaw.slice() }; sel.clear(); sel.add(hit.id); this.hint = 'Klik garis kedua'; updToolHint(); redraw(); return; }
+      if (hit.id === first.e.id) { toast('Garis harus berbeda'); return; }
+      applyFilletChamfer(first.e, first.q, hit, cursorRaw.slice(), r, isCham);
+      first = null; sel.clear();
+      this.hint = 'Klik garis pertama (Enter selesai)'; updToolHint(); redraw();
+    },
+    onEnter() { sel.clear(); endTool(); },
+    lastPt: () => null,
+  });
+}
+function applyFilletChamfer(e1, q1, e2, q2, r, isCham) {
+  const P = segInt(e1.a, e1.b, e2.a, e2.b, false);
+  if (!P) { toast('Garis sejajar — tidak bisa fillet'); return; }
+  const u1 = V.norm(V.sub(q1, P)), u2 = V.norm(V.sub(q2, P));
+  if (!isFinite(u1[0]) || !isFinite(u2[0])) { toast('Klik terlalu dekat titik potong'); return; }
+  const k1 = V.dot(V.sub(e1.a, P), u1) >= V.dot(V.sub(e1.b, P), u1) ? 'a' : 'b';
+  const k2 = V.dot(V.sub(e2.a, P), u2) >= V.dot(V.sub(e2.b, P), u2) ? 'a' : 'b';
+  const d1 = V.norm(V.sub(e1[k1], P)), d2v = V.norm(V.sub(e2[k2], P));
+  if (r <= 1e-12) {   // sudut tajam
+    pushUndo();
+    if (k1 === 'a') e1.b = P.slice(); else e1.a = P.slice();
+    if (k2 === 'a') e2.b = P.slice(); else e2.a = P.slice();
+    redraw(); return;
+  }
+  if (isCham) {
+    pushUndo();
+    const T1 = V.add(P, V.mul(d1, r)), T2 = V.add(P, V.mul(d2v, r));
+    if (k1 === 'a') e1.b = T1.slice(); else e1.a = T1.slice();
+    if (k2 === 'a') e2.b = T2.slice(); else e2.a = T2.slice();
+    addEnt({ ...cloneBase(e1), type: 'line', a: T1, b: T2 });
+    redraw(); return;
+  }
+  const phi = Math.acos(clamp(V.dot(d1, d2v), -1, 1));
+  if (phi < 1e-6 || Math.PI - phi < 1e-6) { toast('Sudut tidak valid'); return; }
+  pushUndo();
+  const t = r / Math.tan(phi / 2);
+  const T1 = V.add(P, V.mul(d1, t)), T2 = V.add(P, V.mul(d2v, t));
+  const c = V.add(P, V.mul(V.norm(V.add(d1, d2v)), r / Math.sin(phi / 2)));
+  if (k1 === 'a') e1.b = T1.slice(); else e1.a = T1.slice();
+  if (k2 === 'a') e2.b = T2.slice(); else e2.a = T2.slice();
+  const a1 = Math.atan2(T1[1] - c[1], T1[0] - c[0]);
+  const a2 = Math.atan2(T2[1] - c[1], T2[0] - c[0]);
+  const ccw = V.cross(V.sub(T1, c), V.sub(T2, c)) > 0;
+  addEnt({ ...cloneBase(e1), type: 'arc', c, r, a1, a2, ccw });
+  redraw();
+}
+
+/* =====================================================================
+   ANOTASI LANJUTAN — ARROW, MULTILEADER, IMAGE, RECORDING
+   ===================================================================== */
+reg('ARROW,AR', 'Panah penunjuk (markup)', () => {
+  let p1 = null;
+  setTool({
+    name: 'ARROW', hint: 'Klik ujung panah (target)',
+    onPoint(p) {
+      if (!p1) { p1 = p.slice(); this.hint = 'Klik pangkal panah'; updToolHint(); return; }
+      pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+      addEnt({ type: 'leader', layer: 'MARKUP', pts: [p1, p.slice()], text: '', h: suggestTextH() });
+      endTool();
+    },
+    preview(g, cur) {
+      if (!p1) return;
+      const a = W2S(p1), b = W2S(cur);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      drawArrow(g, a, b);
+    },
+    lastPt() { return p1; },
+  });
+});
+
+reg('MLEADER,MLD,MLE', 'Multileader (banyak titik + teks)', () => {
+  const pts = [];
+  setTool({
+    name: 'MLEADER', hint: 'Klik ujung panah, lalu titik-titik siku (Enter = isi teks)',
+    onPoint(p) { pts.push(p.slice()); },
+    onEnter() {
+      if (pts.length < 2) { endTool(); return; }
+      const fixed = pts.slice();
+      openModal('Teks Multileader', [
+        { k: 'text', label: 'Isi teks', type: 'text', v: '' },
+      ], vals => {
+        pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+        addEnt({ type: 'leader', layer: 'MARKUP', pts: fixed, text: vals.text || '', h: suggestTextH() });
+        redraw();
+      });
+      endTool();
+    },
+    preview(g, cur) {
+      if (!pts.length) return;
+      g.beginPath();
+      pts.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      const c = W2S(cur); g.lineTo(c[0], c[1]); g.stroke();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+reg('IMAGE,IM,IMAGEATTACH', 'Sisipkan gambar (foto lapangan)', () => {
+  const inp = document.getElementById('imgInput');
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    inp.value = '';
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        setTool({
+          name: 'IMAGE', hint: 'Klik titik sisip gambar',
+          onPoint(p) {
+            const w = (CW * 0.3) / view.s;
+            const h = w * img.naturalHeight / Math.max(1, img.naturalWidth);
+            pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+            addEnt({ type: 'image', layer: 'MARKUP', p: p.slice(), w, h, src: rd.result });
+            endTool(); toast('Gambar disisipkan — tarik grip pojok untuk ubah ukuran');
+          },
+          lastPt: () => null,
+        });
+      };
+      img.src = rd.result;
+    };
+    rd.readAsDataURL(f);
+  };
+  inp.click();
+});
+
+reg('RECORD,REC,AUDIO', 'Rekam catatan suara pada titik', () => {
+  if (!navigator.mediaDevices || !window.MediaRecorder) { toast('Perekaman audio tidak didukung browser ini'); return; }
+  setTool({
+    name: 'RECORD', hint: 'Klik lokasi catatan suara',
+    onPoint(p) {
+      const ins = p.slice();
+      endTool();
+      openAudioRecorder(ins);
+    },
+    lastPt: () => null,
+  });
+});
+let _rec = null, _recChunks = [], _recT0 = 0, _recTimer = null;
+function openAudioRecorder(ins) {
+  openModal('Rekam Suara', null, null, `
+    <h3>Catatan Suara</h3>
+    <p>Rekam catatan lapangan — tersimpan sebagai penanda 🔊 di gambar (layer MARKUP).</p>
+    <div style="text-align:center;font-family:var(--mono);font-size:26px;margin:10px 0" id="recTime">00:00</div>
+    <div class="mrow">
+      <button class="btn pri" id="recStart">● Rekam</button>
+      <button class="btn" id="recStop" disabled>■ Stop & Simpan</button>
+    </div>
+    <div class="mrow"><button class="btn full" onclick="closeModal()">Batal</button></div>
+  `);
+  const btnS = document.getElementById('recStart'), btnE = document.getElementById('recStop');
+  btnS.onclick = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      _recChunks = [];
+      _rec = new MediaRecorder(stream);
+      _rec.ondataavailable = ev => { if (ev.data.size) _recChunks.push(ev.data); };
+      _rec.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(_recChunks, { type: _rec.mimeType || 'audio/webm' });
+        const rd = new FileReader();
+        rd.onload = () => {
+          pushUndo(); ensureLayer('MARKUP', '#f59e0b');
+          addEnt({ type: 'audio', layer: 'MARKUP', p: ins, src: rd.result, dur: Math.round((Date.now() - _recT0) / 1000) });
+          redraw(); toast('Catatan suara tersimpan — pilih ikon 🔊 lalu buka Properti untuk memutar');
+        };
+        rd.readAsDataURL(blob);
+      };
+      _rec.start();
+      _recT0 = Date.now();
+      btnS.disabled = true; btnE.disabled = false;
+      _recTimer = setInterval(() => {
+        const s = Math.floor((Date.now() - _recT0) / 1000);
+        const el = document.getElementById('recTime');
+        if (el) el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+      }, 400);
+    } catch (err) { toast('Mikrofon ditolak / tidak tersedia'); }
+  };
+  btnE.onclick = () => {
+    clearInterval(_recTimer);
+    if (_rec && _rec.state !== 'inactive') _rec.stop();
+    closeModal();
+  };
+}
+
+/* =====================================================================
+   MEASUREMENT LANJUTAN — CONTINUOUS, ARC LENGTH, ENTITY, FACADE,
+   SCALE, PRECISION, RESULT
+   ===================================================================== */
+reg('DISTC,DC,CONTINUOUS', 'Jarak kumulatif (klik beruntun)', () => {
+  const pts = [];
+  let acc = 0;
+  setTool({
+    name: 'CONTINUOUS', hint: 'Klik titik-titik — total berjalan; Enter selesai',
+    onPoint(p) {
+      if (pts.length) acc += V.dist(pts[pts.length - 1], p);
+      pts.push(p.slice());
+      showMeasure('Total = ' + fmtd(acc) + ' ' + D.units + ' (' + pts.length + ' titik)');
+    },
+    preview(g, cur) {
+      if (!pts.length) return;
+      g.beginPath();
+      pts.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      const c = W2S(cur); g.lineTo(c[0], c[1]); g.stroke();
+      showMeasure('Total = ' + fmtd(acc + V.dist(pts[pts.length - 1], cur)) + ' ' + D.units);
+    },
+    onEnter() {
+      if (pts.length > 1) {
+        const msg = 'Jarak kumulatif = ' + fmtd(acc) + ' ' + D.units + ' (' + pts.length + ' titik)';
+        logLine(msg, 'l-ok'); toast(msg, 3500); pushResult('Kumulatif', msg);
+      }
+      endTool();
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+reg('ARCLEN,AL,ARCLENGTH', 'Ukur panjang busur / kurva', () => {
+  setTool({
+    name: 'ARCLEN', hint: 'Klik busur / lingkaran / polyline',
+    onPoint() {
+      const hit = pickAt(cursorRaw.slice());
+      if (!hit) { toast('Tidak ada objek'); return; }
+      let L = null;
+      if (hit.type === 'arc') {
+        let sweep = hit.a2 - hit.a1;
+        const ccw = hit.ccw !== false;
+        if (ccw) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+        L = Math.abs(sweep) * hit.r;
+      } else if (hit.type === 'circle') L = 2 * Math.PI * hit.r;
+      else if (hit.type === 'poly') L = polyLen(hit.pts, hit.closed);
+      else if (hit.type === 'ellipse') L = polyLen(ellipsePts(hit, 96), true);
+      else if (hit.type === 'line') L = V.dist(hit.a, hit.b);
+      if (L == null) { toast('Objek tidak punya panjang busur'); return; }
+      const msg = 'Panjang = ' + fmtd(L) + ' ' + D.units + ' (' + hit.type.toUpperCase() + ')';
+      logLine(msg, 'l-ok'); showMeasure(msg); toast(msg, 3200); pushResult('Panjang', msg);
+    },
+    onEnter() { endTool(); },
+    lastPt: () => null,
+  });
+});
+
+reg('MEASENT,ME,LIST,LI', 'Info lengkap satu objek', () => {
+  setTool({
+    name: 'ENTITY', hint: 'Klik objek yang diukur',
+    onPoint() {
+      const hit = pickAt(cursorRaw.slice());
+      if (!hit) { toast('Tidak ada objek'); return; }
+      let info = hit.type.toUpperCase() + ' · layer ' + hit.layer;
+      if (hit.type === 'line') info += ' · L=' + fmtd(V.dist(hit.a, hit.b)) + ' · θ=' + fmt(deg(V.ang(hit.a, hit.b))) + '°';
+      else if (hit.type === 'poly') { info += ' · L=' + fmtd(polyLen(hit.pts, hit.closed)); if (hit.closed) info += ' · A=' + fmtA(Math.abs(polyArea(hit.pts))); }
+      else if (hit.type === 'circle') info += ' · R=' + fmtd(hit.r) + ' · A=' + fmtA(Math.PI * hit.r * hit.r) + ' · K=' + fmtd(2 * Math.PI * hit.r);
+      else if (hit.type === 'arc') { let sw = hit.a2 - hit.a1; if (hit.ccw !== false) { while (sw <= 0) sw += 2 * Math.PI; } else { while (sw >= 0) sw -= 2 * Math.PI; } info += ' · R=' + fmtd(hit.r) + ' · sudut=' + fmt(Math.abs(deg(sw))) + '° · L=' + fmtd(Math.abs(sw) * hit.r); }
+      else if (hit.type === 'ellipse') info += ' · a=' + fmtd(V.len(hit.a)) + ' · b=' + fmtd(V.len(hit.a) * hit.ratio);
+      else if (hit.type === 'text') info += ' · "' + (hit.text || '').slice(0, 24) + '" · h=' + fmt(hit.h);
+      const msg = info;
+      logLine(msg, 'l-ok'); showMeasure(msg); pushResult('Entity', msg);
+    },
+    onEnter() { endTool(); },
+    lastPt: () => null,
+  });
+});
+
+reg('FACADE,FAC', 'Luas fasad: panjang jalur × tinggi', () => {
+  const pts = [];
+  setTool({
+    name: 'FACADE', hint: 'Klik titik-titik sepanjang dinding/fasad; Enter → isi tinggi',
+    onPoint(p) { pts.push(p.slice()); showMeasure('Panjang jalur = ' + fmtd(polyLen(pts, false)) + ' ' + D.units); },
+    preview(g, cur) {
+      if (!pts.length) return;
+      g.beginPath();
+      pts.forEach((p, i) => { const s = W2S(p); i ? g.lineTo(s[0], s[1]) : g.moveTo(s[0], s[1]); });
+      const c = W2S(cur); g.lineTo(c[0], c[1]); g.stroke();
+    },
+    onEnter() {
+      if (pts.length < 2) { endTool(); return; }
+      const L = polyLen(pts, false);
+      endTool();
+      openModal('Luas Fasad', [
+        { k: 'h', label: 'Tinggi fasad (' + D.units + ')', type: 'number', v: 3 },
+      ], vals => {
+        const h = parseFloat(vals.h) || 0;
+        const msg = 'Fasad = ' + fmtd(L) + ' × ' + fmt(h) + ' = ' + fmtA(L * h) + ' ' + D.units + '²';
+        logLine(msg, 'l-ok'); toast(msg, 4000); showMeasure(msg); pushResult('Fasad', msg);
+      });
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+
+reg('MSCALE,MSC', 'Faktor skala hasil ukur (Measure Scale)', (arg) => {
+  if (arg && parseFloat(arg) > 0) { D.mscale = parseFloat(arg); toast('Skala ukur = ' + D.mscale); redraw(); return; }
+  openModal('Skala Pengukuran', [
+    { k: 's', label: 'Faktor skala (hasil = jarak × faktor)', type: 'number', v: D.mscale || 1 },
+  ], vals => {
+    D.mscale = Math.max(1e-9, parseFloat(vals.s) || 1);
+    toast('Skala ukur = ' + D.mscale); redraw();
+  });
+});
+
+reg('PRECISION,PREC', 'Presisi desimal hasil ukur', (arg) => {
+  if (arg !== undefined && arg !== '' && !Number.isNaN(parseInt(arg))) {
+    D.decimals = clamp(parseInt(arg), 0, 8); toast('Presisi: ' + D.decimals + ' desimal'); redraw(); return;
+  }
+  openModal('Presisi', [
+    { k: 'd', label: 'Jumlah desimal (0–8)', type: 'number', v: D.decimals },
+  ], vals => { D.decimals = clamp(parseInt(vals.d) || 0, 0, 8); toast('Presisi: ' + D.decimals + ' desimal'); redraw(); });
+});
+
+reg('RESULT,RES,RESULTS', 'Riwayat hasil pengukuran', () => {
+  const rows = RESULTS.slice().reverse().map(r =>
+    `<tr><td>${r.t}<br><span style="color:var(--ink-faint)">${r.kind}</span></td><td>${r.text}</td></tr>`).join('');
+  openModal('', null, null, `
+    <h3>Hasil Pengukuran <span style="color:var(--accent);font-family:var(--mono)">(${RESULTS.length})</span></h3>
+    ${RESULTS.length ? '<table class="help-table" style="margin-top:8px">' + rows + '</table>'
+      : '<p>Belum ada hasil. Gunakan alat Ukur (Jarak/Luas/Sudut/…).</p>'}
+    <div class="mrow">
+      <button class="btn" id="resClear">Bersihkan</button>
+      <button class="btn pri" onclick="closeModal()">Tutup</button>
+    </div>
+  `);
+  const bc = document.getElementById('resClear');
+  if (bc) bc.onclick = () => { RESULTS.length = 0; closeModal(); toast('Riwayat hasil dibersihkan'); };
+});
+
+/* =====================================================================
+   DIMENSI LANJUTAN — LINEAR, ANGULAR, RADIUS, DIAMETER, ARC LENGTH
+   ===================================================================== */
+reg('DIMLINEAR,DLI', 'Dimensi linear horizontal/vertikal', () => {
+  const pts = [];
+  setTool({
+    name: 'DIMLINEAR', hint: 'Klik titik pertama',
+    onPoint(p) {
+      pts.push(p.slice());
+      this.hint = pts.length === 1 ? 'Klik titik kedua' : 'Tarik: atas/bawah = horizontal, samping = vertikal';
+      updToolHint();
+      if (pts.length === 3) {
+        const mode = linMode(pts[0], pts[1], pts[2]);
+        pushUndo();
+        addEnt({ type: 'dim', mode, p1: pts[0], p2: pts[1], off: pts[2], text: '<>' });
+        endTool();
+      }
+    },
+    preview(g, cur) {
+      if (pts.length === 1) { const a = W2S(pts[0]), b = W2S(cur); g.beginPath(); g.moveTo(a[0],a[1]); g.lineTo(b[0],b[1]); g.stroke(); }
+      else if (pts.length === 2) {
+        const tmp = { type: 'dim', mode: linMode(pts[0], pts[1], cur), p1: pts[0], p2: pts[1], off: cur, text: '<>', layer: D.clayer, color: 'bylayer' };
+        drawEnt(g, tmp, null, true);
+      }
+    },
+    lastPt() { return pts.length ? pts[pts.length - 1] : null; },
+  });
+});
+function linMode(p1, p2, off) {
+  const mid = V.mid(p1, p2);
+  return Math.abs(off[1] - mid[1]) >= Math.abs(off[0] - mid[0]) ? 'h' : 'v';
+}
+
+reg('DIMANGULAR,DAN', 'Dimensi sudut antara 2 garis', () => {
+  let l1 = null, l2 = null;
+  setTool({
+    name: 'DIMANGULAR', hint: 'Klik garis pertama',
+    onPoint(p) {
+      if (!l1 || !l2) {
+        const hit = pickAt(cursorRaw.slice());
+        if (!hit || hit.type !== 'line') { toast('Pilih garis (LINE)'); return; }
+        if (!l1) { l1 = { e: hit, q: p.slice() }; this.hint = 'Klik garis kedua'; updToolHint(); sel.add(hit.id); redraw(); return; }
+        if (hit.id === l1.e.id) { toast('Garis harus berbeda'); return; }
+        l2 = { e: hit, q: p.slice() }; this.hint = 'Klik posisi busur dimensi'; updToolHint(); sel.add(hit.id); redraw(); return;
+      }
+      const P = segInt(l1.e.a, l1.e.b, l2.e.a, l2.e.b, false);
+      if (!P) { toast('Garis sejajar'); endTool(); return; }
+      const u1 = V.norm(V.sub(l1.q, P)), u2 = V.norm(V.sub(l2.q, P));
+      const a1 = Math.atan2(u1[1], u1[0]), a2 = Math.atan2(u2[1], u2[0]);
+      // arah sweep: yang memuat titik klik posisi
+      const ap = Math.atan2(p[1] - P[1], p[0] - P[0]);
+      const ccw = angleInArc(ap, { a1, a2, ccw: true });
+      pushUndo(); sel.clear();
+      addEnt({ type: 'dimang', p: P, a1, a2, ccw, r: Math.max(1e-9, V.dist(p, P)) });
+      endTool();
+    },
+    preview(g, cur) {
+      if (l1 && l2) {
+        const P = segInt(l1.e.a, l1.e.b, l2.e.a, l2.e.b, false);
+        if (!P) return;
+        const s = W2S(P);
+        g.beginPath(); g.arc(s[0], s[1], V.dist(cur, P) * view.s, 0, 2 * Math.PI); g.stroke();
+      }
+    },
+    onEnter() { sel.clear(); endTool(); },
+    lastPt: () => null,
+  });
+});
+
+reg('DIMRADIUS,DRA', 'Dimensi radius lingkaran/busur', () => startRadDim(false));
+reg('DIMDIAMETER,DDI', 'Dimensi diameter lingkaran/busur', () => startRadDim(true));
+function startRadDim(isDia) {
+  let src = null;
+  setTool({
+    name: isDia ? 'DIMDIAMETER' : 'DIMRADIUS', hint: 'Klik lingkaran / busur',
+    onPoint(p) {
+      if (!src) {
+        const hit = pickAt(cursorRaw.slice());
+        if (!hit || (hit.type !== 'circle' && hit.type !== 'arc')) { toast('Pilih lingkaran/busur'); return; }
+        src = hit; this.hint = 'Klik posisi teks dimensi'; updToolHint(); sel.add(hit.id); redraw(); return;
+      }
+      pushUndo(); sel.clear();
+      addEnt({ type: 'dimrad', c: src.c.slice(), r: src.r, pos: p.slice(), dia: isDia });
+      endTool();
+    },
+    preview(g, cur) {
+      if (!src) return;
+      const dir = V.norm(V.sub(cur, src.c));
+      if (!isFinite(dir[0])) return;
+      const tip = V.add(src.c, V.mul(dir, src.r));
+      const a = W2S(cur), b = W2S(tip);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    },
+    onEnter() { sel.clear(); endTool(); },
+    lastPt: () => null,
+  });
+}
+
+reg('DIMARC,DAR', 'Dimensi panjang busur', () => {
+  let src = null;
+  setTool({
+    name: 'DIMARC', hint: 'Klik busur',
+    onPoint(p) {
+      if (!src) {
+        const hit = pickAt(cursorRaw.slice());
+        if (!hit || hit.type !== 'arc') { toast('Pilih busur (ARC)'); return; }
+        src = hit; this.hint = 'Klik posisi busur dimensi'; updToolHint(); sel.add(hit.id); redraw(); return;
+      }
+      pushUndo(); sel.clear();
+      addEnt({ type: 'dimarc', c: src.c.slice(), r: src.r, a1: src.a1, a2: src.a2, ccw: src.ccw !== false, roff: Math.max(src.r * 1.05, V.dist(p, src.c)) });
+      endTool();
+    },
+    preview(g, cur) {
+      if (!src) return;
+      const s = W2S(src.c);
+      g.beginPath(); g.arc(s[0], s[1], Math.max(src.r * 1.05, V.dist(cur, src.c)) * view.s, -src.a1, -src.a2, src.ccw !== false); g.stroke();
+    },
+    onEnter() { sel.clear(); endTool(); },
+    lastPt: () => null,
+  });
+});
+
+/* =====================================================================
+   LAYOUT (Model / Paper space) + VISUAL STYLE + WARNA AKTIF
+   ===================================================================== */
+function switchSpace(name) {
+  D.spaces[D.cspace] = D.entities;
+  if (!D.spaces[name]) D.spaces[name] = [];
+  D.cspace = name;
+  D.entities = D.spaces[name];
+  sel.clear(); if (tool) endTool();
+  onSelChange(); syncSpaceChip(); zoomExtents();
+  toast('Ruang kerja: ' + name);
+}
+function syncSpaceChip() {
+  const el = document.getElementById('stSpaceName');
+  if (el) el.textContent = D.cspace.toUpperCase();
+}
+reg('LAYOUT,LO', 'Pindah Model / Layout (paper space)', () => {
+  const names = Object.keys(D.spaces);
+  const rows = names.map(n => `
+    <button class="exp-item" data-space="${n}">
+      <div class="ei">${iso(n === 'Model'
+        ? '<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'
+        : '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 7h8M8 11h8M8 15h5"/>')}</div>
+      <div><b>${n}</b><small>${(D.spaces[n] || []).length} entitas${n === D.cspace ? ' · AKTIF ✓' : ''}</small></div>
+    </button>`).join('');
+  openModal('', null, null, `
+    <h3>Ruang Kerja (Layout)</h3>
+    <p>Model = ruang gambar utama. Layout = lembar kertas A3 untuk susunan cetak.</p>
+    ${rows}
+    <div class="mrow">
+      <button class="btn" id="loAdd">+ Layout Baru</button>
+      <button class="btn pri" onclick="closeModal()">Tutup</button>
+    </div>
+  `);
+  document.querySelectorAll('[data-space]').forEach(b => b.onclick = () => { closeModal(); switchSpace(b.dataset.space); });
+  document.getElementById('loAdd').onclick = () => {
+    let i = 1; while (D.spaces['Layout' + i]) i++;
+    const nm = 'Layout' + i;
+    D.spaces[nm] = [];
+    closeModal(); switchSpace(nm);
+  };
+});
+
+const VSTYLES = { '2d': '2D', wire: '3D Wireframe', real: 'Realistic', hide: 'Hide' };
+reg('VSTYLE,VS,VISUALSTYLE', 'Visual style: 2D / Wireframe / Realistic / Hide', (arg) => {
+  const key = String(arg || '').toLowerCase();
+  if (VSTYLES[key]) { setVstyle(key); return; }
+  const rows = Object.entries(VSTYLES).map(([k, label]) => `
+    <button class="exp-item" data-vs="${k}">
+      <div class="ei">${iso({
+        '2d': '<rect x="5" y="6" width="14" height="12"/>',
+        wire: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 3v18M4 7.5l16 9M20 7.5l-16 9"/>',
+        real: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
+        hide: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/>',
+      }[k])}</div>
+      <div><b>${label}</b><small>${{
+        '2d': 'Wireframe 2D standar (latar gelap)',
+        wire: 'Garis rangka — tanpa isian solid/hatch',
+        real: 'Latar terang seperti kertas, isian penuh',
+        hide: 'Sembunyikan anotasi, dimensi & markup',
+      }[k]}${settings.vstyle === k ? ' · AKTIF ✓' : ''}</small></div>
+    </button>`).join('');
+  openModal('', null, null, `<h3>Visual Style</h3>${rows}
+    <div class="mrow"><button class="btn pri full" onclick="closeModal()">Tutup</button></div>`);
+  document.querySelectorAll('[data-vs]').forEach(b => b.onclick = () => { closeModal(); setVstyle(b.dataset.vs); });
+});
+function setVstyle(k) {
+  settings.vstyle = k;
+  const el = document.getElementById('stStyle');
+  if (el) el.textContent = VSTYLES[k].toUpperCase();
+  redraw(); toast('Visual style: ' + VSTYLES[k]);
+}
+
+reg('COLOR,COL', 'Warna aktif / warna objek terpilih', () => {
+  const cur = settings.ccolor;
+  openModal('Warna', [
+    { k: 'mode', label: 'Mode', type: 'select', v: cur === 'bylayer' ? 'ByLayer' : 'Kustom', opts: ['ByLayer', 'Kustom'] },
+    { k: 'col', label: 'Warna kustom', type: 'color', v: cur !== 'bylayer' ? toHex6(cur) : '#22d3ee' },
+  ], vals => {
+    const c = vals.mode === 'ByLayer' ? 'bylayer' : vals.col;
+    if (sel.size) {
+      pushUndo();
+      for (const id of sel) { const e = entById(id); if (e) e.color = c; }
+      toast('Warna diterapkan ke ' + sel.size + ' objek'); redraw();
+    } else {
+      settings.ccolor = c;
+      syncColorChip();
+      toast('Warna aktif: ' + (c === 'bylayer' ? 'ByLayer' : c));
+    }
+  });
+});
+function syncColorChip() {
+  const sw = document.getElementById('stColorSw');
+  if (sw) sw.style.background = settings.ccolor === 'bylayer' ? layerOf(D.clayer).color : settings.ccolor;
+}
 
 /* =====================================================================
    IMPORT / EXPORT — DXF (baca/tulis), SVG, GeoJSON, PNG, PDF, SVDRAW
@@ -2481,14 +3802,22 @@ function writeDXF() {
         break;
       }
       case 'text': emitText(e.p, e.text, e.h, e.rot, e); break;
-      case 'dim': { // ekspor sbg geometri (exploded)
+      case 'ellipse': emitPoly(ellipsePts(e, 48), true, e); break;
+      case 'dim': case 'dimang': case 'dimrad': case 'dimarc': { // ekspor sbg geometri (exploded)
         const parts = explodeEnt(e) || [];
         for (const pe of parts) {
           if (pe.type === 'line') { w(0, 'LINE'); w(8, e.layer); colorCode(e); w(10, pe.a[0]); w(20, pe.a[1]); w(30, 0); w(11, pe.b[0]); w(21, pe.b[1]); w(31, 0); }
           else if (pe.type === 'text') emitText(pe.p, pe.text, pe.h, pe.rot, e);
+          else if (pe.type === 'arc') {
+            let a1 = pe.a1, a2 = pe.a2;
+            if (pe.ccw === false) { const t = a1; a1 = a2; a2 = t; }
+            w(0, 'ARC'); w(8, e.layer); colorCode(e); w(10, pe.c[0]); w(20, pe.c[1]); w(30, 0); w(40, pe.r);
+            w(50, ((deg(a1) % 360) + 360) % 360); w(51, ((deg(a2) % 360) + 360) % 360);
+          }
         }
         break;
       }
+      /* image & audio: tidak ada padanan R12 — dilewati saat ekspor DXF */
       case 'leader': {
         emitPoly(e.pts, false, e);
         emitText(e.pts[e.pts.length - 1], e.text, e.h || 1, 0, e);
@@ -2543,13 +3872,22 @@ function writeSVG() {
         });
         break;
       }
-      case 'dim': case 'leader': case 'insert': {
+      case 'ellipse': {
+        const rot = Math.atan2(e.a[1], e.a[0]), rx = V.len(e.a);
+        body += `<ellipse cx="${e.c[0]}" cy="${Y(e.c[1])}" rx="${rx}" ry="${rx * e.ratio}" transform="rotate(${-deg(rot)} ${e.c[0]} ${Y(e.c[1])})" ${st}/>\n`;
+        break;
+      }
+      case 'image':
+        body += `<image x="${e.p[0]}" y="${Y(e.p[1] + e.h)}" width="${e.w}" height="${e.h}" href="${e.src}" preserveAspectRatio="none"/>\n`;
+        break;
+      case 'dim': case 'dimang': case 'dimrad': case 'dimarc': case 'leader': case 'insert': {
         const parts = explodeEnt(e) || [];
         for (const pe of parts) {
           if (pe.type === 'line') body += `<line x1="${pe.a[0]}" y1="${Y(pe.a[1])}" x2="${pe.b[0]}" y2="${Y(pe.b[1])}" ${st}/>\n`;
           else if (pe.type === 'text') body += `<text x="${pe.p[0]}" y="${Y(pe.p[1])}" font-size="${pe.h}" fill="${col}" font-family="Inter,Arial">${esc(pe.text)}</text>\n`;
           else if (pe.type === 'circle') body += `<circle cx="${pe.c[0]}" cy="${Y(pe.c[1])}" r="${pe.r}" ${st}/>\n`;
           else if (pe.type === 'poly') body += `<${pe.closed?'polygon':'polyline'} points="${ptsStr(pe.pts)}" ${st}/>\n`;
+          else if (pe.type === 'arc') { const pp = tessArc(pe.c, pe.r, pe.a1, pe.a2, pe.ccw !== false, 32); body += `<polyline points="${ptsStr(pp)}" ${st}/>\n`; }
         }
         break;
       }
@@ -2577,6 +3915,9 @@ function writeGeoJSON() {
       case 'text': geom = { type: 'Point', coordinates: e.p }; extra.text = e.text; extra.height = e.h; break;
       case 'hatch': case 'solid': case 'cloud': geom = { type: 'Polygon', coordinates: [e.pts.concat([e.pts[0]])] }; break;
       case 'leader': geom = { type: 'LineString', coordinates: e.pts }; extra.text = e.text; break;
+      case 'ellipse': { const ep = ellipsePts(e, 48); geom = { type: 'Polygon', coordinates: [ep.concat([ep[0]])] }; break; }
+      case 'image': geom = { type: 'Point', coordinates: e.p }; extra.width = e.w; extra.height = e.h; break;
+      case 'audio': geom = { type: 'Point', coordinates: e.p }; extra.audio = true; extra.duration = e.dur; break;
     }
     if (geom) feats.push({ type: 'Feature', geometry: geom, properties: { ...props(e), ...extra } });
   }
@@ -2597,9 +3938,10 @@ function download(name, text, mime) {
 function baseName() { return (D.name || 'drawing').replace(/\.(dxf|dwg|svdraw|json)$/i, ''); }
 
 function saveSvdraw() {
-  const data = JSON.stringify({ app: 'survai-cad', version: 1, saved: new Date().toISOString(),
-    name: D.name, crs: D.crs, units: D.units, decimals: D.decimals, clayer: D.clayer,
-    layers: D.layers, entities: D.entities, blocks: D.blocks });
+  D.spaces[D.cspace] = D.entities;
+  const data = JSON.stringify({ app: 'survai-cad', version: 2, saved: new Date().toISOString(),
+    name: D.name, crs: D.crs, units: D.units, decimals: D.decimals, clayer: D.clayer, mscale: D.mscale,
+    layers: D.layers, spaces: D.spaces, cspace: D.cspace, blocks: D.blocks });
   download(baseName() + '.svdraw', data, 'application/json');
   toast('Tersimpan: ' + baseName() + '.svdraw');
   logLine('SAVE ' + baseName() + '.svdraw (' + D.entities.length + ' entitas)', 'l-ok');
@@ -2647,16 +3989,26 @@ function openFileObj(file) {
   reader.readAsText(file);
 }
 function loadSvdraw(o, nm) {
-  if (!o || !Array.isArray(o.entities)) throw new Error('Bukan file svdraw yang valid');
+  if (!o || (!Array.isArray(o.entities) && !o.spaces)) throw new Error('Bukan file svdraw yang valid');
   pushUndo();
   D.name = o.name || nm; D.crs = o.crs || ''; D.units = o.units || 'm';
   D.decimals = o.decimals != null ? o.decimals : 3;
+  D.mscale = o.mscale || 1;
   D.layers = o.layers && o.layers.length ? o.layers : D.layers;
   D.clayer = o.clayer && o.layers.some(l => l.name === o.clayer) ? o.clayer : D.layers[0].name;
-  D.entities = o.entities; D.blocks = o.blocks || {};
-  let mx = 0; for (const e of D.entities) { const n2 = parseInt(String(e.id || '').replace(/\D/g, '')) || 0; mx = Math.max(mx, n2); }
+  if (o.spaces) {
+    D.spaces = o.spaces; D.cspace = o.cspace && o.spaces[o.cspace] ? o.cspace : 'Model';
+    D.entities = D.spaces[D.cspace] = D.spaces[D.cspace] || [];
+  } else {
+    D.entities = o.entities;
+    D.spaces = { Model: D.entities, Layout1: [], Layout2: [] };
+    D.cspace = 'Model';
+  }
+  D.blocks = o.blocks || {};
+  let mx = 0;
+  for (const sp in D.spaces) for (const e of D.spaces[sp]) { const n2 = parseInt(String(e.id || '').replace(/\D/g, '')) || 0; mx = Math.max(mx, n2); }
   _uid = mx + 1;
-  sel.clear(); refreshLayerUI(); zoomExtents();
+  sel.clear(); refreshLayerUI(); syncSpaceChip(); zoomExtents();
   toast('Dibuka: ' + nm + ' (' + D.entities.length + ' entitas)');
   logLine('OPEN ' + nm + ' — ' + D.entities.length + ' entitas', 'l-ok');
 }
@@ -2670,8 +4022,11 @@ function loadDXFText(text, nm) {
   for (const l of res.layers) if (!D.layers.some(x => x.name === l.name)) D.layers.push(l);
   for (const e of res.entities) ensureLayer(e.layer);
   for (const b in res.blocks) { D.blocks[b] = res.blocks[b]; for (const ce of res.blocks[b].ents) { ce.id = uid(); ensureLayer(ce.layer); } }
-  D.entities = res.entities.map(e => (e.id = uid(), e));
-  sel.clear(); refreshLayerUI(); zoomExtents();
+  // DXF selalu dimuat ke Model space
+  D.spaces[D.cspace] = D.entities;
+  D.cspace = 'Model';
+  D.entities = D.spaces.Model = res.entities.map(e => (e.id = uid(), e));
+  sel.clear(); refreshLayerUI(); syncSpaceChip(); zoomExtents();
   const wcount = res.skipped ? ' · ' + res.skipped + ' entitas dilewati (' + Object.keys(res.warnings).slice(0, 4).join(', ') + ')' : '';
   toast('DXF dibuka: ' + res.entities.length + ' entitas' + wcount, 4200);
   logLine('OPEN ' + nm + ' — ' + res.entities.length + ' entitas, ' + res.layers.length + ' layer' + wcount, 'l-ok');
@@ -2704,15 +4059,17 @@ document.getElementById('fileInput').addEventListener('change', ev => {
 /* autosave localStorage */
 const AUTOSAVE_KEY = 'survai_cad_autosave_v1';
 setInterval(() => {
-  if (!D.entities.length) return;
-  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ t: Date.now(), name: D.name, crs: D.crs, units: D.units, decimals: D.decimals, clayer: D.clayer, layers: D.layers, entities: D.entities, blocks: D.blocks })); } catch (e) {}
+  D.spaces[D.cspace] = D.entities;
+  if (!Object.values(D.spaces).some(a => a.length)) return;
+  try { localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ t: Date.now(), name: D.name, crs: D.crs, units: D.units, decimals: D.decimals, clayer: D.clayer, mscale: D.mscale, layers: D.layers, spaces: D.spaces, cspace: D.cspace, blocks: D.blocks })); } catch (e) {}
 }, 20000);
 function tryRestoreAutosave() {
   try {
     const o = JSON.parse(localStorage.getItem(AUTOSAVE_KEY) || 'null');
-    if (o && o.entities && o.entities.length) {
+    const cnt = !o ? 0 : (o.spaces ? Object.values(o.spaces).reduce((s, a) => s + a.length, 0) : (o.entities || []).length);
+    if (o && cnt) {
       const ago = Math.round((Date.now() - o.t) / 60000);
-      confirmModal('Pulihkan Sesi', 'Ditemukan autosave "' + (o.name || 'Drawing') + '" (' + o.entities.length + ' entitas, ' + (ago < 1 ? 'baru saja' : ago + ' menit lalu') + '). Pulihkan?', () => {
+      confirmModal('Pulihkan Sesi', 'Ditemukan autosave "' + (o.name || 'Drawing') + '" (' + cnt + ' entitas, ' + (ago < 1 ? 'baru saja' : ago + ' menit lalu') + '). Pulihkan?', () => {
         loadSvdraw(o, o.name || 'Autosave');
       });
     }
@@ -2730,9 +4087,14 @@ const RIBBON = [
     { cmd: 'RECT',   lbl: 'Rect',    ico: iso('<rect x="4" y="6" width="16" height="12" rx="1"/>') },
     { cmd: 'CIRCLE', lbl: 'Circle',  ico: iso('<circle cx="12" cy="12" r="8"/><path d="M12 12h8"/>') },
     { cmd: 'ARC',    lbl: 'Arc',     ico: iso('<path d="M4 18a10 10 0 0 1 16 0"/><circle cx="4" cy="18" r="1.4"/><circle cx="20" cy="18" r="1.4"/>') },
+    { cmd: 'ELLIPSE',lbl: 'Ellipse', ico: iso('<ellipse cx="12" cy="12" rx="9" ry="6"/><path d="M12 12h9"/>') },
+    { cmd: 'SPLINE', lbl: 'Spline',  ico: iso('<path d="M3 18c4-10 7 6 10-4s5-8 8-4"/><circle cx="3" cy="18" r="1.4"/><circle cx="21" cy="8" r="1.4"/>') },
+    { cmd: 'SKETCH', lbl: 'Sketch',  ico: iso('<path d="M4 17c3-6 5 3 8-4 2-4 5-6 8-5"/><path d="M16.5 4.5l3 3L9 18l-4 1 1-4z" transform="translate(2 2) scale(.4)"/>') },
+    { cmd: 'SMARTPEN',lbl:'Smart Pen',ico: iso('<circle cx="8" cy="14" r="5"/><path d="M14.5 9.5L20 4M20 4h-4M20 4v4"/>') },
     { cmd: 'POINT',  lbl: 'Point',   ico: iso('<path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="2.4"/>') },
     { cmd: 'TEXT',   lbl: 'Text',    ico: iso('<path d="M5 6h14M12 6v13"/>') },
     { cmd: 'HATCH',  lbl: 'Hatch',   ico: iso('<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 12l8-8M4 20L20 4M12 20l8-8"/>') },
+    { cmd: 'DIVIDE', lbl: 'Divide',  ico: iso('<path d="M3 12h18"/><circle cx="7" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="17" cy="12" r="1.6"/>') },
   ]},
   { tab: 'Ubah', tools: [
     { cmd: 'MOVE',   lbl: 'Move',    ico: iso('<path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>') },
@@ -2740,25 +4102,55 @@ const RIBBON = [
     { cmd: 'ROTATE', lbl: 'Rotate',  ico: iso('<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v4h-4"/>') },
     { cmd: 'SCALE',  lbl: 'Scale',   ico: iso('<path d="M21 3l-7 7M21 3h-6M21 3v6"/><rect x="3" y="11" width="10" height="10" rx="1"/>') },
     { cmd: 'MIRROR', lbl: 'Mirror',  ico: iso('<path d="M12 3v18"/><path d="M8 7L4 12l4 5M16 7l4 5-4 5"/>') },
-    { cmd: 'OFFSET', lbl: 'Offset',  ico: iso('<path d="M5 19V8a3 3 0 0 1 3-3h11"/><path d="M9 23v-11a3 3 0 0 1 3-3h11" transform="translate(-4 -8) scale(1)"/><path d="M9 15V12a3 3 0 0 1 3-3h7" transform="translate(0 8)"/>') },
+    { cmd: 'OFFSET', lbl: 'Offset',  ico: iso('<path d="M5 19V8a3 3 0 0 1 3-3h11"/><path d="M9 15V12a3 3 0 0 1 3-3h7" transform="translate(0 8)"/>') },
+    { cmd: 'TRIM',   lbl: 'Trim',    ico: iso('<path d="M4 12h16"/><path d="M12 4v6M12 14v2M12 19v1" stroke-dasharray="3 2"/>') },
+    { cmd: 'EXTEND', lbl: 'Extend',  ico: iso('<path d="M4 12h9"/><path d="M15 12h2M19 12h1" stroke-dasharray="3 2"/><path d="M20 6v12"/>') },
+    { cmd: 'FILLET', lbl: 'Fillet',  ico: iso('<path d="M4 20V10a6 6 0 0 1 6-6h10"/><path d="M4 4v3M17 20h3" stroke-dasharray="2 2"/>') },
+    { cmd: 'CHAMFER',lbl: 'Chamfer', ico: iso('<path d="M4 20v-8l8-8h8"/><path d="M4 4v4M16 20h4" stroke-dasharray="2 2"/>') },
     { cmd: 'ERASE',  lbl: 'Erase',   ico: iso('<path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>') },
     { cmd: 'EXPLODE',lbl: 'Explode', ico: iso('<path d="M12 8V3M16 9l4-4M17 13h5M15 16l4 4M12 17v5M8 15l-4 4M7 12H2M9 8L5 4"/><circle cx="12" cy="12" r="2"/>') },
     { cmd: 'PROPS',  lbl: 'Properti',ico: iso('<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="15" r="3"/><path d="M18 12.5v-1M18 18.5v-1"/>') },
   ]},
   { tab: 'Anotasi', tools: [
-    { cmd: 'DIM',    lbl: 'Dimensi', ico: iso('<path d="M3 17h18"/><path d="M3 14v6M21 14v6"/><path d="M6 17l2-1.6M6 17l2 1.6M18 17l-2-1.6M18 17l-2 1.6"/><path d="M7 7l10-0"/>') },
     { cmd: 'LEADER', lbl: 'Leader',  ico: iso('<path d="M4 20l7-7h9"/><path d="M8 17l-4 3 1.5-4.5z"/>') },
-    { cmd: 'CLOUD',  lbl: 'Cloud',   ico: iso('<path d="M6 15a3.2 3.2 0 0 1 0-6.4 4.6 4.6 0 0 1 8.8-1.4A3.8 3.8 0 1 1 17 15z"/>') },
+    { cmd: 'MLEADER',lbl: 'Multileader', ico: iso('<path d="M4 20l5-5h5M4 12l5-2h5"/><path d="M7 18l-3 2 1-3z"/><path d="M7 11l-3 1 .7-2.6z"/><path d="M16 9h5M16 15h5"/>') },
+    { cmd: 'ARROW',  lbl: 'Arrow',   ico: iso('<path d="M4 20L18 6"/><path d="M18 6h-5M18 6v5"/>') },
+    { cmd: 'CLOUD',  lbl: 'Revcloud',ico: iso('<path d="M6 15a3.2 3.2 0 0 1 0-6.4 4.6 4.6 0 0 1 8.8-1.4A3.8 3.8 0 1 1 17 15z"/>') },
+    { cmd: 'SKETCH', lbl: 'Sketch',  ico: iso('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>') },
+    { cmd: 'IMAGE',  lbl: 'Image',   ico: iso('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5-5 3 3 4-4 4 4"/>') },
+    { cmd: 'RECORD', lbl: 'Recording',ico: iso('<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>') },
+    { cmd: 'TEXT',   lbl: 'Text',    ico: iso('<path d="M5 6h14M12 6v13"/>') },
     { cmd: 'STAMP',  lbl: 'Stamp',   ico: iso('<rect x="4" y="8" width="16" height="9" rx="2"/><path d="M8 12.5h8"/>') },
-    { cmd: 'TEXT',   lbl: 'Markup',  ico: iso('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>') },
+  ]},
+  { tab: 'Dimensi', tools: [
+    { cmd: 'DIM',        lbl: 'Aligned',  ico: iso('<path d="M5 19L19 5"/><path d="M3 15l4 4M17 3l4 4"/><path d="M7 17l1.8-.4M17 7l-.4 1.8"/>') },
+    { cmd: 'DIMLINEAR',  lbl: 'Linear',   ico: iso('<path d="M4 12h16"/><path d="M4 8v8M20 8v8"/><path d="M7 12l-1.8-1.2M7 12l-1.8 1.2M17 12l1.8-1.2M17 12l1.8 1.2" transform="translate(1 0)"/>') },
+    { cmd: 'DIMANGULAR', lbl: 'Angular',  ico: iso('<path d="M4 20L18 8"/><path d="M4 20h17"/><path d="M12 20a9 9 0 0 0-2-5.6"/><path d="M10 14l-1.5.4M12 20l-.4-1.7"/>') },
+    { cmd: 'DIMRADIUS',  lbl: 'Radius',   ico: iso('<circle cx="12" cy="12" r="9"/><path d="M12 12l7-5"/>') },
+    { cmd: 'DIMDIAMETER',lbl: 'Diameter', ico: iso('<circle cx="12" cy="12" r="9"/><path d="M6 17L18 7"/>') },
+    { cmd: 'DIMARC',     lbl: 'Arc Length', ico: iso('<path d="M4 17a10 10 0 0 1 16 0"/><circle cx="4" cy="17" r="1.4"/><circle cx="20" cy="17" r="1.4"/><path d="M8 9l-1.5-1.5M16 9l1.5-1.5"/>') },
   ]},
   { tab: 'Ukur', tools: [
-    { cmd: 'DIST',  lbl: 'Jarak', ico: iso('<path d="M3 21L21 3"/><path d="M6 18l1.5 1.5M9 15l1.5 1.5M12 12l1.5 1.5M15 9l1.5 1.5"/>') },
-    { cmd: 'AREA',  lbl: 'Luas',  ico: iso('<path d="M4 4h12l4 6-6 10H6z"/><path d="M9 10h6"/>') },
-    { cmd: 'ANGLE', lbl: 'Sudut', ico: iso('<path d="M4 20L20 8"/><path d="M4 20h16"/><path d="M11 20a8 8 0 0 0-1.6-4.8"/>') },
-    { cmd: 'ID',    lbl: 'Koord', ico: iso('<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>') },
+    { cmd: 'DIST',   lbl: 'Distance', ico: iso('<path d="M3 21L21 3"/><path d="M6 18l1.5 1.5M9 15l1.5 1.5M12 12l1.5 1.5M15 9l1.5 1.5"/>') },
+    { cmd: 'DISTC',  lbl: 'Continuous', ico: iso('<path d="M3 19l5-6 5 3 8-9"/><circle cx="3" cy="19" r="1.4"/><circle cx="8" cy="13" r="1.4"/><circle cx="13" cy="16" r="1.4"/><circle cx="21" cy="7" r="1.4"/>') },
+    { cmd: 'AREA',   lbl: 'Area',   ico: iso('<path d="M4 4h12l4 6-6 10H6z"/><path d="M9 10h6"/>') },
+    { cmd: 'FACADE', lbl: 'Facade', ico: iso('<path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/>') },
+    { cmd: 'ID',     lbl: 'ID Point', ico: iso('<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>') },
+    { cmd: 'ARCLEN', lbl: 'Arc Length', ico: iso('<path d="M4 18a10 10 0 0 1 16 0"/><path d="M6 13l-1.4-1.4M12 10.5V8.5M18 13l1.4-1.4"/>') },
+    { cmd: 'MEASENT',lbl: 'Entity', ico: iso('<path d="M4 6h16M4 12h16M4 18h9"/><circle cx="17.5" cy="17.5" r="3"/><path d="M20 20l2 2"/>') },
+    { cmd: 'ANGLE',  lbl: 'Angle',  ico: iso('<path d="M4 20L20 8"/><path d="M4 20h16"/><path d="M11 20a8 8 0 0 0-1.6-4.8"/>') },
+    { cmd: 'MSCALE', lbl: 'Scale',  ico: iso('<circle cx="9" cy="9" r="5.5"/><path d="M9 6.5V9l1.8 1.8"/><path d="M17 13v8M14 21h6M17 13l-2 2M17 13l2 2"/>') },
+    { cmd: 'RESULT', lbl: 'Result', ico: iso('<path d="M6 3h9l4 4v14H6z"/><path d="M9 9h6M9 13h6M9 17h3"/>') },
+    { cmd: 'PRECISION', lbl: 'Precision', ico: iso('<path d="M4 17h16M4 13v8M20 13v8"/><path d="M6 8h2M11 8h2M16 8h2" stroke-dasharray="1 0"/><path d="M5 4h4l-2 4z" transform="translate(6 -1)"/>') },
+  ]},
+  { tab: 'Tampilan', tools: [
     { cmd: 'ZOOMEXT', lbl: 'Zoom Fit', ico: iso('<path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>') },
-    { cmd: 'CRS',   lbl: 'CRS/GIS', ico: iso('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18M12 3c-3 3.5-3 14 0 18"/>') },
+    { cmd: 'LAYOUT',  lbl: 'Layout',   ico: iso('<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/>') },
+    { cmd: 'VSTYLE',  lbl: 'Visual Style', ico: iso('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>') },
+    { cmd: 'COLOR',   lbl: 'Warna',   ico: iso('<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="9" r="1.6"/><circle cx="15.5" cy="9" r="1.6"/><circle cx="8.5" cy="15" r="1.6"/><path d="M15.5 15a3.5 3.5 0 0 1 5 3v.5a2.5 2.5 0 0 1-2.5 2.5H12"/>') },
+    { cmd: 'LAYER',   lbl: 'Layer',   ico: iso('<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>') },
+    { cmd: 'GRID',    lbl: 'Grid',    ico: iso('<path d="M4 9h16M4 15h16M9 4v16M15 4v16"/>') },
+    { cmd: 'CRS',     lbl: 'CRS/GIS', ico: iso('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18M12 3c-3 3.5-3 14 0 18"/>') },
   ]},
 ];
 let ribTab = 0;
@@ -2871,6 +4263,10 @@ function openProps() {
     extra = `<div class="form-row"><label>Isi Teks</label><textarea id="prText">${String(first.text||'').replace(/</g,'&lt;')}</textarea></div>
       <div class="form-row"><label>Tinggi (${D.units})</label><input type="number" id="prTextH" value="${first.h}" step="any"></div>`;
   }
+  if (ents.length === 1 && first.type === 'audio') {
+    extra = `<div class="form-row"><label>Catatan Suara (${first.dur || '?'} dtk)</label>
+      <audio controls src="${first.src}" style="width:100%"></audio></div>`;
+  }
   if (ents.length === 1) {
     const bb = entBBox(first);
     let info = 'Tipe: ' + first.type.toUpperCase();
@@ -2969,7 +4365,7 @@ function openHelp() {
     <div class="help-sec">Daftar Perintah (${seen.size})</div>
     <table class="help-table">${rows}</table>
     <div class="help-sec">Roadmap (PRD Fase 2–3)</div>
-    <p style="font-size:11px;color:var(--ink-dim);line-height:1.6">Parser DWG biner (libredwg), TRIM/EXTEND/FILLET, block editor, xref, dynamic block, paper space layout, plot style CTB, LandXML/terrain, long & cross section.</p>`;
+    <p style="font-size:11px;color:var(--ink-dim);line-height:1.6">Parser DWG biner (libredwg), block editor, xref, dynamic block, viewport layout (skala per-viewport), plot style CTB, LandXML/terrain, long & cross section, 3D viewer.</p>`;
   openSheet('sheetHelp');
 }
 
@@ -3023,6 +4419,9 @@ document.getElementById('stGrid').onclick = () => { settings.grid = !settings.gr
 document.getElementById('stOrtho').onclick = () => { settings.ortho = !settings.ortho; syncToggles(); };
 document.getElementById('stPan').onclick = () => { settings.panMode = !settings.panMode; syncToggles(); };
 document.getElementById('stLayer').onclick = () => openSheet('sheetLayers');
+document.getElementById('stSpace').onclick = () => runCommand('LAYOUT');
+document.getElementById('stStyle').onclick = () => runCommand('VSTYLE');
+document.getElementById('stColor').onclick = () => runCommand('COLOR');
 
 document.getElementById('btnOpen').onclick = () => document.getElementById('fileInput').click();
 document.getElementById('btnSave').onclick = saveSvdraw;
@@ -3087,6 +4486,8 @@ window.addEventListener('resize', resize);
 buildRibbon();
 syncToggles();
 syncLayerChip();
+syncSpaceChip();
+syncColorChip();
 resize();
 setTimeout(() => { resize(); zoomExtents(); }, 60);
 logLine('CAD Engine siap. Ketik HELP untuk daftar perintah.', 'l-ok');
@@ -3094,12 +4495,15 @@ tryRestoreAutosave();
 
 /* test hook (e2e) */
 window.CADENG = {
-  D, view, sel, settings,
+  D, view, sel, settings, RESULTS,
   exec: (c, a) => runCommand(c, a),
   input: s => handleCmdInput(s),
   parseDXF, writeDXF, writeSVG, writeGeoJSON,
   addEnt, pushUndo, zoomExtents, redraw,
+  switchSpace, setVstyle, recognizeStroke, trimEntity, entIntersections, dividePts,
+  getTool: () => tool,
   clickAt: (wx, wy) => { cursorRaw = [wx, wy]; cursorW = applyConstraints([wx, wy]); if (tool && tool.onPoint) { tool.onPoint([wx, wy]); redraw(); } },
+  stroke: (pts) => { if (tool && tool.onStroke) tool.onStroke(pts); },
 };
 
 </script>
