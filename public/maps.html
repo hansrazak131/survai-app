@@ -7688,6 +7688,1089 @@ console.log('[SurvAI] Performance override active — iframe.src mode');
 </script>
 <!-- ==== END SURVAI EMBED MODE ==== -->
 
+<script id="survai-mobile-survey">
+/* =====================================================================
+   SURVAI MOBILE SURVEY — QField-compatible field data collection
+   Integrasi PRD: Mobile Survey & QField Integration + Workflow Engine
+   (lite) + Task Engine (lite). Modul ini 100% aditif: TIDAK mengubah
+   rumus/fungsi existing (haversine, polyArea, lineDist, llToUtm, GCP,
+   savePlotSheet, dst) — hanya memanggil & membungkusnya.
+   Offline-first: IndexedDB (fitur, tugas, foto/audio, sync queue).
+   ===================================================================== */
+(function(){
+'use strict';
+if(window.SVY) return;
+
+/* ---------- Konfigurasi status workflow (US-007 / WF-01..03) ---------- */
+const SVY_STATUS={
+  draft:{label:'Draft',color:'#8ea0b8'},
+  submitted:{label:'Submitted',color:'#f5b52e'},
+  qc_review:{label:'QC Review',color:'#b06ae8'},
+  approved:{label:'Approved',color:'#2ed08e'},
+  rejected:{label:'Rejected',color:'#ff5d5d'}
+};
+/* Transisi yang diizinkan per role (RBAC lite) */
+const SVY_FLOW={
+  surveyor:{draft:['submitted'],rejected:['draft']},
+  qc:{submitted:['qc_review'],qc_review:['approved','rejected']},
+  pm:{draft:['submitted'],submitted:['qc_review'],qc_review:['approved','rejected'],rejected:['draft']}
+};
+const SVY_ROLE_LABEL={surveyor:'Surveyor',qc:'QC Officer',pm:'Project Manager'};
+const SVY_TASK_STATUS={
+  open:{label:'Open',color:'#8ea0b8'},
+  in_progress:{label:'In Progress',color:'#56c9f2'},
+  pending_review:{label:'Pending Review',color:'#f5b52e'},
+  completed:{label:'Completed',color:'#2ed08e'},
+  rejected:{label:'Rejected',color:'#ff5d5d'}
+};
+
+/* ---------- Form default (kompatibel skema form .smpk §4.2) ---------- */
+const SVY_DEFAULT_FORM={
+  layer_id:'survey_layer',
+  title:'Form Survey Lapangan',
+  auto_save:true,
+  fields:[
+    {name:'kode',type:'text',label:'ID / Kode Objek',required:true,placeholder:'cth: PT-0001'},
+    {name:'jenis',type:'dropdown',label:'Jenis Objek',required:true,options:[
+      {value:'patok_beton',label:'Patok Beton'},{value:'patok_besi',label:'Patok Besi'},
+      {value:'bm',label:'Benchmark (BM)'},{value:'bangunan',label:'Bangunan'},
+      {value:'jalan',label:'Jalan'},{value:'sungai',label:'Sungai / Saluran'},
+      {value:'vegetasi',label:'Vegetasi / Lahan'},{value:'lainnya',label:'Lainnya'}]},
+    {name:'kondisi',type:'radio',label:'Kondisi',options:[
+      {value:'baik',label:'Baik'},{value:'rusak_ringan',label:'Rusak Ringan'},{value:'rusak_berat',label:'Rusak Berat'}]},
+    {name:'elevasi',type:'number',label:'Elevasi (m)',default_value:'$z',constraints:{min:-100,max:5000}},
+    {name:'tanggal',type:'date',label:'Tanggal Survey',default_value:'now()'},
+    {name:'catatan',type:'textarea',label:'Catatan',max_length:500}
+  ]
+};
+
+/* ---------- State modul ---------- */
+const S={
+  ready:false,group:null,taskGroup:null,filter:'all',
+  features:[],tasks:[],queue:[],
+  role:'surveyor',
+  form:SVY_DEFAULT_FORM,
+  project:{id:'',name:'Survai Field Project',crs:'EPSG:4326'},
+  settings:{capture:true,accLimit:5,endpoint:'',autoSync:true,deviceId:''},
+  syncToken:null,lastSync:null,
+  _autoSaveT:null,_syncT:null,_geoT:null,_audioRec:null,_audioT:null,_urls:[]
+};
+
+/* =====================================================================
+   SvyDB — IndexedDB offline-first (US-010): fitur, tugas, attachment,
+   sync queue, key-value settings.
+   ===================================================================== */
+const SvyDB=(function(){
+  const NAME='survai_survey_v1',STORES=['feat','task','queue','att','kv'];let _db=null;
+  function open(){return new Promise((res,rej)=>{if(_db)return res(_db);if(!('indexedDB'in window))return rej(new Error('no-idb'));const r=indexedDB.open(NAME,1);r.onupgradeneeded=()=>{const db=r.result;STORES.forEach(s=>{if(!db.objectStoreNames.contains(s))db.createObjectStore(s)})};r.onsuccess=()=>{_db=r.result;res(_db)};r.onerror=()=>rej(r.error)})}
+  function put(store,key,val){return open().then(db=>new Promise((res,rej)=>{const tx=db.transaction(store,'readwrite');tx.objectStore(store).put(val,key);tx.oncomplete=()=>res(true);tx.onerror=()=>rej(tx.error)})).catch(e=>{console.warn('SvyDB.put',e);return false})}
+  function get(store,key){return open().then(db=>new Promise((res,rej)=>{const rq=db.transaction(store,'readonly').objectStore(store).get(key);rq.onsuccess=()=>res(rq.result==null?null:rq.result);rq.onerror=()=>rej(rq.error)})).catch(()=>null)}
+  function del(store,key){return open().then(db=>new Promise((res,rej)=>{const tx=db.transaction(store,'readwrite');tx.objectStore(store).delete(key);tx.oncomplete=()=>res(true);tx.onerror=()=>rej(tx.error)})).catch(()=>false)}
+  function all(store){return open().then(db=>new Promise((res,rej)=>{const out=[];const cur=db.transaction(store,'readonly').objectStore(store).openCursor();cur.onsuccess=e=>{const c=e.target.result;if(c){out.push(c.value);c.continue()}else res(out)};cur.onerror=()=>rej(cur.error)})).catch(()=>[])}
+  return {put,get,del,all};
+})();
+
+/* ---------- Util ---------- */
+function svyNow(){return new Date().toISOString()}
+function svyStatusPill(st,map){const m=(map||SVY_STATUS)[st]||{label:st,color:'#8ea0b8'};return `<span class="svy-pill" style="--pc:${m.color}">${m.label}</span>`}
+function svyDownload(name,text,mime){const blob=new Blob([text],{type:mime||'application/octet-stream'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},800)}
+function svyGpsSnapshot(){const g=state.gps;if(!g)return null;return {lat:g.lat,lon:g.lon,alt:(g.alt==null?null:g.alt),acc:(g.acc==null?null:g.acc),speed:g.speed||0,heading:(Number.isFinite(g.heading)?g.heading:null),time:g.time||Date.now()}}
+function svyGeomCenter(geom){
+  if(!geom)return null;
+  if(geom.type==='Point')return {lat:geom.coordinates[1],lng:geom.coordinates[0]};
+  const flat=geom.type==='Polygon'?geom.coordinates[0]:geom.coordinates;
+  if(!flat||!flat.length)return null;
+  let la=0,lo=0;flat.forEach(c=>{lo+=c[0];la+=c[1]});
+  return {lat:la/flat.length,lng:lo/flat.length};
+}
+function svyEvalDefault(expr,gps){
+  if(expr==null||expr==='')return '';
+  const s=String(expr);
+  if(s==='now()')return new Date().toISOString().slice(0,10);
+  if(s==='$x')return gps?String(gps.lon):'';
+  if(s==='$y')return gps?String(gps.lat):'';
+  if(s==='$z')return gps&&gps.alt!=null?String(Math.round(gps.alt*100)/100):'';
+  return s;
+}
+
+/* =====================================================================
+   PERSISTENSI + SYNC QUEUE (SYNC-01..05, protokol delta PRD §10.2)
+   ===================================================================== */
+function svyPersistFeature(f){return SvyDB.put('feat',f.id,f)}
+function svyPersistTask(t){return SvyDB.put('task',t.id,t)}
+function svyQueuePush(action,entity,rec){
+  const q={id:uid(),action,entity,entity_id:rec.id,timestamp:svyNow(),synced:false,
+    payload:entity==='feature'?{layer_id:S.form.layer_id,geometry:rec.geometry,attributes:rec.attributes,workflow_status:rec.status,gps:rec.gps,version:rec.version}:{task:rec}};
+  S.queue.push(q);SvyDB.put('queue',q.id,q);
+  svyUpdateSyncBadge();
+  if(S.settings.autoSync&&S.settings.endpoint&&navigator.onLine){clearTimeout(S._syncT);S._syncT=setTimeout(()=>svySyncNow(true),3000)}
+  return q;
+}
+function svyPending(){return S.queue.filter(q=>!q.synced)}
+function svyUpdateSyncBadge(){
+  const n=svyPending().length;
+  const b=$('svyToolBadge');if(b){b.textContent=n>99?'99+':String(n);b.style.display=n?'grid':'none'}
+  const s=$('svySyncCount');if(s)s.textContent=String(n);
+  const dot=$('svySyncDot');if(dot)dot.className='svy-dot '+(navigator.onLine?(n?'warn':'ok'):'off');
+  const st=$('svySyncState');if(st)st.textContent=navigator.onLine?(n?n+' perubahan menunggu sync':'Semua tersinkron'):'Offline — perubahan disimpan lokal';
+}
+async function svySyncNow(silent){
+  const pend=svyPending();
+  if(!pend.length){if(!silent)showToast('Tidak ada perubahan untuk disync');return}
+  if(!navigator.onLine){if(!silent)showToast('Offline — sync otomatis saat online kembali');return}
+  if(!S.settings.endpoint){if(!silent)showToast('Endpoint sync belum diatur. Buka Pengaturan Survey, atau gunakan Export GeoJSON/SMPK untuk dibawa ke QGIS.');return}
+  const payload={device_id:S.settings.deviceId,device_type:'survai_pwa',project_id:S.project.id||'local',last_sync_token:S.syncToken,
+    changes:pend.map(q=>({action:q.action,entity:q.entity,id:q.entity_id,timestamp:q.timestamp,...q.payload}))};
+  const url=S.settings.endpoint.replace(/\/+$/,'')+'/projects/'+encodeURIComponent(S.project.id||'local')+'/sync';
+  if(!silent)showToast('Sinkronisasi… ('+pend.length+' perubahan)');
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json().catch(()=>({}));
+    if(data.sync_token){S.syncToken=data.sync_token;SvyDB.put('kv','sync_token',S.syncToken)}
+    /* pull perubahan server (strategi last_write_wins sederhana) */
+    (data.server_changes||[]).forEach(ch=>{try{svyApplyServerChange(ch)}catch(e){}});
+    pend.forEach(q=>{q.synced=true;SvyDB.put('queue',q.id,q)});
+    S.lastSync=Date.now();SvyDB.put('kv','last_sync',S.lastSync);
+    svyUpdateSyncBadge();svyRenderSyncPane();
+    showToast('Sync berhasil • '+pend.length+' perubahan terkirim');
+  }catch(e){
+    console.warn('svySync',e);
+    svyUpdateSyncBadge();
+    if(!silent)showToast('Sync gagal ('+(e.message||'network')+') — data tetap aman tersimpan lokal');
+  }
+}
+function svyApplyServerChange(ch){
+  if(ch.entity!=='feature'||!ch.id)return;
+  const ex=S.features.find(f=>f.id===ch.id);
+  if(ch.action==='delete'){if(ex){S.features=S.features.filter(f=>f.id!==ch.id);SvyDB.del('feat',ch.id)}return}
+  const incoming={id:ch.id,layer:ch.layer||'point',name:(ch.attributes&&(ch.attributes.name||ch.attributes.kode))||'Server feature',
+    geometry:ch.geometry,attributes:ch.attributes||{},status:ch.workflow_status||'draft',gps:ch.gps||null,gps_ok:true,photos:(ex&&ex.photos)||[],
+    audit:(ex&&ex.audit)||[{ts:svyNow(),role:'server',action:'pull'}],task_id:ch.task_id||null,version:(ch.version||1),
+    created_at:(ex&&ex.created_at)||svyNow(),updated_at:ch.timestamp||svyNow()};
+  if(ex){if(new Date(incoming.updated_at)>=new Date(ex.updated_at))Object.assign(ex,incoming)}else S.features.push(incoming);
+  svyPersistFeature(ex||incoming);svyRenderMap();svyRenderFeatList();
+}
+
+/* =====================================================================
+   FITUR SURVEY (US-003/004): create dari plot, form atribut, workflow
+   ===================================================================== */
+function svyCreateFeature(cap){
+  const gps=svyGpsSnapshot();
+  const accOk=!!(gps&&gps.acc!=null&&gps.acc<=S.settings.accLimit);
+  const attrs={name:cap.name};
+  if(cap.desc)attrs.catatan=cap.desc;
+  /* Ukuran memakai RUMUS EXISTING (lineDist/polyArea/polyPerimeter) — tidak diubah */
+  if(cap.measure){
+    if(cap.measure.panjang_m!=null)attrs.panjang_m=Math.round(cap.measure.panjang_m*100)/100;
+    if(cap.measure.luas_m2!=null)attrs.luas_m2=Math.round(cap.measure.luas_m2*100)/100;
+    if(cap.measure.keliling_m!=null)attrs.keliling_m=Math.round(cap.measure.keliling_m*100)/100;
+  }
+  const f={id:uid(),layer:cap.mode,name:cap.name,geometry:cap.geom,attributes:attrs,
+    status:'draft',gps,gps_ok:accOk,photos:[],task_id:null,version:1,
+    audit:[{ts:svyNow(),role:S.role,action:'create',note:'Fitur dibuat dari Plot ('+cap.mode+')'}],
+    created_at:svyNow(),updated_at:svyNow()};
+  S.features.push(f);
+  svyPersistFeature(f);
+  svyQueuePush('create','feature',f);
+  svyRenderMap();svyRenderFeatList();svyRenderStats();
+  if(gps&&gps.acc!=null&&!accOk)showToast('Perhatian: akurasi GPS ±'+Math.round(gps.acc)+' m > batas '+S.settings.accLimit+' m (disimpan sebagai draft)');
+  return f;
+}
+function svyUpdateFeature(f,note){
+  f.updated_at=svyNow();f.version=(f.version||1)+1;
+  f.audit.push({ts:svyNow(),role:S.role,action:'update',note:note||'Atribut diperbarui'});
+  svyPersistFeature(f);svyQueuePush('update','feature',f);
+  svyRenderMap();svyRenderFeatList();svyRenderStats();
+}
+function svyDeleteFeature(id){
+  const f=S.features.find(x=>x.id===id);if(!f)return;
+  if(!confirm('Hapus fitur "'+f.name+'" dari data survey?'))return;
+  S.features=S.features.filter(x=>x.id!==id);
+  (f.photos||[]).forEach(p=>SvyDB.del('att',p.id));
+  SvyDB.del('feat',id);
+  svyQueuePush('delete','feature',f);
+  svyCloseModal();svyRenderMap();svyRenderFeatList();svyRenderStats();
+  showToast('Fitur survey dihapus');
+}
+function svyAllowedTransitions(f){return (SVY_FLOW[S.role]&&SVY_FLOW[S.role][f.status])||[]}
+function svyTransition(id,to){
+  const f=S.features.find(x=>x.id===id);if(!f)return;
+  const allowed=svyAllowedTransitions(f);
+  if(allowed.indexOf(to)<0)return showToast('Role '+SVY_ROLE_LABEL[S.role]+' tidak dapat mengubah status ini');
+  let reason='';
+  if(to==='rejected'){reason=prompt('Alasan reject (wajib):','');if(!reason||!reason.trim())return showToast('Reject dibatalkan — alasan wajib diisi');reason=reason.trim()}
+  const from=f.status;f.status=to;f.updated_at=svyNow();
+  f.audit.push({ts:svyNow(),role:S.role,action:'status',from,to,note:reason||undefined});
+  svyPersistFeature(f);svyQueuePush('update','feature',f);
+  svyRenderMap();svyRenderFeatList();svyRenderStats();
+  svyOpenDetail(id);
+  showToast('Status: '+(SVY_STATUS[from]||{}).label+' → '+(SVY_STATUS[to]||{}).label);
+}
+
+/* ---------- Render fitur di peta (warna per status workflow) ---------- */
+function svyEnsureGroup(){
+  if(!state.map)return;
+  if(!S.group){S.group=L.featureGroup().addTo(state.map)}
+  if(!S.taskGroup){S.taskGroup=L.featureGroup().addTo(state.map)}
+  svyRenderMap();
+}
+function svyRenderMap(){
+  if(!state.map||!S.group)return;
+  S.group.clearLayers();S.taskGroup.clearLayers();
+  S.features.forEach(f=>{
+    if(S.filter!=='all'&&f.status!==S.filter)return;
+    const col=(SVY_STATUS[f.status]||{}).color||'#8ea0b8';
+    let ly=null;
+    try{
+      if(f.geometry.type==='Point'){
+        ly=L.circleMarker([f.geometry.coordinates[1],f.geometry.coordinates[0]],{radius:8,color:'#fff',weight:2,fillColor:col,fillOpacity:.95});
+      }else if(f.geometry.type==='LineString'){
+        ly=L.polyline(f.geometry.coordinates.map(c=>[c[1],c[0]]),{color:col,weight:4,opacity:.95});
+      }else if(f.geometry.type==='Polygon'){
+        ly=L.polygon(f.geometry.coordinates[0].map(c=>[c[1],c[0]]),{color:col,weight:2,fillColor:col,fillOpacity:.22});
+      }
+    }catch(e){}
+    if(!ly)return;
+    const div=document.createElement('div');
+    div.innerHTML=`<b>${esc(f.name)}</b><br>${svyStatusPill(f.status)}<br><button class="svy-pop-btn">Detail Survey</button>`;
+    div.querySelector('.svy-pop-btn').addEventListener('click',()=>svyOpenDetail(f.id));
+    ly.bindPopup(div);
+    ly.addTo(S.group);
+  });
+  S.tasks.forEach(t=>{
+    if(!t.location||t.status==='completed')return;
+    const col=(SVY_TASK_STATUS[t.status]||{}).color||'#8ea0b8';
+    const mk=L.marker([t.location.lat,t.location.lng],{icon:L.divIcon({className:'',iconSize:[26,26],iconAnchor:[6,24],
+      html:`<div style="font-size:20px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))">🚩</div>`})});
+    const div=document.createElement('div');
+    div.innerHTML=`<b>Tugas: ${esc(t.title)}</b><br>${svyStatusPill(t.status,SVY_TASK_STATUS)}<br><button class="svy-pop-btn">Detail Tugas</button>`;
+    div.querySelector('.svy-pop-btn').addEventListener('click',()=>svyOpenTaskDetail(t.id));
+    mk.bindPopup(div);
+    if(t.geo_fencing_enabled&&t.geo_fencing_radius){
+      L.circle([t.location.lat,t.location.lng],{radius:t.geo_fencing_radius,color:col,weight:1.5,dashArray:'6,5',fillColor:col,fillOpacity:.06}).addTo(S.taskGroup);
+    }
+    mk.addTo(S.taskGroup);
+  });
+}
+
+/* =====================================================================
+   HOOK PLOT SAVE — membungkus savePlotSheet() asli tanpa mengubahnya.
+   Geometri & ukuran di-capture SEBELUM draft dibersihkan oleh fungsi
+   asli; rumus lineDist/polyArea/polyPerimeter existing dipakai apa adanya.
+   ===================================================================== */
+function svyPlotSaveWrapper(){
+  let cap=null;
+  try{
+    if(S.settings.capture){
+      const mode=state.plotSaveMode;
+      const name=($('plotNameInput').value||'').trim()||'Plot';
+      const desc=$('plotDescInput')?($('plotDescInput').value||'').trim():'';
+      let geom=null,measure=null;
+      if(mode==='point'&&state.plotSaveLatLng){
+        geom={type:'Point',coordinates:[state.plotSaveLatLng.lng,state.plotSaveLatLng.lat]};
+      }else if(mode==='line'&&state.plotDraft.length>=2){
+        geom={type:'LineString',coordinates:state.plotDraft.map(p=>[p.lng,p.lat])};
+        measure={panjang_m:lineDist(state.plotDraft)};
+      }else if(mode==='polygon'&&state.plotDraft.length>=3){
+        const ring=state.plotDraft.map(p=>[p.lng,p.lat]);ring.push(ring[0].slice());
+        geom={type:'Polygon',coordinates:[ring]};
+        measure={luas_m2:polyArea(state.plotDraft),keliling_m:polyPerimeter(state.plotDraft)};
+      }
+      if(geom)cap={mode,name,desc,geom,measure};
+    }
+  }catch(e){console.warn('svy capture',e)}
+  savePlotSheet(); /* fungsi & rumus asli — tidak diubah */
+  if(cap){
+    const f=svyCreateFeature(cap);
+    setTimeout(()=>svyOpenForm(f.id,true),350);
+  }
+}
+
+/* =====================================================================
+   FORM ENGINE (US-004 / FORM-01..08): render dari skema JSON (SMPK)
+   ===================================================================== */
+function svyOpenForm(fid,isNew){
+  const f=S.features.find(x=>x.id===fid);if(!f)return;
+  const gps=f.gps||svyGpsSnapshot();
+  const rows=S.form.fields.map(fd=>{
+    const cur=f.attributes[fd.name]!=null?f.attributes[fd.name]:svyEvalDefault(fd.default_value,gps);
+    const req=fd.required?'<i class="svy-req">*</i>':'';
+    let inp='';
+    if(fd.type==='dropdown'){
+      inp=`<select class="svy-inp" data-f="${fd.name}"><option value="">— pilih —</option>${(fd.options||[]).map(o=>`<option value="${esc(o.value)}"${String(cur)===o.value?' selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
+    }else if(fd.type==='radio'){
+      inp=`<div class="svy-radio-row">${(fd.options||[]).map(o=>`<label class="svy-radio"><input type="radio" name="svyr_${fd.name}" data-f="${fd.name}" value="${esc(o.value)}"${String(cur)===o.value?' checked':''}><span>${esc(o.label)}</span></label>`).join('')}</div>`;
+    }else if(fd.type==='textarea'){
+      inp=`<textarea class="svy-inp" rows="2" data-f="${fd.name}" ${fd.max_length?'maxlength="'+fd.max_length+'"':''}>${esc(cur)}</textarea>`;
+    }else{
+      const t=fd.type==='number'?'number':fd.type==='date'?'date':'text';
+      inp=`<input class="svy-inp" type="${t}" ${t==='number'?'step="any"':''} data-f="${fd.name}" value="${esc(cur)}" placeholder="${esc(fd.placeholder||'')}">`;
+    }
+    return `<div class="svy-field"><label>${esc(fd.label)}${req}</label>${inp}</div>`;
+  }).join('');
+  const gpsLine=gps
+    ?`GPS: ${gps.lat.toFixed(7)}, ${gps.lon.toFixed(7)} • ±${gps.acc!=null?Math.round(gps.acc):'?'} m ${gps.acc!=null&&gps.acc<=S.settings.accLimit?'<span class="svy-ok">OK</span>':'<span class="svy-warn">> batas '+S.settings.accLimit+' m</span>'}${gps.alt!=null?' • alt '+Math.round(gps.alt)+' m':''}`
+    :'GPS: tidak ada fix — metadata GPS kosong';
+  svyOpenModal(`
+    <h3>${esc(S.form.title)}</h3>
+    <p class="svy-sub">${isNew?'Fitur baru tersimpan sebagai <b>Draft</b>. Lengkapi atribut sesuai form QGIS.':'Edit atribut fitur.'}</p>
+    <div class="svy-gpsline">${gpsLine}</div>
+    <div class="svy-form" id="svyFormFields">${rows}</div>
+    <div class="svy-modal-actions">
+      <button class="svy-btn ghost" id="svyFormCancel">Tutup</button>
+      <button class="svy-btn primary" id="svyFormSave">Simpan Atribut</button>
+    </div>`);
+  const collect=()=>{
+    const out={};
+    document.querySelectorAll('#svyFormFields [data-f]').forEach(el=>{
+      if(el.type==='radio'){if(el.checked)out[el.dataset.f]=el.value;return}
+      out[el.dataset.f]=el.value;
+    });
+    return out;
+  };
+  /* auto-save draft (US-004): simpan senyap saat mengetik */
+  document.querySelectorAll('#svyFormFields [data-f]').forEach(el=>{
+    el.addEventListener('input',()=>{clearTimeout(S._autoSaveT);S._autoSaveT=setTimeout(()=>{Object.assign(f.attributes,collect());f.updated_at=svyNow();svyPersistFeature(f)},1500)});
+  });
+  $('svyFormCancel').onclick=()=>{svyCloseModal();svyOpenDetail(fid)};
+  $('svyFormSave').onclick=()=>{
+    const vals=collect();
+    /* validasi constraint (FORM-08) */
+    for(const fd of S.form.fields){
+      const v=vals[fd.name];
+      if(fd.required&&(v==null||String(v).trim()===''))return showToast('"'+fd.label+'" wajib diisi');
+      if(fd.type==='number'&&v!==''&&v!=null&&fd.constraints){
+        const n=parseFloat(v);
+        if(Number.isFinite(n)){
+          if(fd.constraints.min!=null&&n<fd.constraints.min)return showToast('"'+fd.label+'" minimal '+fd.constraints.min);
+          if(fd.constraints.max!=null&&n>fd.constraints.max)return showToast('"'+fd.label+'" maksimal '+fd.constraints.max);
+        }
+      }
+      if(fd.constraints&&fd.constraints.regex&&v){try{if(!new RegExp(fd.constraints.regex).test(v))return showToast('"'+fd.label+'" tidak sesuai format')}catch(e){}}
+    }
+    Object.assign(f.attributes,vals);
+    if(vals.kode)f.name=vals.kode;else if(vals.name)f.name=vals.name;
+    svyUpdateFeature(f,'Form atribut disimpan');
+    svyCloseModal();
+    showToast('Atribut "'+f.name+'" tersimpan (offline-first)');
+  };
+}
+
+/* =====================================================================
+   ATTACHMENT (ATT-01/03): foto terkompresi + rekam audio, simpan IDB
+   ===================================================================== */
+function svyCompressPhoto(file){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const MAX=1600;let w=img.naturalWidth,h=img.naturalHeight;
+        if(Math.max(w,h)>MAX){const k=MAX/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k)}
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        c.toBlob(b=>b?res(b):rej(new Error('compress')),'image/jpeg',.82);
+      }catch(e){rej(e)}
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror=()=>rej(new Error('img'));
+    img.src=URL.createObjectURL(file);
+  });
+}
+async function svyAddPhoto(fid,file){
+  const f=S.features.find(x=>x.id===fid);if(!f)return;
+  let blob=file;
+  try{blob=await svyCompressPhoto(file)}catch(e){}
+  const att={id:uid(),type:'photo',feature_id:fid,size:blob.size,mime:blob.type||'image/jpeg',gps:svyGpsSnapshot(),created_at:svyNow(),blob};
+  await SvyDB.put('att',att.id,att);
+  f.photos=f.photos||[];f.photos.push({id:att.id,type:'photo'});
+  svyUpdateFeature(f,'Foto ditambahkan');
+  svyOpenDetail(fid);
+  showToast('Foto tersimpan lokal ('+Math.round(blob.size/1024)+' KB) — akan ikut sync');
+}
+function svyRecordAudio(fid){
+  const f=S.features.find(x=>x.id===fid);if(!f)return;
+  if(S._audioRec){ /* stop */
+    try{S._audioRec.stop()}catch(e){}
+    return;
+  }
+  if(!navigator.mediaDevices||!window.MediaRecorder)return showToast('Rekam audio tidak didukung browser ini');
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    const rec=new MediaRecorder(stream);const chunks=[];
+    S._audioRec=rec;
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+    rec.onstop=async()=>{
+      clearTimeout(S._audioT);S._audioRec=null;
+      stream.getTracks().forEach(t=>t.stop());
+      const blob=new Blob(chunks,{type:rec.mimeType||'audio/webm'});
+      const att={id:uid(),type:'audio',feature_id:fid,size:blob.size,mime:blob.type,gps:svyGpsSnapshot(),created_at:svyNow(),blob};
+      await SvyDB.put('att',att.id,att);
+      f.photos=f.photos||[];f.photos.push({id:att.id,type:'audio'});
+      svyUpdateFeature(f,'Catatan audio ditambahkan');
+      svyOpenDetail(fid);
+      showToast('Audio tersimpan ('+Math.round(blob.size/1024)+' KB)');
+    };
+    rec.start();
+    showToast('Merekam audio… tekan tombol yang sama untuk berhenti (maks 5 menit)');
+    const btn=$('svyAudioBtn');if(btn)btn.textContent='⏹ Stop Rekam';
+    S._audioT=setTimeout(()=>{try{rec.stop()}catch(e){}},5*60*1000);
+  }).catch(()=>showToast('Izin mikrofon ditolak'));
+}
+async function svyDeleteAttachment(fid,attId){
+  const f=S.features.find(x=>x.id===fid);if(!f)return;
+  if(!confirm('Hapus attachment ini?'))return;
+  f.photos=(f.photos||[]).filter(p=>p.id!==attId);
+  await SvyDB.del('att',attId);
+  svyUpdateFeature(f,'Attachment dihapus');
+  svyOpenDetail(fid);
+}
+
+/* =====================================================================
+   DETAIL FITUR + workflow action + audit trail (US-007/009)
+   ===================================================================== */
+async function svyOpenDetail(fid){
+  const f=S.features.find(x=>x.id===fid);if(!f)return;
+  S._urls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});S._urls=[];
+  const attrRows=Object.keys(f.attributes).map(k=>{
+    const fd=S.form.fields.find(x=>x.name===k);
+    const label=fd?fd.label:(k==='name'?'Nama':k);
+    let v=f.attributes[k];
+    if(fd&&fd.type==='dropdown'){const o=(fd.options||[]).find(x=>x.value===v);if(o)v=o.label}
+    if(v==null||v==='')return '';
+    return `<div class="svy-attr"><span>${esc(label)}</span><b>${esc(String(v))}</b></div>`;
+  }).join('');
+  const c=svyGeomCenter(f.geometry);
+  const gpsInfo=f.gps
+    ?`<div class="svy-attr"><span>GPS Metadata</span><b>±${f.gps.acc!=null?Math.round(f.gps.acc):'?'} m • alt ${f.gps.alt!=null?Math.round(f.gps.alt)+' m':'—'} • ${formatDate(f.gps.time)}</b></div>`
+    :'<div class="svy-attr"><span>GPS Metadata</span><b>— (tanpa fix GPS)</b></div>';
+  const coordInfo=c?`<div class="svy-attr"><span>Koordinat</span><b>${c.lat.toFixed(7)}, ${c.lng.toFixed(7)}<br>${esc(llToUtm(c.lat,c.lng))}</b></div>`:'';
+  const trans=svyAllowedTransitions(f);
+  const actBtns=trans.map(t=>{
+    const lbl=t==='submitted'?'Kirim (Submit)':t==='qc_review'?'Mulai QC Review':t==='approved'?'✓ Approve':t==='rejected'?'✕ Reject':t==='draft'?'Kembalikan ke Draft (Revisi)':t;
+    const cls=t==='approved'?'good':t==='rejected'?'danger':'primary';
+    return `<button class="svy-btn ${cls}" data-tr="${t}">${lbl}</button>`;
+  }).join('')||`<span class="svy-note">Role ${SVY_ROLE_LABEL[S.role]} tidak memiliki aksi untuk status ini.</span>`;
+  const audit=(f.audit||[]).slice().reverse().map(a=>{
+    const what=a.action==='create'?'Dibuat':a.action==='update'?(a.note||'Update'):a.action==='status'?((SVY_STATUS[a.from]||{}).label+' → '+(SVY_STATUS[a.to]||{}).label+(a.note?' — "'+esc(a.note)+'"':'')):a.action;
+    return `<div class="svy-audit-item"><b>${what}</b><span>${formatDate(new Date(a.ts).getTime())} • ${esc(SVY_ROLE_LABEL[a.role]||a.role)}</span></div>`;
+  }).join('');
+  /* attachments */
+  let attHtml='';
+  for(const p of (f.photos||[])){
+    const att=await SvyDB.get('att',p.id);
+    if(!att||!att.blob){attHtml+='';continue}
+    const url=URL.createObjectURL(att.blob);S._urls.push(url);
+    if(att.type==='audio'){
+      attHtml+=`<div class="svy-att-audio"><audio controls src="${url}"></audio><button class="svy-att-del" data-att="${p.id}">×</button></div>`;
+    }else{
+      attHtml+=`<div class="svy-att-thumb"><img src="${url}" alt="foto"><button class="svy-att-del" data-att="${p.id}">×</button></div>`;
+    }
+  }
+  svyOpenModal(`
+    <div class="svy-detail-head"><h3>${esc(f.name)}</h3>${svyStatusPill(f.status)}</div>
+    <p class="svy-sub">${f.layer==='point'?'Titik':f.layer==='line'?'Garis':'Poligon'} • dibuat ${formatDate(new Date(f.created_at).getTime())} • v${f.version}</p>
+    <div class="svy-attrs">${coordInfo}${gpsInfo}${attrRows}</div>
+    <div class="svy-sec-title">ATTACHMENT (${(f.photos||[]).length})</div>
+    <div class="svy-att-row">${attHtml}
+      <label class="svy-att-add">＋ Foto<input type="file" accept="image/*" capture="environment" id="svyPhotoInput" hidden></label>
+      <button class="svy-att-add" id="svyAudioBtn">🎙 Audio</button>
+    </div>
+    <div class="svy-sec-title">AKSI WORKFLOW — ROLE: ${SVY_ROLE_LABEL[S.role].toUpperCase()}</div>
+    <div class="svy-actions-row">${actBtns}</div>
+    <div class="svy-sec-title">AUDIT TRAIL</div>
+    <div class="svy-audit">${audit||'<span class="svy-note">Belum ada riwayat.</span>'}</div>
+    <div class="svy-modal-actions">
+      <button class="svy-btn ghost" id="svyDetZoom">⌖ Zoom</button>
+      <button class="svy-btn ghost" id="svyDetEdit">✎ Edit Atribut</button>
+      <button class="svy-btn danger ghost" id="svyDetDel">Hapus</button>
+      <button class="svy-btn" id="svyDetClose">Tutup</button>
+    </div>`);
+  document.querySelectorAll('#svyModal [data-tr]').forEach(b=>b.onclick=()=>svyTransition(fid,b.dataset.tr));
+  document.querySelectorAll('#svyModal .svy-att-del').forEach(b=>b.onclick=()=>svyDeleteAttachment(fid,b.dataset.att));
+  const pi=$('svyPhotoInput');if(pi)pi.onchange=e=>{if(e.target.files.length)svyAddPhoto(fid,e.target.files[0])};
+  const ab=$('svyAudioBtn');if(ab)ab.onclick=()=>svyRecordAudio(fid);
+  $('svyDetZoom').onclick=()=>{const cc=svyGeomCenter(f.geometry);if(cc&&state.map){svyCloseModal();svyClosePanel();state.map.setView([cc.lat,cc.lng],Math.max(state.map.getZoom()||18,18),{animate:true})}};
+  $('svyDetEdit').onclick=()=>svyOpenForm(fid,false);
+  $('svyDetDel').onclick=()=>svyDeleteFeature(fid);
+  $('svyDetClose').onclick=svyCloseModal;
+}
+
+/* =====================================================================
+   TASK ENGINE lite (US-008 / TASK-01..05): checklist, progress,
+   geofence memakai rumus haversine EXISTING.
+   ===================================================================== */
+function svyTaskProgress(t){
+  const req=(t.checklist||[]).filter(c=>c.required!==false);
+  if(!req.length)return t.status==='completed'?100:0;
+  return Math.round(req.filter(c=>c.completed).length/req.length*100); /* rumus PRD Task §7.1 */
+}
+function svyOpenTaskForm(){
+  svyOpenModal(`
+    <h3>Tugas Baru</h3>
+    <p class="svy-sub">Assign lokasi survey ke tim dengan checklist wajib & geofence.</p>
+    <div class="svy-form">
+      <div class="svy-field"><label>Judul<i class="svy-req">*</i></label><input class="svy-inp" id="svyTkTitle" placeholder="cth: Survey Patok Blok A"></div>
+      <div class="svy-field"><label>Deskripsi</label><textarea class="svy-inp" id="svyTkDesc" rows="2"></textarea></div>
+      <div class="svy-field-row">
+        <div class="svy-field"><label>Prioritas</label><select class="svy-inp" id="svyTkPrio"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>
+        <div class="svy-field"><label>Assignee</label><input class="svy-inp" id="svyTkAssignee" placeholder="nama surveyor"></div>
+      </div>
+      <div class="svy-field"><label>Deadline</label><input class="svy-inp" type="datetime-local" id="svyTkDeadline"></div>
+      <div class="svy-field"><label>Checklist (1 item per baris)</label><textarea class="svy-inp" id="svyTkCheck" rows="4" placeholder="Ambil foto dari 2 arah&#10;Catat koordinat akurasi < 5 m&#10;Isi form atribut lengkap"></textarea></div>
+      <div class="svy-field"><label>Lokasi Tugas</label>
+        <div class="svy-actions-row">
+          <button class="svy-btn ghost" id="svyTkLocMap">Tengah Peta</button>
+          <button class="svy-btn ghost" id="svyTkLocGps">Posisi GPS</button>
+          <span class="svy-note" id="svyTkLocLbl">belum dipilih</span>
+        </div>
+      </div>
+      <div class="svy-field-row">
+        <label class="svy-check"><input type="checkbox" id="svyTkGeo" checked> Geofence aktif</label>
+        <div class="svy-field"><label>Radius (m)</label><input class="svy-inp" type="number" id="svyTkRadius" value="100" min="10" max="500"></div>
+      </div>
+    </div>
+    <div class="svy-modal-actions">
+      <button class="svy-btn ghost" id="svyTkCancel">Batal</button>
+      <button class="svy-btn primary" id="svyTkSave">Buat Tugas</button>
+    </div>`);
+  let loc=null;
+  const setLbl=()=>{$('svyTkLocLbl').textContent=loc?loc.lat.toFixed(6)+', '+loc.lng.toFixed(6):'belum dipilih'};
+  $('svyTkLocMap').onclick=()=>{if(!state.map)return showToast('Buka peta dulu');const cc=state.map.getCenter();loc={lat:cc.lat,lng:cc.lng};setLbl()};
+  $('svyTkLocGps').onclick=()=>{if(!state.gps)return showToast('Belum ada fix GPS');loc={lat:state.gps.lat,lng:state.gps.lon};setLbl()};
+  $('svyTkCancel').onclick=svyCloseModal;
+  $('svyTkSave').onclick=()=>{
+    const title=($('svyTkTitle').value||'').trim();
+    if(!title)return showToast('Judul tugas wajib diisi');
+    const checklist=($('svyTkCheck').value||'').split('\n').map(s=>s.trim()).filter(Boolean).map(s=>({id:uid(),item:s,required:true,completed:false,completed_at:null}));
+    const t={id:uid(),type:'field_survey',title,description:($('svyTkDesc').value||'').trim(),
+      status:'open',priority:$('svyTkPrio').value,assignee:($('svyTkAssignee').value||'').trim()||null,
+      deadline:$('svyTkDeadline').value?new Date($('svyTkDeadline').value).toISOString():null,
+      location:loc,geo_fencing_enabled:$('svyTkGeo').checked&&!!loc,geo_fencing_radius:Math.max(10,Math.min(500,parseInt($('svyTkRadius').value)||100)),
+      checklist,progress:0,_inZone:false,
+      audit:[{ts:svyNow(),role:S.role,action:'create'}],created_at:svyNow(),updated_at:svyNow()};
+    S.tasks.push(t);svyPersistTask(t);svyQueuePush('create','task',t);
+    svyCloseModal();svyRenderTaskList();svyRenderMap();
+    showToast('Tugas "'+title+'" dibuat'+(t.geo_fencing_enabled?' • geofence '+t.geo_fencing_radius+' m aktif':''));
+  };
+}
+function svyTaskAction(id,act){
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  const A={start:{from:['open','rejected'],to:'in_progress',who:['surveyor','pm']},
+    submit:{from:['in_progress'],to:'pending_review',who:['surveyor','pm']},
+    approve:{from:['pending_review'],to:'completed',who:['qc','pm']},
+    reject:{from:['pending_review'],to:'rejected',who:['qc','pm']}}[act];
+  if(!A)return;
+  if(A.who.indexOf(S.role)<0)return showToast('Role '+SVY_ROLE_LABEL[S.role]+' tidak dapat melakukan aksi ini');
+  if(A.from.indexOf(t.status)<0)return;
+  if(act==='submit'){
+    const req=(t.checklist||[]).filter(c=>c.required!==false);
+    if(req.some(c=>!c.completed))return showToast('Checklist wajib belum lengkap ('+svyTaskProgress(t)+'%) — selesaikan dulu');
+  }
+  let reason='';
+  if(act==='reject'){reason=prompt('Alasan reject (wajib):','');if(!reason||!reason.trim())return showToast('Reject dibatalkan');reason=reason.trim()}
+  const from=t.status;t.status=A.to;t.updated_at=svyNow();
+  if(act==='start')t.started_at=svyNow();
+  if(act==='approve')t.completed_at=svyNow();
+  t.audit.push({ts:svyNow(),role:S.role,action:'status',from,to:A.to,note:reason||undefined});
+  svyPersistTask(t);svyQueuePush('update','task',t);
+  svyRenderTaskList();svyRenderMap();svyOpenTaskDetail(id);
+  showToast('Tugas: '+(SVY_TASK_STATUS[from]||{}).label+' → '+(SVY_TASK_STATUS[A.to]||{}).label);
+}
+function svyOpenTaskDetail(id){
+  const t=S.tasks.find(x=>x.id===id);if(!t)return;
+  const prog=svyTaskProgress(t);
+  const overdue=t.deadline&&t.status!=='completed'&&new Date(t.deadline)<new Date();
+  const checks=(t.checklist||[]).map(c=>`
+    <label class="svy-check-item"><input type="checkbox" data-chk="${c.id}" ${c.completed?'checked':''} ${t.status==='completed'?'disabled':''}>
+    <span>${esc(c.item)}${c.completed&&c.completed_at?'<i>✓ '+formatDate(new Date(c.completed_at).getTime())+'</i>':''}</span></label>`).join('')
+    ||'<span class="svy-note">Tidak ada checklist.</span>';
+  const btns=[];
+  if(t.status==='open'||t.status==='rejected')btns.push('<button class="svy-btn primary" data-ta="start">▶ Mulai Kerjakan</button>');
+  if(t.status==='in_progress')btns.push('<button class="svy-btn primary" data-ta="submit">Kirim untuk Review</button>');
+  if(t.status==='pending_review'){btns.push('<button class="svy-btn good" data-ta="approve">✓ Approve</button>');btns.push('<button class="svy-btn danger" data-ta="reject">✕ Reject</button>')}
+  const audit=(t.audit||[]).slice().reverse().map(a=>{
+    const what=a.action==='create'?'Dibuat':a.action==='check'?(a.note||'Checklist'):a.action==='status'?((SVY_TASK_STATUS[a.from]||{}).label+' → '+(SVY_TASK_STATUS[a.to]||{}).label+(a.note?' — "'+esc(a.note)+'"':'')):a.action;
+    return `<div class="svy-audit-item"><b>${what}</b><span>${formatDate(new Date(a.ts).getTime())} • ${esc(SVY_ROLE_LABEL[a.role]||a.role)}</span></div>`;
+  }).join('');
+  svyOpenModal(`
+    <div class="svy-detail-head"><h3>${esc(t.title)}</h3>${svyStatusPill(t.status,SVY_TASK_STATUS)}</div>
+    <p class="svy-sub">${esc(t.description||'')}</p>
+    <div class="svy-attrs">
+      <div class="svy-attr"><span>Prioritas</span><b>${esc(t.priority)}</b></div>
+      ${t.assignee?`<div class="svy-attr"><span>Assignee</span><b>${esc(t.assignee)}</b></div>`:''}
+      ${t.deadline?`<div class="svy-attr"><span>Deadline</span><b style="${overdue?'color:#ff6b6b':''}">${formatDate(new Date(t.deadline).getTime())}${overdue?' • TERLAMBAT':''}</b></div>`:''}
+      ${t.location?`<div class="svy-attr"><span>Lokasi</span><b>${t.location.lat.toFixed(6)}, ${t.location.lng.toFixed(6)}${t.geo_fencing_enabled?' • geofence '+t.geo_fencing_radius+' m':''}</b></div>`:''}
+    </div>
+    <div class="svy-progress"><div class="svy-progress-bar" style="width:${prog}%"></div><span>${prog}%</span></div>
+    <div class="svy-sec-title">CHECKLIST</div>
+    <div class="svy-checklist">${checks}</div>
+    <div class="svy-sec-title">AKSI — ROLE: ${SVY_ROLE_LABEL[S.role].toUpperCase()}</div>
+    <div class="svy-actions-row">${btns.join('')||'<span class="svy-note">Tidak ada aksi untuk role/status ini.</span>'}</div>
+    <div class="svy-sec-title">AUDIT TRAIL</div>
+    <div class="svy-audit">${audit}</div>
+    <div class="svy-modal-actions">
+      ${t.location?'<button class="svy-btn ghost" id="svyTkZoom">⌖ Zoom</button>':''}
+      <button class="svy-btn danger ghost" id="svyTkDel">Hapus</button>
+      <button class="svy-btn" id="svyTkClose">Tutup</button>
+    </div>`);
+  document.querySelectorAll('#svyModal [data-chk]').forEach(cb=>cb.onchange=()=>{
+    const c=(t.checklist||[]).find(x=>x.id===cb.dataset.chk);if(!c)return;
+    if(t.status==='open'){cb.checked=false;return showToast('Mulai kerjakan tugas dulu (▶)')}
+    c.completed=cb.checked;c.completed_at=cb.checked?svyNow():null;
+    t.progress=svyTaskProgress(t);t.updated_at=svyNow();
+    t.audit.push({ts:svyNow(),role:S.role,action:'check',note:(cb.checked?'✓ ':'✗ ')+c.item});
+    svyPersistTask(t);svyQueuePush('update','task',t);
+    svyRenderTaskList();svyOpenTaskDetail(id);
+  });
+  document.querySelectorAll('#svyModal [data-ta]').forEach(b=>b.onclick=()=>svyTaskAction(id,b.dataset.ta));
+  if($('svyTkZoom'))$('svyTkZoom').onclick=()=>{svyCloseModal();svyClosePanel();state.map.setView([t.location.lat,t.location.lng],Math.max(state.map.getZoom()||17,17),{animate:true})};
+  $('svyTkDel').onclick=()=>{if(!confirm('Hapus tugas "'+t.title+'"?'))return;S.tasks=S.tasks.filter(x=>x.id!==id);SvyDB.del('task',id);svyQueuePush('delete','task',t);svyCloseModal();svyRenderTaskList();svyRenderMap();showToast('Tugas dihapus')};
+  $('svyTkClose').onclick=svyCloseModal;
+}
+/* Geofence (TASK-05): cek posisi GPS terhadap lokasi tugas — jarak
+   dihitung dengan haversine() EXISTING, tidak ada rumus baru. */
+function svyGeofenceTick(){
+  const g=state.gps;if(!g)return;
+  S.tasks.forEach(t=>{
+    if(!t.geo_fencing_enabled||!t.location||t.status==='completed')return;
+    let d;
+    try{d=haversine({lat:g.lat,lon:g.lon},{lat:t.location.lat,lon:t.location.lng})}catch(e){return}
+    const inZone=d<=(t.geo_fencing_radius||100);
+    if(inZone&&!t._inZone){t._inZone=true;showToast('📍 Anda memasuki area tugas "'+t.title+'" ('+Math.round(d)+' m)');if(navigator.vibrate)try{navigator.vibrate([120,60,120])}catch(e){}}
+    else if(!inZone&&t._inZone){t._inZone=false;if(t.status==='in_progress')showToast('⚠ Anda keluar dari area tugas "'+t.title+'"')}
+  });
+}
+
+/* =====================================================================
+   EXPORT / IMPORT (SYNC-05, paket .smpk §4 — JSON manifest + GeoJSON)
+   ===================================================================== */
+function svyFeatureCollection(){
+  return {type:'FeatureCollection',
+    features:S.features.map(f=>({type:'Feature',id:f.id,geometry:f.geometry,
+      properties:Object.assign({},f.attributes,{name:f.name,workflow_status:f.status,layer:f.layer,version:f.version,
+        gps_accuracy_m:f.gps&&f.gps.acc!=null?f.gps.acc:null,gps_altitude_m:f.gps&&f.gps.alt!=null?f.gps.alt:null,
+        gps_time:f.gps?new Date(f.gps.time).toISOString():null,created_at:f.created_at,updated_at:f.updated_at,task_id:f.task_id})}))};
+}
+function svyExportGeoJSON(returnObj){
+  const fc=svyFeatureCollection();
+  if(returnObj)return fc;
+  if(!fc.features.length)return showToast('Belum ada fitur survey untuk diexport');
+  svyDownload((S.project.name||'survai').replace(/\s+/g,'_')+'_survey.geojson',JSON.stringify(fc,null,1),'application/geo+json');
+  showToast('GeoJSON diexport ('+fc.features.length+' fitur) — bisa langsung dibuka di QGIS');
+}
+function svyExportSmpk(){
+  const pkg={
+    manifest:{version:'1.0',format:'smpk',created_at:svyNow(),created_by:'Survai App Mobile Survey',
+      project:{name:S.project.name,description:'Paket survey lapangan Survai App',crs:S.project.crs},
+      layers:[{id:S.form.layer_id,name:S.form.title,geometry_type:'Mixed',crs:S.project.crs,editable:true}],
+      settings:{auto_sync:S.settings.autoSync,offline_mode:true,gps_accuracy_threshold:S.settings.accLimit}},
+    project:{name:S.project.name,crs:S.project.crs},
+    forms:[S.form],
+    tasks:S.tasks.map(t=>{const x=Object.assign({},t);delete x._inZone;return x}),
+    data:svyFeatureCollection()
+  };
+  svyDownload((S.project.name||'survai').replace(/\s+/g,'_')+'.smpk.json',JSON.stringify(pkg,null,1),'application/json');
+  showToast('Paket SMPK (JSON) diexport — import via plugin Survai Sync di QGIS');
+}
+function svyImportFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    let data;
+    try{data=JSON.parse(e.target.result)}catch(err){return showToast('File bukan JSON/GeoJSON valid')}
+    let fc=null,n=0;
+    if(data&&data.manifest&&data.manifest.format==='smpk'){
+      if(data.project&&data.project.name){S.project.name=data.project.name;SvyDB.put('kv','project',S.project)}
+      if(Array.isArray(data.forms)&&data.forms[0]&&Array.isArray(data.forms[0].fields)){S.form=data.forms[0];SvyDB.put('kv','form_schema',S.form)}
+      if(Array.isArray(data.tasks)){data.tasks.forEach(t=>{if(!S.tasks.find(x=>x.id===t.id)){t._inZone=false;S.tasks.push(t);svyPersistTask(t)}})}
+      fc=data.data;
+      showToast('Project "'+esc(S.project.name)+'" dimuat dari paket SMPK');
+    }else if(data&&data.type==='FeatureCollection'){fc=data}
+    else return showToast('Format tidak dikenali (harus GeoJSON FeatureCollection atau paket .smpk.json)');
+    if(fc&&Array.isArray(fc.features)){
+      fc.features.forEach(ft=>{
+        if(!ft||!ft.geometry)return;
+        const id=ft.id||uid();
+        if(S.features.find(x=>x.id===id))return;
+        const props=ft.properties||{};
+        const lay=props.layer||(ft.geometry.type==='Point'?'point':ft.geometry.type==='LineString'?'line':'polygon');
+        const attrs=Object.assign({},props);
+        ['workflow_status','layer','version','gps_accuracy_m','gps_altitude_m','gps_time','created_at','updated_at','task_id'].forEach(k=>delete attrs[k]);
+        const f={id,layer:lay,name:props.name||props.kode||'Import '+(++n),geometry:ft.geometry,attributes:attrs,
+          status:SVY_STATUS[props.workflow_status]?props.workflow_status:'draft',gps:null,gps_ok:true,photos:[],task_id:props.task_id||null,
+          version:props.version||1,audit:[{ts:svyNow(),role:S.role,action:'create',note:'Import dari file'}],
+          created_at:props.created_at||svyNow(),updated_at:props.updated_at||svyNow()};
+        S.features.push(f);svyPersistFeature(f);n++;
+      });
+    }
+    svyRenderMap();svyRenderFeatList();svyRenderStats();svyRenderTaskList();svyRenderSyncPane();
+    if(n)showToast(n+' fitur diimport ke layer survey');
+  };
+  reader.readAsText(file);
+}
+
+/* =====================================================================
+   UI — panel, tab, list, modal
+   ===================================================================== */
+function svyInjectCss(){
+  const css=`
+  .svy-wrap{position:absolute;inset:0;z-index:1290;display:none}
+  .svy-wrap.show{display:block}
+  .svy-scrim{position:absolute;inset:0;background:rgba(8,6,18,.45);backdrop-filter:blur(2px)}
+  .svy-sheet{position:absolute;left:0;right:0;bottom:0;max-height:78%;display:flex;flex-direction:column;border-radius:22px 22px 0 0;background:linear-gradient(180deg,rgba(24,22,38,.97),rgba(14,13,24,.98));border:1px solid rgba(178,140,255,.25);border-bottom:none;box-shadow:0 -18px 48px rgba(0,0,0,.5);color:#f1edfb}
+  .svy-grab{width:44px;height:5px;border-radius:99px;background:rgba(255,255,255,.22);margin:9px auto 2px}
+  .svy-head{display:flex;align-items:center;gap:10px;padding:8px 16px 6px}
+  .svy-head h3{margin:0;font-size:17px;font-weight:900;letter-spacing:.3px}
+  .svy-head p{margin:2px 0 0;font-size:11px;color:#b9aed6}
+  .svy-head .svy-role{margin-left:auto;background:rgba(152,68,219,.16);border:1px solid rgba(178,140,255,.4);color:#e6dcff;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:800}
+  .svy-x{width:32px;height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff;font-size:17px;cursor:pointer}
+  .svy-tabs{display:flex;gap:6px;padding:6px 14px 0}
+  .svy-tab{flex:1;padding:9px 6px;border-radius:12px 12px 0 0;border:1px solid rgba(255,255,255,.10);border-bottom:none;background:rgba(255,255,255,.04);color:#cfc3ea;font-size:12.5px;font-weight:850;letter-spacing:.4px;cursor:pointer}
+  .svy-tab.active{background:rgba(152,68,219,.22);color:#fff;border-color:rgba(178,140,255,.45)}
+  .svy-pane{display:none;flex:1;overflow:auto;padding:12px 14px calc(18px + env(safe-area-inset-bottom,0));border-top:1px solid rgba(178,140,255,.25)}
+  .svy-pane.active{display:block}
+  .svy-stats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .svy-stat{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);border-radius:99px;padding:5px 11px;font-size:11.5px;font-weight:800;color:#ddd3f2;cursor:pointer;display:flex;gap:6px;align-items:center}
+  .svy-stat b{color:#fff}
+  .svy-stat.active{border-color:var(--pc,#b06ae8);background:color-mix(in srgb,var(--pc,#b06ae8) 22%,transparent)}
+  .svy-stat .svy-swatch{width:8px;height:8px;border-radius:50%;background:var(--pc,#8ea0b8)}
+  .svy-toggle-row{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:9px 11px;border-radius:12px;background:rgba(86,201,242,.08);border:1px solid rgba(86,201,242,.25);font-size:12px;color:#cfe9f7}
+  .svy-toggle-row input{width:17px;height:17px;accent-color:#9844db}
+  .svy-item{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);margin-bottom:8px;cursor:pointer}
+  .svy-item:active{background:rgba(255,255,255,.09)}
+  .svy-item .svy-ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px;background:color-mix(in srgb,var(--pc,#8ea0b8) 22%,transparent);border:1px solid color-mix(in srgb,var(--pc,#8ea0b8) 45%,transparent)}
+  .svy-item-main{flex:1;min-width:0}
+  .svy-item-main b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .svy-item-main span{font-size:10.5px;color:#a99cc9}
+  .svy-pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:900;letter-spacing:.4px;background:color-mix(in srgb,var(--pc,#8ea0b8) 24%,transparent);border:1px solid color-mix(in srgb,var(--pc,#8ea0b8) 55%,transparent);color:#fff;text-transform:uppercase}
+  .svy-empty{padding:26px 10px;text-align:center;color:#a394c8;font-size:12.5px;line-height:1.6}
+  .svy-btn{padding:9px 13px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#fff;font-size:12.5px;font-weight:850;cursor:pointer}
+  .svy-btn.primary{background:linear-gradient(115deg,#9844db,#6729e9);border-color:rgba(178,140,255,.6)}
+  .svy-btn.good{background:linear-gradient(115deg,#1f9d68,#16b981);border-color:rgba(90,230,170,.5)}
+  .svy-btn.danger{background:linear-gradient(115deg,#c03434,#e2504f);border-color:rgba(255,120,120,.5)}
+  .svy-btn.ghost{background:rgba(255,255,255,.05)}
+  .svy-btn.danger.ghost{background:rgba(226,80,79,.12);color:#ff9c9c}
+  .svy-btn.wide{width:100%;margin-bottom:8px}
+  .svy-note{font-size:11px;color:#a394c8}
+  .svy-sync-card{border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.045);padding:12px;margin-bottom:10px}
+  .svy-sync-line{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:4px}
+  .svy-dot{width:9px;height:9px;border-radius:50%}
+  .svy-dot.ok{background:#2ed08e;box-shadow:0 0 8px #2ed08e}
+  .svy-dot.warn{background:#f5b52e;box-shadow:0 0 8px #f5b52e}
+  .svy-dot.off{background:#ff5d5d;box-shadow:0 0 8px #ff5d5d}
+  .svy-modal-wrap{position:fixed;inset:0;z-index:1350;display:none;align-items:flex-end;justify-content:center}
+  .svy-modal-wrap.show{display:flex}
+  .svy-modal-scrim{position:absolute;inset:0;background:rgba(5,4,12,.55)}
+  #svyModal{position:relative;width:min(560px,100%);max-height:86dvh;overflow:auto;border-radius:20px 20px 0 0;background:linear-gradient(180deg,rgba(26,24,40,.99),rgba(15,14,26,.99));border:1px solid rgba(178,140,255,.3);padding:16px 16px calc(16px + env(safe-area-inset-bottom,0));color:#f1edfb}
+  #svyModal h3{margin:0 0 2px;font-size:16.5px;font-weight:900}
+  .svy-sub{margin:2px 0 10px;font-size:11.5px;color:#b3a7d4;line-height:1.5}
+  .svy-gpsline{font-size:11px;padding:8px 10px;border-radius:10px;background:rgba(86,201,242,.09);border:1px solid rgba(86,201,242,.28);color:#cfe9f7;margin-bottom:10px}
+  .svy-ok{color:#2ed08e;font-weight:900}
+  .svy-warn{color:#f5b52e;font-weight:900}
+  .svy-form .svy-field{margin-bottom:9px}
+  .svy-field label{display:block;font-size:10.5px;font-weight:900;letter-spacing:.5px;color:#bdb0dd;margin-bottom:4px;text-transform:uppercase}
+  .svy-req{color:#ff7d7d;font-style:normal;margin-left:2px}
+  .svy-inp{width:100%;padding:9px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff;font-size:13px}
+  .svy-inp:focus{outline:none;border-color:#9d6ae0}
+  select.svy-inp option{background:#221f33;color:#fff}
+  .svy-field-row{display:flex;gap:8px}
+  .svy-field-row .svy-field{flex:1}
+  .svy-radio-row{display:flex;gap:6px;flex-wrap:wrap}
+  .svy-radio{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);font-size:12px;cursor:pointer}
+  .svy-radio input{accent-color:#9844db}
+  .svy-check{display:flex;align-items:center;gap:7px;font-size:12.5px}
+  .svy-check input{width:16px;height:16px;accent-color:#9844db}
+  .svy-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+  .svy-detail-head{display:flex;align-items:center;gap:10px}
+  .svy-attrs{border:1px solid rgba(255,255,255,.10);border-radius:12px;overflow:hidden;margin-bottom:6px}
+  .svy-attr{display:flex;justify-content:space-between;gap:12px;padding:7px 11px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.07)}
+  .svy-attr:last-child{border-bottom:none}
+  .svy-attr span{color:#a99cc9;flex-shrink:0}
+  .svy-attr b{text-align:right;word-break:break-word}
+  .svy-sec-title{font-size:10px;font-weight:900;letter-spacing:1.2px;color:#9d8fc4;margin:12px 0 6px}
+  .svy-actions-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .svy-audit{max-height:150px;overflow:auto}
+  .svy-audit-item{padding:6px 9px;border-left:2px solid rgba(178,140,255,.5);margin-bottom:5px;background:rgba(255,255,255,.03);border-radius:0 9px 9px 0}
+  .svy-audit-item b{display:block;font-size:12px}
+  .svy-audit-item span{font-size:10px;color:#9d8fc4}
+  .svy-att-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .svy-att-thumb{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.2)}
+  .svy-att-thumb img{width:100%;height:100%;object-fit:cover}
+  .svy-att-audio{position:relative;display:flex;align-items:center;gap:4px;max-width:100%}
+  .svy-att-audio audio{height:34px;max-width:220px}
+  .svy-att-del{position:absolute;top:2px;right:2px;width:19px;height:19px;border-radius:50%;border:none;background:rgba(0,0,0,.65);color:#fff;font-size:12px;cursor:pointer;line-height:1}
+  .svy-att-audio .svy-att-del{position:static}
+  .svy-att-add{display:grid;place-items:center;min-width:64px;height:64px;border-radius:10px;border:1.5px dashed rgba(178,140,255,.5);background:rgba(152,68,219,.09);color:#d9c9f7;font-size:11.5px;font-weight:850;cursor:pointer;padding:0 8px}
+  button.svy-att-add{height:64px}
+  .svy-progress{position:relative;height:20px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin:4px 0 2px}
+  .svy-progress-bar{height:100%;background:linear-gradient(90deg,#9844db,#2ed08e);border-radius:99px;transition:width .3s}
+  .svy-progress span{position:absolute;inset:0;display:grid;place-items:center;font-size:10.5px;font-weight:900}
+  .svy-checklist{display:flex;flex-direction:column;gap:6px}
+  .svy-check-item{display:flex;gap:8px;align-items:flex-start;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);font-size:12.5px;cursor:pointer}
+  .svy-check-item input{width:16px;height:16px;accent-color:#2ed08e;margin-top:1px}
+  .svy-check-item i{display:block;font-size:10px;color:#2ed08e;font-style:normal}
+  .svy-pop-btn{margin-top:5px;padding:5px 10px;border-radius:8px;border:1px solid #9844db;background:#f4ebff;color:#5b21b6;font-size:11.5px;font-weight:800;cursor:pointer}
+  #svyToolBadge{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:#f5b52e;color:#241a03;font-size:9.5px;font-weight:950;display:none;place-items:center;border:1.5px solid rgba(0,0,0,.35)}
+  @media(min-width:720px){.svy-sheet{left:auto;right:14px;bottom:14px;width:440px;border-radius:20px;border-bottom:1px solid rgba(178,140,255,.25);max-height:74%}}
+  `;
+  const st=document.createElement('style');st.id='svy-css';st.textContent=css;document.head.appendChild(st);
+}
+
+function svyInjectUi(){
+  /* Tombol Survey pada tool pop existing (tanpa mengubah markup lama) */
+  const tp=$('toolPop');
+  if(tp){
+    const b=document.createElement('button');
+    b.id='svyToolBtn';b.type='button';b.style.position='relative';
+    b.innerHTML='<span><svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="12" height="14.4" rx="2.4"/><path d="M6.2 5.6h5.6M6.2 8.6h5.6M6.2 11.6h3.2"/></svg></span>Survey<span id="svyToolBadge"></span>';
+    b.onclick=()=>{tp.classList.remove('show');svyOpenPanel()};
+    tp.appendChild(b);
+  }
+  const host=$('mapViewer')||document.body;
+  const wrap=document.createElement('div');
+  wrap.className='svy-wrap';wrap.id='svyPanel';
+  wrap.innerHTML=`
+    <div class="svy-scrim" id="svyScrim"></div>
+    <section class="svy-sheet" role="dialog" aria-label="Mobile Survey">
+      <div class="svy-grab"></div>
+      <div class="svy-head">
+        <div><h3>Mobile Survey</h3><p>QField-compatible • offline-first • workflow &amp; tugas</p></div>
+        <select class="svy-role" id="svyRole" title="Role menentukan aksi workflow">
+          <option value="surveyor">Surveyor</option><option value="qc">QC Officer</option><option value="pm">Project Manager</option>
+        </select>
+        <button class="svy-x" id="svyClose">×</button>
+      </div>
+      <div class="svy-tabs">
+        <button class="svy-tab active" data-svy-pane="data">DATA</button>
+        <button class="svy-tab" data-svy-pane="task">TUGAS</button>
+        <button class="svy-tab" data-svy-pane="sync">SYNC</button>
+      </div>
+      <div class="svy-pane active" data-svy-pane="data">
+        <label class="svy-toggle-row"><input type="checkbox" id="svyCaptureToggle" checked>
+          <span><b>Mode Survey aktif</b> — setiap Plot (titik/garis/poligon) yang disimpan otomatis menjadi fitur survey ber-status <b>Draft</b> + metadata GPS, lalu form atribut terbuka.</span></label>
+        <div class="svy-stats" id="svyStats"></div>
+        <div id="svyFeatList"></div>
+      </div>
+      <div class="svy-pane" data-svy-pane="task">
+        <button class="svy-btn primary wide" id="svyAddTaskBtn">＋ Tugas Baru</button>
+        <div id="svyTaskList"></div>
+      </div>
+      <div class="svy-pane" data-svy-pane="sync">
+        <div class="svy-sync-card">
+          <div class="svy-sync-line"><span class="svy-dot ok" id="svySyncDot"></span><b id="svySyncState">…</b></div>
+          <div class="svy-sync-line"><span class="svy-note">Pending: <b id="svySyncCount">0</b> perubahan • Terakhir sync: <span id="svySyncLast">—</span></span></div>
+          <div class="svy-sync-line"><span class="svy-note" id="svySyncEndpoint">Endpoint: (belum diatur — mode offline lokal)</span></div>
+        </div>
+        <button class="svy-btn primary wide" id="svySyncNowBtn">⇅ Sync Sekarang (Delta)</button>
+        <button class="svy-btn wide" id="svyExportGeojsonBtn">Export GeoJSON (buka di QGIS)</button>
+        <button class="svy-btn wide" id="svyExportSmpkBtn">Export Paket SMPK (.smpk.json)</button>
+        <button class="svy-btn wide" id="svyImportBtn">Import GeoJSON / SMPK</button>
+        <button class="svy-btn ghost wide" id="svySettingsBtn">⚙ Pengaturan Survey</button>
+        <input type="file" id="svyImportInput" accept=".geojson,.json" hidden>
+        <p class="svy-note">Offline-first: semua data &amp; foto tersimpan di perangkat (IndexedDB). Sync delta kompatibel protokol QField Cloud (push/pull) saat endpoint backend diisi.</p>
+      </div>
+    </section>`;
+  host.appendChild(wrap);
+  const modal=document.createElement('div');
+  modal.className='svy-modal-wrap';modal.id='svyModalWrap';
+  modal.innerHTML='<div class="svy-modal-scrim" id="svyModalScrim"></div><div id="svyModal"></div>';
+  document.body.appendChild(modal);
+
+  /* binding */
+  $('svyScrim').onclick=svyClosePanel;
+  $('svyClose').onclick=svyClosePanel;
+  $('svyModalScrim').onclick=svyCloseModal;
+  document.querySelectorAll('.svy-tab').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('.svy-tab').forEach(x=>x.classList.toggle('active',x===b));
+    document.querySelectorAll('.svy-pane').forEach(p=>p.classList.toggle('active',p.dataset.svyPane===b.dataset.svyPane));
+    if(b.dataset.svyPane==='sync')svyRenderSyncPane();
+  });
+  $('svyRole').value=S.role;
+  $('svyRole').onchange=e=>{S.role=e.target.value;SvyDB.put('kv','role',S.role);svyRenderFeatList();svyRenderTaskList();showToast('Role aktif: '+SVY_ROLE_LABEL[S.role])};
+  $('svyCaptureToggle').checked=!!S.settings.capture;
+  $('svyCaptureToggle').onchange=e=>{S.settings.capture=e.target.checked;SvyDB.put('kv','settings',S.settings);showToast(S.settings.capture?'Mode Survey aktif — plot tersimpan sebagai fitur survey':'Mode Survey nonaktif — plot biasa saja')};
+  $('svyAddTaskBtn').onclick=svyOpenTaskForm;
+  $('svySyncNowBtn').onclick=()=>svySyncNow(false);
+  $('svyExportGeojsonBtn').onclick=()=>svyExportGeoJSON(false);
+  $('svyExportSmpkBtn').onclick=svyExportSmpk;
+  $('svyImportBtn').onclick=()=>$('svyImportInput').click();
+  $('svyImportInput').onchange=e=>{if(e.target.files.length)svyImportFile(e.target.files[0]);e.target.value=''};
+  $('svySettingsBtn').onclick=svyOpenSettings;
+}
+function svyOpenPanel(){
+  svyEnsureGroup();
+  $('svyPanel').classList.add('show');
+  svyRenderStats();svyRenderFeatList();svyRenderTaskList();svyRenderSyncPane();svyUpdateSyncBadge();
+}
+function svyClosePanel(){$('svyPanel').classList.remove('show')}
+function svyOpenModal(html){$('svyModal').innerHTML=html;$('svyModalWrap').classList.add('show')}
+function svyCloseModal(){$('svyModalWrap').classList.remove('show');S._urls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});S._urls=[]}
+
+function svyRenderStats(){
+  const el=$('svyStats');if(!el)return;
+  const counts={all:S.features.length};
+  Object.keys(SVY_STATUS).forEach(k=>counts[k]=S.features.filter(f=>f.status===k).length);
+  el.innerHTML=[`<button class="svy-stat ${S.filter==='all'?'active':''}" data-fl="all">Semua <b>${counts.all}</b></button>`]
+    .concat(Object.keys(SVY_STATUS).map(k=>`<button class="svy-stat ${S.filter===k?'active':''}" data-fl="${k}" style="--pc:${SVY_STATUS[k].color}"><span class="svy-swatch"></span>${SVY_STATUS[k].label} <b>${counts[k]}</b></button>`)).join('');
+  el.querySelectorAll('[data-fl]').forEach(b=>b.onclick=()=>{S.filter=b.dataset.fl;svyRenderStats();svyRenderFeatList();svyRenderMap()});
+}
+function svyRenderFeatList(){
+  const el=$('svyFeatList');if(!el)return;
+  const list=S.features.filter(f=>S.filter==='all'||f.status===S.filter).slice().reverse();
+  if(!list.length){el.innerHTML='<div class="svy-empty">Belum ada fitur survey'+(S.filter!=='all'?' ber-status ini':'')+'.<br>Aktifkan <b>Mode Survey</b> lalu gunakan tool <b>Plot</b> untuk mengambil titik/garis/poligon dengan GPS.</div>';return}
+  el.innerHTML='';
+  list.forEach(f=>{
+    const col=(SVY_STATUS[f.status]||{}).color||'#8ea0b8';
+    const ico=f.layer==='point'?'●':f.layer==='line'?'─':'▰';
+    const nAtt=(f.photos||[]).length;
+    const row=document.createElement('div');
+    row.className='svy-item';row.style.setProperty('--pc',col);
+    row.innerHTML=`<div class="svy-ico">${ico}</div><div class="svy-item-main"><b>${esc(f.name)}</b><span>${formatDate(new Date(f.updated_at).getTime())}${f.gps&&f.gps.acc!=null?' • ±'+Math.round(f.gps.acc)+' m':''}${nAtt?' • 📎'+nAtt:''}</span></div>${svyStatusPill(f.status)}`;
+    row.onclick=()=>svyOpenDetail(f.id);
+    el.appendChild(row);
+  });
+}
+function svyRenderTaskList(){
+  const el=$('svyTaskList');if(!el)return;
+  if(!S.tasks.length){el.innerHTML='<div class="svy-empty">Belum ada tugas.<br>PM dapat membuat tugas dengan lokasi, checklist wajib, dan geofence.</div>';return}
+  el.innerHTML='';
+  S.tasks.slice().reverse().forEach(t=>{
+    const col=(SVY_TASK_STATUS[t.status]||{}).color||'#8ea0b8';
+    const prog=svyTaskProgress(t);
+    const overdue=t.deadline&&t.status!=='completed'&&new Date(t.deadline)<new Date();
+    const row=document.createElement('div');
+    row.className='svy-item';row.style.setProperty('--pc',col);
+    row.innerHTML=`<div class="svy-ico">🚩</div><div class="svy-item-main"><b>${esc(t.title)}</b><span>${prog}% • ${esc(t.priority)}${t.assignee?' • '+esc(t.assignee):''}${overdue?' • <span style="color:#ff6b6b;font-weight:900">TERLAMBAT</span>':''}</span></div>${svyStatusPill(t.status,SVY_TASK_STATUS)}`;
+    row.onclick=()=>svyOpenTaskDetail(t.id);
+    el.appendChild(row);
+  });
+}
+function svyRenderSyncPane(){
+  const le=$('svySyncLast');if(le)le.textContent=S.lastSync?formatDate(S.lastSync):'—';
+  const ee=$('svySyncEndpoint');if(ee)ee.textContent='Endpoint: '+(S.settings.endpoint||'(belum diatur — mode offline lokal)');
+  svyUpdateSyncBadge();
+}
+function svyOpenSettings(){
+  svyOpenModal(`
+    <h3>Pengaturan Survey</h3>
+    <p class="svy-sub">Konfigurasi sync (QField Cloud-compatible) &amp; kontrol kualitas GPS.</p>
+    <div class="svy-form">
+      <div class="svy-field"><label>Nama Project</label><input class="svy-inp" id="svySetName" value="${esc(S.project.name)}"></div>
+      <div class="svy-field"><label>Endpoint API (kosongkan = offline lokal)</label><input class="svy-inp" id="svySetEndpoint" placeholder="https://api.survai-app.com/api/v1" value="${esc(S.settings.endpoint)}"></div>
+      <div class="svy-field-row">
+        <div class="svy-field"><label>Project ID</label><input class="svy-inp" id="svySetProjectId" value="${esc(S.project.id)}" placeholder="uuid project"></div>
+        <div class="svy-field"><label>Batas Akurasi GPS (m)</label><input class="svy-inp" type="number" id="svySetAcc" value="${S.settings.accLimit}" min="1" max="100"></div>
+      </div>
+      <div class="svy-field"><label>Device ID</label><input class="svy-inp" id="svySetDevice" value="${esc(S.settings.deviceId)}" readonly></div>
+      <label class="svy-check"><input type="checkbox" id="svySetAuto" ${S.settings.autoSync?'checked':''}> Auto-sync saat online (background)</label>
+    </div>
+    <div class="svy-modal-actions">
+      <button class="svy-btn ghost" id="svySetCancel">Batal</button>
+      <button class="svy-btn primary" id="svySetSave">Simpan</button>
+    </div>`);
+  $('svySetCancel').onclick=svyCloseModal;
+  $('svySetSave').onclick=()=>{
+    S.project.name=($('svySetName').value||'').trim()||S.project.name;
+    S.project.id=($('svySetProjectId').value||'').trim();
+    S.settings.endpoint=($('svySetEndpoint').value||'').trim();
+    S.settings.accLimit=Math.max(1,Math.min(100,parseFloat($('svySetAcc').value)||5));
+    S.settings.autoSync=$('svySetAuto').checked;
+    SvyDB.put('kv','settings',S.settings);SvyDB.put('kv','project',S.project);
+    svyCloseModal();svyRenderSyncPane();
+    showToast('Pengaturan survey tersimpan');
+  };
+}
+
+/* =====================================================================
+   HOOK LAYER MANAGER — membungkus fungsi existing (bukan mengubah)
+   ===================================================================== */
+function svyHookLayers(){
+  state.layerNames.survey='Mobile Survey';
+  state.layerNames.surveyTask='Survey Tasks';
+  const _defs=layerDefinitions;
+  layerDefinitions=function(){
+    const defs=_defs();
+    defs.push({id:'survey',name:state.layerNames.survey,ready:S.features.length>0,visible:!!(S.group&&state.map&&state.map.hasLayer(S.group)&&S.features.length),sub:S.features.length?S.features.length+' fitur survey • status workflow':'Belum ada data survey'});
+    defs.push({id:'surveyTask',name:state.layerNames.surveyTask,ready:S.tasks.length>0,visible:!!(S.taskGroup&&state.map&&state.map.hasLayer(S.taskGroup)&&S.tasks.length),sub:S.tasks.length?S.tasks.length+' tugas • geofence':'Belum ada tugas'});
+    return defs;
+  };
+  const _tg=toggleLayer;
+  toggleLayer=function(id){
+    if(id==='survey'){if(!S.group||!S.features.length)return showToast('Layer belum memiliki data');state.map.hasLayer(S.group)?state.map.removeLayer(S.group):S.group.addTo(state.map);return renderLayerManager()}
+    if(id==='surveyTask'){if(!S.taskGroup||!S.tasks.length)return showToast('Layer belum memiliki data');state.map.hasLayer(S.taskGroup)?state.map.removeLayer(S.taskGroup):S.taskGroup.addTo(state.map);return renderLayerManager()}
+    return _tg(id);
+  };
+  const _zl=zoomLayer;
+  zoomLayer=function(id){
+    if(id==='survey'||id==='surveyTask'){
+      const g=id==='survey'?S.group:S.taskGroup;
+      if(g&&g.getLayers().length){state.map.fitBounds(g.getBounds(),{padding:[24,24]});return}
+      return showToast('Belum ada data untuk zoom layer');
+    }
+    return _zl(id);
+  };
+  const _dl=deleteLayer;
+  deleteLayer=function(id){
+    if(id==='survey'||id==='surveyTask')return showToast('Data survey dikelola dari panel Mobile Survey (hapus per item di sana)');
+    return _dl(id);
+  };
+  const _im=initMap;
+  initMap=function(){_im();svyEnsureGroup()};
+}
+
+/* =====================================================================
+   BOOT
+   ===================================================================== */
+async function svyBoot(){
+  try{
+    svyInjectCss();
+    /* muat data offline */
+    const [feats,tasks,queue,kvRole,kvSet,kvProj,kvForm,kvTok,kvLast]=await Promise.all([
+      SvyDB.all('feat'),SvyDB.all('task'),SvyDB.all('queue'),
+      SvyDB.get('kv','role'),SvyDB.get('kv','settings'),SvyDB.get('kv','project'),
+      SvyDB.get('kv','form_schema'),SvyDB.get('kv','sync_token'),SvyDB.get('kv','last_sync')
+    ]);
+    S.features=feats||[];
+    S.tasks=(tasks||[]).map(t=>{t._inZone=false;return t});
+    S.queue=queue||[];
+    if(kvRole&&SVY_ROLE_LABEL[kvRole])S.role=kvRole;
+    if(kvSet)Object.assign(S.settings,kvSet);
+    if(kvProj)Object.assign(S.project,kvProj);
+    if(kvForm&&Array.isArray(kvForm.fields))S.form=kvForm;
+    if(kvTok)S.syncToken=kvTok;
+    if(kvLast)S.lastSync=kvLast;
+    if(!S.settings.deviceId){S.settings.deviceId='pwa-'+uid();SvyDB.put('kv','settings',S.settings)}
+    svyInjectUi();
+    svyHookLayers();
+    /* hook tombol simpan plot — memanggil savePlotSheet() asli */
+    if($('plotSaveBtn'))$('plotSaveBtn').onclick=svyPlotSaveWrapper;
+    /* geofence tick tiap 5 detik (jarak = haversine existing) */
+    S._geoT=setInterval(svyGeofenceTick,5000);
+    /* auto-sync saat kembali online */
+    window.addEventListener('online',()=>{svyUpdateSyncBadge();if(S.settings.autoSync&&S.settings.endpoint&&svyPending().length)svySyncNow(true)});
+    window.addEventListener('offline',svyUpdateSyncBadge);
+    if(state.map)svyEnsureGroup();
+    svyUpdateSyncBadge();
+    S.ready=true;
+    if(S.features.length||S.tasks.length)console.info('[SVY] Mobile Survey siap:',S.features.length,'fitur,',S.tasks.length,'tugas dipulihkan dari penyimpanan lokal');
+  }catch(e){console.error('[SVY] boot gagal',e)}
+}
+
+/* API publik (dipakai UI popup, integrasi lain & pengujian) */
+window.SVY={
+  state:S,db:SvyDB,
+  open:svyOpenPanel,close:svyClosePanel,
+  detail:svyOpenDetail,taskDetail:svyOpenTaskDetail,
+  createFeature:svyCreateFeature,transition:svyTransition,
+  exportGeoJSON:svyExportGeoJSON,exportSmpk:svyExportSmpk,
+  syncNow:svySyncNow,geofenceTick:svyGeofenceTick,taskProgress:svyTaskProgress,
+  plotSaveWrapper:svyPlotSaveWrapper,ensureGroup:svyEnsureGroup
+};
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',svyBoot);
+else svyBoot();
+})();
+</script>
+
   <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
