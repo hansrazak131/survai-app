@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d1420">
+<title>UAV Log Viewer — Analisis Log Penerbangan Drone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+/* ============ DESIGN TOKENS — selaras CAD Engine / tools lain ============ */
+:root{
+  --bg:#0d1420; --panel:#141c2b; --panel-2:#1a2436; --line:#243044; --line-2:#31405a;
+  --ink:#e6ecf5; --ink-dim:#93a1b8; --ink-faint:#5f6f8a;
+  --accent:#3b82f6; --accent-ink:#2563eb; --accent-soft:rgba(59,130,246,.16);
+  --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --cyan:#22d3ee;
+  --r:9px; --r2:13px;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --shadow:0 8px 28px rgba(0,0,0,.45),0 2px 8px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button,input,select,textarea{font-family:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+
+/* ---------- TOPBAR ---------- */
+.topbar{flex:0 0 auto;height:50px;display:flex;align-items:center;gap:8px;padding:0 10px;
+  background:var(--panel);border-bottom:1px solid var(--line);z-index:60}
+.brand{display:flex;align-items:center;gap:8px;min-width:0}
+.brand-mark{width:30px;height:30px;flex:none;border-radius:8px;background:linear-gradient(135deg,#2563eb,#7c3aed);
+  display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.brand-mark svg{width:18px;height:18px;color:#fff}
+.brand-txt{line-height:1.05;min-width:0}
+.brand-txt b{font-size:13.5px;font-weight:800;letter-spacing:-.01em;display:block;white-space:nowrap}
+.brand-txt span{font-size:9px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:.05em;white-space:nowrap}
+.topbar .sp{flex:1}
+.tb-btn{height:36px;min-width:36px;padding:0 9px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);font-size:11.5px;font-weight:600;white-space:nowrap}
+.tb-btn:active{transform:scale(.95)}
+.tb-btn.on{background:var(--accent-soft);border-color:var(--accent);color:#cfe3ff}
+.tb-btn svg{width:16px;height:16px;flex:none}
+.tb-btn:disabled{opacity:.35;pointer-events:none}
+.file-chip{max-width:180px;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:10.5px;color:var(--cyan)}
+@media(max-width:760px){ .tb-btn .lbl{display:none} .brand-txt span{display:none} .file-chip{max-width:90px} }
+
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{height:34px;padding:0 12px;font-size:11.5px;font-weight:700;color:var(--ink-dim)}
+.seg button.on{background:var(--accent-soft);color:#cfe3ff}
+
+/* ---------- BODY LAYOUT ---------- */
+.body{flex:1;display:flex;min-height:0;position:relative}
+.sidebar{width:280px;flex:none;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;z-index:55}
+.sb-scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:10px}
+.sb-h{font-size:9.5px;font-weight:800;letter-spacing:.09em;color:var(--ink-faint);font-family:var(--mono);margin:12px 0 6px}
+.sb-h:first-child{margin-top:0}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+
+@media(max-width:900px){
+  .sidebar{position:absolute;left:0;top:0;bottom:0;transform:translateX(-100%);transition:transform .2s;box-shadow:var(--shadow)}
+  .sidebar.open{transform:none}
+}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:54;display:none}
+.scrim.on{display:block}
+
+/* ---------- SIDEBAR ITEMS ---------- */
+.plot-item{display:flex;align-items:center;gap:6px;padding:5px 6px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);margin-bottom:5px}
+.plot-item .sw{width:14px;height:14px;border-radius:4px;flex:none;border:0;padding:0;cursor:pointer;background:none}
+.plot-item .sw::-webkit-color-swatch-wrapper{padding:0}
+.plot-item .sw::-webkit-color-swatch{border:none;border-radius:4px}
+.plot-item .nm{flex:1;min-width:0;font-family:var(--mono);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plot-item select{background:var(--panel);border:1px solid var(--line);border-radius:6px;font-size:10px;height:22px;color:var(--ink-dim)}
+.plot-item .del{color:var(--ink-faint);width:22px;height:22px;display:grid;place-items:center;border-radius:6px}
+.plot-item .del:hover{color:var(--bad);background:rgba(239,68,68,.12)}
+.sb-btnrow{display:flex;gap:6px;flex-wrap:wrap}
+.sb-btn{flex:1;height:30px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);font-size:11px;font-weight:600;color:var(--ink-dim);white-space:nowrap;padding:0 8px}
+.sb-btn:hover{border-color:var(--line-2);color:var(--ink)}
+.sb-btn.pri{background:var(--accent-soft);border-color:var(--accent);color:#cfe3ff}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{height:26px;padding:0 10px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);
+  font-size:10.5px;font-weight:600;color:var(--ink-dim);display:inline-flex;align-items:center;gap:5px}
+.chip:hover{border-color:var(--accent);color:#cfe3ff}
+.chip .x{color:var(--ink-faint);font-weight:800}
+.chip .x:hover{color:var(--bad)}
+.search{width:100%;height:32px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);padding:0 10px;font-size:11.5px;outline:none;color:var(--ink)}
+.search:focus{border-color:var(--accent)}
+.tree{margin-top:6px}
+.tree details{margin-bottom:2px}
+.tree summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:7px;font-family:var(--mono);font-size:11px;font-weight:600}
+.tree summary:hover{background:var(--panel-2)}
+.tree summary::before{content:'▸';font-size:9px;color:var(--ink-faint);transition:transform .12s}
+.tree details[open] summary::before{transform:rotate(90deg)}
+.tree .cnt{margin-left:auto;font-size:9px;color:var(--ink-faint)}
+.tree .fld{display:block;width:100%;text-align:left;padding:3px 6px 3px 22px;border-radius:6px;font-family:var(--mono);font-size:10.5px;color:var(--ink-dim)}
+.tree .fld:hover{background:var(--accent-soft);color:#cfe3ff}
+.tree .fld.on{color:var(--cyan)}
+.loginfo{border-top:1px solid var(--line);padding:8px 10px;font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);line-height:1.7}
+.loginfo b{color:var(--ink-dim)}
+
+/* ---------- VIEWS ---------- */
+.views{flex:1;display:flex;flex-direction:column;min-height:0}
+.view-plot{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
+.view-map{flex:1;position:relative;min-height:0;display:none}
+.split .view-plot{flex:1.4}
+.split .view-map{display:block;border-top:1px solid var(--line)}
+.mode-plot .view-map{display:none}
+.mode-map .view-plot{display:none}
+.mode-map .view-map{display:block}
+.view-3d{flex:1;position:relative;min-height:0;display:none;background:#0a0f18}
+.mode-3d .view-plot,.mode-3d .view-map{display:none}
+.mode-3d .view-3d{display:block}
+#three3dWrap{position:absolute;inset:0}
+#three3dWrap canvas{display:block}
+.ctl3d{position:absolute;top:8px;left:8px;z-index:10;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ctl3d .tb-btn{background:rgba(20,28,43,.92)}
+.wing{display:flex;align-items:center;gap:6px;background:rgba(20,28,43,.92);border:1px solid var(--line);border-radius:9px;padding:0 10px;height:36px;font-size:10.5px;color:var(--ink-dim)}
+.wing input{width:70px;accent-color:var(--accent)}
+
+.plot-wrap{flex:1;position:relative;min-height:0}
+#plotCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.plot-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-faint);font-size:12px;text-align:center;line-height:1.8;pointer-events:none}
+.brush-wrap{flex:0 0 52px;border-top:1px solid var(--line);position:relative;background:var(--panel)}
+#brushCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#map{position:absolute;inset:0;background:#0a0f18}
+.leaflet-container{background:#0a0f18;font-family:var(--sans)}
+
+/* playback bar */
+.playbar{position:absolute;left:8px;right:8px;bottom:8px;z-index:500;display:flex;align-items:center;gap:8px;
+  background:rgba(20,28,43,.92);border:1px solid var(--line);border-radius:11px;padding:6px 10px;backdrop-filter:blur(6px)}
+.playbar button{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--ink-dim);background:var(--panel-2);border:1px solid var(--line)}
+.playbar button.on{color:#cfe3ff;background:var(--accent-soft);border-color:var(--accent)}
+.playbar input[type=range]{flex:1;accent-color:var(--accent)}
+.playbar select{background:var(--panel-2);border:1px solid var(--line);border-radius:7px;height:28px;font-size:11px;color:var(--ink-dim)}
+.playbar .tm{font-family:var(--mono);font-size:10.5px;color:var(--cyan);min-width:86px;text-align:center}
+.map-chip{position:absolute;top:8px;right:8px;z-index:500;background:rgba(20,28,43,.92);border:1px solid var(--line);
+  border-radius:10px;padding:6px 10px;font-family:var(--mono);font-size:10px;color:var(--ink-dim);line-height:1.7;backdrop-filter:blur(6px)}
+.map-chip b{color:var(--ink)}
+.mode-legend{position:absolute;top:8px;left:54px;z-index:500;background:rgba(20,28,43,.92);border:1px solid var(--line);
+  border-radius:10px;padding:6px 8px;font-size:9.5px;font-family:var(--mono);max-height:40%;overflow:auto;backdrop-filter:blur(6px)}
+.mode-legend div{display:flex;align-items:center;gap:6px;padding:1px 2px;color:var(--ink-dim)}
+.mode-legend i{width:10px;height:10px;border-radius:3px;flex:none}
+
+/* ---------- WIDGET PANELS ---------- */
+.widget{position:absolute;z-index:70;width:270px;max-width:calc(100vw - 20px);background:var(--panel);border:1px solid var(--line-2);
+  border-radius:var(--r2);box-shadow:var(--shadow);display:none;flex-direction:column;max-height:60%}
+.widget.on{display:flex}
+.wg-head{height:34px;display:flex;align-items:center;gap:7px;padding:0 10px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none}
+.wg-head b{font-size:11px;flex:1}
+.wg-head .wx{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--ink-faint)}
+.wg-head .wx:hover{color:var(--bad);background:rgba(239,68,68,.12)}
+.wg-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:8px}
+.wg-body .search{margin-bottom:6px}
+.prow{display:flex;justify-content:space-between;gap:8px;padding:2.5px 4px;border-radius:5px;font-family:var(--mono);font-size:10px}
+.prow:nth-child(odd){background:rgba(255,255,255,.025)}
+.prow .k{color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .v{color:var(--cyan);flex:none}
+.mrow{padding:3px 4px;border-radius:5px;font-family:var(--mono);font-size:9.8px;line-height:1.5;color:var(--ink-dim);cursor:pointer}
+.mrow:hover{background:var(--panel-2)}
+.mrow .t{color:var(--ink-faint)}
+.mrow.sev-err{color:#fca5a5}
+.mrow.sev-warn{color:#fcd34d}
+#stickCanvas{width:100%;display:block}
+.stick-opts{display:flex;gap:6px;margin-top:6px}
+
+/* ---------- LANDING ---------- */
+.landing{position:absolute;inset:0;z-index:80;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+.landing.off{display:none}
+.land-card{width:min(520px,100%);text-align:center}
+.land-logo{width:64px;height:64px;margin:0 auto 14px;border-radius:18px;background:linear-gradient(135deg,#2563eb,#7c3aed);
+  display:grid;place-items:center;box-shadow:var(--shadow)}
+.land-logo svg{width:34px;height:34px;color:#fff}
+.land-card h1{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.land-card p{color:var(--ink-dim);font-size:12.5px;margin:8px 0 18px;line-height:1.7}
+.dropzone{border:2px dashed var(--line-2);border-radius:16px;padding:30px 16px;cursor:pointer;transition:.15s}
+.dropzone:hover,.dropzone.hot{border-color:var(--accent);background:var(--accent-soft)}
+.dropzone b{display:block;font-size:14px;margin-bottom:5px}
+.dropzone span{font-size:11px;color:var(--ink-faint);font-family:var(--mono)}
+.land-row{display:flex;gap:8px;margin-top:12px}
+.land-btn{flex:1;height:42px;border-radius:11px;font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-dim)}
+.land-btn.pri{background:var(--accent-ink);border-color:var(--accent-ink);color:#fff}
+.land-note{margin-top:14px;font-size:10px;color:var(--ink-faint);font-family:var(--mono);line-height:1.7}
+.progress{margin-top:16px;display:none}
+.progress.on{display:block}
+.pbar{height:6px;border-radius:99px;background:var(--panel-2);overflow:hidden}
+.pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2563eb,#22d3ee);border-radius:99px;transition:width .12s}
+.ptxt{margin-top:6px;font-size:10px;color:var(--ink-faint);font-family:var(--mono)}
+
+.drop-overlay{position:fixed;inset:0;z-index:100;background:rgba(13,20,32,.85);display:none;place-items:center;
+  border:3px dashed var(--accent);font-size:16px;font-weight:800;color:#cfe3ff}
+.drop-overlay.on{display:grid}
+
+/* modal ekspresi */
+.modal{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px}
+.modal.on{display:flex}
+.modal-card{width:min(440px,100%);background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r2);padding:16px;box-shadow:var(--shadow)}
+.modal-card h3{font-size:14px;margin-bottom:4px}
+.modal-card p{font-size:11px;color:var(--ink-faint);margin-bottom:10px;line-height:1.6;font-family:var(--mono)}
+.modal-card input{width:100%;height:38px;border-radius:9px;background:var(--panel-2);border:1px solid var(--line);padding:0 10px;font-family:var(--mono);font-size:12px;outline:none;color:var(--ink)}
+.modal-card input:focus{border-color:var(--accent)}
+.modal-row{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.modal-row button{height:34px;padding:0 14px;border-radius:9px;font-size:12px;font-weight:700;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim)}
+.modal-row button.pri{background:var(--accent-ink);border-color:var(--accent-ink);color:#fff}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(80px);z-index:120;background:var(--panel-2);
+  border:1px solid var(--line-2);border-radius:11px;padding:9px 16px;font-size:12px;box-shadow:var(--shadow);transition:transform .25s;max-width:90vw}
+.toast.on{transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <button class="tb-btn" id="btnSidebar" style="display:none" title="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M6 14l4-6 3.5 3L18 5"/><circle cx="19" cy="17" r="2.2"/><path d="M19 13.5V11M16.8 17H14.5M21.2 17h2"/></svg>
+      </div>
+      <div class="brand-txt"><b>UAV Log Viewer</b><span>FLIGHT LOG ANALYZER · BIN/TLOG</span></div>
+    </div>
+    <span class="file-chip" id="fileChip"></span>
+    <div class="sp"></div>
+    <div class="seg" id="viewSeg">
+      <button data-v="plot" class="on">Plot</button>
+      <button data-v="split" id="segSplit">Split</button>
+      <button data-v="map">Peta</button>
+      <button data-v="3d">3D</button>
+    </div>
+    <button class="tb-btn" id="btnWgParam" title="Widget Parameter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="15" r="3"/></svg><span class="lbl">Param</span></button>
+    <button class="tb-btn" id="btnWgMsg" title="Widget Pesan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 01-8 8H4l2-3a8 8 0 1115-5z"/></svg><span class="lbl">Pesan</span></button>
+    <button class="tb-btn" id="btnWgStick" title="Widget Stik RC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="12" rx="3"/><circle cx="8" cy="13" r="2.2"/><circle cx="16" cy="13" r="2.2"/></svg><span class="lbl">Stik</span></button>
+    <button class="tb-btn" id="btnCsv" title="Export CSV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg><span class="lbl">CSV</span></button>
+    <button class="tb-btn" id="btnSnap" title="Snapshot PNG"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M9 6l1.5-2h3L15 6"/></svg><span class="lbl">PNG</span></button>
+    <button class="tb-btn on" id="btnOpen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M12 16V4m0 0L7 9m5-5l5 5"/></svg><span class="lbl">Buka Log</span></button>
+    <input type="file" id="fileInput" accept=".bin,.BIN,.tlog,.TLOG,.log" hidden>
+  </div>
+
+  <!-- BODY -->
+  <div class="body">
+    <div class="scrim" id="scrim"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-scroll">
+        <div class="sb-h">PLOT AKTIF</div>
+        <div id="plotList"><div style="color:var(--ink-faint);font-size:11px;padding:4px 2px" id="plotEmptyHint">Belum ada field yang diplot.</div></div>
+        <div class="sb-btnrow" style="margin-top:6px">
+          <button class="sb-btn pri" id="btnAddExpr">+ Ekspresi</button>
+          <button class="sb-btn" id="btnSavePreset">Simpan Preset</button>
+          <button class="sb-btn" id="btnClear">Bersihkan</button>
+        </div>
+        <div class="sb-h">PRESET</div>
+        <div class="chips" id="presetChips"></div>
+        <div class="sb-h">FIELD LOG</div>
+        <input class="search" id="fieldSearch" placeholder="Cari field… (mis. Roll, gps)">
+        <div class="tree" id="fieldTree"><div style="color:var(--ink-faint);font-size:11px;padding:6px 2px">Muat file log terlebih dahulu.</div></div>
+      </div>
+      <div class="loginfo" id="logInfo"></div>
+    </aside>
+
+    <div class="main">
+      <div class="views mode-plot" id="views">
+        <!-- PLOT VIEW -->
+        <div class="view-plot">
+          <div class="plot-wrap" id="plotWrap">
+            <canvas id="plotCanvas"></canvas>
+            <div class="plot-empty" id="plotEmpty">Pilih field dari sidebar atau gunakan Preset<br>untuk mulai memplot data telemetri.</div>
+          </div>
+          <div class="brush-wrap"><canvas id="brushCanvas"></canvas></div>
+        </div>
+        <!-- MAP VIEW -->
+        <div class="view-map" id="viewMap">
+          <div id="map"></div>
+          <div class="mode-legend" id="modeLegend" style="display:none"></div>
+          <div class="map-chip" id="mapChip" style="display:none"></div>
+          <div class="playbar" id="playbar" style="display:none">
+            <button id="btnPlay" title="Play/Pause">
+              <svg id="icPlay" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="icPause" viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+            </button>
+            <select id="speedSel"><option>0.5</option><option selected>1</option><option>2</option><option>4</option><option>8</option><option>16</option></select>
+            <input type="range" id="scrub" min="0" max="1000" value="0">
+            <span class="tm" id="playTime">00:00 / 00:00</span>
+          </div>
+        </div>
+        <!-- 3D VIEW (three.js) -->
+        <div class="view-3d" id="view3d">
+          <div id="three3dWrap"></div>
+          <div class="ctl3d">
+            <button class="tb-btn on" id="btnFollow">Ikuti</button>
+            <button class="tb-btn" id="btnResetCam">Reset View</button>
+            <div class="wing">Model <input type="range" id="wingspan" min="1" max="12" value="4"></div>
+          </div>
+          <div class="mode-legend" id="modeLegend3d" style="display:none;left:8px;top:auto;bottom:64px"></div>
+          <div class="map-chip" id="chip3d" style="display:none"></div>
+          <div class="playbar" id="playbar3d" style="display:none">
+            <button id="btnPlay3">▶</button>
+            <select id="speedSel3"><option>0.5</option><option selected>1</option><option>2</option><option>4</option><option>8</option><option>16</option></select>
+            <input type="range" id="scrub3" min="0" max="1000" value="0">
+            <span class="tm" id="playTime3">00:00 / 00:00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WIDGETS -->
+    <div class="widget" id="wgParam" style="right:14px;top:60px">
+      <div class="wg-head" data-wg="wgParam"><b>Parameters</b><span id="paramCount" style="font-size:9.5px;color:var(--ink-faint);font-family:var(--mono)"></span><button class="wx" data-close="wgParam">✕</button></div>
+      <div class="wg-body"><input class="search" id="paramSearch" placeholder="Filter parameter…"><div id="paramList"></div></div>
+    </div>
+    <div class="widget" id="wgMsg" style="right:14px;top:60px;width:330px">
+      <div class="wg-head" data-wg="wgMsg"><b>Messages</b><button class="wx" data-close="wgMsg">✕</button></div>
+      <div class="wg-body" id="msgList"></div>
+    </div>
+    <div class="widget" id="wgStick" style="right:14px;top:60px;width:250px">
+      <div class="wg-head" data-wg="wgStick"><b>Radio Sticks</b><button class="wx" data-close="wgStick">✕</button></div>
+      <div class="wg-body">
+        <canvas id="stickCanvas" width="230" height="120"></canvas>
+        <div class="stick-opts">
+          <button class="sb-btn" id="stickMode1">Mode 1</button>
+          <button class="sb-btn pri" id="stickMode2">Mode 2</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LANDING -->
+  <div class="landing" id="landing">
+    <div class="land-card">
+      <div class="land-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M6 14l4-6 3.5 3L18 5"/><circle cx="19" cy="17" r="2.2"/><path d="M19 13.5V11M16.8 17H14.5M21.2 17h2"/></svg>
+      </div>
+      <h1>UAV Log Viewer</h1>
+      <p>Analisis log penerbangan drone ArduPilot — plot telemetri multi-axis, replay jalur terbang,
+      parameter, pesan FC, dan stik RC. Semua diproses <b>lokal di browser</b>, tidak ada data yang diunggah.</p>
+      <div class="dropzone" id="dropzone">
+        <b>Seret file log ke sini</b>
+        <span>.bin (DataFlash ArduPilot) &nbsp;·&nbsp; .tlog (MAVLink Telemetry)</span>
+      </div>
+      <div class="land-row">
+        <button class="land-btn pri" id="btnLandOpen">Buka File Log</button>
+        <button class="land-btn" id="btnSample">Muat Contoh (Copter Survey)</button>
+      </div>
+      <div class="progress" id="progress"><div class="pbar"><i id="pbarFill"></i></div><div class="ptxt" id="ptxt">Memproses…</div></div>
+      <div class="land-note">100% client-side · Web Worker parsing · DataFlash self-describing FMT · MAVLink v1/v2</div>
+    </div>
+  </div>
+
+  <div class="drop-overlay" id="dropOverlay">Lepaskan file .bin / .tlog untuk dianalisis</div>
+
+  <!-- MODAL EKSPRESI -->
+  <div class="modal" id="exprModal">
+    <div class="modal-card">
+      <h3>Tambah Ekspresi</h3>
+      <p>Gunakan field log + fungsi matematika.<br>Contoh: degrees(ATT.Roll) &nbsp;|&nbsp; CTUN.DAlt - CTUN.Alt<br>GLOBAL_POSITION_INT.relative_alt/1000</p>
+      <input id="exprInput" placeholder="degrees(ATTITUDE.roll)" autocomplete="off" spellcheck="false">
+      <div class="modal-row">
+        <button id="exprCancel">Batal</button>
+        <button class="pri" id="exprOk">Plot</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- ============================================================
+     WORKER SOURCE — parser DataFlash .bin + MAVLink .tlog
+     ============================================================ -->
+<script type="text/plain" id="workerSrc">
+'use strict';
+/* ---------- util ---------- */
+function str0(u8, off, len){
+  let s = '';
+  for (let i = 0; i < len; i++){ const c = u8[off + i]; if (!c) break; s += String.fromCharCode(c); }
+  return s;
+}
+const SIZE = {a:64,b:1,B:1,h:2,H:2,i:4,I:4,f:4,d:8,n:4,N:16,Z:64,c:2,C:2,e:4,E:4,L:4,M:1,q:8,Q:8};
+
+/* ---------- mode maps (dari ArduPilot modeMaps) ---------- */
+const MODE_PLANE={0:'MANUAL',1:'CIRCLE',2:'STABILIZE',3:'TRAINING',4:'ACRO',5:'FBWA',6:'FBWB',7:'CRUISE',8:'AUTOTUNE',10:'AUTO',11:'RTL',12:'LOITER',13:'TAKEOFF',14:'AVOID_ADSB',15:'GUIDED',16:'INITIALISING',17:'QSTABILIZE',18:'QHOVER',19:'QLOITER',20:'QLAND',21:'QRTL',22:'QAUTOTUNE',23:'QACRO',24:'THERMAL'};
+const MODE_COPTER={0:'STABILIZE',1:'ACRO',2:'ALT_HOLD',3:'AUTO',4:'GUIDED',5:'LOITER',6:'RTL',7:'CIRCLE',9:'LAND',11:'DRIFT',13:'SPORT',14:'FLIP',15:'AUTOTUNE',16:'POSHOLD',17:'BRAKE',18:'THROW',19:'AVOID_ADSB',20:'GUIDED_NOGPS',21:'SMART_RTL',22:'FLOWHOLD',23:'FOLLOW',24:'ZIGZAG',25:'SYSTEMID',26:'AUTOROTATE'};
+const MODE_ROVER={0:'MANUAL',1:'ACRO',3:'STEERING',4:'HOLD',5:'LOITER',6:'FOLLOW',7:'SIMPLE',8:'DOCK',9:'CIRCLE',10:'AUTO',11:'RTL',12:'SMART_RTL',15:'GUIDED',16:'INITIALISING'};
+const MODE_TRACKER={0:'MANUAL',1:'STOP',2:'SCAN',3:'SERVO_TEST',10:'AUTO',16:'INITIALISING'};
+const MODE_SUB={0:'STABILIZE',1:'ACRO',2:'ALT_HOLD',3:'AUTO',4:'GUIDED',7:'CIRCLE',9:'SURFACE',16:'POSHOLD',19:'MANUAL',20:'MOTOR_DETECT'};
+function modeMapFor(vehicle){
+  if (vehicle === 'plane') return MODE_PLANE;
+  if (vehicle === 'rover') return MODE_ROVER;
+  if (vehicle === 'tracker') return MODE_TRACKER;
+  if (vehicle === 'sub') return MODE_SUB;
+  return MODE_COPTER;
+}
+
+/* ---------- kolom store ---------- */
+function Store(){ this.map = Object.create(null); }
+Store.prototype.push = function(name, t, fields, strs){
+  let m = this.map[name];
+  if (!m){ m = this.map[name] = { t: [], cols: Object.create(null), strs: Object.create(null) }; }
+  m.t.push(t);
+  for (const k in fields){
+    (m.cols[k] || (m.cols[k] = [])).push(fields[k]);
+  }
+  if (strs) for (const k in strs){
+    (m.strs[k] || (m.strs[k] = [])).push(strs[k]);
+  }
+};
+
+/* ============================================================
+   DATAFLASH .BIN — self-describing (FMT 0x80)
+   ============================================================ */
+function parseBin(buf, post){
+  const u8 = new Uint8Array(buf);
+  const dv = new DataView(buf);
+  const n = u8.length;
+  const fmts = Object.create(null);
+  fmts[0x80] = { name:'FMT', len:89, fmt:'BBnNZ', cols:['Type','Length','Name','Format','Columns'] };
+  const store = new Store();
+  let off = 0, lastPct = -1;
+
+  while (off + 3 <= n){
+    if (u8[off] !== 0xA3 || u8[off+1] !== 0x95){ off++; continue; }
+    const type = u8[off+2];
+    const f = fmts[type];
+    if (!f){ off++; continue; }
+    if (off + f.len > n) break;
+    let p = off + 3;
+    const vals = {}, strs = {};
+    let bad = false;
+    for (let ci = 0; ci < f.fmt.length; ci++){
+      const c = f.fmt[ci];
+      const cname = f.cols[ci] || ('f' + ci);
+      switch (c){
+        case 'b': vals[cname] = dv.getInt8(p); break;
+        case 'B': case 'M': vals[cname] = dv.getUint8(p); break;
+        case 'h': vals[cname] = dv.getInt16(p, true); break;
+        case 'H': vals[cname] = dv.getUint16(p, true); break;
+        case 'i': vals[cname] = dv.getInt32(p, true); break;
+        case 'I': vals[cname] = dv.getUint32(p, true); break;
+        case 'f': vals[cname] = dv.getFloat32(p, true); break;
+        case 'd': vals[cname] = dv.getFloat64(p, true); break;
+        case 'c': vals[cname] = dv.getInt16(p, true) * 0.01; break;
+        case 'C': vals[cname] = dv.getUint16(p, true) * 0.01; break;
+        case 'e': vals[cname] = dv.getInt32(p, true) * 0.01; break;
+        case 'E': vals[cname] = dv.getUint32(p, true) * 0.01; break;
+        case 'L': vals[cname] = dv.getInt32(p, true) * 1e-7; break;
+        case 'q': vals[cname] = Number(dv.getBigInt64(p, true)); break;
+        case 'Q': vals[cname] = Number(dv.getBigUint64(p, true)); break;
+        case 'n': strs[cname] = str0(u8, p, 4); break;
+        case 'N': strs[cname] = str0(u8, p, 16); break;
+        case 'Z': strs[cname] = str0(u8, p, 64); break;
+        case 'a': vals[cname] = dv.getInt16(p, true); break; /* int16[32] -> ambil elemen pertama */
+        default: bad = true;
+      }
+      if (bad) break;
+      p += SIZE[c] || 1;
+    }
+    if (bad){ off++; continue; }
+
+    if (type === 0x80){
+      const nm = strs.Name || '';
+      const ln = vals.Length | 0;
+      const ff = strs.Format || '';
+      const cc = (strs.Columns || '').split(',').filter(Boolean);
+      /* verifikasi panjang deklarasi vs format */
+      let calc = 3;
+      let ok = ff.length > 0;
+      for (const ch of ff){ if (!SIZE[ch]){ ok = false; break; } calc += SIZE[ch]; }
+      if (ok && nm && ln >= 3 && calc === ln && !fmts[vals.Type]){
+        fmts[vals.Type] = { name:nm, len:ln, fmt:ff, cols:cc };
+      }
+    } else {
+      /* waktu: TimeUS (us) > TimeMS (ms) */
+      let t = NaN;
+      if (vals.TimeUS !== undefined) t = vals.TimeUS / 1e6;
+      else if (vals.TimeMS !== undefined) t = vals.TimeMS / 1e3;
+      store.push(f.name, t, vals, Object.keys(strs).length ? strs : null);
+    }
+    off += f.len;
+
+    const pct = (off / n * 100) | 0;
+    if (pct !== lastPct && pct % 2 === 0){ lastPct = pct; post({ type:'progress', pct }); }
+  }
+  return finalize(store, 'bin');
+}
+
+/* ============================================================
+   MAVLINK .TLOG — v1 (0xFE) & v2 (0xFD)
+   Field def: [nama, tipe, jumlah] — urutan wire (sorted-by-size)
+   ============================================================ */
+const T = {
+  0:  ['HEARTBEAT', [['custom_mode','I'],['type','B'],['autopilot','B'],['base_mode','B'],['system_status','B'],['mavlink_version','B']]],
+  1:  ['SYS_STATUS', [['onboard_control_sensors_present','I'],['onboard_control_sensors_enabled','I'],['onboard_control_sensors_health','I'],['load','H'],['voltage_battery','H'],['current_battery','h'],['drop_rate_comm','H'],['errors_comm','H'],['errors_count1','H'],['errors_count2','H'],['errors_count3','H'],['errors_count4','H'],['battery_remaining','b']]],
+  2:  ['SYSTEM_TIME', [['time_unix_usec','Q'],['time_boot_ms','I']]],
+  22: ['PARAM_VALUE', [['param_value','f'],['param_count','H'],['param_index','H'],['param_id','s',16],['param_type','B']]],
+  24: ['GPS_RAW_INT', [['time_usec','Q'],['lat','i'],['lon','i'],['alt','i'],['eph','H'],['epv','H'],['vel','H'],['cog','H'],['fix_type','B'],['satellites_visible','B']]],
+  27: ['RAW_IMU', [['time_usec','Q'],['xacc','h'],['yacc','h'],['zacc','h'],['xgyro','h'],['ygyro','h'],['zgyro','h'],['xmag','h'],['ymag','h'],['zmag','h']]],
+  29: ['SCALED_PRESSURE', [['time_boot_ms','I'],['press_abs','f'],['press_diff','f'],['temperature','h']]],
+  30: ['ATTITUDE', [['time_boot_ms','I'],['roll','f'],['pitch','f'],['yaw','f'],['rollspeed','f'],['pitchspeed','f'],['yawspeed','f']]],
+  33: ['GLOBAL_POSITION_INT', [['time_boot_ms','I'],['lat','i'],['lon','i'],['alt','i'],['relative_alt','i'],['vx','h'],['vy','h'],['vz','h'],['hdg','H']]],
+  35: ['RC_CHANNELS_RAW', [['time_boot_ms','I'],['chan1_raw','H'],['chan2_raw','H'],['chan3_raw','H'],['chan4_raw','H'],['chan5_raw','H'],['chan6_raw','H'],['chan7_raw','H'],['chan8_raw','H'],['port','B'],['rssi','B']]],
+  36: ['SERVO_OUTPUT_RAW', [['time_usec','I'],['servo1_raw','H'],['servo2_raw','H'],['servo3_raw','H'],['servo4_raw','H'],['servo5_raw','H'],['servo6_raw','H'],['servo7_raw','H'],['servo8_raw','H'],['port','B']]],
+  39: ['MISSION_ITEM', [['param1','f'],['param2','f'],['param3','f'],['param4','f'],['x','f'],['y','f'],['z','f'],['seq','H'],['command','H'],['target_system','B'],['target_component','B'],['frame','B'],['current','B'],['autocontinue','B']]],
+  62: ['NAV_CONTROLLER_OUTPUT', [['nav_roll','f'],['nav_pitch','f'],['alt_error','f'],['aspd_error','f'],['xtrack_error','f'],['nav_bearing','h'],['target_bearing','h'],['wp_dist','H']]],
+  65: ['RC_CHANNELS', [['time_boot_ms','I'],['chan1_raw','H'],['chan2_raw','H'],['chan3_raw','H'],['chan4_raw','H'],['chan5_raw','H'],['chan6_raw','H'],['chan7_raw','H'],['chan8_raw','H'],['chan9_raw','H'],['chan10_raw','H'],['chan11_raw','H'],['chan12_raw','H'],['chan13_raw','H'],['chan14_raw','H'],['chan15_raw','H'],['chan16_raw','H'],['chan17_raw','H'],['chan18_raw','H'],['chancount','B'],['rssi','B']]],
+  73: ['MISSION_ITEM_INT', [['param1','f'],['param2','f'],['param3','f'],['param4','f'],['x','i'],['y','i'],['z','f'],['seq','H'],['command','H'],['target_system','B'],['target_component','B'],['frame','B'],['current','B'],['autocontinue','B']]],
+  74: ['VFR_HUD', [['airspeed','f'],['groundspeed','f'],['alt','f'],['climb','f'],['heading','h'],['throttle','H']]],
+  125:['POWER_STATUS', [['Vcc','H'],['Vservo','H'],['flags','H']]],
+  147:['BATTERY_STATUS', [['current_consumed','i'],['energy_consumed','i'],['temperature','h'],['voltages','H',10],['current_battery','h'],['id','B'],['battery_function','B'],['type','B'],['battery_remaining','b']]],
+  163:['AHRS', [['omegaIx','f'],['omegaIy','f'],['omegaIz','f'],['accel_weight','f'],['renorm_val','f'],['error_rp','f'],['error_yaw','f']]],
+  168:['WIND', [['direction','f'],['speed','f'],['speed_z','f']]],
+  193:['EKF_STATUS_REPORT', [['velocity_variance','f'],['pos_horiz_variance','f'],['pos_vert_variance','f'],['compass_variance','f'],['terrain_alt_variance','f'],['flags','H']]],
+  241:['VIBRATION', [['time_usec','Q'],['vibration_x','f'],['vibration_y','f'],['vibration_z','f'],['clipping_0','I'],['clipping_1','I'],['clipping_2','I']]],
+  253:['STATUSTEXT', [['severity','B'],['text','s',50]]]
+};
+const TSZ = {b:1,B:1,h:2,H:2,i:4,I:4,f:4,d:8,q:8,Q:8};
+function defSize(def){
+  let s = 0;
+  for (const fd of def){ s += fd[1] === 's' ? fd[2] : TSZ[fd[1]] * (fd[2] || 1); }
+  return s;
+}
+function decodeDef(def, dv, u8, base, avail){
+  const need = defSize(def);
+  let view = dv, bytes = u8, p = base;
+  if (avail < need){ /* MAVLink v2: payload dipangkas nol di ekor -> pad */
+    const tmp = new Uint8Array(need);
+    tmp.set(u8.subarray(base, base + avail));
+    bytes = tmp; view = new DataView(tmp.buffer); p = 0;
+  }
+  const vals = {}, strs = {};
+  for (const fd of def){
+    const nm = fd[0], tp = fd[1], cnt = fd[2] || 1;
+    if (tp === 's'){ strs[nm] = str0(bytes, p, cnt); p += cnt; continue; }
+    let v = 0;
+    for (let k = 0; k < cnt; k++){
+      let x;
+      switch (tp){
+        case 'b': x = view.getInt8(p); break;
+        case 'B': x = view.getUint8(p); break;
+        case 'h': x = view.getInt16(p, true); break;
+        case 'H': x = view.getUint16(p, true); break;
+        case 'i': x = view.getInt32(p, true); break;
+        case 'I': x = view.getUint32(p, true); break;
+        case 'f': x = view.getFloat32(p, true); break;
+        case 'd': x = view.getFloat64(p, true); break;
+        case 'q': x = Number(view.getBigInt64(p, true)); break;
+        case 'Q': x = Number(view.getBigUint64(p, true)); break;
+      }
+      if (k === 0) v = x; /* array -> simpan elemen pertama */
+      p += TSZ[tp];
+    }
+    vals[nm] = v;
+  }
+  return { vals, strs };
+}
+
+function parseTlog(buf, post){
+  const u8 = new Uint8Array(buf);
+  const dv = new DataView(buf);
+  const n = u8.length;
+  const store = new Store();
+  let off = 0, lastPct = -1, tFallback = 0;
+
+  while (off + 12 <= n){
+    const magic = u8[off + 8];
+    if (magic !== 0xFE && magic !== 0xFD){ off++; continue; }
+    const fo = off + 8;
+    const plen = u8[fo + 1];
+    let msgId, payOff, frameLen;
+    if (magic === 0xFE){
+      frameLen = 8 + plen; /* magic len seq sys comp id + payload + crc2 */
+      if (fo + frameLen > n) { off++; continue; }
+      msgId = u8[fo + 5];
+      payOff = fo + 6;
+    } else {
+      const incompat = u8[fo + 2];
+      frameLen = 12 + plen + ((incompat & 1) ? 13 : 0);
+      if (fo + frameLen > n) { off++; continue; }
+      msgId = u8[fo + 7] | (u8[fo + 8] << 8) | (u8[fo + 9] << 16);
+      payOff = fo + 10;
+    }
+    /* timestamp prefix: uint64 BE microseconds since epoch */
+    let t = Number(dv.getBigUint64(off, false)) / 1e6;
+    if (!(t > 946684800 && t < 4102444800)) t = ++tFallback * 0.01; /* fallback bila prefix tak wajar */
+
+    const def = T[msgId];
+    if (def){
+      try {
+        const { vals, strs } = decodeDef(def[1], dv, u8, payOff, plen);
+        store.push(def[0], t, vals, Object.keys(strs).length ? strs : null);
+      } catch (e) { /* frame korup -> lewati */ }
+    }
+    off = fo + frameLen;
+
+    const pct = (off / n * 100) | 0;
+    if (pct !== lastPct && pct % 2 === 0){ lastPct = pct; post({ type:'progress', pct }); }
+  }
+  return finalize(store, 'tlog');
+}
+
+/* ============================================================
+   FINALIZE — ringkasan + kolom Float64Array (transferable)
+   ============================================================ */
+function finalize(store, kind){
+  const map = store.map;
+  /* --- normalisasi waktu: relatif ke t terkecil yang valid --- */
+  let t0 = Infinity;
+  for (const nm in map){
+    const t = map[nm].t;
+    for (let i = 0; i < t.length; i++){ if (isFinite(t[i]) && t[i] > 0){ if (t[i] < t0) t0 = t[i]; break; } }
+  }
+  if (!isFinite(t0)) t0 = 0;
+
+  const msgs = {}, tree = {}, counts = {};
+  const transfers = [];
+  let t1 = 0;
+  for (const nm in map){
+    const m = map[nm];
+    const N = m.t.length;
+    const tt = new Float64Array(N);
+    for (let i = 0; i < N; i++){
+      const v = m.t[i];
+      tt[i] = isFinite(v) ? v - t0 : (i > 0 ? tt[i-1] : 0);
+      if (tt[i] > t1) t1 = tt[i];
+    }
+    const cols = {};
+    const fields = [];
+    for (const k in m.cols){
+      const src = m.cols[k];
+      const a = new Float64Array(N);
+      for (let i = 0; i < N; i++) a[i] = src[i];
+      cols[k] = a; fields.push(k);
+      transfers.push(a.buffer);
+    }
+    msgs[nm] = { t: tt, cols };
+    transfers.push(tt.buffer);
+    tree[nm] = fields.sort();
+    counts[nm] = N;
+  }
+
+  /* --- vehicle --- */
+  let vehicle = 'copter';
+  const texts = [];
+  if (kind === 'bin'){
+    const msg = map.MSG;
+    if (msg && msg.strs.Message){
+      for (let i = 0; i < msg.strs.Message.length; i++){
+        const s = msg.strs.Message[i];
+        texts.push([ (msgs.MSG ? msgs.MSG.t[i] : 0), 6, s ]);
+        if (/ArduPlane/i.test(s)) vehicle = 'plane';
+        else if (/Rover/i.test(s)) vehicle = 'rover';
+        else if (/ArduSub/i.test(s)) vehicle = 'sub';
+        else if (/Tracker/i.test(s)) vehicle = 'tracker';
+      }
+    }
+  } else {
+    const hb = map.HEARTBEAT;
+    if (hb){
+      const ty = hb.cols.type, ap = hb.cols.autopilot;
+      for (let i = 0; i < ty.length; i++){
+        const v = ty[i];
+        if (ap[i] === 8 || v === 6) continue; /* GCS */
+        if (v === 1 || v === 19 || v === 20 || v === 21 || v === 22 || v === 23) vehicle = 'plane';
+        else if (v === 10 || v === 11) vehicle = 'rover';
+        else if (v === 12) vehicle = 'sub';
+        else if (v === 5) vehicle = 'tracker';
+        else vehicle = 'copter';
+        break;
+      }
+    }
+    const st = map.STATUSTEXT;
+    if (st && st.strs.text){
+      for (let i = 0; i < st.strs.text.length; i++){
+        texts.push([ msgs.STATUSTEXT.t[i], st.cols.severity ? st.cols.severity[i] : 6, st.strs.text[i] ]);
+      }
+    }
+  }
+
+  /* --- mode timeline --- */
+  const mmap = modeMapFor(vehicle);
+  const modes = [];
+  function pushMode(t, name){
+    if (!modes.length || modes[modes.length-1][1] !== name) modes.push([t, name]);
+  }
+  if (kind === 'bin' && msgs.MODE){
+    const mm = msgs.MODE;
+    const col = mm.cols.Mode || mm.cols.ModeNum;
+    if (col) for (let i = 0; i < mm.t.length; i++) pushMode(mm.t[i], mmap[col[i]] || ('MODE(' + col[i] + ')'));
+  } else if (kind === 'tlog' && msgs.HEARTBEAT){
+    const hb = msgs.HEARTBEAT, raw = map.HEARTBEAT;
+    for (let i = 0; i < hb.t.length; i++){
+      if (raw.cols.autopilot[i] === 8 || raw.cols.type[i] === 6) continue;
+      pushMode(hb.t[i], mmap[raw.cols.custom_mode[i]] || ('MODE(' + raw.cols.custom_mode[i] + ')'));
+    }
+  }
+
+  /* --- parameter --- */
+  const params = {};
+  if (kind === 'bin' && map.PARM && map.PARM.strs.Name){
+    const nmv = map.PARM.strs.Name, vv = map.PARM.cols.Value;
+    for (let i = 0; i < nmv.length; i++) params[nmv[i]] = vv ? vv[i] : NaN;
+  } else if (kind === 'tlog' && map.PARAM_VALUE && map.PARAM_VALUE.strs.param_id){
+    const nmv = map.PARAM_VALUE.strs.param_id, vv = map.PARAM_VALUE.cols.param_value;
+    for (let i = 0; i < nmv.length; i++) params[nmv[i]] = vv ? vv[i] : NaN;
+  }
+
+  /* --- trajectory --- */
+  const traj = []; /* [t, lat, lon, altRel, spd] */
+  if (kind === 'bin' && msgs.GPS){
+    const g = msgs.GPS, c = g.cols;
+    const lat = c.Lat, lng = c.Lng || c.Lon, alt = c.Alt, spd = c.Spd;
+    if (lat && lng){
+      for (let i = 0; i < g.t.length; i++){
+        if (Math.abs(lat[i]) < 0.00001 && Math.abs(lng[i]) < 0.00001) continue;
+        traj.push([g.t[i], lat[i], lng[i], alt ? alt[i] : 0, spd ? spd[i] : 0]);
+      }
+    }
+  } else if (kind === 'tlog' && msgs.GLOBAL_POSITION_INT){
+    const g = msgs.GLOBAL_POSITION_INT, c = g.cols;
+    for (let i = 0; i < g.t.length; i++){
+      if (!c.lat[i] && !c.lon[i]) continue;
+      const vx = c.vx[i] / 100, vy = c.vy[i] / 100;
+      traj.push([g.t[i], c.lat[i] / 1e7, c.lon[i] / 1e7, c.relative_alt[i] / 1000, Math.hypot(vx, vy)]);
+    }
+  }
+
+  /* --- waypoints --- */
+  const wps = [];
+  if (kind === 'bin' && msgs.CMD){
+    const c = msgs.CMD.cols;
+    const lat = c.Lat, lng = c.Lng || c.Lon;
+    if (lat && lng) for (let i = 0; i < msgs.CMD.t.length; i++){
+      if (Math.abs(lat[i]) < 0.00001) continue;
+      wps.push([lat[i], lng[i], c.Alt ? c.Alt[i] : 0, c.CNum ? c.CNum[i] : i]);
+    }
+  } else if (kind === 'tlog'){
+    for (const nm of ['MISSION_ITEM', 'MISSION_ITEM_INT']){
+      if (!msgs[nm]) continue;
+      const c = msgs[nm].cols;
+      const sc = nm === 'MISSION_ITEM_INT' ? 1e-7 : 1;
+      for (let i = 0; i < msgs[nm].t.length; i++){
+        const la = c.x[i] * sc, lo = c.y[i] * sc;
+        if (Math.abs(la) < 0.00001) continue;
+        wps.push([la, lo, c.z[i], c.seq[i]]);
+      }
+    }
+  }
+
+  texts.sort((a, b) => a[0] - b[0]);
+  return {
+    payload: { kind, vehicle, msgs, tree, counts, modes, params, texts, traj, wps, t1 },
+    transfers
+  };
+}
+
+/* ---------- entry ---------- */
+self.onmessage = function(ev){
+  const { buf, name } = ev.data;
+  const post = (m) => self.postMessage(m);
+  try {
+    const isTlog = /\.tlog$/i.test(name);
+    const u8 = new Uint8Array(buf);
+    let res;
+    if (isTlog) res = parseTlog(buf, post);
+    else if (u8[0] === 0xA3 && u8[1] === 0x95) res = parseBin(buf, post);
+    else {
+      /* auto-deteksi: cari header dataflash di 4KB pertama, kalau tidak coba tlog */
+      let found = false;
+      for (let i = 0; i < Math.min(4096, u8.length - 2); i++){
+        if (u8[i] === 0xA3 && u8[i+1] === 0x95){ found = true; break; }
+      }
+      res = found ? parseBin(buf, post) : parseTlog(buf, post);
+    }
+    const total = Object.keys(res.payload.counts).reduce((s, k) => s + res.payload.counts[k], 0);
+    if (!total) { post({ type:'error', msg:'Tidak ada pesan log yang dikenali dalam file ini.' }); return; }
+    post({ type:'done', payload: res.payload }, res.transfers);
+  } catch (e){
+    post({ type:'error', msg: 'Gagal mem-parsing log: ' + (e && e.message || e) });
+  }
+};
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+'use strict';
+/* ============================================================
+   STATE GLOBAL
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+let LOG = null;            // hasil worker: {kind, vehicle, msgs, tree, counts, modes, params, texts, traj, wps, t1}
+let plotted = [];          // [{expr, label, axis, color, series:{t,v}|null, err}]
+let range = [0, 1];        // window waktu terlihat [s]
+let cursorT = null;        // posisi cursor global [s]
+let playing = false, playSpeed = 1, lastTick = 0;
+let stickMode = 2;
+let seriesCache = new Map();
+let map = null, trackLayers = [], droneMarker = null, wpLayer = null, mapInited = false;
+const PALETTE = ['#60a5fa','#f59e0b','#34d399','#f472b6','#a78bfa','#22d3ee','#fb923c','#ef4444','#84cc16','#e879f9','#facc15','#38bdf8'];
+const MODE_COLORS = {
+  STABILIZE:'#ef4444', QSTABILIZE:'#dc2626', ACRO:'#f97316', ALT_HOLD:'#eab308', AUTO:'#22c55e',
+  GUIDED:'#4ade80', GUIDED_NOGPS:'#4ade80', LOITER:'#3b82f6', QLOITER:'#ef4444', RTL:'#f59e0b',
+  QRTL:'#f59e0b', SMART_RTL:'#fbbf24', CIRCLE:'#facc15', LAND:'#10b981', QLAND:'#10b981',
+  POSHOLD:'#818cf8', FBWA:'#fb923c', FBWB:'#fdba74', CRUISE:'#fde047', MANUAL:'#94a3b8',
+  TAKEOFF:'#2dd4bf', THERMAL:'#f9a8d4', BRAKE:'#f87171', DRIFT:'#c084fc', TRAINING:'#a3e635',
+  AUTOTUNE:'#67e8f9', QHOVER:'#93c5fd', QAUTOTUNE:'#67e8f9', QACRO:'#fb7185', FOLLOW:'#5eead4', HOLD:'#94a3b8'
+};
+function modeColor(name){
+  if (MODE_COLORS[name]) return MODE_COLORS[name];
+  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h},60%,55%)`;
+}
+function fmtTime(s){
+  if (!isFinite(s)) return '--:--';
+  s = Math.max(0, s);
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = Math.floor(s % 60);
+  return (h ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+}
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2600);
+}
+function bisect(arr, x){ // index pertama >= x
+  let lo = 0, hi = arr.length;
+  while (lo < hi){ const mid = (lo + hi) >> 1; if (arr[mid] < x) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+
+/* ============================================================
+   WORKER LOADER
+   ============================================================ */
+let worker = null;
+function loadArrayBuffer(name, buf){
+  if (worker) worker.terminate();
+  const src = $('workerSrc').textContent;
+  worker = new Worker(URL.createObjectURL(new Blob([src], { type:'text/javascript' })));
+  $('progress').classList.add('on');
+  $('landing').classList.remove('off');
+  $('ptxt').textContent = 'Mem-parsing ' + name + '…';
+  worker.onmessage = (ev) => {
+    const d = ev.data;
+    if (d.type === 'progress'){ $('pbarFill').style.width = d.pct + '%'; }
+    else if (d.type === 'error'){ $('progress').classList.remove('on'); toast(d.msg); }
+    else if (d.type === 'done'){ onLogLoaded(name, d.payload); }
+  };
+  worker.onerror = (e) => { $('progress').classList.remove('on'); toast('Worker error: ' + e.message); };
+  worker.postMessage({ buf, name }, [buf]);
+}
+function openFile(file){
+  const rd = new FileReader();
+  rd.onload = () => loadArrayBuffer(file.name, rd.result);
+  rd.readAsArrayBuffer(file);
+}
+
+function onLogLoaded(name, payload){
+  LOG = payload;
+  LOG.file = name;
+  seriesCache.clear();
+  plotted = [];
+  cursorT = null;
+  range = [0, Math.max(LOG.t1, 1)];
+  $('landing').classList.add('off');
+  $('progress').classList.remove('on');
+  $('pbarFill').style.width = '0%';
+  $('fileChip').textContent = name;
+  buildFieldTree();
+  renderPlotList();
+  renderPresets();
+  renderLogInfo();
+  renderParams();
+  renderMsgs();
+  initMapData();
+  if (T3) build3DScene();
+  // auto: kalau ada trajectory tampilkan split (desktop) / peta
+  if (LOG.traj.length > 3 && window.innerWidth > 900) setView('split');
+  else setView('plot');
+  // auto-plot preset pertama yang cocok
+  const p = builtinPresets().find(p => p.items.some(it => exprResolvable(it.expr)));
+  if (p) applyPreset(p);
+  drawAll();
+  toast('Log dimuat: ' + Object.values(LOG.counts).reduce((a, b) => a + b, 0).toLocaleString('id') + ' pesan · ' + fmtTime(LOG.t1));
+}
+
+/* ============================================================
+   SERIES + EXPRESSION ENGINE
+   ============================================================ */
+const IDENT_RE = /[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*/g;
+function hasField(id){
+  const dot = id.indexOf('.');
+  const m = id.slice(0, dot), f = id.slice(dot + 1);
+  return LOG && LOG.msgs[m] && LOG.msgs[m].cols[f] !== undefined;
+}
+function rawSeries(id){
+  const dot = id.indexOf('.');
+  const m = LOG.msgs[id.slice(0, dot)];
+  return { t: m.t, v: m.cols[id.slice(dot + 1)] };
+}
+const EXPR_HELPERS = {
+  degrees: r => r * 180 / Math.PI, radians: d => d * Math.PI / 180,
+  sqrt: Math.sqrt, abs: Math.abs, sin: Math.sin, cos: Math.cos, tan: Math.tan,
+  asin: Math.asin, acos: Math.acos, atan: Math.atan, atan2: Math.atan2,
+  log: Math.log, exp: Math.exp, pow: Math.pow, min: Math.min, max: Math.max,
+  floor: Math.floor, ceil: Math.ceil, round: Math.round, PI: Math.PI, Math
+};
+function exprResolvable(expr){
+  if (!LOG) return false;
+  const ids = expr.match(IDENT_RE) || [];
+  return ids.some(hasField);
+}
+function evalExpr(expr){
+  const key = expr;
+  if (seriesCache.has(key)) return seriesCache.get(key);
+  let out = null;
+  try {
+    const ids = [...new Set(expr.match(IDENT_RE) || [])].filter(hasField)
+      .sort((a, b) => b.length - a.length);
+    if (!ids.length) throw new Error('field tidak ditemukan');
+    // fast-path: plain field
+    if (ids.length === 1 && expr.trim() === ids[0]){
+      out = rawSeries(ids[0]);
+    } else {
+      let code = expr;
+      ids.forEach((id, k) => { code = code.split(id).join('__v' + k); });
+      const fn = new Function(...ids.map((_, k) => '__v' + k), 'H', `with(H){ return (${code}); }`);
+      const base = rawSeries(ids[0]);
+      const others = ids.slice(1).map(rawSeries);
+      const N = base.t.length;
+      const v = new Float64Array(N);
+      const ptr = new Array(others.length).fill(0);
+      for (let i = 0; i < N; i++){
+        const t = base.t[i];
+        const args = [base.v[i]];
+        for (let j = 0; j < others.length; j++){
+          const o = others[j];
+          let p = ptr[j];
+          while (p < o.t.length - 1 && o.t[p + 1] <= t) p++;
+          ptr[j] = p;
+          let val = o.v[p];
+          if (p < o.t.length - 1 && o.t[p + 1] > o.t[p] && t > o.t[p]){
+            const f = Math.min(1, (t - o.t[p]) / (o.t[p + 1] - o.t[p]));
+            val = o.v[p] + (o.v[p + 1] - o.v[p]) * f;
+          }
+          args.push(val);
+        }
+        v[i] = fn(...args, EXPR_HELPERS);
+      }
+      out = { t: base.t, v };
+    }
+  } catch (e){ out = null; }
+  seriesCache.set(key, out);
+  return out;
+}
+
+/* ============================================================
+   PLOTTED LIST MGMT
+   ============================================================ */
+function addPlot(expr, axis, color){
+  if (!LOG) { toast('Muat file log terlebih dahulu.'); return; }
+  if (plotted.some(p => p.expr === expr)) { toast('Sudah diplot: ' + expr); return; }
+  const s = evalExpr(expr);
+  if (!s) { toast('Ekspresi/field tidak valid: ' + expr); return; }
+  plotted.push({
+    expr, label: expr, axis: axis ?? 0,
+    color: color || PALETTE[plotted.length % PALETTE.length],
+    series: s
+  });
+  renderPlotList(); buildFieldTree(); drawAll();
+}
+function removePlot(i){
+  plotted.splice(i, 1);
+  renderPlotList(); buildFieldTree(); drawAll();
+}
+function clearPlots(){ plotted = []; renderPlotList(); buildFieldTree(); drawAll(); }
+
+function renderPlotList(){
+  const box = $('plotList');
+  box.innerHTML = '';
+  if (!plotted.length){
+    box.innerHTML = '<div style="color:var(--ink-faint);font-size:11px;padding:4px 2px">Belum ada field yang diplot.</div>';
+    $('plotEmpty').style.display = LOG ? 'grid' : 'none';
+    return;
+  }
+  $('plotEmpty').style.display = 'none';
+  plotted.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'plot-item';
+    el.innerHTML = `
+      <input type="color" class="sw" value="${p.color}">
+      <span class="nm" title="${p.expr}">${p.expr}</span>
+      <select title="Y-axis">${[0,1,2,3].map(a => `<option ${a===p.axis?'selected':''}>${a}</option>`).join('')}</select>
+      <button class="del" title="Hapus">✕</button>`;
+    el.querySelector('.sw').addEventListener('input', e => { p.color = e.target.value; drawAll(); });
+    el.querySelector('select').addEventListener('change', e => { p.axis = +e.target.value; drawAll(); });
+    el.querySelector('.del').addEventListener('click', () => removePlot(i));
+    box.appendChild(el);
+  });
+}
+
+/* ============================================================
+   PRESETS
+   ============================================================ */
+function builtinPresets(){
+  return [
+    { name:'Attitude', items:[
+      /* ATT.* di log .bin ArduPilot sudah derajat; ATTITUDE.* (tlog) radian */
+      { expr:'ATT.Roll', alt:['degrees(ATTITUDE.roll)'], axis:0 },
+      { expr:'ATT.DesRoll', alt:['NAV_CONTROLLER_OUTPUT.nav_roll'], axis:0 },
+      { expr:'ATT.Pitch', alt:['degrees(ATTITUDE.pitch)'], axis:1 },
+      { expr:'ATT.DesPitch', alt:['NAV_CONTROLLER_OUTPUT.nav_pitch'], axis:1 } ] },
+    { name:'Speed', items:[
+      { expr:'GPS.Spd', alt:['VFR_HUD.groundspeed'], axis:0 },
+      { expr:'ARSP.Airspeed', alt:['VFR_HUD.airspeed','CTUN.Asmd'], axis:0 } ] },
+    { name:'Altitude', items:[
+      { expr:'CTUN.Alt', alt:['BARO.Alt','GLOBAL_POSITION_INT.relative_alt/1000'], axis:0 },
+      { expr:'CTUN.DAlt', alt:['GPS.Alt','VFR_HUD.alt'], axis:0 } ] },
+    { name:'Power', items:[
+      { expr:'BAT.Volt', alt:['SYS_STATUS.voltage_battery/1000'], axis:0 },
+      { expr:'BAT.Curr', alt:['SYS_STATUS.current_battery/100'], axis:1 } ] },
+    { name:'RC In', items:[
+      { expr:'RCIN.C1', alt:['RC_CHANNELS.chan1_raw','RC_CHANNELS_RAW.chan1_raw'], axis:0 },
+      { expr:'RCIN.C2', alt:['RC_CHANNELS.chan2_raw','RC_CHANNELS_RAW.chan2_raw'], axis:0 },
+      { expr:'RCIN.C3', alt:['RC_CHANNELS.chan3_raw','RC_CHANNELS_RAW.chan3_raw'], axis:0 },
+      { expr:'RCIN.C4', alt:['RC_CHANNELS.chan4_raw','RC_CHANNELS_RAW.chan4_raw'], axis:0 } ] },
+    { name:'Vibration', items:[
+      { expr:'VIBE.VibeX', alt:['VIBRATION.vibration_x'], axis:0 },
+      { expr:'VIBE.VibeY', alt:['VIBRATION.vibration_y'], axis:0 },
+      { expr:'VIBE.VibeZ', alt:['VIBRATION.vibration_z'], axis:0 } ] },
+    { name:'Servo Out', items:[
+      { expr:'RCOU.C1', alt:['SERVO_OUTPUT_RAW.servo1_raw'], axis:0 },
+      { expr:'RCOU.C2', alt:['SERVO_OUTPUT_RAW.servo2_raw'], axis:0 },
+      { expr:'RCOU.C3', alt:['SERVO_OUTPUT_RAW.servo3_raw'], axis:0 },
+      { expr:'RCOU.C4', alt:['SERVO_OUTPUT_RAW.servo4_raw'], axis:0 } ] }
+  ];
+}
+const PRESET_KEY = 'uavlog_presets_v1';
+function userPresets(){
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY) || '[]'); } catch (e){ return []; }
+}
+function applyPreset(p){
+  clearPlots();
+  let ci = 0;
+  p.items.forEach(it => {
+    const candidates = [it.expr, ...(it.alt || [])];
+    const found = candidates.find(exprResolvable);
+    if (found) addPlot(found, it.axis || 0, it.color || PALETTE[ci++ % PALETTE.length]);
+  });
+  if (!plotted.length) toast('Tidak ada field preset "' + p.name + '" di log ini.');
+}
+function renderPresets(){
+  const box = $('presetChips');
+  box.innerHTML = '';
+  builtinPresets().forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.textContent = p.name;
+    b.addEventListener('click', () => applyPreset(p));
+    box.appendChild(b);
+  });
+  userPresets().forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.innerHTML = `★ ${p.name} <span class="x" title="Hapus preset">✕</span>`;
+    b.querySelector('.x').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!confirm('Hapus preset "' + p.name + '"?')) return;
+      const arr = userPresets(); arr.splice(i, 1);
+      localStorage.setItem(PRESET_KEY, JSON.stringify(arr));
+      renderPresets();
+    });
+    b.addEventListener('click', () => applyPreset(p));
+    box.appendChild(b);
+  });
+}
+$('btnSavePreset').addEventListener('click', () => {
+  if (!plotted.length) { toast('Tidak ada plot untuk disimpan.'); return; }
+  const name = prompt('Nama preset:');
+  if (!name) return;
+  const arr = userPresets();
+  arr.push({ name, items: plotted.map(p => ({ expr: p.expr, axis: p.axis, color: p.color })) });
+  localStorage.setItem(PRESET_KEY, JSON.stringify(arr));
+  renderPresets(); toast('Preset "' + name + '" disimpan.');
+});
+
+/* ============================================================
+   FIELD TREE
+   ============================================================ */
+function buildFieldTree(){
+  const box = $('fieldTree');
+  if (!LOG){ return; }
+  const q = ($('fieldSearch').value || '').toLowerCase();
+  box.innerHTML = '';
+  const names = Object.keys(LOG.tree).sort();
+  let shown = 0;
+  for (const nm of names){
+    const fields = LOG.tree[nm].filter(f => f !== 'TimeUS' && f !== 'TimeMS');
+    const match = fields.filter(f => !q || nm.toLowerCase().includes(q) || (nm + '.' + f).toLowerCase().includes(q));
+    if (!match.length) continue;
+    shown++;
+    const det = document.createElement('details');
+    if (q) det.open = true;
+    const sum = document.createElement('summary');
+    sum.innerHTML = `${nm}<span class="cnt">${LOG.counts[nm].toLocaleString('id')}</span>`;
+    det.appendChild(sum);
+    for (const f of match){
+      const key = nm + '.' + f;
+      const b = document.createElement('button');
+      b.className = 'fld' + (plotted.some(p => p.expr === key) ? ' on' : '');
+      b.textContent = f;
+      b.addEventListener('click', () => addPlot(key));
+      det.appendChild(b);
+    }
+    box.appendChild(det);
+  }
+  if (!shown) box.innerHTML = '<div style="color:var(--ink-faint);font-size:11px;padding:6px 2px">Tidak ada field yang cocok.</div>';
+}
+$('fieldSearch').addEventListener('input', buildFieldTree);
+
+function renderLogInfo(){
+  if (!LOG) { $('logInfo').innerHTML = ''; return; }
+  const total = Object.values(LOG.counts).reduce((a, b) => a + b, 0);
+  $('logInfo').innerHTML =
+    `<b>${LOG.file}</b><br>` +
+    `Tipe: ${LOG.kind === 'bin' ? 'DataFlash .bin' : 'MAVLink .tlog'} · Vehicle: ${LOG.vehicle}<br>` +
+    `Durasi: ${fmtTime(LOG.t1)} · Pesan: ${total.toLocaleString('id')}<br>` +
+    `Param: ${Object.keys(LOG.params).length} · Mode: ${LOG.modes.length} · GPS fix: ${LOG.traj.length.toLocaleString('id')}`;
+}
+
+/* ============================================================
+   PLOT ENGINE (canvas)
+   ============================================================ */
+const plotCv = $('plotCanvas'), brushCv = $('brushCanvas');
+const PADL = 58, PADR = 58, PADT = 26, PADB = 22;
+
+function cssSize(cv){
+  const r = cv.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)){
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  }
+  return { w: r.width, h: r.height, dpr };
+}
+function niceTicks(lo, hi, n){
+  if (!(hi > lo)) { hi = lo + 1; }
+  const span = hi - lo;
+  const step0 = span / Math.max(1, n);
+  const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  let step = mag;
+  for (const m of [1, 2, 2.5, 5, 10]){ if (step0 <= m * mag){ step = m * mag; break; } }
+  const ticks = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 0.001; v += step) ticks.push(v);
+  return ticks;
+}
+function visibleStats(s){
+  const i0 = bisect(s.t, range[0]), i1 = bisect(s.t, range[1]);
+  let mn = Infinity, mx = -Infinity, sum = 0, n = 0;
+  for (let i = Math.max(0, i0 - 1); i < Math.min(s.t.length, i1 + 1); i++){
+    const v = s.v[i];
+    if (!isFinite(v)) continue;
+    if (v < mn) mn = v; if (v > mx) mx = v; sum += v; n++;
+  }
+  return n ? { mn, mx, mean: sum / n, n } : null;
+}
+
+function drawPlot(){
+  const { w, h, dpr } = cssSize(plotCv);
+  const ctx = plotCv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!LOG || !plotted.length) return;
+  const iw = w - PADL - PADR, ih = h - PADT - PADB;
+  if (iw < 20 || ih < 20) return;
+  const [ta, tb] = range;
+  const tx = (t) => PADL + (t - ta) / (tb - ta) * iw;
+
+  /* --- mode background bands --- */
+  drawModeBands(ctx, PADL, PADT, iw, ih, ta, tb, 0.10);
+
+  /* --- axis groups --- */
+  const groups = {};
+  plotted.forEach(p => {
+    if (!p.series) return;
+    (groups[p.axis] || (groups[p.axis] = [])).push(p);
+  });
+  const axisIds = Object.keys(groups).map(Number).sort((a, b) => a - b);
+  const scales = {};
+  axisIds.forEach(a => {
+    let mn = Infinity, mx = -Infinity;
+    groups[a].forEach(p => {
+      const st = visibleStats(p.series);
+      if (st){ mn = Math.min(mn, st.mn); mx = Math.max(mx, st.mx); }
+    });
+    if (!isFinite(mn)){ mn = 0; mx = 1; }
+    if (mn === mx){ mn -= 1; mx += 1; }
+    const pad = (mx - mn) * 0.07;
+    scales[a] = { mn: mn - pad, mx: mx + pad };
+  });
+
+  /* --- grid & y ticks (axis pertama kiri, kedua kanan) --- */
+  ctx.font = '9.5px JetBrains Mono, monospace';
+  ctx.lineWidth = 1;
+  axisIds.slice(0, 2).forEach((a, side) => {
+    const sc = scales[a];
+    const col = groups[a][0].color;
+    const ticks = niceTicks(sc.mn, sc.mx, 6);
+    ticks.forEach(v => {
+      const y = PADT + (1 - (v - sc.mn) / (sc.mx - sc.mn)) * ih;
+      if (side === 0){
+        ctx.strokeStyle = 'rgba(255,255,255,.05)';
+        ctx.beginPath(); ctx.moveTo(PADL, y); ctx.lineTo(PADL + iw, y); ctx.stroke();
+      }
+      ctx.fillStyle = col;
+      ctx.textAlign = side === 0 ? 'right' : 'left';
+      ctx.fillText(formatNum(v), side === 0 ? PADL - 6 : PADL + iw + 6, y + 3);
+    });
+  });
+
+  /* --- x ticks --- */
+  ctx.fillStyle = '#5f6f8a'; ctx.textAlign = 'center';
+  niceTicks(ta, tb, Math.min(10, iw / 70)).forEach(t => {
+    const x = tx(t);
+    ctx.strokeStyle = 'rgba(255,255,255,.05)';
+    ctx.beginPath(); ctx.moveTo(x, PADT); ctx.lineTo(x, PADT + ih); ctx.stroke();
+    ctx.fillText(fmtTime(t), x, h - 7);
+  });
+
+  /* --- series --- */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(PADL, PADT, iw, ih); ctx.clip();
+  plotted.forEach(p => {
+    if (!p.series) return;
+    const sc = scales[p.axis];
+    const ty = (v) => PADT + (1 - (v - sc.mn) / (sc.mx - sc.mn)) * ih;
+    drawSeries(ctx, p.series, tx, ty, ta, tb, iw, p.color);
+  });
+  ctx.restore();
+
+  /* --- legend (min/max/mean) --- */
+  ctx.font = '10px JetBrains Mono, monospace';
+  let lx = PADL + 4;
+  plotted.forEach(p => {
+    if (!p.series) return;
+    const st = visibleStats(p.series);
+    const label = p.label + (st ? `  min ${formatNum(st.mn)}  max ${formatNum(st.mx)}  µ ${formatNum(st.mean)}` : '');
+    const tw = ctx.measureText(label).width + 16;
+    if (lx + tw > w - PADR){ return; }
+    ctx.fillStyle = p.color;
+    ctx.fillRect(lx, 8, 8, 8);
+    ctx.fillStyle = '#93a1b8';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, lx + 12, 16);
+    lx += tw + 10;
+  });
+
+  /* --- cursor crosshair --- */
+  if (cursorT !== null && cursorT >= ta && cursorT <= tb){
+    const x = tx(cursorT);
+    ctx.strokeStyle = 'rgba(230,236,245,.5)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(x, PADT); ctx.lineTo(x, PADT + ih); ctx.stroke();
+    ctx.setLineDash([]);
+    /* nilai per series */
+    let yy = PADT + 14;
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = x > w / 2 ? 'right' : 'left';
+    const xoff = x > w / 2 ? -8 : 8;
+    ctx.fillStyle = '#e6ecf5';
+    ctx.fillText('t=' + fmtTime(cursorT), x + xoff, yy); yy += 14;
+    plotted.forEach(p => {
+      if (!p.series) return;
+      const v = valueAt(p.series, cursorT);
+      if (v === null) return;
+      ctx.fillStyle = p.color;
+      ctx.fillText(formatNum(v), x + xoff, yy);
+      yy += 13;
+    });
+  }
+}
+function formatNum(v){
+  if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 100000) return v.toExponential(2);
+  if (a >= 100) return v.toFixed(1);
+  if (a >= 1) return v.toFixed(2);
+  if (a === 0) return '0';
+  return v.toFixed(4);
+}
+function valueAt(s, t){
+  const i = bisect(s.t, t);
+  if (i <= 0) return s.v.length ? s.v[0] : null;
+  if (i >= s.t.length) return s.v[s.v.length - 1];
+  const f = (t - s.t[i-1]) / (s.t[i] - s.t[i-1] || 1);
+  return s.v[i-1] + (s.v[i] - s.v[i-1]) * f;
+}
+function drawSeries(ctx, s, tx, ty, ta, tb, iw, color){
+  const i0 = Math.max(0, bisect(s.t, ta) - 1);
+  const i1 = Math.min(s.t.length, bisect(s.t, tb) + 1);
+  const n = i1 - i0;
+  ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.lineJoin = 'round';
+  if (n <= 0) return;
+  if (n <= iw * 2){
+    if (n === 1){ /* satu titik -> cross marker */
+      const x = tx(s.t[i0]), y = ty(s.v[i0]);
+      ctx.beginPath(); ctx.moveTo(x - 3, y); ctx.lineTo(x + 3, y); ctx.moveTo(x, y - 3); ctx.lineTo(x, y + 3); ctx.stroke();
+      return;
+    }
+    ctx.beginPath();
+    for (let i = i0; i < i1; i++){
+      const x = tx(s.t[i]), y = ty(s.v[i]);
+      if (i === i0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  } else {
+    /* decimasi min-max per kolom pixel */
+    ctx.beginPath();
+    let px = -1, mn = 0, mx = 0, first = true;
+    for (let i = i0; i < i1; i++){
+      const x = Math.round(tx(s.t[i]));
+      const v = s.v[i];
+      if (x !== px){
+        if (px >= 0){ ctx.moveTo(px + .5, mn); ctx.lineTo(px + .5, mx === mn ? mx + .6 : mx); }
+        px = x; mn = mx = ty(v);
+      } else {
+        const y = ty(v);
+        if (y < mn) mn = y; if (y > mx) mx = y;
+      }
+      if (first) first = false;
+    }
+    if (px >= 0){ ctx.moveTo(px + .5, mn); ctx.lineTo(px + .5, mx === mn ? mx + .6 : mx); }
+    ctx.stroke();
+  }
+}
+function drawModeBands(ctx, x0, y0, w, h, ta, tb, alpha){
+  if (!LOG || !LOG.modes.length) return;
+  const M = LOG.modes;
+  for (let i = 0; i < M.length; i++){
+    const t0 = M[i][0], t1 = i + 1 < M.length ? M[i + 1][0] : LOG.t1;
+    if (t1 < ta || t0 > tb) continue;
+    const xa = x0 + Math.max(0, (t0 - ta) / (tb - ta)) * w;
+    const xb = x0 + Math.min(1, (t1 - ta) / (tb - ta)) * w;
+    ctx.fillStyle = modeColor(M[i][1]);
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(xa, y0, Math.max(0.5, xb - xa), h);
+    ctx.globalAlpha = 1;
+    if (xb - xa > 44){
+      ctx.fillStyle = modeColor(M[i][1]);
+      ctx.font = '8.5px JetBrains Mono, monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(M[i][1], xa + 3, y0 + 9);
+    }
+  }
+}
+
+/* ---------- brush timeline ---------- */
+function drawBrush(){
+  const { w, h, dpr } = cssSize(brushCv);
+  const ctx = brushCv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!LOG) return;
+  drawModeBands(ctx, 0, 0, w, h, 0, LOG.t1, 0.14);
+  /* overview series pertama */
+  const p = plotted.find(p => p.series);
+  if (p){
+    const s = p.series;
+    let mn = Infinity, mx = -Infinity;
+    for (let i = 0; i < s.v.length; i++){ const v = s.v[i]; if (isFinite(v)){ if (v < mn) mn = v; if (v > mx) mx = v; } }
+    if (isFinite(mn) && mx > mn){
+      drawSeries(ctx,
+        s,
+        t => t / LOG.t1 * w,
+        v => 4 + (1 - (v - mn) / (mx - mn)) * (h - 8),
+        0, LOG.t1, w, 'rgba(147,161,184,.7)');
+    }
+  }
+  /* window */
+  const xa = range[0] / LOG.t1 * w, xb = range[1] / LOG.t1 * w;
+  ctx.fillStyle = 'rgba(59,130,246,.15)';
+  ctx.fillRect(xa, 0, xb - xa, h);
+  ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(xa + .5, .5, xb - xa - 1, h - 1);
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(xa - 2, 0, 4, h); ctx.fillRect(xb - 2, 0, 4, h);
+  /* cursor */
+  if (cursorT !== null){
+    const x = cursorT / LOG.t1 * w;
+    ctx.strokeStyle = 'rgba(230,236,245,.6)';
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+}
+function drawAll(){ drawPlot(); drawBrush(); updateMapCursor(); update3D(); updateWidgets(); }
+
+/* ---------- plot interactions ---------- */
+let dragMode = null, dragStart = null;
+plotCv.addEventListener('pointerdown', (e) => {
+  if (!LOG) return;
+  plotCv.setPointerCapture(e.pointerId);
+  dragMode = 'pan';
+  dragStart = { x: e.offsetX, range: [...range] };
+});
+plotCv.addEventListener('pointermove', (e) => {
+  if (!LOG) return;
+  const r = plotCv.getBoundingClientRect();
+  const iw = r.width - PADL - PADR;
+  if (dragMode === 'pan' && dragStart){
+    const dx = e.offsetX - dragStart.x;
+    if (Math.abs(dx) > 2){
+      const dt = -dx / iw * (dragStart.range[1] - dragStart.range[0]);
+      let a = dragStart.range[0] + dt, b = dragStart.range[1] + dt;
+      const span = b - a;
+      if (a < 0){ a = 0; b = span; }
+      if (b > LOG.t1){ b = LOG.t1; a = b - span; }
+      range = [a, b];
+    }
+  }
+  const t = range[0] + (e.offsetX - PADL) / iw * (range[1] - range[0]);
+  if (t >= range[0] && t <= range[1]) cursorT = t;
+  drawAll();
+});
+plotCv.addEventListener('pointerup', () => { dragMode = null; dragStart = null; });
+plotCv.addEventListener('pointerleave', () => { if (!dragMode){ cursorT = cursorT; } });
+plotCv.addEventListener('wheel', (e) => {
+  if (!LOG) return;
+  e.preventDefault();
+  const r = plotCv.getBoundingClientRect();
+  const iw = r.width - PADL - PADR;
+  const t = range[0] + (e.offsetX - PADL) / iw * (range[1] - range[0]);
+  const f = e.deltaY > 0 ? 1.25 : 0.8;
+  let a = t - (t - range[0]) * f;
+  let b = t + (range[1] - t) * f;
+  a = Math.max(0, a); b = Math.min(LOG.t1, b);
+  if (b - a > 0.5) range = [a, b];
+  drawAll();
+}, { passive:false });
+/* pinch zoom */
+let pinch = null;
+plotCv.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2){
+    pinch = { d: Math.abs(e.touches[0].clientX - e.touches[1].clientX), range: [...range] };
+  }
+}, { passive:true });
+plotCv.addEventListener('touchmove', (e) => {
+  if (pinch && e.touches.length === 2){
+    const d = Math.abs(e.touches[0].clientX - e.touches[1].clientX);
+    const f = pinch.d / Math.max(20, d);
+    const c = (pinch.range[0] + pinch.range[1]) / 2;
+    const half = (pinch.range[1] - pinch.range[0]) / 2 * f;
+    range = [Math.max(0, c - half), Math.min(LOG.t1, c + half)];
+    drawAll();
+  }
+}, { passive:true });
+plotCv.addEventListener('touchend', () => { pinch = null; });
+plotCv.addEventListener('dblclick', () => { if (LOG){ range = [0, LOG.t1]; drawAll(); } });
+
+/* brush interactions */
+let brushDrag = null;
+brushCv.addEventListener('pointerdown', (e) => {
+  if (!LOG) return;
+  brushCv.setPointerCapture(e.pointerId);
+  const w = brushCv.getBoundingClientRect().width;
+  const xa = range[0] / LOG.t1 * w, xb = range[1] / LOG.t1 * w;
+  const x = e.offsetX;
+  if (Math.abs(x - xa) < 8) brushDrag = { m:'a' };
+  else if (Math.abs(x - xb) < 8) brushDrag = { m:'b' };
+  else if (x > xa && x < xb) brushDrag = { m:'move', x0:x, r0:[...range] };
+  else {
+    const t = x / w * LOG.t1;
+    const span = range[1] - range[0];
+    range = [Math.max(0, t - span / 2), Math.min(LOG.t1, t + span / 2)];
+    brushDrag = { m:'move', x0:x, r0:[...range] };
+  }
+  drawAll();
+});
+brushCv.addEventListener('pointermove', (e) => {
+  if (!LOG || !brushDrag) return;
+  const w = brushCv.getBoundingClientRect().width;
+  const t = Math.max(0, Math.min(LOG.t1, e.offsetX / w * LOG.t1));
+  if (brushDrag.m === 'a') range = [Math.min(t, range[1] - 0.5), range[1]];
+  else if (brushDrag.m === 'b') range = [range[0], Math.max(t, range[0] + 0.5)];
+  else {
+    const dt = (e.offsetX - brushDrag.x0) / w * LOG.t1;
+    let a = brushDrag.r0[0] + dt, b = brushDrag.r0[1] + dt;
+    const span = b - a;
+    if (a < 0){ a = 0; b = span; }
+    if (b > LOG.t1){ b = LOG.t1; a = b - span; }
+    range = [a, b];
+  }
+  drawAll();
+});
+brushCv.addEventListener('pointerup', () => { brushDrag = null; });
+
+/* ============================================================
+   MAP (Leaflet)
+   ============================================================ */
+function ensureMap(){
+  if (mapInited) return;
+  mapInited = true;
+  map = L.map('map', { zoomControl: true, attributionControl: false });
+  const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+  sat.addTo(map);
+  L.control.layers({ 'Satelit (Esri)': sat, 'OpenStreetMap': osm }, null, { position: 'topright' }).addTo(map);
+  map.setView([-2.5, 118], 5);
+}
+function modeAt(t){
+  if (!LOG || !LOG.modes.length) return null;
+  let m = LOG.modes[0][1];
+  for (const [tt, nm] of LOG.modes){ if (tt <= t) m = nm; else break; }
+  return m;
+}
+function initMapData(){
+  ensureMap();
+  trackLayers.forEach(l => map.removeLayer(l)); trackLayers = [];
+  if (wpLayer){ map.removeLayer(wpLayer); wpLayer = null; }
+  if (droneMarker){ map.removeLayer(droneMarker); droneMarker = null; }
+  $('modeLegend').style.display = 'none';
+  $('mapChip').style.display = 'none';
+  $('playbar').style.display = 'none';
+  if (!LOG || LOG.traj.length < 2) return;
+
+  /* segmen polyline per mode */
+  const segs = [];
+  let cur = null;
+  for (const p of LOG.traj){
+    const m = modeAt(p[0]) || '—';
+    if (!cur || cur.mode !== m){
+      const pts = cur ? [cur.pts[cur.pts.length - 1]] : [];
+      cur = { mode: m, pts: [...pts, [p[1], p[2]]] };
+      segs.push(cur);
+    } else cur.pts.push([p[1], p[2]]);
+  }
+  const usedModes = new Set();
+  segs.forEach(s => {
+    usedModes.add(s.mode);
+    const pl = L.polyline(s.pts, { color: modeColor(s.mode), weight: 3, opacity: .9 });
+    pl.addTo(map); trackLayers.push(pl);
+  });
+  /* start/end */
+  const st = LOG.traj[0], en = LOG.traj[LOG.traj.length - 1];
+  const mkIcon = (txt, bg) => L.divIcon({ html:`<div style="background:${bg};color:#fff;font:700 9px Inter;border-radius:99px;padding:2px 7px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.5)">${txt}</div>`, className:'', iconAnchor:[14, 8] });
+  trackLayers.push(L.marker([st[1], st[2]], { icon: mkIcon('START', '#22c55e') }).addTo(map));
+  trackLayers.push(L.marker([en[1], en[2]], { icon: mkIcon('END', '#ef4444') }).addTo(map));
+
+  /* waypoints */
+  if (LOG.wps.length){
+    wpLayer = L.layerGroup();
+    const wline = [];
+    LOG.wps.forEach(w => {
+      wline.push([w[0], w[1]]);
+      L.circleMarker([w[0], w[1]], { radius: 4, color:'#facc15', weight: 2, fillColor:'#0d1420', fillOpacity: 1 })
+        .bindTooltip('WP ' + w[3] + ' · ' + (+w[2]).toFixed(0) + ' m', { direction:'top' }).addTo(wpLayer);
+    });
+    L.polyline(wline, { color:'#facc15', weight: 1.5, dashArray:'5 6', opacity:.7 }).addTo(wpLayer);
+    wpLayer.addTo(map);
+  }
+
+  /* drone marker */
+  droneMarker = L.marker([st[1], st[2]], {
+    icon: L.divIcon({
+      html: `<div id="droneIco" style="width:26px;height:26px;transform:rotate(0deg)">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#22d3ee" stroke-width="2.4" style="filter:drop-shadow(0 0 3px rgba(0,0,0,.9))">
+        <path d="M12 3l5 16-5-4-5 4z" fill="rgba(34,211,238,.35)"/></svg></div>`,
+      className: '', iconSize: [26, 26], iconAnchor: [13, 13]
+    })
+  }).addTo(map);
+
+  /* legend mode */
+  const leg = $('modeLegend');
+  leg.innerHTML = [...usedModes].map(m => `<div><i style="background:${modeColor(m)}"></i>${m}</div>`).join('');
+  leg.style.display = 'block';
+  $('mapChip').style.display = 'block';
+  $('playbar').style.display = 'flex';
+  const bounds = L.latLngBounds(LOG.traj.map(p => [p[1], p[2]]));
+  setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds.pad(0.15)); }, 60);
+}
+function trajAt(t){
+  if (!LOG || !LOG.traj.length) return null;
+  const arr = LOG.traj;
+  let lo = 0, hi = arr.length - 1;
+  while (lo < hi){ const mid = (lo + hi) >> 1; if (arr[mid][0] < t) lo = mid + 1; else hi = mid; }
+  return arr[Math.max(0, lo - (arr[lo][0] > t && lo > 0 ? 1 : 0))];
+}
+function headingAt(t){
+  /* yaw dari ATT/ATTITUDE bila ada, fallback bearing trajectory */
+  if (LOG.msgs.ATT && LOG.msgs.ATT.cols.Yaw){
+    const v = valueAt({ t: LOG.msgs.ATT.t, v: LOG.msgs.ATT.cols.Yaw }, t);
+    if (v !== null) return v; /* derajat */
+  }
+  if (LOG.msgs.ATTITUDE){
+    const v = valueAt({ t: LOG.msgs.ATTITUDE.t, v: LOG.msgs.ATTITUDE.cols.yaw }, t);
+    if (v !== null) return v * 180 / Math.PI;
+  }
+  return 0;
+}
+function attitudeAt(t){
+  /* [roll, pitch, yaw] dalam radian untuk model 3D */
+  const D = Math.PI / 180;
+  if (LOG.msgs.ATT && LOG.msgs.ATT.cols.Roll){
+    const c = LOG.msgs.ATT.cols, tt = LOG.msgs.ATT.t;
+    return [
+      (valueAt({ t: tt, v: c.Roll }, t) || 0) * D,
+      (valueAt({ t: tt, v: c.Pitch }, t) || 0) * D,
+      (c.Yaw ? valueAt({ t: tt, v: c.Yaw }, t) || 0 : 0) * D
+    ];
+  }
+  if (LOG.msgs.ATTITUDE){
+    const c = LOG.msgs.ATTITUDE.cols, tt = LOG.msgs.ATTITUDE.t;
+    return [
+      valueAt({ t: tt, v: c.roll }, t) || 0,
+      valueAt({ t: tt, v: c.pitch }, t) || 0,
+      valueAt({ t: tt, v: c.yaw }, t) || 0
+    ];
+  }
+  return [0, 0, headingAt(t) * D];
+}
+function updateMapCursor(){
+  if (!mapInited || !LOG || !droneMarker) return;
+  const t = cursorT !== null ? cursorT : range[0];
+  const p = trajAt(t);
+  if (!p) return;
+  droneMarker.setLatLng([p[1], p[2]]);
+  const ico = document.getElementById('droneIco');
+  if (ico) ico.style.transform = 'rotate(' + headingAt(t).toFixed(0) + 'deg)';
+  $('mapChip').innerHTML =
+    `<b>${fmtTime(t)}</b> · ${modeAt(t) || '—'}<br>` +
+    `Alt <b>${(+p[3]).toFixed(1)} m</b> · Spd <b>${(+p[4]).toFixed(1)} m/s</b><br>` +
+    `${p[1].toFixed(6)}, ${p[2].toFixed(6)}`;
+  if (LOG.t1 > 0) $('scrub').value = Math.round(t / LOG.t1 * 1000);
+  $('playTime').textContent = fmtTime(t) + ' / ' + fmtTime(LOG.t1);
+  if (playing && !map.getBounds().pad(-0.15).contains([p[1], p[2]])) map.panTo([p[1], p[2]]);
+}
+
+/* ---------- playback ---------- */
+function setPlaying(v){
+  playing = v;
+  $('icPlay').style.display = v ? 'none' : '';
+  $('icPause').style.display = v ? '' : 'none';
+  $('btnPlay').classList.toggle('on', v);
+  $('btnPlay3').textContent = v ? '❚❚' : '▶';
+  $('btnPlay3').classList.toggle('on', v);
+  if (v){ lastTick = performance.now(); requestAnimationFrame(playTick); }
+}
+function playTick(now){
+  if (!playing || !LOG) return;
+  const dt = (now - lastTick) / 1000;
+  lastTick = now;
+  cursorT = (cursorT === null ? range[0] : cursorT) + dt * playSpeed;
+  if (cursorT >= LOG.t1){ cursorT = LOG.t1; setPlaying(false); }
+  drawAll();
+  if (playing) requestAnimationFrame(playTick);
+}
+$('btnPlay').addEventListener('click', () => setPlaying(!playing));
+$('speedSel').addEventListener('change', e => { playSpeed = parseFloat(e.target.value); });
+$('scrub').addEventListener('input', e => {
+  if (!LOG) return;
+  cursorT = e.target.value / 1000 * LOG.t1;
+  drawAll();
+});
+
+/* ============================================================
+   WIDGETS
+   ============================================================ */
+function toggleWidget(id, btn){
+  const w = $(id);
+  const on = !w.classList.contains('on');
+  w.classList.toggle('on', on);
+  btn.classList.toggle('on', on);
+  if (on) updateWidgets();
+}
+$('btnWgParam').addEventListener('click', () => toggleWidget('wgParam', $('btnWgParam')));
+$('btnWgMsg').addEventListener('click', () => toggleWidget('wgMsg', $('btnWgMsg')));
+$('btnWgStick').addEventListener('click', () => toggleWidget('wgStick', $('btnWgStick')));
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => {
+  $(b.dataset.close).classList.remove('on');
+  ({ wgParam:'btnWgParam', wgMsg:'btnWgMsg', wgStick:'btnWgStick' })[b.dataset.close] &&
+    $({ wgParam:'btnWgParam', wgMsg:'btnWgMsg', wgStick:'btnWgStick' }[b.dataset.close]).classList.remove('on');
+}));
+/* drag widget */
+document.querySelectorAll('.wg-head').forEach(head => {
+  let drag = null;
+  head.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.wx')) return;
+    const w = $(head.dataset.wg);
+    const r = w.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, w };
+    head.setPointerCapture(e.pointerId);
+  });
+  head.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const x = Math.max(4, Math.min(window.innerWidth - 80, e.clientX - drag.dx));
+    const y = Math.max(52, Math.min(window.innerHeight - 60, e.clientY - drag.dy));
+    drag.w.style.left = x + 'px'; drag.w.style.top = y + 'px'; drag.w.style.right = 'auto';
+  });
+  head.addEventListener('pointerup', () => { drag = null; });
+});
+
+function renderParams(){
+  const box = $('paramList');
+  if (!LOG){ box.innerHTML = ''; return; }
+  const q = ($('paramSearch').value || '').toUpperCase();
+  const keys = Object.keys(LOG.params).filter(k => !q || k.toUpperCase().includes(q)).sort();
+  $('paramCount').textContent = keys.length + ' / ' + Object.keys(LOG.params).length;
+  box.innerHTML = keys.slice(0, 600).map(k =>
+    `<div class="prow"><span class="k">${k}</span><span class="v">${formatNum(LOG.params[k])}</span></div>`).join('');
+}
+$('paramSearch').addEventListener('input', renderParams);
+
+function renderMsgs(){
+  const box = $('msgList');
+  if (!LOG){ box.innerHTML = ''; return; }
+  box.innerHTML = LOG.texts.slice(0, 2000).map((m, i) => {
+    const sev = m[1] <= 3 ? 'sev-err' : (m[1] <= 5 ? 'sev-warn' : '');
+    return `<div class="mrow ${sev}" data-t="${m[0]}"><span class="t">[${fmtTime(m[0])}]</span> ${escapeHtml(m[2])}</div>`;
+  }).join('') || '<div style="color:var(--ink-faint);font-size:11px">Tidak ada pesan teks di log ini.</div>';
+  box.querySelectorAll('.mrow').forEach(r => r.addEventListener('click', () => {
+    cursorT = parseFloat(r.dataset.t);
+    if (cursorT < range[0] || cursorT > range[1]){
+      const span = range[1] - range[0];
+      range = [Math.max(0, cursorT - span / 2), Math.min(LOG.t1, cursorT + span / 2)];
+    }
+    drawAll();
+  }));
+}
+function escapeHtml(s){ return s.replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+function rcAt(t){
+  /* [roll, pitch, thr, yaw] dari RCIN/RC_CHANNELS (µs) */
+  const src = LOG.msgs.RCIN ? { m: LOG.msgs.RCIN, f: ['C1','C2','C3','C4'] }
+    : LOG.msgs.RC_CHANNELS ? { m: LOG.msgs.RC_CHANNELS, f: ['chan1_raw','chan2_raw','chan3_raw','chan4_raw'] }
+    : LOG.msgs.RC_CHANNELS_RAW ? { m: LOG.msgs.RC_CHANNELS_RAW, f: ['chan1_raw','chan2_raw','chan3_raw','chan4_raw'] } : null;
+  if (!src) return null;
+  return src.f.map(f => src.m.cols[f] ? valueAt({ t: src.m.t, v: src.m.cols[f] }, t) : 1500);
+}
+function drawSticks(){
+  const cv = $('stickCanvas');
+  const ctx = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+  const rc = LOG ? rcAt(cursorT !== null ? cursorT : range[0]) : null;
+  const norm = v => Math.max(-1, Math.min(1, ((v || 1500) - 1500) / 500));
+  /* mode2: kiri=thr/yaw, kanan=pitch/roll ; mode1: kiri=pitch/yaw, kanan=thr/roll */
+  let L_, R_;
+  if (rc){
+    const [ro, pi, th, ya] = rc.map(norm);
+    if (stickMode === 2){ L_ = [ya, th]; R_ = [ro, -pi]; }
+    else { L_ = [ya, -pi]; R_ = [ro, th]; }
+  } else { L_ = [0, 0]; R_ = [0, 0]; }
+  [[8, L_], [122, R_]].forEach(([x0, st]) => {
+    ctx.strokeStyle = '#243044'; ctx.lineWidth = 1;
+    ctx.strokeRect(x0 + .5, 10.5, 100, 100);
+    ctx.beginPath(); ctx.moveTo(x0 + 50.5, 10); ctx.lineTo(x0 + 50.5, 110); ctx.moveTo(x0, 60.5); ctx.lineTo(x0 + 100, 60.5); ctx.stroke();
+    const cx = x0 + 50 + st[0] * 46;
+    const cy = 60 - st[1] * 46;
+    ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(34,211,238,.25)'; ctx.fill();
+    ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 2; ctx.stroke();
+  });
+}
+$('stickMode1').addEventListener('click', () => { stickMode = 1; $('stickMode1').classList.add('pri'); $('stickMode2').classList.remove('pri'); drawSticks(); });
+$('stickMode2').addEventListener('click', () => { stickMode = 2; $('stickMode2').classList.add('pri'); $('stickMode1').classList.remove('pri'); drawSticks(); });
+
+function updateWidgets(){
+  if ($('wgStick').classList.contains('on')) drawSticks();
+  if ($('wgMsg').classList.contains('on') && LOG && cursorT !== null){
+    /* highlight pesan <= cursor */
+    const rows = $('msgList').querySelectorAll('.mrow');
+    let last = null;
+    rows.forEach(r => { if (parseFloat(r.dataset.t) <= cursorT) last = r; });
+    rows.forEach(r => r.style.background = '');
+    if (last){ last.style.background = 'var(--accent-soft)'; }
+  }
+}
+
+/* ============================================================
+   3D VIEW (three.js — lazy load, ala surface_dtm.html)
+   ============================================================ */
+let T3 = null;
+function loadScript(src){
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = () => rej(new Error('gagal memuat ' + src));
+    document.head.appendChild(s);
+  });
+}
+async function ensure3D(){
+  if (T3){ if (LOG && T3.logId !== log3dId()) build3DScene(); resize3D(); return; }
+  try {
+    if (!window.THREE) await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js');
+    if (!THREE.OrbitControls) await loadScript('https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js');
+  } catch (e){ toast('Gagal memuat three.js — periksa koneksi internet.'); return; }
+  const wrap = $('three3dWrap');
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  wrap.appendChild(renderer.domElement);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0f18);
+  scene.fog = new THREE.Fog(0x0a0f18, 1, 100000);
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 200000);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.addEventListener('start', () => setFollow(false));
+  scene.add(new THREE.AmbientLight(0xffffff, .6));
+  const dl = new THREE.DirectionalLight(0xffffff, .8);
+  dl.position.set(1, 2, 1); scene.add(dl);
+  T3 = { scene, camera, renderer, controls, follow: true, ready: false, logId: null,
+         objs: [], drone: null, extent: 100, minAlt: 0, ll0: null, scale: 4, camTarget: null };
+  build3DScene();
+  resize3D();
+  loop3D();
+}
+function log3dId(){ return LOG ? LOG.file + ':' + LOG.t1 + ':' + LOG.traj.length : null; }
+function ll2xyz(lat, lon, alt){
+  /* ENU lokal -> three.js (x=timur, y=atas, z=-utara) */
+  const lat0 = T3.ll0[0], lon0 = T3.ll0[1];
+  const x = (lon - lon0) * 111320 * Math.cos(lat0 * Math.PI / 180);
+  const n = (lat - lat0) * 111320;
+  return [x, alt - T3.minAlt, -n];
+}
+function makeDrone(){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color: 0x22d3ee });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x0e7490 });
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.1, .4, 1.6), mat));
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(.28, .7, 4), dark);
+  nose.rotation.x = -Math.PI / 2; nose.position.z = -1.05; g.add(nose);
+  const rmat = new THREE.MeshLambertMaterial({ color: 0x93a1b8, transparent: true, opacity: .55 });
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.3, .12, .12), dark);
+    arm.position.set(sx * .75, .05, sz * .75);
+    arm.rotation.y = sx * sz > 0 ? -Math.PI / 4 : Math.PI / 4;
+    g.add(arm);
+    const rotor = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .06, 16), rmat);
+    rotor.position.set(sx * 1.2, .16, sz * 1.2); g.add(rotor);
+  });
+  return g;
+}
+function scale3DModel(){
+  if (T3 && T3.drone){
+    const s = Math.max(1, T3.extent * 0.012) * (T3.scale / 4);
+    T3.drone.scale.set(s, s, s);
+  }
+}
+function build3DScene(){
+  if (!T3) return;
+  const scene = T3.scene;
+  T3.objs.forEach(o => scene.remove(o)); T3.objs = [];
+  T3.ready = false; T3.drone = null;
+  $('playbar3d').style.display = 'none';
+  $('chip3d').style.display = 'none';
+  $('modeLegend3d').style.display = 'none';
+  if (!LOG || LOG.traj.length < 2) return;
+  T3.logId = log3dId();
+  const traj = LOG.traj;
+  let minAlt = Infinity;
+  traj.forEach(p => { if (p[3] < minAlt) minAlt = p[3]; });
+  T3.minAlt = minAlt;
+  T3.ll0 = [traj[0][1], traj[0][2]];
+
+  /* segmen garis per mode + extent */
+  let ext = 50;
+  const segs = []; let cur = null;
+  for (const p of traj){
+    const m = modeAt(p[0]) || '—';
+    const v = ll2xyz(p[1], p[2], p[3]);
+    ext = Math.max(ext, Math.abs(v[0]), v[1], Math.abs(v[2]));
+    if (!cur || cur.mode !== m){
+      const tail = cur ? cur.pts.slice(-3) : [];
+      cur = { mode: m, pts: [...tail] };
+      segs.push(cur);
+    }
+    cur.pts.push(v[0], v[1], v[2]);
+  }
+  T3.extent = ext;
+
+  const gsize = Math.max(100, Math.ceil(ext * 2.4 / 50) * 50);
+  const grid = new THREE.GridHelper(gsize, 24, 0x31405a, 0x1d2739);
+  scene.add(grid); T3.objs.push(grid);
+
+  segs.forEach(seg => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(seg.pts, 3));
+    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: new THREE.Color(modeColor(seg.mode)) }));
+    scene.add(l); T3.objs.push(l);
+  });
+
+  /* tirai altitude translusen */
+  const verts = [], idx = [];
+  const step = Math.max(1, Math.floor(traj.length / 1500));
+  let vi = 0;
+  for (let i = 0; i < traj.length; i += step){
+    const v = ll2xyz(traj[i][1], traj[i][2], traj[i][3]);
+    verts.push(v[0], v[1], v[2], v[0], 0, v[2]);
+    if (vi >= 2) idx.push(vi - 2, vi - 1, vi, vi - 1, vi + 1, vi);
+    vi += 2;
+  }
+  const cg = new THREE.BufferGeometry();
+  cg.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  cg.setIndex(idx);
+  const curtain = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({
+    color: 0x22d3ee, transparent: true, opacity: .07, side: THREE.DoubleSide, depthWrite: false }));
+  scene.add(curtain); T3.objs.push(curtain);
+
+  /* waypoints */
+  if (LOG.wps.length){
+    const wg = new THREE.Group();
+    const wmat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+    const wgeo = new THREE.SphereGeometry(Math.max(.8, ext * 0.008), 10, 10);
+    const wline = [];
+    LOG.wps.forEach(w => {
+      const v = ll2xyz(w[0], w[1], (w[2] || 0) + minAlt);
+      const s = new THREE.Mesh(wgeo, wmat);
+      s.position.set(v[0], v[1], v[2]); wg.add(s);
+      wline.push(v[0], v[1], v[2]);
+    });
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.Float32BufferAttribute(wline, 3));
+    wg.add(new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0xfacc15, transparent: true, opacity: .5 })));
+    scene.add(wg); T3.objs.push(wg);
+  }
+
+  T3.drone = makeDrone();
+  scene.add(T3.drone); T3.objs.push(T3.drone);
+  scale3DModel();
+
+  T3.camera.position.set(ext * .9, ext * .7, ext * .9);
+  T3.controls.target.set(0, ext * .15, 0);
+  T3.controls.update();
+  T3.ready = true;
+
+  $('playbar3d').style.display = 'flex';
+  $('chip3d').style.display = 'block';
+  const used = [...new Set(segs.map(s => s.mode))];
+  const leg = $('modeLegend3d');
+  leg.innerHTML = used.map(m => `<div><i style="background:${modeColor(m)}"></i>${m}</div>`).join('');
+  leg.style.display = 'block';
+  update3D();
+}
+function update3D(){
+  if (!T3 || !T3.ready || !LOG || !T3.drone) return;
+  const t = cursorT !== null ? cursorT : range[0];
+  const p = trajAt(t);
+  if (!p) return;
+  const v = ll2xyz(p[1], p[2], p[3]);
+  T3.drone.position.set(v[0], v[1], v[2]);
+  const [ro, pi, ya] = attitudeAt(t);
+  T3.drone.rotation.order = 'YXZ';
+  T3.drone.rotation.y = -ya;
+  T3.drone.rotation.x = pi;
+  T3.drone.rotation.z = ro;
+  $('chip3d').innerHTML =
+    `<b>${fmtTime(t)}</b> · ${modeAt(t) || '—'}<br>` +
+    `Alt <b>${(p[3] - T3.minAlt).toFixed(1)} m</b> · Spd <b>${(+p[4]).toFixed(1)} m/s</b><br>` +
+    `${p[1].toFixed(6)}, ${p[2].toFixed(6)}`;
+  if (LOG.t1 > 0) $('scrub3').value = Math.round(t / LOG.t1 * 1000);
+  $('playTime3').textContent = fmtTime(t) + ' / ' + fmtTime(LOG.t1);
+  if (T3.follow){
+    const d = Math.max(25, T3.extent * .28);
+    T3.camTarget = [v[0] - Math.sin(ya) * d, v[1] + d * .5, v[2] + Math.cos(ya) * d];
+  }
+}
+function loop3D(){
+  if (!T3) return;
+  requestAnimationFrame(loop3D);
+  if (!$('views').classList.contains('mode-3d')) return;
+  if (T3.follow && T3.camTarget && T3.drone){
+    T3.camera.position.lerp(new THREE.Vector3(...T3.camTarget), .08);
+    T3.controls.target.lerp(T3.drone.position, .15);
+  }
+  T3.controls.update();
+  T3.renderer.render(T3.scene, T3.camera);
+}
+function resize3D(){
+  if (!T3) return;
+  const w = $('three3dWrap').clientWidth, h = $('three3dWrap').clientHeight;
+  if (w < 10 || h < 10) return;
+  T3.renderer.setSize(w, h);
+  T3.camera.aspect = w / h;
+  T3.camera.updateProjectionMatrix();
+}
+function setFollow(v){
+  if (!T3) return;
+  T3.follow = v;
+  $('btnFollow').classList.toggle('on', v);
+}
+$('btnFollow').addEventListener('click', () => setFollow(!T3 || !T3.follow));
+$('btnResetCam').addEventListener('click', () => {
+  if (!T3) return;
+  setFollow(false);
+  T3.camera.position.set(T3.extent * .9, T3.extent * .7, T3.extent * .9);
+  T3.controls.target.set(0, T3.extent * .15, 0);
+  T3.controls.update();
+});
+$('wingspan').addEventListener('input', (e) => { if (T3){ T3.scale = +e.target.value; scale3DModel(); } });
+$('btnPlay3').addEventListener('click', () => setPlaying(!playing));
+$('speedSel3').addEventListener('change', e => {
+  playSpeed = parseFloat(e.target.value);
+  $('speedSel').value = e.target.value;
+});
+$('scrub3').addEventListener('input', e => {
+  if (!LOG) return;
+  cursorT = e.target.value / 1000 * LOG.t1;
+  drawAll();
+});
+
+/* ============================================================
+   EXPORT
+   ============================================================ */
+function exportCsvString(){
+  if (!plotted.length) return null;
+  let out = 'series,time_s,value\n';
+  plotted.forEach(p => {
+    if (!p.series) return;
+    const s = p.series;
+    const i0 = bisect(s.t, range[0]), i1 = bisect(s.t, range[1]);
+    for (let i = Math.max(0, i0 - 1); i < Math.min(s.t.length, i1 + 1); i++){
+      out += '"' + p.expr + '",' + s.t[i].toFixed(4) + ',' + s.v[i] + '\n';
+    }
+  });
+  return out;
+}
+$('btnCsv').addEventListener('click', () => {
+  const csv = exportCsvString();
+  if (!csv){ toast('Tidak ada plot untuk diekspor.'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  a.download = (LOG.file || 'log').replace(/\.[^.]+$/, '') + '_plot.csv';
+  a.click();
+  toast('CSV diekspor.');
+});
+$('btnSnap').addEventListener('click', () => {
+  if (!LOG || !plotted.length){ toast('Tidak ada plot untuk snapshot.'); return; }
+  const a = document.createElement('a');
+  a.href = plotCv.toDataURL('image/png');
+  a.download = (LOG.file || 'log').replace(/\.[^.]+$/, '') + '_plot.png';
+  a.click();
+  toast('Snapshot PNG disimpan.');
+});
+
+/* ============================================================
+   VIEW SWITCH + SIDEBAR MOBILE
+   ============================================================ */
+function setView(v){
+  const views = $('views');
+  views.classList.remove('mode-plot', 'mode-map', 'split', 'mode-3d');
+  if (v === 'plot') views.classList.add('mode-plot');
+  else if (v === 'map') views.classList.add('mode-map');
+  else if (v === '3d'){ views.classList.add('mode-3d'); ensure3D(); }
+  else views.classList.add('split');
+  document.querySelectorAll('#viewSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  setTimeout(() => { if (map) map.invalidateSize(); resize3D(); drawAll(); }, 60);
+}
+document.querySelectorAll('#viewSeg button').forEach(b => b.addEventListener('click', () => setView(b.dataset.v)));
+function updateSidebarMode(){
+  const narrow = window.innerWidth <= 900;
+  $('btnSidebar').style.display = narrow ? '' : 'none';
+  $('segSplit').style.display = narrow ? 'none' : '';
+  if (!narrow){ $('sidebar').classList.remove('open'); $('scrim').classList.remove('on'); }
+}
+$('btnSidebar').addEventListener('click', () => {
+  $('sidebar').classList.add('open'); $('scrim').classList.add('on');
+});
+$('scrim').addEventListener('click', () => {
+  $('sidebar').classList.remove('open'); $('scrim').classList.remove('on');
+});
+window.addEventListener('resize', () => { updateSidebarMode(); resize3D(); drawAll(); });
+updateSidebarMode();
+
+/* ============================================================
+   FILE OPEN / DRAG-DROP / MODAL
+   ============================================================ */
+$('btnOpen').addEventListener('click', () => $('fileInput').click());
+$('btnLandOpen').addEventListener('click', () => $('fileInput').click());
+$('dropzone').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', (e) => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ''; });
+let dragCnt = 0;
+window.addEventListener('dragenter', (e) => { e.preventDefault(); dragCnt++; $('dropOverlay').classList.add('on'); });
+window.addEventListener('dragleave', (e) => { e.preventDefault(); if (--dragCnt <= 0){ dragCnt = 0; $('dropOverlay').classList.remove('on'); } });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault(); dragCnt = 0; $('dropOverlay').classList.remove('on');
+  if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]);
+});
+$('btnAddExpr').addEventListener('click', () => {
+  if (!LOG){ toast('Muat file log terlebih dahulu.'); return; }
+  $('exprModal').classList.add('on'); $('exprInput').focus();
+});
+$('exprCancel').addEventListener('click', () => $('exprModal').classList.remove('on'));
+$('exprOk').addEventListener('click', () => {
+  const v = $('exprInput').value.trim();
+  if (v){ addPlot(v); }
+  $('exprModal').classList.remove('on'); $('exprInput').value = '';
+});
+$('exprInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('exprOk').click(); });
+$('btnClear').addEventListener('click', clearPlots);
+
+/* ============================================================
+   SAMPLE LOG GENERATOR — DataFlash .bin sintetis (copter survey)
+   ============================================================ */
+function buildSampleBin(){
+  const chunks = [];
+  const enc = (s, len) => { const a = new Uint8Array(len); for (let i = 0; i < Math.min(s.length, len); i++) a[i] = s.charCodeAt(i); return a; };
+  function fmtRec(type, len, name, fmt, cols){
+    const b = new Uint8Array(89); const dv = new DataView(b.buffer);
+    b[0] = 0xA3; b[1] = 0x95; b[2] = 0x80;
+    b[3] = type; b[4] = len;
+    b.set(enc(name, 4), 5); b.set(enc(fmt, 16), 9); b.set(enc(cols, 64), 25);
+    return b;
+  }
+  const SZ = { Q:8, f:4, L:4, M:1, B:1, N:16, Z:64, H:2 };
+  function msgLen(fmt){ let l = 3; for (const c of fmt) l += SZ[c]; return l; }
+  function rec(type, fmt, vals){
+    const len = msgLen(fmt);
+    const b = new Uint8Array(len); const dv = new DataView(b.buffer);
+    b[0] = 0xA3; b[1] = 0x95; b[2] = type;
+    let p = 3;
+    for (let i = 0; i < fmt.length; i++){
+      const c = fmt[i], v = vals[i];
+      if (c === 'Q') dv.setBigUint64(p, BigInt(Math.round(v)), true);
+      else if (c === 'f') dv.setFloat32(p, v, true);
+      else if (c === 'L') dv.setInt32(p, Math.round(v * 1e7), true);
+      else if (c === 'M' || c === 'B') dv.setUint8(p, v);
+      else if (c === 'H') dv.setUint16(p, v, true);
+      else if (c === 'N') b.set(enc(v, 16), p);
+      else if (c === 'Z') b.set(enc(v, 64), p);
+      p += SZ[c];
+    }
+    return b;
+  }
+  /* deklarasi format */
+  const DEF = {
+    ATT:  [130, 'Qffffff', 'TimeUS,DesRoll,Roll,DesPitch,Pitch,DesYaw,Yaw'],
+    GPS:  [131, 'QLLffB', 'TimeUS,Lat,Lng,Alt,Spd,NSats'],
+    BAT:  [132, 'Qff', 'TimeUS,Volt,Curr'],
+    MODE: [133, 'QMB', 'TimeUS,Mode,ModeNum'],
+    MSG:  [134, 'QZ', 'TimeUS,Message'],
+    PARM: [135, 'QNf', 'TimeUS,Name,Value'],
+    RCIN: [136, 'QHHHH', 'TimeUS,C1,C2,C3,C4'],
+    VIBE: [137, 'Qfff', 'TimeUS,VibeX,VibeY,VibeZ'],
+    CTUN: [138, 'Qfff', 'TimeUS,Alt,DAlt,ThO']
+  };
+  for (const k in DEF) chunks.push(fmtRec(DEF[k][0], msgLen(DEF[k][1]), k, DEF[k][1], DEF[k][2]));
+
+  const t0 = 60e6; /* mulai di 60 s boot */
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0, 'ArduCopter V4.5.1 (sample)']));
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0 + 1e5, 'Frame: QUAD/X']));
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0 + 2e5, 'GPS 1: detected as u-blox at 115200 baud']));
+  const PARMS = [['FORMAT_VERSION',120],['FRAME_CLASS',1],['BATT_CAPACITY',5200],['WPNAV_SPEED',800],['RTL_ALT',3000],['ANGLE_MAX',3000],['GPS_TYPE',1],['SERIAL0_BAUD',115],['ATC_ANG_RLL_P',4.5],['ATC_ANG_PIT_P',4.5],['PILOT_SPEED_UP',250],['LAND_SPEED',50]];
+  PARMS.forEach((pv, i) => chunks.push(rec(DEF.PARM[0], DEF.PARM[1], [t0 + 3e5 + i * 1e4, pv[0], pv[1]])));
+
+  /* misi: takeoff -> grid survey 5 jalur -> RTL ; basis Bandung */
+  const lat0 = -6.914744, lon0 = 107.60981;
+  const dLat = 1 / 111320; /* deg per meter */
+  const dLon = 1 / (111320 * Math.cos(lat0 * Math.PI / 180));
+  const dur = 480; /* detik */
+  const hz = 10;
+  /* fase: 0-20 arm+takeoff (STABILIZE->GUIDED), 20-420 AUTO survey, 420-480 RTL */
+  const modes = [[0, 'STABILIZE', 0], [8, 'GUIDED', 4], [20, 'AUTO', 3], [420, 'RTL', 6]];
+  modes.forEach(m => chunks.push(rec(DEF.MODE[0], DEF.MODE[1], [t0 + m[0] * 1e6, m[2], m[2]])));
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0 + 8e6, 'Arming motors']));
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0 + 20e6, 'Mission: 12 WP']));
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0 + 300e6, 'EKF2 IMU0 yaw aligned']));
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0 + 420e6, 'RTL: returning to launch']));
+  chunks.push(rec(DEF.MSG[0], DEF.MSG[1], [t0 + 475e6, 'Land complete']));
+
+  /* posisi: lawnmower 5 x 300m, spasi 60m */
+  function posAt(ts){
+    if (ts < 20) { return [lat0, lon0, Math.max(0, (ts - 8)) * 4, ts < 8 ? 0 : 2]; }
+    if (ts < 420){
+      const u = (ts - 20) / 400;             /* 0..1 sepanjang survey */
+      const leg = Math.min(4, Math.floor(u * 5));
+      const lu = u * 5 - leg;                /* 0..1 dalam leg */
+      const y = leg * 60;
+      const x = (leg % 2 === 0) ? lu * 300 : (1 - lu) * 300;
+      return [lat0 + y * dLat + 0.0008, lon0 + x * dLon, 80, 8];
+    }
+    const u = Math.min(1, (ts - 420) / 55);
+    const from = posAt(419.9);
+    return [from[0] + (lat0 - from[0]) * u, from[1] + (lon0 - from[1]) * u, 80 * (1 - Math.max(0, u - 0.7) / 0.3), 10 * (1 - u)];
+  }
+  let volt = 25.2;
+  for (let i = 0; i <= dur * hz; i++){
+    const ts = i / hz;
+    const tus = t0 + ts * 1e6;
+    const [la, lo, alt, spd] = posAt(ts);
+    const inAuto = ts >= 20 && ts < 420;
+    /* ATT.* dalam DERAJAT — mengikuti konvensi log ArduPilot asli */
+    const desRoll = inAuto ? Math.sin(ts * 0.5) * 7 : 0;
+    const desPitch = inAuto ? -4.5 + Math.sin(ts * 0.3) * 2.3 : (ts < 20 ? -1.2 : 3);
+    const roll = desRoll + Math.sin(ts * 7.3) * 1.2;
+    const pitch = desPitch + Math.cos(ts * 6.1) * 0.9;
+    const yaw = inAuto ? ((Math.floor((ts - 20) / 80) % 2) ? 270 : 90) : 90;
+    if (i % 1 === 0) chunks.push(rec(DEF.ATT[0], DEF.ATT[1], [tus, desRoll, roll, desPitch, pitch, yaw, yaw + Math.sin(ts * 3) * 1.7]));
+    if (i % 2 === 0) chunks.push(rec(DEF.GPS[0], DEF.GPS[1], [tus, la, lo, alt + 700, spd, 14 + (i % 3)]));
+    if (i % 10 === 0){
+      volt -= 0.0035 + Math.random() * 0.001;
+      const curr = ts < 8 ? 1.2 : 14 + Math.sin(ts * 0.7) * 3 + Math.random();
+      chunks.push(rec(DEF.BAT[0], DEF.BAT[1], [tus, volt, curr]));
+      chunks.push(rec(DEF.VIBE[0], DEF.VIBE[1], [tus, 8 + Math.random() * 6, 9 + Math.random() * 6, 12 + Math.random() * 9]));
+    }
+    if (i % 5 === 0){
+      const thr = ts < 8 ? 1000 : 1500 + Math.round(Math.sin(ts) * 60);
+      chunks.push(rec(DEF.RCIN[0], DEF.RCIN[1], [tus, 1500 + Math.round(desRoll * 13), 1500 - Math.round(desPitch * 13), thr, 1500]));
+      chunks.push(rec(DEF.CTUN[0], DEF.CTUN[1], [tus, alt, inAuto ? 80 : alt, ts < 8 ? 0 : 0.5 + Math.sin(ts * 0.9) * 0.06]));
+    }
+  }
+  /* CMD waypoints tidak ditulis (format CMD kompleks); cukup trajectory */
+  let total = 0; chunks.forEach(c => total += c.length);
+  const out = new Uint8Array(total);
+  let p = 0; chunks.forEach(c => { out.set(c, p); p += c.length; });
+  return out.buffer;
+}
+$('btnSample').addEventListener('click', () => {
+  loadArrayBuffer('sample_copter_survey.bin', buildSampleBin());
+});
+
+/* ============================================================
+   TEST HOOK
+   ============================================================ */
+window.UAVLOG = {
+  get log(){ return LOG; },
+  get plotted(){ return plotted; },
+  get range(){ return range; },
+  get cursorT(){ return cursorT; },
+  loadArrayBuffer, loadSample: () => loadArrayBuffer('sample_copter_survey.bin', buildSampleBin()),
+  addPlot, clearPlots, applyPresetByName(name){
+    const p = builtinPresets().find(p => p.name === name); if (p) applyPreset(p);
+  },
+  setCursor(t){ cursorT = t; drawAll(); },
+  setRange(a, b){ range = [a, b]; drawAll(); },
+  get t3(){ return T3 ? { ready: T3.ready, nObjs: T3.objs.length, follow: T3.follow,
+    drone: T3.drone ? T3.drone.position.toArray() : null } : null; },
+  ensure3D,
+  exportCsvString, evalExpr, setView, buildSampleBin
+};
+
+drawAll();
+</script>
+</body>
+</html>

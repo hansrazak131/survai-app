@@ -721,6 +721,7 @@ const TOOL_ITEMS = [
   {file:'multispectral.html',    title:'Multispectral',  desc:'NDVI · NDBI · NDWI · Citra Satelit', icon:icoMultispectral()},
   {file:'terrain-analysis.html', title:'Terrain Analysis',desc:'DEM · Slope · Hillshade · Kontur · Hidrologi', icon:icoTerrain()},
   {file:'cad-engine.html',       title:'CAD Engine',     desc:'DWG/DXF Viewer · Draw · Edit', icon:icoCad()},
+  {file:'uav-log-viewer.html',   title:'UAV Log Viewer', desc:'Analisis Log Drone · BIN/TLOG · Replay', icon:icoFlightLog()},
 ];
 
 /* ---- Master list semua menu yang bisa di-pin ke Akses Cepat ---- */
@@ -757,6 +758,7 @@ const ALL_QA = [
   {tab:'tools', file:'multispectral.html',    title:'Multispectral'},
   {tab:'tools', file:'terrain-analysis.html', title:'Terrain Analysis'},
   {tab:'tools', file:'cad-engine.html',       title:'CAD Engine'},
+  {tab:'tools', file:'uav-log-viewer.html',   title:'UAV Log Viewer'},
   {tab:'maps',  file:null,                    title:'Maps'},
 ];
 
@@ -1217,6 +1219,7 @@ function icoSettlement(){return svg('<path d="M3 5h18M3 5v6M21 5v6"/><path d="M6
 function icoVerticality(){return svg('<path d="M12 2v20"/><path d="M9 5l3-3 3 3"/><path d="M9 19l3 3 3-3"/><path d="M7 8h2M7 12h2M7 16h2M15 8h2M15 12h2M15 16h2"/>');}
 function icoRTK(){return svg('<path d="M2 12h3M19 12h3M12 2v3M12 19v3"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="1.5"/>');}
 function icoCad(){return svg('<path d="M3 21V7l6-4v14"/><path d="M9 17l6-4V3l6 4v14l-6-4"/><path d="M9 17l-6 4M15 13l6 8"/>');}
+function icoFlightLog(){return svg('<path d="M3 3v18h18"/><path d="M6 14l4-6 3.5 3L18 5"/><circle cx="19" cy="17" r="2.2"/><path d="M19 13.5V11M16.8 17H14.5M21.2 17h2"/>');}
 
 /* =================== CAD ENGINE (hero Home -> Tools) =================== */
 function openCadEngine(){

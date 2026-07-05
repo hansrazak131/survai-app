@@ -4,7 +4,7 @@
    - Aset  -> cache-first (icon, manifest)
    - Naikkan CACHE_VERSION setiap deploy agar cache lama dibersihkan.
 */
-const CACHE_VERSION = 'survai-v19';
+const CACHE_VERSION = 'survai-v20';
 const CORE = [
   './',
   './index.html',
@@ -36,7 +36,8 @@ const CORE = [
   'tools/drone-spreading.html',
   'tools/hidrografi-pasut.html',
   'tools/hydro-qc.html',
-  'tools/cad-engine.html'
+  'tools/cad-engine.html',
+  'tools/uav-log-viewer.html'
 ];
 
 self.addEventListener('install', (e) => {
