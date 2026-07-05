@@ -4,7 +4,7 @@
    - Aset  -> cache-first (icon, manifest)
    - Naikkan CACHE_VERSION setiap deploy agar cache lama dibersihkan.
 */
-const CACHE_VERSION = 'survai-v20';
+const CACHE_VERSION = 'survai-v21';
 const CORE = [
   './',
   './index.html',

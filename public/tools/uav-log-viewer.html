@@ -46,7 +46,14 @@ button{cursor:pointer;border:0;background:none}
 .tb-btn svg{width:16px;height:16px;flex:none}
 .tb-btn:disabled{opacity:.35;pointer-events:none}
 .file-chip{max-width:180px;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono);font-size:10.5px;color:var(--cyan)}
-@media(max-width:760px){ .tb-btn .lbl{display:none} .brand-txt span{display:none} .file-chip{max-width:90px} }
+@media(max-width:760px){
+  .tb-btn .lbl{display:none} .brand-txt span{display:none} .file-chip{max-width:90px}
+  .topbar{overflow-x:auto;scrollbar-width:none;padding:0 8px}
+  .topbar::-webkit-scrollbar{display:none}
+  .topbar>*{flex:none}
+  .topbar .sp{flex:0 0 6px}
+}
+@media(max-width:520px){ .brand-txt{display:none} }
 
 .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;overflow:hidden}
 .seg button{height:34px;padding:0 12px;font-size:11.5px;font-weight:700;color:var(--ink-dim)}
@@ -144,6 +151,24 @@ button{cursor:pointer;border:0;background:none}
   border-radius:10px;padding:6px 8px;font-size:9.5px;font-family:var(--mono);max-height:40%;overflow:auto;backdrop-filter:blur(6px)}
 .mode-legend div{display:flex;align-items:center;gap:6px;padding:1px 2px;color:var(--ink-dim)}
 .mode-legend i{width:10px;height:10px;border-radius:3px;flex:none}
+
+/* ---------- HUD TELEMETRI ---------- */
+.hud{position:absolute;left:8px;right:8px;bottom:62px;z-index:520;display:none;justify-content:center;pointer-events:none}
+.mode-plot .hud{display:none!important}
+.hud.on{display:flex}
+.hud-row{display:flex;gap:2px;overflow-x:auto;padding:5px 6px;background:rgba(13,20,32,.82);border:1px solid var(--line);
+  border-radius:12px;backdrop-filter:blur(7px);pointer-events:auto;max-width:100%;scrollbar-width:none}
+.hud-row::-webkit-scrollbar{display:none}
+.tile{min-width:58px;padding:2px 9px;text-align:center;flex:none;border-right:1px solid var(--line)}
+.tile:last-child{border-right:0}
+.tile .tl{font-size:8px;letter-spacing:.09em;color:var(--ink-faint);font-family:var(--mono);font-weight:700;white-space:nowrap}
+.tile .tv{font-size:14.5px;font-weight:800;color:var(--ink);font-family:var(--mono);line-height:1.25;white-space:nowrap}
+.tile .tv .tu{font-size:8.5px;font-weight:600;color:var(--ink-dim);margin-left:2px}
+.tile.mode .tv{font-size:11.5px;display:flex;align-items:center;gap:5px;justify-content:center;padding-top:3px}
+.tile.mode .tv i{width:9px;height:9px;border-radius:3px;flex:none}
+.hud-min{pointer-events:auto;position:absolute;right:0;top:-24px;height:22px;padding:0 9px;border-radius:7px;
+  background:rgba(13,20,32,.82);border:1px solid var(--line);color:var(--ink-faint);font-size:9.5px;font-family:var(--mono)}
+@media(max-width:760px){ .tile{min-width:52px;padding:2px 7px} .tile .tv{font-size:13px} }
 
 /* ---------- WIDGET PANELS ---------- */
 .widget{position:absolute;z-index:70;width:270px;max-width:calc(100vw - 20px);background:var(--panel);border:1px solid var(--line-2);
@@ -292,10 +317,11 @@ button{cursor:pointer;border:0;background:none}
           <div id="three3dWrap"></div>
           <div class="ctl3d">
             <button class="tb-btn on" id="btnFollow">Ikuti</button>
+            <button class="tb-btn on" id="btnSat">Satelit</button>
             <button class="tb-btn" id="btnResetCam">Reset View</button>
             <div class="wing">Model <input type="range" id="wingspan" min="1" max="12" value="4"></div>
           </div>
-          <div class="mode-legend" id="modeLegend3d" style="display:none;left:8px;top:auto;bottom:64px"></div>
+          <div class="mode-legend" id="modeLegend3d" style="display:none;left:8px;top:auto;bottom:124px"></div>
           <div class="map-chip" id="chip3d" style="display:none"></div>
           <div class="playbar" id="playbar3d" style="display:none">
             <button id="btnPlay3">▶</button>
@@ -303,6 +329,11 @@ button{cursor:pointer;border:0;background:none}
             <input type="range" id="scrub3" min="0" max="1000" value="0">
             <span class="tm" id="playTime3">00:00 / 00:00</span>
           </div>
+        </div>
+        <!-- HUD TELEMETRI (Peta / 3D / Split) -->
+        <div class="hud" id="hud">
+          <button class="hud-min" id="hudMin">HUD ▾</button>
+          <div class="hud-row" id="hudRow"></div>
         </div>
       </div>
     </div>
@@ -868,12 +899,14 @@ function onLogLoaded(name, payload){
   renderPlotList();
   renderPresets();
   renderLogInfo();
+  LOG._minTrajAlt = LOG.traj.length ? Math.min(...LOG.traj.map(p => p[3])) : 0;
   renderParams();
   renderMsgs();
   initMapData();
+  hudInit();
   if (T3) build3DScene();
-  // auto: kalau ada trajectory tampilkan split (desktop) / peta
-  if (LOG.traj.length > 3 && window.innerWidth > 900) setView('split');
+  // auto: kalau ada trajectory langsung tampilkan peta (mobile) / split (desktop)
+  if (LOG.traj.length > 3) setView(window.innerWidth > 900 ? 'split' : 'map');
   else setView('plot');
   // auto-plot preset pertama yang cocok
   const p = builtinPresets().find(p => p.items.some(it => exprResolvable(it.expr)));
@@ -1387,7 +1420,7 @@ function drawBrush(){
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
   }
 }
-function drawAll(){ drawPlot(); drawBrush(); updateMapCursor(); update3D(); updateWidgets(); }
+function drawAll(){ drawPlot(); drawBrush(); updateMapCursor(); update3D(); updateHUD(); updateWidgets(); }
 
 /* ---------- plot interactions ---------- */
 let dragMode = null, dragStart = null;
@@ -1622,7 +1655,7 @@ function updateMapCursor(){
   if (ico) ico.style.transform = 'rotate(' + headingAt(t).toFixed(0) + 'deg)';
   $('mapChip').innerHTML =
     `<b>${fmtTime(t)}</b> · ${modeAt(t) || '—'}<br>` +
-    `Alt <b>${(+p[3]).toFixed(1)} m</b> · Spd <b>${(+p[4]).toFixed(1)} m/s</b><br>` +
+    `Alt <b>${(p[3] - (LOG._minTrajAlt || 0)).toFixed(1)} m</b> · Spd <b>${(+p[4]).toFixed(1)} m/s</b><br>` +
     `${p[1].toFixed(6)}, ${p[2].toFixed(6)}`;
   if (LOG.t1 > 0) $('scrub').value = Math.round(t / LOG.t1 * 1000);
   $('playTime').textContent = fmtTime(t) + ' / ' + fmtTime(LOG.t1);
@@ -1771,6 +1804,118 @@ function updateWidgets(){
 }
 
 /* ============================================================
+   HUD TELEMETRI — indikator alt/speed/batt/wind di Peta & 3D
+   ============================================================ */
+let hudRefs = null, lastHud = null;
+function hudSrc(cands){
+  for (const c of cands){
+    const m = LOG.msgs[c[0]];
+    if (m && m.cols[c[1]]) return { t: m.t, v: m.cols[c[1]], s: c[2] || 1 };
+  }
+  return null;
+}
+function hudInit(){
+  hudRefs = null;
+  $('hud').classList.remove('on');
+  if (!LOG) return;
+  const S = {
+    gs:   hudSrc([['GPS','Spd'], ['VFR_HUD','groundspeed']]),
+    as:   hudSrc([['ARSP','Airspeed'], ['VFR_HUD','airspeed'], ['CTUN','Asmd']]),
+    vs:   hudSrc([['VFR_HUD','climb'], ['CTUN','CRt', .01]]),
+    volt: hudSrc([['BAT','Volt'], ['SYS_STATUS','voltage_battery', .001]]),
+    curr: hudSrc([['BAT','Curr'], ['SYS_STATUS','current_battery', .01]]),
+    sats: hudSrc([['GPS','NSats'], ['GPS_RAW_INT','satellites_visible']]),
+    thr:  hudSrc([['VFR_HUD','throttle'], ['CTUN','ThO', 100], ['CTUN','ThrOut']]),
+    wspd: hudSrc([['WIND','speed'], ['WIND','Spd']]),
+    wdir: hudSrc([['WIND','direction'], ['WIND','Dir']])
+  };
+  const hasTraj = LOG.traj.length > 1;
+  const hasAtt = !!(LOG.msgs.ATT || LOG.msgs.ATTITUDE);
+  const tiles = [
+    { id:'mode', label:'MODE',  on: LOG.modes.length > 0 },
+    { id:'alt',  label:'ALT',   u:'m',   on: hasTraj },
+    { id:'gs',   label:'GS',    u:'m/s', on: !!S.gs || hasTraj },
+    { id:'as',   label:'AS',    u:'m/s', on: !!S.as },
+    { id:'vs',   label:'V/S',   u:'m/s', on: !!S.vs || hasTraj },
+    { id:'hdg',  label:'HDG',   u:'°',   on: hasAtt || hasTraj },
+    { id:'rp',   label:'ROLL·PITCH', u:'°', on: hasAtt },
+    { id:'volt', label:'BATT',  u:'V',   on: !!S.volt },
+    { id:'curr', label:'CURR',  u:'A',   on: !!S.curr },
+    { id:'thr',  label:'THR',   u:'%',   on: !!S.thr },
+    { id:'sats', label:'SATS',  u:'',    on: !!S.sats },
+    { id:'wind', label:'WIND',  u:'m/s', on: !!S.wspd },
+    { id:'dist', label:'DIST',  u:'m',   on: hasTraj }
+  ].filter(t => t.on);
+  if (!tiles.length) return;
+  const row = $('hudRow');
+  row.innerHTML = tiles.map(t =>
+    `<div class="tile${t.id === 'mode' ? ' mode' : ''}"><div class="tl">${t.label}</div>` +
+    `<div class="tv" id="hud_${t.id}">—</div></div>`).join('');
+  hudRefs = { S, els: {} };
+  tiles.forEach(t => { hudRefs.els[t.id] = { el: document.getElementById('hud_' + t.id), u: t.u || '' }; });
+  $('hud').classList.add('on');
+  updateHUD();
+}
+function hudSet(id, txt){
+  const r = hudRefs.els[id];
+  if (r) r.el.innerHTML = txt + (r.u ? `<span class="tu">${r.u}</span>` : '');
+}
+function updateHUD(){
+  if (!hudRefs || !LOG) return;
+  const t = cursorT !== null ? cursorT : range[0];
+  const S = hudRefs.S;
+  const p = trajAt(t);
+  const H = lastHud = {};
+  const val = (src) => src ? valueAt({ t: src.t, v: src.v }, t) * src.s : null;
+
+  if (hudRefs.els.mode){
+    const m = modeAt(t) || '—';
+    H.mode = m;
+    hudRefs.els.mode.el.innerHTML = `<i style="background:${modeColor(m)}"></i>${m}`;
+  }
+  if (hudRefs.els.alt && p){ H.alt = p[3] - (LOG._minTrajAlt || 0); hudSet('alt', H.alt.toFixed(1)); }
+  if (hudRefs.els.gs){ H.gs = S.gs ? val(S.gs) : (p ? p[4] : null); if (H.gs !== null) hudSet('gs', H.gs.toFixed(1)); }
+  if (hudRefs.els.as){ H.as = val(S.as); if (H.as !== null) hudSet('as', H.as.toFixed(1)); }
+  if (hudRefs.els.vs){
+    let v = S.vs ? val(S.vs) : null;
+    if (v === null && p){
+      const p2 = trajAt(Math.min(LOG.t1, t + 2));
+      const p1 = trajAt(Math.max(0, t - 2));
+      if (p2 && p1 && p2[0] > p1[0]) v = (p2[3] - p1[3]) / (p2[0] - p1[0]);
+    }
+    if (v !== null){ H.vs = v; hudSet('vs', (v >= 0 ? '+' : '') + v.toFixed(1)); }
+  }
+  if (hudRefs.els.hdg){ H.hdg = ((headingAt(t) % 360) + 360) % 360; hudSet('hdg', H.hdg.toFixed(0)); }
+  if (hudRefs.els.rp){
+    const [ro, pi] = attitudeAt(t);
+    H.roll = ro * 180 / Math.PI; H.pitch = pi * 180 / Math.PI;
+    hudSet('rp', H.roll.toFixed(0) + '·' + H.pitch.toFixed(0));
+  }
+  if (hudRefs.els.volt){ H.volt = val(S.volt); if (H.volt !== null) hudSet('volt', H.volt.toFixed(1)); }
+  if (hudRefs.els.curr){ H.curr = val(S.curr); if (H.curr !== null) hudSet('curr', H.curr.toFixed(1)); }
+  if (hudRefs.els.thr){ H.thr = val(S.thr); if (H.thr !== null) hudSet('thr', Math.round(H.thr)); }
+  if (hudRefs.els.sats){ H.sats = val(S.sats); if (H.sats !== null) hudSet('sats', Math.round(H.sats)); }
+  if (hudRefs.els.wind){
+    H.wspd = val(S.wspd);
+    const wd = S.wdir ? val(S.wdir) : null;
+    if (H.wspd !== null) hudSet('wind', H.wspd.toFixed(1) + (wd !== null ? '<span class="tu">@' + Math.round(((wd % 360) + 360) % 360) + '°</span>' : ''));
+  }
+  if (hudRefs.els.dist && p && LOG.traj.length){
+    const h0 = LOG.traj[0];
+    const dx = (p[2] - h0[2]) * 111320 * Math.cos(h0[1] * Math.PI / 180);
+    const dy = (p[1] - h0[1]) * 111320;
+    H.dist = Math.hypot(dx, dy);
+    hudSet('dist', H.dist < 1000 ? H.dist.toFixed(0) : (H.dist / 1000).toFixed(2) + '<span class="tu">km</span>');
+  }
+}
+$('hudMin').addEventListener('click', () => {
+  const row = $('hudRow');
+  const hid = row.style.display === 'none';
+  row.style.display = hid ? '' : 'none';
+  $('hudMin').textContent = hid ? 'HUD ▾' : 'HUD ▸';
+});
+
+/* ============================================================
    3D VIEW (three.js — lazy load, ala surface_dtm.html)
    ============================================================ */
 let T3 = null;
@@ -1873,7 +2018,9 @@ function build3DScene(){
 
   const gsize = Math.max(100, Math.ceil(ext * 2.4 / 50) * 50);
   const grid = new THREE.GridHelper(gsize, 24, 0x31405a, 0x1d2739);
-  scene.add(grid); T3.objs.push(grid);
+  scene.add(grid); T3.objs.push(grid); T3.grid = grid;
+  addGroundImagery();
+  if (T3.ground){ grid.visible = !T3.satOn; T3.ground.visible = T3.satOn; }
 
   segs.forEach(seg => {
     const g = new THREE.BufferGeometry();
@@ -1917,6 +2064,20 @@ function build3DScene(){
     scene.add(wg); T3.objs.push(wg);
   }
 
+  /* penanda START (hijau) & END (merah) — lokasi akhir/jatuh terlihat jelas */
+  const mrad = Math.max(1.2, ext * 0.012);
+  [[traj[0], 0x22c55e], [traj[traj.length - 1], 0xef4444]].forEach(([p, col]) => {
+    const v = ll2xyz(p[1], p[2], p[3]);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(mrad, 12, 12),
+      new THREE.MeshBasicMaterial({ color: col }));
+    s.position.set(v[0], v[1], v[2]);
+    scene.add(s); T3.objs.push(s);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(mrad * .12, mrad * .12, Math.max(v[1], .1)),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .5 }));
+    pole.position.set(v[0], v[1] / 2, v[2]);
+    scene.add(pole); T3.objs.push(pole);
+  });
+
   T3.drone = makeDrone();
   scene.add(T3.drone); T3.objs.push(T3.drone);
   scale3DModel();
@@ -1933,6 +2094,57 @@ function build3DScene(){
   leg.innerHTML = used.map(m => `<div><i style="background:${modeColor(m)}"></i>${m}</div>`).join('');
   leg.style.display = 'block';
   update3D();
+}
+function addGroundImagery(){
+  /* mozaik tile satelit Esri sebagai alas 3D (ala Cesium/PX4 Flight Review) */
+  T3.ground = null;
+  const traj = LOG.traj;
+  let latMin = 90, latMax = -90, lonMin = 180, lonMax = -180;
+  traj.forEach(p => {
+    if (p[1] < latMin) latMin = p[1]; if (p[1] > latMax) latMax = p[1];
+    if (p[2] < lonMin) lonMin = p[2]; if (p[2] > lonMax) lonMax = p[2];
+  });
+  const cosl = Math.cos(latMin * Math.PI / 180);
+  const latPad = Math.max((latMax - latMin) * .3, 120 / 111320);
+  const lonPad = Math.max((lonMax - lonMin) * .3, 120 / (111320 * cosl));
+  latMin -= latPad; latMax += latPad; lonMin -= lonPad; lonMax += lonPad;
+  const lon2tx = (lon, z) => (lon + 180) / 360 * Math.pow(2, z);
+  const lat2ty = (lat, z) => { const r = lat * Math.PI / 180;
+    return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z); };
+  const tx2lon = (x, z) => x / Math.pow(2, z) * 360 - 180;
+  const ty2lat = (y, z) => { const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+    return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); };
+  let z = 19, x0, x1, y0, y1;
+  for (; z >= 3; z--){
+    x0 = Math.floor(lon2tx(lonMin, z)); x1 = Math.floor(lon2tx(lonMax, z));
+    y0 = Math.floor(lat2ty(latMax, z)); y1 = Math.floor(lat2ty(latMin, z));
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) <= 48) break;
+  }
+  const nx = x1 - x0 + 1, ny = y1 - y0 + 1;
+  const cvs = document.createElement('canvas');
+  cvs.width = nx * 256; cvs.height = ny * 256;
+  const ctx = cvs.getContext('2d');
+  ctx.fillStyle = '#0e1621'; ctx.fillRect(0, 0, cvs.width, cvs.height);
+  const tex = new THREE.CanvasTexture(cvs);
+  tex.anisotropy = 4;
+  const west = tx2lon(x0, z), east = tx2lon(x1 + 1, z);
+  const north = ty2lat(y0, z), south = ty2lat(y1 + 1, z);
+  const a = ll2xyz(north, west, T3.minAlt), b = ll2xyz(south, east, T3.minAlt);
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(Math.abs(b[0] - a[0]), Math.abs(b[2] - a[2])),
+    new THREE.MeshBasicMaterial({ map: tex }));
+  plane.rotation.x = -Math.PI / 2;
+  plane.position.set((a[0] + b[0]) / 2, -0.25, (a[2] + b[2]) / 2);
+  T3.scene.add(plane); T3.objs.push(plane); T3.ground = plane;
+  if (T3.satOn === undefined) T3.satOn = true;
+  for (let xx = x0; xx <= x1; xx++){
+    for (let yy = y0; yy <= y1; yy++){
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { ctx.drawImage(img, (xx - x0) * 256, (yy - y0) * 256); tex.needsUpdate = true; };
+      img.src = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/' + z + '/' + yy + '/' + xx;
+    }
+  }
 }
 function update3D(){
   if (!T3 || !T3.ready || !LOG || !T3.drone) return;
@@ -1990,6 +2202,13 @@ $('btnResetCam').addEventListener('click', () => {
   T3.controls.update();
 });
 $('wingspan').addEventListener('input', (e) => { if (T3){ T3.scale = +e.target.value; scale3DModel(); } });
+$('btnSat').addEventListener('click', () => {
+  if (!T3) return;
+  T3.satOn = !T3.satOn;
+  $('btnSat').classList.toggle('on', T3.satOn);
+  if (T3.ground) T3.ground.visible = T3.satOn;
+  if (T3.grid) T3.grid.visible = !T3.satOn;
+});
 $('btnPlay3').addEventListener('click', () => setPlaying(!playing));
 $('speedSel3').addEventListener('change', e => {
   playSpeed = parseFloat(e.target.value);
@@ -2227,7 +2446,8 @@ window.UAVLOG = {
   setCursor(t){ cursorT = t; drawAll(); },
   setRange(a, b){ range = [a, b]; drawAll(); },
   get t3(){ return T3 ? { ready: T3.ready, nObjs: T3.objs.length, follow: T3.follow,
-    drone: T3.drone ? T3.drone.position.toArray() : null } : null; },
+    ground: !!T3.ground, drone: T3.drone ? T3.drone.position.toArray() : null } : null; },
+  get hud(){ return lastHud; },
   ensure3D,
   exportCsvString, evalExpr, setView, buildSampleBin
 };
