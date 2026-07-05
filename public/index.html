@@ -400,6 +400,35 @@ img{max-width:100%;display:block;}
 .dot-nofix  {background:#ef4444 !important;}
 .dot-wait   {background:#94a3b8 !important;}
 
+/* Cuaca Lapangan — view ramalan */
+.wx-hero{background:linear-gradient(135deg,#0ea5e9,var(--blue-ink));border-radius:18px;padding:18px;color:#fff;box-shadow:var(--shadow);}
+.wx-hero .wx-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.wx-hero .wx-kicker{font-size:11px;letter-spacing:.5px;text-transform:uppercase;opacity:.85;font-weight:700;}
+.wx-hero .wx-status{font-family:var(--serif);font-weight:800;font-size:24px;margin:2px 0;}
+.wx-hero .wx-desc{font-size:12px;opacity:.9;}
+.wx-hero .wx-temp{font-size:36px;font-weight:800;font-family:var(--serif);line-height:1;margin-top:4px;}
+.wx-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px;}
+.wx-grid .cell{background:rgba(255,255,255,.14);border-radius:10px;padding:8px 10px;font-size:11px;}
+.wx-grid .cell b{display:block;font-size:14px;margin-top:1px;}
+.wx-meta{font-size:11px;opacity:.9;margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.wx-refresh{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:999px;padding:5px 12px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;}
+.wx-row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);}
+.wx-row .t{width:52px;text-align:center;flex:0 0 auto;}
+.wx-row .t b{display:block;font-size:14px;}
+.wx-row .t span{font-size:10px;color:var(--muted);font-weight:600;}
+.wx-row .ic{color:var(--blue-ink);flex:0 0 auto;display:flex;}
+.wx-row .info{flex:1;min-width:0;}
+.wx-row .info .s{font-weight:700;font-size:13px;}
+.wx-row .info .d{font-size:11px;color:var(--muted);margin-top:1px;}
+.wx-row .r{text-align:right;flex:0 0 auto;}
+.wx-row .r b{font-size:16px;font-family:var(--serif);}
+.wx-chip{display:inline-block;font-size:10px;font-weight:800;padding:3px 8px;border-radius:999px;white-space:nowrap;margin-top:3px;}
+.wx-chip.ok{background:#dcfce7;color:#15803d;}
+.wx-chip.warn{background:#fef9c3;color:#a16207;}
+.wx-chip.bad{background:#fee2e2;color:#b91c1c;}
+.wx-empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px;}
+.wx-empty .spinner{margin:0 auto 14px;}
+
 </style>
 </head>
 <body>
@@ -534,7 +563,7 @@ img{max-width:100%;display:block;}
             <div class="val" id="gpsVal" style="font-size:16px">Mendeteksi...</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;font-weight:600" id="gpsAcc"></div>
           </div>
-          <div class="stat-card" id="weatherCard" onclick="refreshWeather()" style="cursor:pointer;">
+          <div class="stat-card" id="weatherCard" onclick="openWeatherView()" style="cursor:pointer;">
             <div class="top">
               <span id="weatherIcon" style="color:var(--blue-ink)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.5A4 4 0 0 0 6 19z"/></svg></span>
               <span class="dot dot-wait" id="weatherDot" style="transition:background .4s"></span>
@@ -635,6 +664,11 @@ img{max-width:100%;display:block;}
         <iframe id="gnssFrame" title="GNSS Status" loading="lazy"></iframe>
         <div class="overlay" id="gnssOverlay"><div class="spinner"></div><p>Memuat GNSS Status...</p></div>
       </div>
+    </section>
+
+    <!-- ========== CUACA LAPANGAN (RAMALAN) ========== -->
+    <section class="view" id="view-weather" data-title="Cuaca Lapangan" data-sub="Ramalan cuaca lokasi Anda">
+      <div class="scroll" id="wxBody"><!-- diisi renderWeatherView() --></div>
     </section>
 
   </div>
@@ -1008,8 +1042,8 @@ function goBack(){
     showCalcMenu();              // detail -> daftar Calculator
   }else if(top.level==='tools-detail'){
     showToolsMenu();             // detail -> daftar Tools
-  }else if(top.level==='gnss'){
-    activateView('view-'+top.tab);     // gnss -> tab sebelumnya
+  }else if(top.level==='gnss' || top.level==='weather'){
+    activateView('view-'+top.tab);     // gnss/cuaca -> tab sebelumnya
     const prevView = document.getElementById('view-'+top.tab);
     setHeader(prevView.dataset.title, prevView.dataset.sub);
   }
@@ -1250,13 +1284,14 @@ function openGnssStatus(){
 
 /* =================== GPS REAL-TIME =================== */
 let _gpsWatch = null;
+let _lastFix  = null; // posisi GPS terakhir dari stream — dipakai juga oleh cuaca
 
 function setGPSCard(status, cls, detail){
   const dot = document.getElementById('gpsDot');
   const val = document.getElementById('gpsVal');
   const acc = document.getElementById('gpsAcc');
   if(dot){ dot.className='dot '+cls; }
-  if(val) val.textContent = status;
+  if(val){ val.textContent = status; val.style.fontSize = status.length > 9 ? '14px' : '16px'; }
   if(acc) acc.textContent = detail || '';
 }
 
@@ -1265,21 +1300,31 @@ function startGPS(){
     setGPSCard('NO GPS','dot-nofix','Tidak tersedia di perangkat'); return;
   }
   setGPSCard('Mendeteksi…','dot-wait','');
-  const interval = parseInt(localStorage.getItem('survai_gps_interval')||'5000');
   if(_gpsWatch) navigator.geolocation.clearWatch(_gpsWatch);
+  /* Threshold & label DISAMAKAN dengan gnss-status.html (updateRTKStatus):
+     ≤5 m Fixed (RTK) • ≤20 m Float • >20 m No GPS / Poor.
+     Stream live (maximumAge:0) seperti halaman GNSS; setelan Interval GPS
+     hanya men-throttle refresh angka akurasi — ganti kategori selalu instan. */
+  let lastTier = '', lastUi = 0;
+  const interval = parseInt(localStorage.getItem('survai_gps_interval')||'5000');
   _gpsWatch = navigator.geolocation.watchPosition(
     pos => {
+      _lastFix = { lat: pos.coords.latitude, lon: pos.coords.longitude, t: Date.now() };
       const a = pos.coords.accuracy;
-      if(a <= 3)       setGPSCard('FIX',   'dot dot-fix',   'Akurasi: '+a.toFixed(1)+' m');
-      else if(a <= 15) setGPSCard('FLOAT', 'dot dot-float', 'Akurasi: '+a.toFixed(1)+' m');
-      else if(a <= 80) setGPSCard('POOR',  'dot dot-poor',  'Akurasi: '+a.toFixed(0)+' m');
-      else             setGPSCard('NO FIX','dot dot-nofix', 'Akurasi: '+a.toFixed(0)+' m');
+      const tier = a <= 5 ? 'fix' : a <= 20 ? 'float' : 'nofix';
+      const now = Date.now();
+      if(tier === lastTier && now - lastUi < interval) return;
+      lastTier = tier; lastUi = now;
+      if(tier === 'fix')        setGPSCard('FIXED (RTK)',  'dot-fix',   'Akurasi: ±'+a.toFixed(1)+' m');
+      else if(tier === 'float') setGPSCard('FLOAT',        'dot-float', 'Akurasi: ±'+a.toFixed(1)+' m');
+      else                      setGPSCard('NO GPS / POOR','dot-nofix', 'Akurasi: ±'+a.toFixed(1)+' m');
     },
     err => {
+      lastTier = '';
       const m={1:'Akses GPS ditolak',2:'Sinyal tidak tersedia',3:'Timeout GPS'};
-      setGPSCard('NO GPS','dot dot-nofix', m[err.code]||'GPS Error');
+      setGPSCard('NO GPS','dot-nofix', m[err.code]||'GPS Error');
     },
-    { enableHighAccuracy:true, timeout:25000, maximumAge: interval }
+    { enableHighAccuracy:true, timeout:15000, maximumAge:0 }
   );
 }
 
@@ -1289,24 +1334,42 @@ function restartGPS(){
 }
 
 /* =================== CUACA LAPANGAN (GPS + Open-Meteo) =================== */
-/* Open-Meteo: API cuaca gratis, TANPA API key. Pakai lokasi GPS pengguna.    */
+/* Open-Meteo: API cuaca gratis, TANPA API key. Pakai lokasi GPS pengguna.
+   Kartu Home auto-update tiap 10 menit; klik kartu membuka view ramalan
+   dengan prediksi +1 s/d +5 jam ke depan.                                    */
 let _weatherLast = 0;
-function initWeather(){ fetchWeatherByGPS(); }
+let _wxData = null;   // {current, hourly, lat, lon, at}
+let _wxError = null;
+
+function initWeather(){
+  fetchWeatherByGPS();
+  setInterval(fetchWeatherByGPS, 600000); // stream: perbarui otomatis tiap 10 menit
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden && Date.now()-_weatherLast > 600000) fetchWeatherByGPS();
+  });
+}
 
 function refreshWeather(){
   // throttle: minimal 30 detik antar refresh manual
-  if(Date.now() - _weatherLast < 30000){ return; }
+  if(Date.now() - _weatherLast < 30000){ renderWeatherView(); return; }
   fetchWeatherByGPS();
 }
 
 function fetchWeatherByGPS(){
   setWeatherCard('Memuat…','dot-wait','Mencari lokasi…','cloud');
+  // Pakai posisi live dari stream GPS bila masih segar (<2 menit)
+  if(_lastFix && Date.now()-_lastFix.t < 120000){
+    loadWeather(_lastFix.lat, _lastFix.lon); return;
+  }
   if(!navigator.geolocation){
     setWeatherCard('Tidak tersedia','dot-nofix','GPS tidak didukung','cloud'); return;
   }
   navigator.geolocation.getCurrentPosition(
     pos => loadWeather(pos.coords.latitude, pos.coords.longitude),
-    ()  => setWeatherCard('Lokasi off','dot-nofix','Izinkan GPS untuk cuaca','cloud'),
+    ()  => {
+      setWeatherCard('Lokasi off','dot-nofix','Izinkan GPS untuk cuaca','cloud');
+      _wxError='Izinkan akses lokasi untuk melihat ramalan cuaca.'; renderWeatherView();
+    },
     { enableHighAccuracy:false, timeout:15000, maximumAge:600000 }
   );
 }
@@ -1319,47 +1382,130 @@ async function loadWeather(lat, lon){
       + '?latitude='+lat.toFixed(3)+'&longitude='+lon.toFixed(3)
       + '&current=temperature_2m,relative_humidity_2m,precipitation,rain,'
       + 'weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m'
-      + '&wind_speed_unit=ms&timezone=auto';
+      + '&hourly=temperature_2m,precipitation,precipitation_probability,'
+      + 'weather_code,wind_speed_10m,wind_gusts_10m,relative_humidity_2m'
+      + '&forecast_days=2&wind_speed_unit=ms&timezone=auto';
     const res = await fetch(url, {cache:'no-store'});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const d = await res.json();
+    _wxData = { current:d.current, hourly:d.hourly, lat:lat, lon:lon, at:Date.now() };
+    _wxError = null;
     renderWeather(d.current);
+    renderWeatherView();
   }catch(e){
     setWeatherCard('Offline','dot-nofix','Cuaca perlu internet','cloud');
+    _wxError='Gagal mengambil data cuaca. Periksa koneksi internet.';
+    renderWeatherView();
   }
+}
+
+/* Klasifikasi kondisi untuk antisipasi kerja lapangan / drone.
+   Turbulensi: selisih gust vs wind tinggi = udara bergolak.
+   Dipakai kartu Home DAN baris ramalan agar penilaiannya konsisten. */
+function wxClassify(rain, wind, gust, code){
+  const turbul = gust - wind;
+  if(rain >= 0.5)                          return {status:'HUJAN',         cls:'dot-nofix', icon:'rain',  suit:'bad'};
+  if(wind > 8 || gust > 10)                return {status:'ANGIN KENCANG', cls:'dot-nofix', icon:'wind',  suit:'bad'};
+  if(wind > 4.5 || gust > 7 || turbul > 4) return {status:'BERANGIN',      cls:'dot-float', icon:'wind',  suit:'warn'};
+  if(code >= 95)                           return {status:'BADAI',         cls:'dot-nofix', icon:'storm', suit:'bad'};
+  if(code >= 51 && code <= 67)             return {status:'GERIMIS',       cls:'dot-poor',  icon:'rain',  suit:'warn'};
+  return {status:'CERAH', cls:'dot-fix', icon:'sun', suit:'ok'};
+}
+
+function wxCodeText(c){
+  if(c===0)  return 'Cerah';
+  if(c<=2)   return 'Cerah berawan';
+  if(c===3)  return 'Berawan';
+  if(c<=48)  return 'Berkabut';
+  if(c<=57)  return 'Gerimis';
+  if(c<=67)  return 'Hujan';
+  if(c<=77)  return 'Salju';
+  if(c<=82)  return 'Hujan lebat';
+  if(c<=86)  return 'Salju lebat';
+  return 'Badai petir';
 }
 
 function renderWeather(c){
   if(!c){ setWeatherCard('—','dot-nofix','Data kosong','cloud'); return; }
-  const wind  = c.wind_speed_10m;          // m/s
-  const gust  = c.wind_gusts_10m;          // m/s — indikator turbulensi
-  const rain  = c.precipitation;           // mm
-  const temp  = c.temperature_2m;          // °C
-  const hum   = c.relative_humidity_2m;    // %
-  const code  = c.weather_code;
+  const k = wxClassify(c.precipitation, c.wind_speed_10m, c.wind_gusts_10m, c.weather_code);
+  const detail = Math.round(c.temperature_2m)+'°C · Angin '+c.wind_speed_10m.toFixed(1)+' m/s'
+    + (c.wind_gusts_10m > c.wind_speed_10m+2 ? ' · Hembus '+c.wind_gusts_10m.toFixed(0) : '');
+  setWeatherCard(k.status, k.cls, detail, k.icon);
+}
 
-  // Penilaian untuk antisipasi kerja lapangan / drone:
-  // Turbulensi: selisih gust vs wind tinggi = udara bergolak
-  const turbul = (gust - wind);
-  let status, cls, icon;
+/* -------- View ramalan cuaca (klik kartu Cuaca Lapangan) -------- */
+function openWeatherView(){
+  stack.push({level:'weather', tab:currentTab});
+  activateView('view-weather');
+  const v = document.getElementById('view-weather');
+  setHeader(v.dataset.title, v.dataset.sub);
+  updateBackBtn();
+  renderWeatherView();
+  // data basi (>30 dtk) -> ambil ulang berdasarkan lokasi terkini
+  if(Date.now() - _weatherLast > 30000) fetchWeatherByGPS();
+}
 
-  if(rain >= 0.5){
-    status='HUJAN'; cls='dot-nofix'; icon='rain';
-  } else if(wind > 8 || gust > 10){
-    status='ANGIN KENCANG'; cls='dot-nofix'; icon='wind';
-  } else if(wind > 4.5 || gust > 7 || turbul > 4){
-    status='BERANGIN'; cls='dot-float'; icon='wind';
-  } else if(code >= 95){
-    status='BADAI'; cls='dot-nofix'; icon='storm';
-  } else if(code >= 51 && code <= 67){
-    status='GERIMIS'; cls='dot-poor'; icon='rain';
-  } else {
-    status='CERAH'; cls='dot-fix'; icon='sun';
+function renderWeatherView(){
+  const wrap = document.getElementById('wxBody');
+  if(!wrap) return;
+  if(!_wxData){
+    wrap.innerHTML = _wxError
+      ? '<div class="wx-empty"><p>'+_wxError+'</p><button class="wx-refresh" style="background:var(--blue);border:0;margin-top:12px" onclick="fetchWeatherByGPS()">Coba Lagi</button></div>'
+      : '<div class="wx-empty"><div class="spinner"></div><p>Mengambil cuaca lokasi Anda…</p></div>';
+    return;
   }
+  const c   = _wxData.current;
+  const k   = wxClassify(c.precipitation, c.wind_speed_10m, c.wind_gusts_10m, c.weather_code);
+  const upd = new Date(_wxData.at);
+  const hh  = n=>String(n).padStart(2,'0');
 
-  const detail = Math.round(temp)+'°C · Angin '+wind.toFixed(1)+' m/s'
-    + (gust>wind+2 ? ' · Hembus '+gust.toFixed(0) : '');
-  setWeatherCard(status, cls, detail, icon);
+  let html =
+    '<div class="wx-hero">'+
+      '<div class="wx-top"><div>'+
+        '<div class="wx-kicker">Kondisi Saat Ini</div>'+
+        '<div class="wx-status">'+k.status+'</div>'+
+        '<div class="wx-desc">'+wxCodeText(c.weather_code)+'</div>'+
+      '</div>'+
+      '<div style="text-align:right">'+weatherSvg(k.icon,42)+'<div class="wx-temp">'+Math.round(c.temperature_2m)+'°C</div></div></div>'+
+      '<div class="wx-grid">'+
+        '<div class="cell">Angin<b>'+c.wind_speed_10m.toFixed(1)+' m/s</b></div>'+
+        '<div class="cell">Hembusan<b>'+c.wind_gusts_10m.toFixed(1)+' m/s</b></div>'+
+        '<div class="cell">Kelembapan<b>'+c.relative_humidity_2m+'%</b></div>'+
+        '<div class="cell">Curah Hujan<b>'+(c.precipitation||0).toFixed(1)+' mm</b></div>'+
+      '</div>'+
+      '<div class="wx-meta"><span>📍 '+_wxData.lat.toFixed(4)+', '+_wxData.lon.toFixed(4)+' · Diperbarui '+hh(upd.getHours())+':'+hh(upd.getMinutes())+'</span>'+
+      '<button class="wx-refresh" onclick="refreshWeather()">Perbarui</button></div>'+
+    '</div>'+
+    '<h3 class="sec-title" style="margin:16px 0 10px">Ramalan 5 Jam ke Depan</h3>';
+
+  const H = _wxData.hourly || {};
+  const times = H.time || [];
+  const now = new Date();
+  let start = times.findIndex(t=>new Date(t) > now); // jam penuh berikutnya = +1 jam
+  if(start < 0) start = Math.max(0, times.length-5);
+  for(let n=0; n<5; n++){
+    const i = start+n;
+    if(i >= times.length) break;
+    const d    = new Date(times[i]);
+    const rain = H.precipitation ? H.precipitation[i] : 0;
+    const prob = H.precipitation_probability ? H.precipitation_probability[i] : null;
+    const wind = H.wind_speed_10m[i], gust = H.wind_gusts_10m[i];
+    const code = H.weather_code[i],  temp = H.temperature_2m[i];
+    const kk   = wxClassify(rain, wind, gust, code);
+    const chip = kk.suit==='ok'   ? '<span class="wx-chip ok">Aman survey</span>'
+               : kk.suit==='warn' ? '<span class="wx-chip warn">Hati-hati</span>'
+               :                    '<span class="wx-chip bad">Tidak disarankan</span>';
+    html +=
+      '<div class="wx-row">'+
+        '<div class="t"><b>'+hh(d.getHours())+':00</b><span>+'+(n+1)+' jam</span></div>'+
+        '<div class="ic">'+weatherSvg(kk.icon,26)+'</div>'+
+        '<div class="info"><div class="s">'+wxCodeText(code)+'</div>'+
+        '<div class="d">'+(prob!=null ? 'Hujan '+prob+'% · ' : '')+'Angin '+wind.toFixed(1)+' m/s'+(gust>wind+2 ? ' · Hembus '+gust.toFixed(0) : '')+'</div></div>'+
+        '<div class="r"><b>'+Math.round(temp)+'°C</b><div>'+chip+'</div></div>'+
+      '</div>';
+  }
+  html += '<p style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5">Sumber: Open-Meteo, berdasarkan lokasi GPS HP Anda. Penilaian kelayakan survey memakai ambang angin, hembusan, dan hujan yang sama dengan kartu Cuaca Lapangan.</p>';
+  wrap.innerHTML = html;
 }
 
 function setWeatherCard(status, cls, detail, icon){
@@ -1373,8 +1519,9 @@ function setWeatherCard(status, cls, detail, icon){
   if(ic) ic.innerHTML=weatherSvg(icon);
 }
 
-function weatherSvg(kind){
-  const w='width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+function weatherSvg(kind, size){
+  const s = size || 22;
+  const w='width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
   if(kind==='sun')   return '<svg '+w+'><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>';
   if(kind==='rain')  return '<svg '+w+'><path d="M17.5 17a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.5A4 4 0 0 0 6 17z"/><path d="M8 19v2M12 19v2M16 19v2"/></svg>';
   if(kind==='wind')  return '<svg '+w+'><path d="M3 8h11a3 3 0 1 0-3-3M3 16h15a3 3 0 1 1-3 3M3 12h8"/></svg>';
