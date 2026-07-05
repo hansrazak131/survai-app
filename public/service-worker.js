@@ -4,11 +4,12 @@
    - Aset  -> cache-first (icon, manifest)
    - Naikkan CACHE_VERSION setiap deploy agar cache lama dibersihkan.
 */
-const CACHE_VERSION = 'survai-v24';
+const CACHE_VERSION = 'survai-v25';
 const CORE = [
   './',
   './index.html',
   'manifest.json',
+  'assets/app-guard.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'maps.html',
