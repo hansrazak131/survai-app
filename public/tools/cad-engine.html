@@ -3969,11 +3969,7 @@ function openFileObj(file) {
   const ext = nm.split('.').pop().toLowerCase();
   const reader = new FileReader();
   if (ext === 'dwg') {
-    reader.onload = () => {
-      const head = new Uint8Array(reader.result.slice(0, 6));
-      const sig = String.fromCharCode(...head);
-      dwgNotice(nm, sig);
-    };
+    reader.onload = () => { loadDWG(reader.result, nm); };
     reader.readAsArrayBuffer(file);
     return;
   }
@@ -4017,26 +4013,159 @@ function loadDXFText(text, nm) {
   if (text.slice(0, 2) === 'AC' || /^\x41\x43\x31\x30/.test(text)) { dwgNotice(nm, text.slice(0, 6)); return; }
   const res = parseDXF(text);
   if (!res.entities.length && !Object.keys(res.blocks).length) throw new Error('Tidak ada entitas terbaca — pastikan DXF ASCII');
+  applyImportedDrawing(res, nm, 'DXF');
+}
+// terapkan hasil impor (DXF/DWG) ke Model space — dipakai bersama
+function applyImportedDrawing(res, nm, kind) {
   pushUndo();
   D.name = nm;
   // merge layer dari file
   for (const l of res.layers) if (!D.layers.some(x => x.name === l.name)) D.layers.push(l);
   for (const e of res.entities) ensureLayer(e.layer);
   for (const b in res.blocks) { D.blocks[b] = res.blocks[b]; for (const ce of res.blocks[b].ents) { ce.id = uid(); ensureLayer(ce.layer); } }
-  // DXF selalu dimuat ke Model space
+  // impor selalu dimuat ke Model space
   D.spaces[D.cspace] = D.entities;
   D.cspace = 'Model';
   D.entities = D.spaces.Model = res.entities.map(e => (e.id = uid(), e));
   sel.clear(); refreshLayerUI(); syncSpaceChip(); zoomExtents();
   const wcount = res.skipped ? ' · ' + res.skipped + ' entitas dilewati (' + Object.keys(res.warnings).slice(0, 4).join(', ') + ')' : '';
-  toast('DXF dibuka: ' + res.entities.length + ' entitas' + wcount, 4200);
+  toast(kind + ' dibuka: ' + res.entities.length + ' entitas' + wcount, 4200);
   logLine('OPEN ' + nm + ' — ' + res.entities.length + ' entitas, ' + res.layers.length + ' layer' + wcount, 'l-ok');
 }
-function dwgNotice(nm, sig) {
+/* ---------- DWG (LibreDWG WASM) ---------- */
+let _libredwgPromise = null;
+function getLibreDwg() {
+  if (!_libredwgPromise) {
+    _libredwgPromise = import('../assets/libredwg/dist/libredwg-web.js')
+      .then(m => m.LibreDwg.create());
+  }
+  return _libredwgPromise;
+}
+function cleanMtext(s) {
+  return String(s || '').replace(/\\P/g, '\n').replace(/\{\\[^;]*;/g, '').replace(/\}/g, '').replace(/\\[A-Za-z][^;\\]*;/g, '').trim();
+}
+// konversi DwgDatabase (LibreDWG) -> struktur gambar internal ({entities,layers,blocks})
+function dwgDbToDrawing(db) {
+  const out = { entities: [], layers: [], blocks: {}, warnings: {}, skipped: 0 };
+  for (const L of (db.tables && db.tables.LAYER && db.tables.LAYER.entries || [])) {
+    if (!L.name) continue;
+    const flags = L.standardFlag || 0;
+    out.layers.push({
+      name: L.name, color: aciToHex(Math.abs(L.colorIndex || 7)),
+      on: !L.off, frozen: !!L.frozen, locked: !!L.locked, lt: 'continuous',
+    });
+  }
+  const col = e => (e.colorIndex === 256 || e.colorIndex === 0 || e.colorIndex == null) ? 'bylayer' : aciToHex(e.colorIndex);
+  const bp = e => ({ layer: e.layer || '0', color: col(e), lt: 'bylayer', lw: 0 });
+  const dimNames = new Set();
+  function ellipsePts(e) {
+    const c = [e.center.x, e.center.y], mj = [e.majorAxisEndPoint.x, e.majorAxisEndPoint.y];
+    const ratio = e.axisRatio != null ? e.axisRatio : 1;
+    const t1 = e.startAngle || 0, t2 = e.endAngle != null ? e.endAngle : 2 * Math.PI;
+    const a = Math.hypot(mj[0], mj[1]), b2 = a * ratio, rot = Math.atan2(mj[1], mj[0]);
+    const pts = []; const n = 64;
+    let sweep = t2 - t1; if (sweep <= 1e-9) sweep += 2 * Math.PI;
+    for (let k = 0; k <= n; k++) {
+      const tt = t1 + sweep * k / n;
+      const x = a * Math.cos(tt), y = b2 * Math.sin(tt);
+      pts.push([c[0] + x * Math.cos(rot) - y * Math.sin(rot), c[1] + x * Math.sin(rot) + y * Math.cos(rot)]);
+    }
+    return { pts, closed: Math.abs(sweep - 2 * Math.PI) < 1e-6 };
+  }
+  function polyPts(vs, closed) {
+    const pts = [];
+    for (let k = 0; k < vs.length; k++) {
+      pts.push([vs[k].x, vs[k].y]);
+      const b = vs[k].bulge || 0;
+      const nx = vs[k + 1] || (closed ? vs[0] : null);
+      if (nx && Math.abs(b) > 1e-9) {
+        const arc = bulgeArc([vs[k].x, vs[k].y], [nx.x, nx.y], b);
+        if (arc) { const tp = tessArc(arc.c, arc.r, arc.a1, arc.a2, arc.ccw, 16); pts.push(...tp.slice(1, -1)); }
+      }
+    }
+    return pts;
+  }
+  function mapEnt(e) {
+    try {
+      const t = e.type, P = bp(e);
+      if (t === 'LINE') return { ...P, type: 'line', a: [e.startPoint.x, e.startPoint.y], b: [e.endPoint.x, e.endPoint.y] };
+      if (t === 'CIRCLE') return { ...P, type: 'circle', c: [e.center.x, e.center.y], r: e.radius };
+      if (t === 'ARC') return { ...P, type: 'arc', c: [e.center.x, e.center.y], r: e.radius, a1: e.startAngle, a2: e.endAngle, ccw: true };
+      if (t === 'POINT') return { ...P, type: 'point', p: [e.position.x, e.position.y] };
+      if (t === 'ELLIPSE') { const ep = ellipsePts(e); if (ep.pts.length < 2) return null; return { ...P, type: 'poly', pts: ep.pts, closed: ep.closed }; }
+      if (t === 'LWPOLYLINE' || t === 'POLYLINE') {
+        const vs = e.vertices || []; if (vs.length < 2) return null;
+        const closed = ((e.flag || 0) & 1) === 1;
+        const pts = polyPts(vs, closed); if (pts.length < 2) return null;
+        return { ...P, type: 'poly', pts, closed };
+      }
+      if (t === 'SPLINE') {
+        let pts = (e.fitPoints && e.fitPoints.length > 1) ? e.fitPoints.map(p => [p.x, p.y]) : (e.controlPoints || []).map(p => [p.x, p.y]);
+        if (pts.length < 2) return null;
+        if (!(e.fitPoints && e.fitPoints.length > 1)) for (let it = 0; it < 3; it++) pts = chaikin(pts, ((e.flag || 0) & 1) === 1);
+        return { ...P, type: 'poly', pts, closed: ((e.flag || 0) & 1) === 1 };
+      }
+      if (t === 'TEXT') return { ...P, type: 'text', p: [e.startPoint.x, e.startPoint.y], text: (e.text || '').trim(), h: e.textHeight || 1, rot: e.rotation || 0 };
+      if (t === 'MTEXT') return { ...P, type: 'text', p: [e.insertionPoint.x, e.insertionPoint.y], text: cleanMtext(e.text), h: e.textHeight || 1, rot: e.rotation || 0 };
+      if (t === 'ATTRIB') { const tt = e.text || {}; const sp = tt.startPoint || {}; return { ...P, type: 'text', p: [sp.x || 0, sp.y || 0], text: (tt.text || '').trim(), h: tt.textHeight || 1, rot: tt.rotation || 0 }; }
+      if (t === 'SOLID') { const c = [e.corner1, e.corner2, e.corner4 || e.corner3, e.corner3].filter(Boolean).map(p => [p.x, p.y]); if (c.length < 3) return null; return { ...P, type: 'solid', pts: c }; }
+      if (t === '3DFACE') { const c = [e.corner1, e.corner2, e.corner3, e.corner4].filter(Boolean).map(p => [p.x, p.y]); if (c.length < 2) return null; return { ...P, type: 'poly', pts: c, closed: true }; }
+      if (t === 'LEADER') { const vs = e.vertices || []; if (vs.length < 2) return null; return { ...P, type: 'poly', pts: vs.map(p => [p.x, p.y]), closed: false }; }
+      if (t === 'HATCH') {
+        for (const pa of (e.boundaryPaths || [])) {
+          if (pa.vertices && pa.vertices.length > 2) return { ...P, type: 'hatch', pts: pa.vertices.map(v => [v.x, v.y]), pattern: e.solidFill ? 'SOLID' : 'ANSI31', spacing: e.patternScale || 1 };
+          if (pa.edges) { const pts = []; for (const ed of pa.edges) if (ed.start) pts.push([ed.start.x, ed.start.y]); if (pts.length > 2) return { ...P, type: 'hatch', pts, pattern: e.solidFill ? 'SOLID' : 'ANSI31', spacing: e.patternScale || 1 }; }
+        }
+        return null;
+      }
+      if (t === 'INSERT') return { ...P, type: 'insert', name: e.name, p: [e.insertionPoint.x, e.insertionPoint.y], sx: e.xScale || 1, sy: e.yScale || e.xScale || 1, rot: e.rotation || 0 };
+      if (t === 'DIMENSION') { if (e.name && dimNames.has(e.name)) return { ...P, type: 'insert', name: e.name, p: [0, 0], sx: 1, sy: 1, rot: 0 }; return null; }
+    } catch (err) { /* entitas rusak: lewati */ }
+    return null;
+  }
+  // blok (termasuk blok dimensi anonim *D..)
+  for (const br of (db.tables && db.tables.BLOCK_RECORD && db.tables.BLOCK_RECORD.entries || [])) {
+    const nm = br.name || '';
+    if (!nm || /^\*(model|paper)_space/i.test(nm)) continue;
+    const ents = [];
+    for (const be of (br.entities || [])) { const m = mapEnt(be); if (m) ents.push(m); }
+    if (ents.length) { out.blocks[nm] = { name: nm, base: [br.basePoint && br.basePoint.x || 0, br.basePoint && br.basePoint.y || 0], ents }; dimNames.add(nm); }
+  }
+  for (const e of (db.entities || [])) {
+    const m = mapEnt(e);
+    if (m) out.entities.push(m);
+    else { out.skipped++; out.warnings[e.type] = (out.warnings[e.type] || 0) + 1; }
+  }
+  return out;
+}
+async function loadDWG(arrayBuffer, nm) {
+  const sig = String.fromCharCode(...new Uint8Array(arrayBuffer.slice(0, 6)));
+  toast('Membuka DWG — memuat parser LibreDWG…', 2500);
+  logLine('DWG ' + nm + ' — memuat parser LibreDWG (WASM)…', 'l-info');
+  let lib;
+  try { lib = await getLibreDwg(); }
+  catch (e) { logLine('Parser DWG gagal dimuat: ' + e.message, 'l-err'); dwgNotice(nm, sig, true); return; }
+  let db;
+  try {
+    const ptr = lib.dwg_read_data(arrayBuffer, 0);
+    if (ptr == null) throw new Error('gagal membaca struktur DWG');
+    db = lib.convert(ptr);
+    try { lib.dwg_free(ptr); } catch (_) {}
+  } catch (e) {
+    logLine('DWG gagal diparse: ' + e.message, 'l-err');
+    dwgNotice(nm, sig, true); return;
+  }
+  let res;
+  try { res = dwgDbToDrawing(db); }
+  catch (e) { logLine('DWG konversi gagal: ' + e.message, 'l-err'); dwgNotice(nm, sig, true); return; }
+  if (!res.entities.length && !Object.keys(res.blocks).length) { toast('DWG terbaca namun tidak ada entitas yang dapat ditampilkan', 4000); dwgNotice(nm, sig, true); return; }
+  applyImportedDrawing(res, nm, 'DWG');
+}
+function dwgNotice(nm, sig, failed) {
   const ver = { AC1014: 'R14', AC1015: '2000', AC1018: '2004', AC1021: '2007', AC1024: '2010', AC1027: '2013', AC1032: '2018+' }[sig] || sig;
-  openModal('File DWG Terdeteksi', null, null, `
+  openModal('File DWG', null, null, `
     <h3>File DWG (${ver})</h3>
-    <p><b>${nm}</b> adalah DWG biner. Parser DWG native (libredwg/Teigha) adalah roadmap Fase 2 PRD dan belum tersedia di browser secara offline.</p>
+    <p><b>${nm}</b> tidak dapat diurai oleh parser DWG bawaan (LibreDWG WASM) — kemungkinan file rusak, terenkripsi, atau versi yang belum didukung.</p>
     <p>Solusi cepat: konversi ke <b>DXF ASCII</b> lalu buka di sini — hasilnya identik:</p>
     <p style="font-size:11.5px">• AutoCAD/DWG TrueView: <i>SAVEAS → DXF (ASCII)</i><br>• ODA File Converter (gratis, offline)<br>• Konverter daring (CloudConvert dsb.)</p>
     <div class="mrow"><button class="btn pri full" onclick="closeModal();document.getElementById('fileInput').click()">Pilih File DXF</button></div>
@@ -4366,7 +4495,7 @@ function openHelp() {
     <div class="help-sec">Daftar Perintah (${seen.size})</div>
     <table class="help-table">${rows}</table>
     <div class="help-sec">Roadmap (PRD Fase 2–3)</div>
-    <p style="font-size:11px;color:var(--ink-dim);line-height:1.6">Parser DWG biner (libredwg), block editor, xref, dynamic block, viewport layout (skala per-viewport), plot style CTB, LandXML/terrain, long & cross section, 3D viewer.</p>`;
+    <p style="font-size:11px;color:var(--ink-dim);line-height:1.6">Parser DWG biner (libredwg WASM) sudah aktif — buka file .dwg langsung. Roadmap: block editor, xref, dynamic block, viewport layout (skala per-viewport), plot style CTB, LandXML/terrain, long & cross section, 3D viewer.</p>`;
   openSheet('sheetHelp');
 }
 
@@ -4499,7 +4628,7 @@ window.CADENG = {
   D, view, sel, settings, RESULTS,
   exec: (c, a) => runCommand(c, a),
   input: s => handleCmdInput(s),
-  parseDXF, writeDXF, writeSVG, writeGeoJSON,
+  parseDXF, writeDXF, writeSVG, writeGeoJSON, loadDWG, dwgDbToDrawing,
   addEnt, pushUndo, zoomExtents, redraw,
   switchSpace, setVstyle, recognizeStroke, trimEntity, entIntersections, dividePts,
   getTool: () => tool,
