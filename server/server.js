@@ -6,6 +6,7 @@
    Endpoint yang dipakai public/maps.html:
      GET  /auth/config                      -> {google_client_id, dev_auth}
      POST /auth/google  {id_token}          -> {email, via, dev_code?}
+     POST /auth/email-otp/send {email,name?} -> {email, via, dev_code?}
      POST /auth/verify  {email,code,device} -> {token,email,name,expires_at}
      GET  /auth/me      (Bearer)            -> {email,name} | 401
      POST /auth/logout  (Bearer)            -> {ok:true}
@@ -18,6 +19,8 @@
 'use strict';
 const http = require('http');
 const https = require('https');
+const net = require('net');
+const tls = require('tls');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -33,7 +36,16 @@ const DEFAULT_CFG = {
   session_days: 30,          // masa berlaku token login
   allowed_emails: [],        // kosong = semua email boleh; isi utk membatasi
   blocked_emails: [],        // email yang DILARANG login (menang atas whitelist)
-  admin_emails: []           // email yang boleh membuka halaman /admin
+  admin_emails: [],          // email yang boleh membuka halaman /admin
+  smtp: {                    // pengiriman kode OTP via email (kosongkan host = pakai konsol)
+    host: '',                // mis. smtp.gmail.com | smtp-relay.brevo.com
+    port: 465,               // 465 = TLS implisit; 587 = STARTTLS
+    secure: true,            // true = TLS implisit (465); false = plaintext lalu STARTTLS bila diaktifkan
+    starttls: true,          // saat secure:false, upgrade ke TLS via STARTTLS (port 587)
+    user: '',                // username SMTP (mis. alamat Gmail / API key user)
+    pass: '',                // password SMTP / app password
+    from: ''                 // alamat pengirim, mis. "no-reply@domain.com"
+  }
 };
 let CFG = DEFAULT_CFG;
 try { CFG = Object.assign({}, DEFAULT_CFG, JSON.parse(fs.readFileSync(CFG_FILE, 'utf8'))); }
@@ -53,6 +65,98 @@ let sessions = loadJSON(SESS_FILE, {});          // token -> {email,name,device,
 const LOGIN_LOG = path.join(DATA, 'logins.json');
 let loginLog = loadJSON(LOGIN_LOG, []);          // riwayat login permanen (tidak terhapus saat logout)
 const codes = {};                                // email -> {code,name,exp} (sementara, di memori)
+const otpRates = {};                             // email -> [timestamp...] untuk rate-limit kirim OTP
+
+/* Batasi pengiriman OTP: maksimal 3 kali per email per jam */
+function otpRateOk(email) {
+  const now = Date.now(), win = 60 * 60 * 1000, key = lc(email);
+  otpRates[key] = (otpRates[key] || []).filter(t => now - t < win);
+  if (otpRates[key].length >= 3) return false;
+  otpRates[key].push(now); return true;
+}
+/* Terbitkan kode 6 digit (berlaku 10 menit) & simpan (di-hash) di memori. */
+function issueCode(email, name) {
+  const code = String(crypto.randomInt(100000, 999999));
+  codes[email] = { code, name: name || email, exp: Date.now() + 10 * 60 * 1000 };
+  console.log('[AUTH] Kode verifikasi untuk ' + email + ': ' + code);
+  return code;
+}
+
+/* ---------- Pengiriman email OTP (SMTP tanpa dependensi) ---------- */
+function smtpConfigured() { const s = CFG.smtp || {}; return !!(s.host && (s.from || s.user)); }
+
+/* Klien SMTP minimal: mendukung TLS implisit (465), STARTTLS (587), atau plaintext.
+   AUTH LOGIN bila user/pass diisi. Mengembalikan Promise. */
+function sendEmail(to, subject, text) {
+  const s = CFG.smtp || {};
+  const host = s.host, port = s.port || (s.secure === false ? 587 : 465);
+  const implicitTLS = s.secure !== false;      // true → langsung TLS
+  const useStartTLS = s.secure === false && s.starttls !== false;
+  const user = s.user, pass = s.pass, from = s.from || s.user;
+  return new Promise((resolve, reject) => {
+    let socket, response = '', resolver = null, settled = false;
+    function onData(d) {
+      response += d.toString('utf8');
+      const lines = response.split(/\r?\n/).filter(Boolean);
+      const last = lines[lines.length - 1] || '';
+      if (/^\d{3} /.test(last)) { const r = response; response = ''; const cb = resolver; resolver = null; if (cb) cb(r); }
+    }
+    function read() { return new Promise(res => { resolver = res; }); }
+    async function expect(codes) { const r = await read(); if (!codes.includes(parseInt(r, 10))) throw new Error('SMTP: ' + r.trim()); return r; }
+    function send(line) { socket.write(line + '\r\n'); }
+    function bail(e) { if (settled) return; settled = true; try { socket.destroy(); } catch (_) {} reject(e instanceof Error ? e : new Error(String(e))); }
+    async function convo() {
+      await expect([220]);
+      send('EHLO tukangngukur'); await expect([250]);
+      if (useStartTLS) {
+        send('STARTTLS'); await expect([220]);
+        socket.removeListener('data', onData);
+        socket = tls.connect({ socket, servername: host });
+        socket.on('data', onData); socket.on('error', bail);
+        await new Promise((rs, rj) => { socket.once('secureConnect', rs); socket.once('error', rj); });
+        send('EHLO tukangngukur'); await expect([250]);
+      }
+      if (user) {
+        send('AUTH LOGIN'); await expect([334]);
+        send(Buffer.from(String(user)).toString('base64')); await expect([334]);
+        send(Buffer.from(String(pass)).toString('base64')); await expect([235]);
+      }
+      send('MAIL FROM:<' + from + '>'); await expect([250]);
+      send('RCPT TO:<' + to + '>'); await expect([250, 251]);
+      send('DATA'); await expect([354]);
+      const body = String(text).replace(/\r?\n/g, '\r\n').replace(/^\./gm, '..');
+      const msg = 'From: Tukang Ngukur <' + from + '>\r\n' +
+        'To: <' + to + '>\r\n' +
+        'Subject: ' + subject + '\r\n' +
+        'MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n' +
+        body + '\r\n.';
+      send(msg); await expect([250]);
+      try { send('QUIT'); } catch (_) {}
+    }
+    socket = implicitTLS ? tls.connect({ host, port, servername: host }) : net.connect({ host, port });
+    socket.setTimeout(15000, () => bail(new Error('SMTP timeout')));
+    socket.on('data', onData);
+    socket.on('error', bail);
+    socket.once(implicitTLS ? 'secureConnect' : 'connect', () => {
+      convo().then(() => { if (!settled) { settled = true; try { socket.end(); } catch (_) {} resolve(true); } }).catch(bail);
+    });
+  });
+}
+
+/* Kirim kode ke email bila SMTP dikonfigurasi; jika gagal/kosong → fallback konsol.
+   Mengembalikan 'email' atau 'console'. */
+async function deliverCode(email, code) {
+  if (!smtpConfigured()) return 'console';
+  try {
+    await sendEmail(email, 'Kode Verifikasi Tukang Ngukur',
+      'Kode verifikasi Anda: ' + code + '\n\nBerlaku 10 menit. Abaikan email ini bila Anda tidak meminta kode masuk.');
+    console.log('[SMTP] Kode terkirim ke ' + email);
+    return 'email';
+  } catch (e) {
+    console.error('[SMTP] Gagal kirim ke ' + email + ': ' + (e.message || e));
+    return 'console';
+  }
+}
 
 function projDir(id) { return path.join(DATA, 'projects', id.replace(/[^a-zA-Z0-9_-]/g, '_')); }
 function loadProj(id) {
@@ -144,12 +248,23 @@ async function handle(req, res, url) {
       if (!who) return json(res, 401, { error: 'Verifikasi akun Google gagal' });
     }
     if (!emailAllowed(who.email)) return json(res, 403, { error: 'Email tidak terdaftar — hubungi admin' });
-    const code = String(crypto.randomInt(100000, 999999));
-    codes[who.email] = { code, name: who.name, exp: Date.now() + 10 * 60 * 1000 };
-    /* Belum ada SMTP: kode ditampilkan di konsol server (via:'console').
-       Untuk email sungguhan, kirim `code` lewat layanan email di sini. */
-    console.log('[AUTH] Kode verifikasi untuk ' + who.email + ': ' + code);
-    const out = { email: who.email, via: 'console' };
+    const code = issueCode(who.email, who.name);
+    const via = await deliverCode(who.email, code);
+    const out = { email: who.email, via };
+    if (CFG.dev_auth) out.dev_code = code; // pre-fill otomatis saat mode dev
+    return json(res, 200, out);
+  }
+
+  /* ===== EMAIL OTP (login via email tanpa Google) ===== */
+  if (p === '/auth/email-otp/send' && req.method === 'POST') {
+    const { email, name } = await readBody(req);
+    const em = lc(email);
+    if (!em || !em.includes('@')) return json(res, 400, { error: 'Email tidak valid' });
+    if (!emailAllowed(em)) return json(res, 403, { error: 'Email tidak terdaftar — hubungi admin' });
+    if (!otpRateOk(em)) return json(res, 429, { error: 'Terlalu banyak permintaan kode. Coba lagi dalam 1 jam.' });
+    const code = issueCode(em, name || em.split('@')[0]);
+    const via = await deliverCode(em, code);
+    const out = { email: em, via };
     if (CFG.dev_auth) out.dev_code = code; // pre-fill otomatis saat mode dev
     return json(res, 200, out);
   }

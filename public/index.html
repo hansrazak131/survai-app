@@ -446,9 +446,10 @@ img{max-width:100%;display:block;}
     <!-- STEP: choose -->
     <div class="ls-step active" id="ls-choose">
       <p class="ls-section-title" style="margin:0 0 4px">Selamat Datang</p>
-      <p class="ls-section-sub">Masuk untuk menyimpan data dan pengaturan Anda.</p>
-      <!-- Google button -->
-      <button class="ls-google-btn" onclick="lsGoogleLogin()">
+      <p class="ls-section-sub">Masuk untuk menyimpan data dan menyinkronkan pengukuran Anda.</p>
+      <!-- Google button (Google Identity Services akan me-render tombol resmi di sini bila aktif) -->
+      <div id="ls-gbtn" style="display:flex;justify-content:center;min-height:52px;margin-bottom:14px"></div>
+      <button class="ls-google-btn" id="ls-gbtn-custom" onclick="lsGoogleLogin()">
         <svg class="ls-google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
         Lanjutkan dengan Google
       </button>
@@ -456,7 +457,7 @@ img{max-width:100%;display:block;}
       <div class="ls-divider"><span>atau</span></div>
       <!-- Email button -->
       <button class="ls-btn primary" onclick="lsGoStep('email')">Masuk dengan Email</button>
-      <button class="ls-btn ghost" onclick="lsSkip()">Lewati, masuk sebagai tamu</button>
+      <div class="ls-msg" id="ls-msg-choose"></div>
     </div>
 
     <!-- STEP: email -->
@@ -465,50 +466,31 @@ img{max-width:100%;display:block;}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6" stroke-linecap="round"/></svg>
         Kembali
       </button>
-      <p class="ls-section-title">Masukkan Email</p>
-      <p class="ls-section-sub">Kami cek apakah akun Anda sudah ada.</p>
+      <p class="ls-section-title">Masuk dengan Email</p>
+      <p class="ls-section-sub">Masukkan email Anda — kami kirim kode verifikasi 6 digit ke inbox.</p>
       <div class="ls-field">
         <label>Alamat Email</label>
-        <input type="email" id="ls-email-input" placeholder="nama@email.com" autocomplete="email" inputmode="email" oninput="document.getElementById('ls-msg-email').textContent=''">
+        <input type="email" id="ls-email-input" placeholder="nama@email.com" autocomplete="email" inputmode="email" oninput="document.getElementById('ls-msg-email').textContent=''" onkeydown="if(event.key==='Enter')lsSendCode()">
       </div>
       <div class="ls-msg" id="ls-msg-email"></div>
-      <button class="ls-btn primary" onclick="lsCheckEmail()">Lanjutkan</button>
+      <button class="ls-btn primary" onclick="lsSendCode()">Kirim Kode ke Email</button>
     </div>
 
-    <!-- STEP: password (akun terdaftar) -->
-    <div class="ls-step" id="ls-password">
+    <!-- STEP: code (OTP) -->
+    <div class="ls-step" id="ls-code">
       <button class="ls-back-link" onclick="lsGoStep('email')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6" stroke-linecap="round"/></svg>
         Kembali
       </button>
-      <p class="ls-section-title">Masukkan Password</p>
-      <p class="ls-section-sub" id="ls-pw-sub">Halo! Masukkan password untuk akun Anda.</p>
+      <p class="ls-section-title">Cek Inbox Email Anda</p>
+      <p class="ls-section-sub" id="ls-code-sub">Kode verifikasi telah dikirim.</p>
       <div class="ls-field">
-        <label>Password</label>
-        <input type="password" id="ls-pw-input" placeholder="••••••••" autocomplete="current-password" oninput="document.getElementById('ls-msg-pw').textContent=''">
+        <label>Kode Verifikasi (6 digit)</label>
+        <input type="text" id="ls-code-input" placeholder="••••••" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="letter-spacing:.5em;text-align:center;font-weight:700;font-size:20px" oninput="document.getElementById('ls-msg-code').textContent=''" onkeydown="if(event.key==='Enter')lsVerifyCode()">
       </div>
-      <div class="ls-msg" id="ls-msg-pw"></div>
-      <button class="ls-btn primary" onclick="lsDoLogin()">Masuk</button>
-    </div>
-
-    <!-- STEP: set password (akun baru) -->
-    <div class="ls-step" id="ls-setpw">
-      <button class="ls-back-link" onclick="lsGoStep('email')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6" stroke-linecap="round"/></svg>
-        Kembali
-      </button>
-      <p class="ls-section-title">Buat Akun Baru</p>
-      <p class="ls-section-sub">Email Anda belum terdaftar. Isi data berikut.</p>
-      <div class="ls-field">
-        <label>Nama Lengkap</label>
-        <input type="text" id="ls-name-input" placeholder="Nama Anda" autocomplete="name">
-      </div>
-      <div class="ls-field">
-        <label>Buat Password</label>
-        <input type="password" id="ls-newpw-input" placeholder="Min. 6 karakter" autocomplete="new-password">
-      </div>
-      <div class="ls-msg" id="ls-msg-setpw"></div>
-      <button class="ls-btn primary" onclick="lsDoRegister()">Daftar & Masuk</button>
+      <div class="ls-msg" id="ls-msg-code"></div>
+      <button class="ls-btn primary" onclick="lsVerifyCode()">Verifikasi &amp; Masuk</button>
+      <button class="ls-btn ghost" onclick="lsSendCode()">Kirim Ulang Kode</button>
     </div>
   </div>
 </div>
@@ -1531,31 +1513,46 @@ function weatherSvg(kind, size){
 }
 
 /* =================== AUTH / LOGIN =================== */
-const AUTH_KEY='survai_user'; const USERS_KEY='survai_users';
-let _lsEmail='', _lsStep='choose';
+/* =================== AUTH (server-backed, satu gerbang) ===================
+   Sesi disimpan pada key svl_* yang SAMA dipakai maps.html, sehingga setelah
+   login di shell, gerbang login internal maps.html otomatis lolos.
+   Server auth+sync diatur di Pengaturan (bukan sebagai gerbang login). */
+const SS={tok:'svl_token',email:'svl_email',name:'svl_name',exp:'svl_exp',ep:'svl_endpoint'};
+const DEFAULT_SERVER='http://127.0.0.1:8787'; // ganti di Pengaturan → Server & Sinkronisasi
+let _lsEmail='', _lsStep='choose', _gsiCfg=null, _gsiTried=false;
 
-function getUser(){ try{return JSON.parse(localStorage.getItem(AUTH_KEY));}catch(e){return null;} }
-function saveUser(u){ localStorage.setItem(AUTH_KEY, JSON.stringify(u)); }
-function clearUser(){ localStorage.removeItem(AUTH_KEY); }
-function getUsers(){ try{return JSON.parse(localStorage.getItem(USERS_KEY))||{};}catch(e){return {};} }
-function saveUsers(us){ try{localStorage.setItem(USERS_KEY,JSON.stringify(us));}catch(e){} }
+function serverUrl(){ return (localStorage.getItem(SS.ep)||DEFAULT_SERVER).replace(/\/+$/,''); }
+function setServerUrl(v){ localStorage.setItem(SS.ep,(v||'').replace(/\/+$/,'')); }
+function authed(){ const t=localStorage.getItem(SS.tok),x=localStorage.getItem(SS.exp); return !!(t&&x&&new Date(x)>new Date()); }
+function getUser(){ return authed()?{name:localStorage.getItem(SS.name)||localStorage.getItem(SS.email),email:localStorage.getItem(SS.email)}:null; }
+function saveSession(d){ localStorage.setItem(SS.tok,d.token); localStorage.setItem(SS.email,d.email); localStorage.setItem(SS.name,d.name||d.email); localStorage.setItem(SS.exp,d.expires_at);
+  if(!localStorage.getItem(SS.ep)) localStorage.setItem(SS.ep,serverUrl()); /* samakan endpoint sync dgn maps.html */ }
+function clearSession(){ [SS.tok,SS.email,SS.name,SS.exp].forEach(k=>localStorage.removeItem(k)); }
+function clearUser(){ clearSession(); } // kompatibilitas pemanggil lama
 
-function checkAuth(){
-  const u=getUser();
-  if(u){ hideLoginScreen(); }
-  else  { showLoginScreen(); }
+function lsMsg(step,text,kind){ const el=document.getElementById('ls-msg-'+step); if(!el)return; el.textContent=text||''; el.style.color=(kind==='err'||!kind&&text)?'#dc2626':'var(--muted)'; }
+function netErr(e){ return /Failed to fetch|NetworkError|ERR_/.test(String(e))?'Server tidak terjangkau. Atur alamat server di Pengaturan → Server & Sinkronisasi.':String(e&&e.message||e); }
+
+async function checkAuth(){
+  if(authed()){
+    hideLoginScreen();
+    /* validasi sesi ke server bila online; offline = terima cache sampai kedaluwarsa */
+    try{
+      const r=await fetch(serverUrl()+'/auth/me',{headers:{'Authorization':'Bearer '+localStorage.getItem(SS.tok)}});
+      if(r.status===401){ clearSession(); showLoginScreen(); }
+    }catch(e){/* offline */}
+  }else{
+    showLoginScreen();
+  }
   updateProfileAvatar();
 }
 function showLoginScreen(){
   document.getElementById('loginScreen').classList.remove('ls-hidden');
   lsGoStep('choose');
+  lsInitGoogle();
 }
 function hideLoginScreen(){
   document.getElementById('loginScreen').classList.add('ls-hidden');
-}
-function lsSkip(){
-  saveUser({name:'Tamu',email:'',guest:true});
-  hideLoginScreen(); updateProfileAvatar();
 }
 function lsGoStep(step){
   _lsStep=step;
@@ -1563,50 +1560,65 @@ function lsGoStep(step){
   const el=document.getElementById('ls-'+step);
   if(el) el.classList.add('active');
 }
-function lsCheckEmail(){
-  const email=(document.getElementById('ls-email-input').value||'').trim().toLowerCase();
-  const msg=document.getElementById('ls-msg-email');
-  if(!email||!email.includes('@')){ msg.textContent='Masukkan email yang valid.'; return; }
-  _lsEmail=email;
-  const users=getUsers();
-  if(users[email]){
-    // terdaftar → minta password
-    document.getElementById('ls-pw-sub').textContent='Halo '+users[email].name+'! Masukkan password Anda.';
-    document.getElementById('ls-pw-input').value='';
-    lsGoStep('password');
-  } else {
-    // baru → daftar
-    document.getElementById('ls-name-input').value='';
-    document.getElementById('ls-newpw-input').value='';
-    lsGoStep('setpw');
-  }
+
+/* ---- Google Sign-In (Google Identity Services, web) ---- */
+function lsLoadGsiScript(){ return new Promise((res,rej)=>{ if(window.google&&google.accounts&&google.accounts.id)return res(); const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+async function lsInitGoogle(){
+  if(_gsiTried) return; _gsiTried=true;
+  try{
+    const r=await fetch(serverUrl()+'/auth/config'); _gsiCfg=await r.json();
+    if(!_gsiCfg||!_gsiCfg.google_client_id) return; // biarkan tombol kustom (akan memandu ke Email)
+    await lsLoadGsiScript();
+    google.accounts.id.initialize({client_id:_gsiCfg.google_client_id, callback:c=>lsOnGoogle(c.credential)});
+    const box=document.getElementById('ls-gbtn');
+    if(box){ box.innerHTML=''; google.accounts.id.renderButton(box,{theme:'outline',size:'large',width:320,text:'continue_with',shape:'pill'});
+      const custom=document.getElementById('ls-gbtn-custom'); if(custom) custom.style.display='none'; }
+  }catch(e){ /* offline / server mati → tombol kustom tetap tampil */ _gsiTried=false; }
 }
-function lsDoLogin(){
-  const pw=(document.getElementById('ls-pw-input').value||'');
-  const msg=document.getElementById('ls-msg-pw');
-  const users=getUsers();
-  if(!users[_lsEmail]){ msg.textContent='Akun tidak ditemukan.'; return; }
-  if(users[_lsEmail].pw!==btoa(pw)){ msg.textContent='Password salah.'; return; }
-  const u=users[_lsEmail];
-  saveUser({name:u.name,email:_lsEmail});
-  hideLoginScreen(); updateProfileAvatar();
-}
-function lsDoRegister(){
-  const name=(document.getElementById('ls-name-input').value||'').trim();
-  const pw=(document.getElementById('ls-newpw-input').value||'');
-  const msg=document.getElementById('ls-msg-setpw');
-  if(!name){ msg.textContent='Nama tidak boleh kosong.'; return; }
-  if(pw.length<6){ msg.textContent='Password minimal 6 karakter.'; return; }
-  const users=getUsers();
-  users[_lsEmail]={name,pw:btoa(pw)};
-  saveUsers(users);
-  saveUser({name,email:_lsEmail});
-  hideLoginScreen(); updateProfileAvatar();
+async function lsOnGoogle(idToken){
+  lsMsg('choose','Memverifikasi akun Google…','');
+  try{
+    const r=await fetch(serverUrl()+'/auth/google',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_token:idToken})});
+    const d=await r.json(); if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    _lsEmail=d.email; lsShowCode(d);
+  }catch(e){ lsMsg('choose', netErr(e),'err'); }
 }
 function lsGoogleLogin(){
-  // Google Sign-In: memerlukan konfigurasi Google OAuth Client ID
-  // Untuk sekarang, tampilkan pesan panduan
-  alert('Google Sign-In belum dikonfigurasi.\nGunakan tombol "Masuk dengan Email" atau "Lewati sebagai Tamu".\n\nUntuk mengaktifkan Google Sign-In, tambahkan Google OAuth Client ID di konfigurasi aplikasi.');
+  // Dipicu hanya bila tombol resmi Google belum ter-render (server mati / belum ada Client ID)
+  lsMsg('choose','Login Google belum aktif. Pastikan server aktif (Pengaturan) atau gunakan Masuk dengan Email.','err');
+  lsInitGoogle();
+}
+
+/* ---- Email OTP ---- */
+async function lsSendCode(){
+  const email=(document.getElementById('ls-email-input').value||'').trim().toLowerCase();
+  if(!email||!email.includes('@')){ lsMsg('email','Masukkan email yang valid.','err'); return; }
+  _lsEmail=email;
+  const active=_lsStep==='code'?'code':'email';
+  lsMsg(active,'Mengirim kode…','');
+  try{
+    const r=await fetch(serverUrl()+'/auth/email-otp/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json(); if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    lsShowCode(d);
+  }catch(e){ lsMsg(active, netErr(e),'err'); }
+}
+function lsShowCode(d){
+  lsGoStep('code');
+  const inp=document.getElementById('ls-code-input'); if(inp) inp.value=d&&d.dev_code||'';
+  document.getElementById('ls-code-sub').innerHTML='Kode 6 digit dikirim ke <b>'+escapeHtml(_lsEmail)+'</b>'+((d&&d.via)==='console'?' (mode dev — lihat konsol server).':'. Cek folder spam bila tidak ada.');
+  lsMsg('code','','');
+  setTimeout(()=>{ if(inp) inp.focus(); },60);
+}
+async function lsVerifyCode(){
+  const code=(document.getElementById('ls-code-input').value||'').trim();
+  if(code.length!==6){ lsMsg('code','Masukkan 6 digit kode.','err'); return; }
+  lsMsg('code','Memeriksa kode…','');
+  try{
+    const r=await fetch(serverUrl()+'/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_lsEmail,code,device:navigator.userAgent.slice(0,110)})});
+    const d=await r.json(); if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    saveSession(d); hideLoginScreen(); updateProfileAvatar();
+    switchTab('maps'); // default setelah login: halaman Maps pengukuran
+  }catch(e){ lsMsg('code', netErr(e),'err'); }
 }
 
 /* =================== PROFILE PANEL =================== */
@@ -1623,7 +1635,7 @@ function closePP(){
   document.getElementById('ppOverlay').classList.remove('open');
 }
 function renderPP(){
-  const u=getUser(); const isGuest=!u||u.guest;
+  const u=getUser(); const isGuest=false; // mode tamu dihapus — profil hanya tampil saat login
   const unit=localStorage.getItem('survai_unit')||'metric';
   const gpsInt=localStorage.getItem('survai_gps_interval')||'5000';
   // HEAD
@@ -1648,6 +1660,18 @@ function renderPP(){
     body.innerHTML='<div class="pp-section"><button class="ls-back-link" onclick="ppGoMain()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6" stroke-linecap="round"/></svg> Kembali</button><div class="pp-section-title">Tentang Aplikasi</div></div><div class="pp-about"><span class="badge">Tukang Ukur v1.0.0</span><p style="margin-top:14px;font-weight:700;font-family:var(--serif)">One App. Every Survey.</p><p>Mendukung aktivitas survei, pengukuran, inspeksi, perhitungan, dan pelaporan proyek dalam satu platform yang praktis dan modern.</p><div class="pp-divider"></div><p style="font-size:12px;color:var(--muted);margin-bottom:4px">Developed by</p><p style="font-weight:700;margin:0 0 6px">Egi Nugraha, S.T</p><p style="font-size:13px;margin:0 0 2px">📧 egi.geomatika@gmail.com</p><p style="font-size:13px;margin:0 0 12px">🌐 pontangegi.wordpress.com</p><p style="font-size:12px;color:var(--muted)">© 2025 Tukang Ukur. Seluruh formula dan algoritma berdasarkan standar teknis survey Indonesia.</p></div>';
     return;
   }
+  if(_ppSection==='server'){
+    const cur=localStorage.getItem(SS.ep)||'';
+    body.innerHTML='<div class="pp-section"><button class="ls-back-link" onclick="ppGoMain()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6" stroke-linecap="round"/></svg> Kembali</button><div class="pp-section-title">Server &amp; Sinkronisasi</div></div>'+
+    '<div class="pp-fb">'+
+      '<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Alamat Server API</label>'+
+      '<input id="ppServerInput" type="url" inputmode="url" placeholder="'+DEFAULT_SERVER+'" value="'+escapeHtml(cur)+'" style="width:100%;height:46px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;font-size:14px;font-family:inherit;color:var(--ink);outline:none;background:#f8fafc;box-sizing:border-box">'+
+      '<div class="pp-fb-btns"><button class="cancel" onclick="ppTestServer()">Test Koneksi</button><button class="send" onclick="ppSaveServer()">Simpan</button></div>'+
+      '<div id="ppServerMsg" style="font-size:12px;min-height:16px;margin-top:8px;color:var(--muted)"></div>'+
+      '<p style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:6px">Server digunakan untuk transfer data antara QGIS (kantor) dan aplikasi ini (lapangan), serta login Google/Email. Kosongkan untuk memakai bawaan.</p>'+
+    '</div>';
+    return;
+  }
   // MAIN
   body.innerHTML=
   '<div class="pp-section"><div class="pp-section-title">Pengaturan GPS</div></div>'+
@@ -1656,6 +1680,7 @@ function renderPP(){
   '<div class="pp-section"><div class="pp-section-title">Satuan</div></div>'+
   '<div class="pp-row"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></div><div class="info"><div class="lbl">Satuan Unit</div><div class="sub">Sistem pengukuran</div></div><div class="ctrl"><div class="pp-toggle"><button class="'+(unit==='metric'?'on':'')+'" data-unit="metric" onclick="ppSetUnit(this.dataset.unit,this)">Metrik</button><button class="'+(unit==='imperial'?'on':'')+'" data-unit="imperial" onclick="ppSetUnit(this.dataset.unit,this)">Imperial</button></div></div></div>'+
   '<div class="pp-divider"></div>'+
+  '<button class="pp-row" onclick="ppGoServer()"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="7" rx="2"/><rect x="2" y="13" width="20" height="7" rx="2"/><path d="M6 7.5h.01M6 16.5h.01" stroke-linecap="round"/></svg></div><div class="info"><div class="lbl">Server &amp; Sinkronisasi</div><div class="sub">Endpoint API untuk QGIS &amp; login</div></div><div class="ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round"/></svg></div></button>'+
   '<button class="pp-row" onclick="ppGoFeedback()"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="info"><div class="lbl">Kirim Feedback</div><div class="sub">Saran dan masukan Anda</div></div><div class="ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round"/></svg></div></button>'+
   '<button class="pp-row" onclick="ppGoAbout()"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div class="info"><div class="lbl">Tentang Tukang Ukur</div><div class="sub">Versi aplikasi & informasi</div></div><div class="ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round"/></svg></div></button>'+
   '<div class="pp-divider"></div>'+
@@ -1680,10 +1705,25 @@ function ppSendFeedback(){
   document.getElementById('ppFbText').value='';
   document.getElementById('ppBody').innerHTML='<div style="padding:40px 24px;text-align:center"><div style="font-size:48px;margin-bottom:16px">✅</div><div style="font-family:var(--serif);font-weight:800;font-size:20px;margin-bottom:8px">Terima kasih!</div><p style="color:var(--muted);font-size:14px">Feedback Anda telah diterima dan akan diproses.</p><button onclick="ppGoMain()" style="margin-top:20px;background:var(--blue);color:#fff;border:0;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer">Kembali</button></div>';
 }
-function ppLogout(){
-  const u=getUser();
-  if(!u||u.guest){ closePP(); showLoginScreen(); return; }
-  clearUser(); updateProfileAvatar(); closePP(); showLoginScreen();
+async function ppLogout(){
+  try{ const t=localStorage.getItem(SS.tok); if(t) await fetch(serverUrl()+'/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+t}}); }catch(e){}
+  clearSession(); updateProfileAvatar(); closePP(); _gsiTried=false; showLoginScreen();
+}
+/* ---- Settings: Server & Sinkronisasi ---- */
+function ppGoServer(){ _ppSection='server'; renderPP(); }
+function ppSaveServer(){
+  const v=(document.getElementById('ppServerInput').value||'').trim();
+  setServerUrl(v); _gsiCfg=null; _gsiTried=false;
+  const m=document.getElementById('ppServerMsg'); if(m){ m.style.color='#16a34a'; m.textContent='Tersimpan. Berlaku untuk login & sinkronisasi.'; }
+}
+async function ppTestServer(){
+  const v=(document.getElementById('ppServerInput').value||'').trim().replace(/\/+$/,'')||DEFAULT_SERVER;
+  const m=document.getElementById('ppServerMsg'); if(m){ m.style.color='var(--muted)'; m.textContent='Menghubungi '+v+' …'; }
+  try{
+    const r=await fetch(v+'/auth/config'); if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(m){ m.style.color='#16a34a'; m.textContent='Terhubung ✓ '+(d.google_client_id?'Google aktif':'')+(d.dev_auth?' (mode dev)':''); }
+  }catch(e){ if(m){ m.style.color='#dc2626'; m.textContent='Gagal terhubung: '+(e.message||e); } }
 }
 
 /* =================== PROFILE AVATAR (update) =================== */
