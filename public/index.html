@@ -1513,32 +1513,35 @@ function weatherSvg(kind, size){
 }
 
 /* =================== AUTH / LOGIN =================== */
-/* =================== AUTH (server-backed, satu gerbang) ===================
-   Sesi disimpan pada key svl_* yang SAMA dipakai maps.html, sehingga setelah
-   login di shell, gerbang login internal maps.html otomatis lolos.
-   Server auth+sync diatur di Pengaturan (bukan sebagai gerbang login). */
+/* =================== AUTH (satu gerbang, backend same-origin) ===================
+   LOGIN memakai serverless Vercel di /api (selalu terjangkau, HTTPS, tanpa
+   mixed-content). Sesi disimpan pada key svl_* yang SAMA dipakai maps.html,
+   sehingga gerbang login internal maps.html otomatis lolos.
+   SYNC (svl_endpoint, dipakai maps.html untuk /projects) diatur terpisah di
+   Pengaturan → Server & Sinkronisasi — INDEPENDEN dari login. */
 const SS={tok:'svl_token',email:'svl_email',name:'svl_name',exp:'svl_exp',ep:'svl_endpoint'};
-const DEFAULT_SERVER='http://127.0.0.1:8787'; // ganti di Pengaturan → Server & Sinkronisasi
-let _lsEmail='', _lsStep='choose', _gsiCfg=null, _gsiTried=false;
+const AUTH_BASE='/api';        // endpoint login (serverless same-origin)
+const SYNC_PLACEHOLDER='https://api.perusahaan-anda.com/api/v1';
+let _lsEmail='', _lsStep='choose', _lsTicket='', _gsiCfg=null, _gsiTried=false;
 
-function serverUrl(){ return (localStorage.getItem(SS.ep)||DEFAULT_SERVER).replace(/\/+$/,''); }
+/* Endpoint SYNC (bukan login). Kosong = sync nonaktif sampai diatur di Pengaturan. */
+function serverUrl(){ return (localStorage.getItem(SS.ep)||'').replace(/\/+$/,''); }
 function setServerUrl(v){ localStorage.setItem(SS.ep,(v||'').replace(/\/+$/,'')); }
 function authed(){ const t=localStorage.getItem(SS.tok),x=localStorage.getItem(SS.exp); return !!(t&&x&&new Date(x)>new Date()); }
 function getUser(){ return authed()?{name:localStorage.getItem(SS.name)||localStorage.getItem(SS.email),email:localStorage.getItem(SS.email)}:null; }
-function saveSession(d){ localStorage.setItem(SS.tok,d.token); localStorage.setItem(SS.email,d.email); localStorage.setItem(SS.name,d.name||d.email); localStorage.setItem(SS.exp,d.expires_at);
-  if(!localStorage.getItem(SS.ep)) localStorage.setItem(SS.ep,serverUrl()); /* samakan endpoint sync dgn maps.html */ }
+function saveSession(d){ localStorage.setItem(SS.tok,d.token); localStorage.setItem(SS.email,d.email); localStorage.setItem(SS.name,d.name||d.email); localStorage.setItem(SS.exp,d.expires_at); }
 function clearSession(){ [SS.tok,SS.email,SS.name,SS.exp].forEach(k=>localStorage.removeItem(k)); }
 function clearUser(){ clearSession(); } // kompatibilitas pemanggil lama
 
 function lsMsg(step,text,kind){ const el=document.getElementById('ls-msg-'+step); if(!el)return; el.textContent=text||''; el.style.color=(kind==='err'||!kind&&text)?'#dc2626':'var(--muted)'; }
-function netErr(e){ return /Failed to fetch|NetworkError|ERR_/.test(String(e))?'Server tidak terjangkau. Atur alamat server di Pengaturan → Server & Sinkronisasi.':String(e&&e.message||e); }
+function netErr(e){ return /Failed to fetch|NetworkError|ERR_/.test(String(e))?'Tidak dapat menghubungi server login. Periksa koneksi internet Anda.':String(e&&e.message||e); }
 
 async function checkAuth(){
   if(authed()){
     hideLoginScreen();
     /* validasi sesi ke server bila online; offline = terima cache sampai kedaluwarsa */
     try{
-      const r=await fetch(serverUrl()+'/auth/me',{headers:{'Authorization':'Bearer '+localStorage.getItem(SS.tok)}});
+      const r=await fetch(AUTH_BASE+'/auth/me',{headers:{'Authorization':'Bearer '+localStorage.getItem(SS.tok)}});
       if(r.status===401){ clearSession(); showLoginScreen(); }
     }catch(e){/* offline */}
   }else{
@@ -1566,27 +1569,28 @@ function lsLoadGsiScript(){ return new Promise((res,rej)=>{ if(window.google&&go
 async function lsInitGoogle(){
   if(_gsiTried) return; _gsiTried=true;
   try{
-    const r=await fetch(serverUrl()+'/auth/config'); _gsiCfg=await r.json();
+    const r=await fetch(AUTH_BASE+'/auth/config'); _gsiCfg=await r.json();
     if(!_gsiCfg||!_gsiCfg.google_client_id) return; // biarkan tombol kustom (akan memandu ke Email)
     await lsLoadGsiScript();
     google.accounts.id.initialize({client_id:_gsiCfg.google_client_id, callback:c=>lsOnGoogle(c.credential)});
     const box=document.getElementById('ls-gbtn');
     if(box){ box.innerHTML=''; google.accounts.id.renderButton(box,{theme:'outline',size:'large',width:320,text:'continue_with',shape:'pill'});
       const custom=document.getElementById('ls-gbtn-custom'); if(custom) custom.style.display='none'; }
-  }catch(e){ /* offline / server mati → tombol kustom tetap tampil */ _gsiTried=false; }
+  }catch(e){ /* offline → tombol kustom tetap tampil */ _gsiTried=false; }
 }
 async function lsOnGoogle(idToken){
   lsMsg('choose','Memverifikasi akun Google…','');
   try{
-    const r=await fetch(serverUrl()+'/auth/google',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_token:idToken})});
+    const r=await fetch(AUTH_BASE+'/auth/google',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id_token:idToken})});
     const d=await r.json(); if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
-    _lsEmail=d.email; lsShowCode(d);
+    if(d.token){ saveSession(d); hideLoginScreen(); updateProfileAvatar(); switchTab('maps'); return; } // satu langkah
+    _lsEmail=d.email; if(d.ticket)_lsTicket=d.ticket; lsShowCode(d); // fallback bila server minta OTP
   }catch(e){ lsMsg('choose', netErr(e),'err'); }
 }
 function lsGoogleLogin(){
-  // Dipicu hanya bila tombol resmi Google belum ter-render (server mati / belum ada Client ID)
-  lsMsg('choose','Login Google belum aktif. Pastikan server aktif (Pengaturan) atau gunakan Masuk dengan Email.','err');
-  lsInitGoogle();
+  // Dipicu hanya bila tombol resmi Google belum ter-render (offline / Client ID belum ada)
+  lsMsg('choose','Login Google belum siap. Periksa koneksi, atau gunakan Masuk dengan Email.','err');
+  _gsiTried=false; lsInitGoogle();
 }
 
 /* ---- Email OTP ---- */
@@ -1597,15 +1601,15 @@ async function lsSendCode(){
   const active=_lsStep==='code'?'code':'email';
   lsMsg(active,'Mengirim kode…','');
   try{
-    const r=await fetch(serverUrl()+'/auth/email-otp/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const r=await fetch(AUTH_BASE+'/auth/email-otp/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
     const d=await r.json(); if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
-    lsShowCode(d);
+    _lsTicket=d.ticket||''; lsShowCode(d);
   }catch(e){ lsMsg(active, netErr(e),'err'); }
 }
 function lsShowCode(d){
   lsGoStep('code');
   const inp=document.getElementById('ls-code-input'); if(inp) inp.value=d&&d.dev_code||'';
-  document.getElementById('ls-code-sub').innerHTML='Kode 6 digit dikirim ke <b>'+escapeHtml(_lsEmail)+'</b>'+((d&&d.via)==='console'?' (mode dev — lihat konsol server).':'. Cek folder spam bila tidak ada.');
+  document.getElementById('ls-code-sub').innerHTML='Kode 6 digit dikirim ke <b>'+escapeHtml(_lsEmail)+'</b>'+((d&&d.via)==='console'?' (mode uji — belum ada layanan email).':'. Cek folder spam bila tidak ada.');
   lsMsg('code','','');
   setTimeout(()=>{ if(inp) inp.focus(); },60);
 }
@@ -1614,7 +1618,7 @@ async function lsVerifyCode(){
   if(code.length!==6){ lsMsg('code','Masukkan 6 digit kode.','err'); return; }
   lsMsg('code','Memeriksa kode…','');
   try{
-    const r=await fetch(serverUrl()+'/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_lsEmail,code,device:navigator.userAgent.slice(0,110)})});
+    const r=await fetch(AUTH_BASE+'/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_lsEmail,code,ticket:_lsTicket,device:navigator.userAgent.slice(0,110)})});
     const d=await r.json(); if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
     saveSession(d); hideLoginScreen(); updateProfileAvatar();
     switchTab('maps'); // default setelah login: halaman Maps pengukuran
@@ -1665,7 +1669,7 @@ function renderPP(){
     body.innerHTML='<div class="pp-section"><button class="ls-back-link" onclick="ppGoMain()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6" stroke-linecap="round"/></svg> Kembali</button><div class="pp-section-title">Server &amp; Sinkronisasi</div></div>'+
     '<div class="pp-fb">'+
       '<label style="display:block;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Alamat Server API</label>'+
-      '<input id="ppServerInput" type="url" inputmode="url" placeholder="'+DEFAULT_SERVER+'" value="'+escapeHtml(cur)+'" style="width:100%;height:46px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;font-size:14px;font-family:inherit;color:var(--ink);outline:none;background:#f8fafc;box-sizing:border-box">'+
+      '<input id="ppServerInput" type="url" inputmode="url" placeholder="'+SYNC_PLACEHOLDER+'" value="'+escapeHtml(cur)+'" style="width:100%;height:46px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;font-size:14px;font-family:inherit;color:var(--ink);outline:none;background:#f8fafc;box-sizing:border-box">'+
       '<div class="pp-fb-btns"><button class="cancel" onclick="ppTestServer()">Test Koneksi</button><button class="send" onclick="ppSaveServer()">Simpan</button></div>'+
       '<div id="ppServerMsg" style="font-size:12px;min-height:16px;margin-top:8px;color:var(--muted)"></div>'+
       '<p style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:6px">Server digunakan untuk transfer data antara QGIS (kantor) dan aplikasi ini (lapangan), serta login Google/Email. Kosongkan untuk memakai bawaan.</p>'+
@@ -1706,24 +1710,26 @@ function ppSendFeedback(){
   document.getElementById('ppBody').innerHTML='<div style="padding:40px 24px;text-align:center"><div style="font-size:48px;margin-bottom:16px">✅</div><div style="font-family:var(--serif);font-weight:800;font-size:20px;margin-bottom:8px">Terima kasih!</div><p style="color:var(--muted);font-size:14px">Feedback Anda telah diterima dan akan diproses.</p><button onclick="ppGoMain()" style="margin-top:20px;background:var(--blue);color:#fff;border:0;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer">Kembali</button></div>';
 }
 async function ppLogout(){
-  try{ const t=localStorage.getItem(SS.tok); if(t) await fetch(serverUrl()+'/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+t}}); }catch(e){}
+  try{ const t=localStorage.getItem(SS.tok); if(t) await fetch(AUTH_BASE+'/auth/logout',{method:'POST',headers:{'Authorization':'Bearer '+t}}); }catch(e){}
   clearSession(); updateProfileAvatar(); closePP(); _gsiTried=false; showLoginScreen();
 }
-/* ---- Settings: Server & Sinkronisasi ---- */
+/* ---- Settings: Server & Sinkronisasi (endpoint SYNC untuk maps.html ↔ QGIS; BUKAN login) ---- */
 function ppGoServer(){ _ppSection='server'; renderPP(); }
 function ppSaveServer(){
   const v=(document.getElementById('ppServerInput').value||'').trim();
-  setServerUrl(v); _gsiCfg=null; _gsiTried=false;
-  const m=document.getElementById('ppServerMsg'); if(m){ m.style.color='#16a34a'; m.textContent='Tersimpan. Berlaku untuk login & sinkronisasi.'; }
+  setServerUrl(v);
+  const m=document.getElementById('ppServerMsg'); if(m){ m.style.color='#16a34a'; m.textContent=v?'Tersimpan. Berlaku untuk sinkronisasi data (QGIS).':'Dikosongkan — sinkronisasi nonaktif.'; }
 }
 async function ppTestServer(){
-  const v=(document.getElementById('ppServerInput').value||'').trim().replace(/\/+$/,'')||DEFAULT_SERVER;
-  const m=document.getElementById('ppServerMsg'); if(m){ m.style.color='var(--muted)'; m.textContent='Menghubungi '+v+' …'; }
+  const v=(document.getElementById('ppServerInput').value||'').trim().replace(/\/+$/,'');
+  const m=document.getElementById('ppServerMsg'); if(!m)return;
+  if(!v){ m.style.color='#dc2626'; m.textContent='Isi alamat server sinkronisasi dulu.'; return; }
+  m.style.color='var(--muted)'; m.textContent='Menghubungi '+v+' …';
   try{
     const r=await fetch(v+'/auth/config'); if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
-    if(m){ m.style.color='#16a34a'; m.textContent='Terhubung ✓ '+(d.google_client_id?'Google aktif':'')+(d.dev_auth?' (mode dev)':''); }
-  }catch(e){ if(m){ m.style.color='#dc2626'; m.textContent='Gagal terhubung: '+(e.message||e); } }
+    m.style.color='#16a34a'; m.textContent='Terhubung ✓ '+(d.google_client_id?'Google aktif':'')+(d.dev_auth?' (mode dev)':'');
+  }catch(e){ m.style.color='#dc2626'; m.textContent='Gagal terhubung: '+(e.message||e); }
 }
 
 /* =================== PROFILE AVATAR (update) =================== */
