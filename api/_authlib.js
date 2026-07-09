@@ -5,8 +5,11 @@ import crypto from 'crypto';
 
 const SECRET = process.env.AUTH_SECRET || 'dev-insecure-secret-change-me';
 
+// Client ID Google bersifat PUBLIK (sudah tampil di HTML) → fallback aman agar
+// login Google jalan tanpa perlu set env. Override via GOOGLE_CLIENT_ID bila perlu.
+const DEFAULT_GOOGLE_CLIENT_ID = '218183840130-qu372farj02hik2o7gu4250b5k1nk8d5.apps.googleusercontent.com';
 export const CFG = {
-  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  googleClientId: process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID,
   devAuth: String(process.env.DEV_AUTH || '').toLowerCase() === 'true',
   sessionDays: parseInt(process.env.SESSION_DAYS || '30', 10),
   adminEmails: split(process.env.ADMIN_EMAILS),
