@@ -1,0 +1,8 @@
+{
+  "port": 8787,
+  "dev_auth": true,
+  "google_client_id": "218183840130-qu372farj02hik2o7gu4250b5k1nk8d5.apps.googleusercontent.com",
+  "session_days": 30,
+  "allowed_emails": [],
+  "admin_emails": ["nugrahaegi00@gmail.com"]
+}

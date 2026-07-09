@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Tukang Ngukur</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1220;color:#e6edf7;font:14px/1.5 system-ui,Segoe UI,sans-serif;min-height:100vh}
+.wrap{max-width:1000px;margin:0 auto;padding:24px 16px}
+h1{font-size:20px;margin:0}
+h2{font-size:15px;margin:26px 0 10px;color:#bcd0ea}
+.sub{color:#8ea0b8;font-size:12px;margin:4px 0 0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.badge{background:#16233d;border:1px solid #2a3a5f;border-radius:999px;padding:5px 12px;font-size:12px;color:#bcd0ea}
+button{background:#3b82f6;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer}
+button.ghost{background:#16233d;border:1px solid #2a3a5f;color:#bcd0ea}
+button:disabled{opacity:.5;cursor:wait}
+table{width:100%;border-collapse:collapse;background:#0e1830;border:1px solid #22314f;border-radius:10px;overflow:hidden;font-size:13px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid #1c2a47;vertical-align:top}
+th{background:#131f38;color:#8ea0b8;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+tr:last-child td{border-bottom:0}
+td .dev{color:#8ea0b8;font-size:11px;word-break:break-all}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:7px}
+.empty{color:#8ea0b8;padding:18px;text-align:center}
+.tblwrap{overflow-x:auto}
+.err{color:#ff6b6b;font-size:12px;min-height:16px;margin-top:10px}
+/* kartu login */
+.card{max-width:400px;margin:9vh auto 0;background:#0e1830;border:1px solid #22314f;border-radius:14px;padding:26px}
+.card label{display:block;font-size:12px;color:#8ea0b8;margin:14px 0 4px}
+.card input{width:100%;background:#0b1220;border:1px solid #2a3a5f;color:#e6edf7;border-radius:8px;padding:10px 12px;font-size:14px}
+.card button{width:100%;margin-top:14px;padding:11px}
+.code{letter-spacing:.5em;text-align:center;font-size:22px;font-weight:800}
+#gbtn{display:flex;justify-content:center;margin-top:16px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.stat{flex:1;min-width:140px;background:#0e1830;border:1px solid #22314f;border-radius:10px;padding:12px 14px}
+.stat b{display:block;font-size:22px}
+.stat span{color:#8ea0b8;font-size:11px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const app=$('app');
+const LS='adm_token';
+let cfg=null,pendingEmail='';
+
+function fmt(iso){try{return new Date(iso).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return iso||'-'}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function api(path,opt){
+  opt=opt||{};opt.headers=Object.assign({'Content-Type':'application/json'},opt.headers||{});
+  const t=localStorage.getItem(LS);if(t)opt.headers['Authorization']='Bearer '+t;
+  const r=await fetch(path,opt);const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw Object.assign(new Error(d.error||('HTTP '+r.status)),{status:r.status});
+  return d;
+}
+
+/* ---------- LOGIN ---------- */
+function viewLogin(msg){
+  app.innerHTML=`<div class="card"><h1>🔐 Admin — Tukang Ngukur</h1>
+    <p class="sub">Masuk dengan email yang terdaftar di <b>admin_emails</b> (server/config.json).</p>
+    <div id="gbtn"></div>
+    ${cfg&&cfg.dev_auth?'<label>MODE DEV — email langsung</label><input id="devEmail" placeholder="nama@contoh.com"><button id="devGo">Login Dev</button>':''}
+    <div class="err">${esc(msg||'')}</div></div>`;
+  if(cfg&&cfg.dev_auth)$('devGo').onclick=()=>{const em=$('devEmail').value.trim();if(em)sendGoogle('dev:'+em+':'+em.split('@')[0])};
+  if(cfg&&cfg.google_client_id){
+    const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.async=true;
+    s.onload=()=>{google.accounts.id.initialize({client_id:cfg.google_client_id,callback:c=>sendGoogle(c.credential)});
+      google.accounts.id.renderButton($('gbtn'),{theme:'filled_blue',size:'large',width:320})};
+    document.head.appendChild(s);
+  }
+}
+async function sendGoogle(idToken){
+  try{
+    const d=await api('/auth/google',{method:'POST',body:JSON.stringify({id_token:idToken})});
+    pendingEmail=d.email;viewCode(d);
+  }catch(e){viewLogin(e.message)}
+}
+function viewCode(d){
+  app.innerHTML=`<div class="card"><h1>Kode Verifikasi</h1>
+    <p class="sub">Kode dikirim untuk <b>${esc(pendingEmail)}</b>${d.via==='console'?' — lihat konsol server':''}.</p>
+    <label>Kode 6 digit</label><input id="code" class="code" maxlength="6" inputmode="numeric" ${d.dev_code?('value="'+d.dev_code+'"'):''}>
+    <button id="go">Verifikasi &amp; Masuk</button><div class="err"></div></div>`;
+  $('go').onclick=async()=>{
+    try{
+      const v=await api('/auth/verify',{method:'POST',body:JSON.stringify({email:pendingEmail,code:$('code').value.trim(),device:'admin-panel'})});
+      localStorage.setItem(LS,v.token);load();
+    }catch(e){app.querySelector('.err').textContent=e.message}
+  };
+}
+
+/* ---------- DASHBOARD ---------- */
+function rowsActive(list){
+  if(!list.length)return'<tr><td colspan="4" class="empty">Belum ada sesi aktif</td></tr>';
+  return list.map(s=>`<tr><td><span class="dot"></span>${esc(s.email)}</td><td>${esc(s.name)}</td>
+    <td>${fmt(s.created_at)}<div class="dev">${esc(s.device)}</div></td><td>${fmt(s.expires_at)}</td></tr>`).join('');
+}
+function rowsHist(list){
+  if(!list.length)return'<tr><td colspan="4" class="empty">Belum ada riwayat login</td></tr>';
+  return list.map(l=>`<tr><td>${fmt(l.at)}</td><td>${esc(l.email)}</td><td>${esc(l.name)}</td>
+    <td>${esc(l.ip)}<div class="dev">${esc(l.device)}</div></td></tr>`).join('');
+}
+function viewDash(me,d){
+  const uniq=new Set(d.history.map(x=>x.email));
+  app.innerHTML=`<div class="wrap">
+    <div class="top"><div><h1>📐 Admin — Tukang Ngukur</h1><p class="sub">Pemantauan login aplikasi</p></div>
+      <div><span class="badge">👤 ${esc(me.email)}</span>
+      <button class="ghost" id="rf">↻ Muat ulang</button>
+      <button class="ghost" id="lo">Keluar</button></div></div>
+    <div class="stats">
+      <div class="stat"><b>${d.active_sessions.length}</b><span>Sesi aktif</span></div>
+      <div class="stat"><b>${uniq.size}</b><span>Pengguna berbeda</span></div>
+      <div class="stat"><b>${d.history.length}</b><span>Total login tercatat</span></div>
+    </div>
+    <h2>Sesi aktif (sedang login)</h2>
+    <div class="tblwrap"><table><thead><tr><th>Email</th><th>Nama</th><th>Login</th><th>Kedaluwarsa</th></tr></thead>
+    <tbody>${rowsActive(d.active_sessions)}</tbody></table></div>
+    <h2>Riwayat login (terbaru di atas)</h2>
+    <div class="tblwrap"><table><thead><tr><th>Waktu</th><th>Email</th><th>Nama</th><th>IP / Perangkat</th></tr></thead>
+    <tbody>${rowsHist(d.history)}</tbody></table></div>
+    <p class="sub" style="margin-top:14px">Data dari server/data/logins.json &amp; sessions.json • otomatis dimuat ulang tiap 30 detik</p>
+  </div>`;
+  $('rf').onclick=load;
+  $('lo').onclick=async()=>{try{await api('/auth/logout',{method:'POST'})}catch(e){}localStorage.removeItem(LS);load()};
+}
+
+/* ---------- BOOT ---------- */
+let timer=null;
+async function load(){
+  clearTimeout(timer);
+  try{cfg=await api('/auth/config')}catch(e){app.innerHTML='<div class="card"><h1>Server tidak terjangkau</h1><p class="sub">'+esc(e.message)+'</p></div>';return}
+  if(!localStorage.getItem(LS))return viewLogin();
+  try{
+    const me=await api('/auth/me');
+    const d=await api('/admin/logins');
+    viewDash(me,d);
+    timer=setTimeout(load,30000);
+  }catch(e){
+    if(e.status===401){localStorage.removeItem(LS);return viewLogin('Sesi berakhir — silakan login lagi.')}
+    if(e.status===403)return viewLogin(e.message);
+    app.innerHTML='<div class="card"><h1>Gagal memuat</h1><p class="sub">'+esc(e.message)+'</p></div>';
+  }
+}
+load();
+</script>
+</body>
+</html>

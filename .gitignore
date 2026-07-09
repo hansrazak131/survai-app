@@ -1,1 +1,6 @@
 .vercel
+# Runtime auth data (live session tokens & login history) — jangan pernah di-commit
+server/data/
+# Backup file lokal
+*.bak-before-autosync
+*.bak

@@ -5,6 +5,7 @@
   "description": "Tukang Ngukur — SurvAI: aplikasi survey profesional (PWA).",
   "scripts": {
     "dev": "vercel dev",
-    "start": "vercel dev"
+    "start": "vercel dev",
+    "server": "node server/server.js"
   }
 }
