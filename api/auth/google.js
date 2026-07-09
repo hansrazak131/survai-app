@@ -1,5 +1,6 @@
 // POST /api/auth/google {id_token} → sesi langsung (satu langkah, tanpa OTP).
 import { CFG, cors, readBody, verifyGoogleToken, emailAllowed, makeSession } from '../_authlib.js';
+import { registerAccount, MAX_ACCOUNTS } from '../_limits.js';
 export default async function handler(req, res) {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -16,5 +17,7 @@ export default async function handler(req, res) {
   }
   if (!who.email) return res.status(400).json({ error: 'Akun Google tanpa email' });
   if (!emailAllowed(who.email)) return res.status(403).json({ error: 'Email tidak terdaftar — hubungi admin' });
+  const reg = await registerAccount(who.email);
+  if (!reg.ok) return res.status(403).json({ error: 'Kuota pengguna penuh (maks ' + MAX_ACCOUNTS + '). Hubungi admin.' });
   return res.status(200).json(makeSession(who.email, who.name));
 }
