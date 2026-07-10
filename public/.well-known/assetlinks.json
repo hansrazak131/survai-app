@@ -1,10 +1,22 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "id.tukangngukur.app",
-    "sha256_cert_fingerprints": [
-      "50:DF:5E:39:1D:D3:AF:BA:F8:3D:02:48:17:93:B0:28:9C:41:8C:9F:45:0C:A2:E0:23:17:1C:1B:D8:9C:7A:23"
-    ]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "id.tukangngukur.app",
+      "sha256_cert_fingerprints": [
+        "63:DC:76:11:03:D5:78:80:40:51:3F:5B:5B:E4:4C:8B:F5:39:99:5E:5F:44:33:75:35:AA:49:D6:3B:55:E1:2A"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.tukang_ub9z.twa",
+      "sha256_cert_fingerprints": [
+        "63:DC:76:11:03:D5:78:80:40:51:3F:5B:5B:E4:4C:8B:F5:39:99:5E:5F:44:33:75:35:AA:49:D6:3B:55:E1:2A"
+      ]
+    }
   }
-}]
+]
