@@ -26,5 +26,7 @@ export async function kvIncrTtl(key, ttlSec) {
   return n;
 }
 export async function kvSAdd(set, member) { return cmd(['SADD', set, member]); }
+export async function kvSRem(set, member) { return cmd(['SREM', set, member]); }
 export async function kvSCard(set) { return cmd(['SCARD', set]); }
 export async function kvSIsMember(set, member) { return cmd(['SISMEMBER', set, member]); }
+export async function kvDel(key) { return cmd(['DEL', key]); }

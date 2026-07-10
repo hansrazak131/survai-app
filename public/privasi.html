@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kebijakan Privasi — Tukang Ngukur</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#17365f;--blue:#2563eb;--ink:#0f172a;--muted:#475569;--line:#e2e8f0;--bg:#f8fafc;--card:#fff;
+--serif:'Noto Serif',Georgia,serif;--sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.65;font-size:15.5px;}
+.wrap{max-width:760px;margin:0 auto;padding:28px 20px 80px;}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.logo{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,var(--navy),var(--blue));display:grid;place-items:center;flex:0 0 auto;}
+.logo svg{color:#fff;}
+.top h1{font-family:var(--serif);font-size:22px;margin:0;line-height:1.1;}
+.top .sub{font-size:12.5px;color:var(--muted);}
+h2{font-family:var(--serif);font-size:19px;margin:30px 0 8px;}
+h3{font-size:16px;margin:20px 0 6px;}
+p,li{color:#1e293b;}
+a{color:var(--blue);}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+.eff{font-size:13px;color:var(--muted);margin-top:2px;}
+ul{padding-left:20px;margin:6px 0;}
+li{margin:5px 0;}
+.tag{display:inline-block;background:#eef2f9;color:var(--navy);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700;margin-right:6px;}
+.note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;font-size:14px;color:#1e40af;margin:12px 0;}
+.foot{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--blue);text-decoration:none;font-weight:600;font-size:14px;margin-bottom:20px;}
+table{width:100%;border-collapse:collapse;margin:8px 0;font-size:14px;}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top;}
+th{background:#f1f5f9;font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Kembali ke aplikasi</a>
+  <div class="top">
+    <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8l4 2.5v5L12 18l-4-2.5V10.5z"/></svg></div>
+    <div>
+      <h1>Kebijakan Privasi</h1>
+      <div class="sub">Tukang Ngukur — Aplikasi Survey Profesional</div>
+    </div>
+  </div>
+  <div class="eff">Berlaku efektif: 10 Juli 2026 · Terakhir diperbarui: 10 Juli 2026</div>
+
+  <div class="card">
+    <p>Kebijakan ini menjelaskan bagaimana aplikasi <b>Tukang Ngukur</b> ("Aplikasi", "kami") mengumpulkan, menggunakan, menyimpan, dan melindungi data Anda. Dengan menggunakan Aplikasi, Anda menyetujui praktik yang diuraikan di sini.</p>
+  </div>
+
+  <h2>1. Data yang Kami Kumpulkan</h2>
+  <div class="card">
+    <h3>a. Data akun (autentikasi)</h3>
+    <p>Saat Anda masuk, kami memproses <b>alamat email</b> dan <b>nama</b> Anda — diperoleh melalui Google Sign-In atau verifikasi kode (OTP) email. Data ini digunakan untuk mengenali akun Anda, mengamankan sesi, dan mencegah penyalahgunaan (batas kuota pengguna).</p>
+    <h3>b. Data survei (dibuat oleh Anda)</h3>
+    <p>Koordinat titik, foto, catatan, dan atribut pengukuran yang Anda buat <b>disimpan secara lokal di perangkat Anda</b> (penyimpanan aplikasi/IndexedDB). Data ini <b>hanya dikirim ke server</b> apabila Anda secara sengaja mengatur "Server &amp; Sinkronisasi" untuk integrasi dengan perangkat lunak kantor (mis. QGIS). Tanpa pengaturan itu, data survei tidak pernah meninggalkan perangkat.</p>
+    <h3>c. Lokasi (GPS)</h3>
+    <p>Aplikasi mengakses lokasi perangkat untuk menampilkan posisi Anda di peta dan melakukan pengukuran lapangan. Pemrosesan lokasi dilakukan di perangkat; lokasi tidak dikirim ke server kami kecuali menjadi bagian dari data survei yang Anda sinkronkan.</p>
+    <h3>d. Cuaca</h3>
+    <p>Untuk menampilkan ramalan cuaca lapangan, koordinat perkiraan Anda dikirim ke layanan cuaca pihak ketiga (Open-Meteo).</p>
+  </div>
+
+  <h2>2. Bagaimana Data Digunakan</h2>
+  <div class="card">
+    <ul>
+      <li>Memberikan akses masuk dan menjaga keamanan akun Anda.</li>
+      <li>Menyimpan dan menampilkan data pengukuran Anda.</li>
+      <li>Menyinkronkan data ke server pilihan Anda (opsional).</li>
+      <li>Mencegah spam/penyalahgunaan (pembatasan laju pengiriman kode).</li>
+    </ul>
+    <p>Kami <b>tidak menjual</b> data pribadi Anda dan <b>tidak</b> menggunakannya untuk iklan.</p>
+  </div>
+
+  <h2>3. Layanan Pihak Ketiga</h2>
+  <div class="card">
+    <p>Aplikasi menggunakan penyedia berikut untuk berfungsi:</p>
+    <table>
+      <tr><th>Layanan</th><th>Tujuan</th></tr>
+      <tr><td>Google Sign-In</td><td>Autentikasi login</td></tr>
+      <tr><td>Resend</td><td>Pengiriman email kode verifikasi (OTP)</td></tr>
+      <tr><td>Vercel</td><td>Hosting aplikasi &amp; server</td></tr>
+      <tr><td>Upstash (Redis)</td><td>Pembatasan laju &amp; kuota pengguna</td></tr>
+      <tr><td>Open-Meteo</td><td>Data ramalan cuaca</td></tr>
+      <tr><td>Penyedia peta (OpenStreetMap/Esri)</td><td>Menampilkan peta dasar</td></tr>
+    </table>
+    <p>Masing-masing memproses data sesuai kebijakan privasi mereka sendiri.</p>
+  </div>
+
+  <h2>4. Penyimpanan &amp; Retensi</h2>
+  <div class="card">
+    <ul>
+      <li><b>Di server kami</b>: hanya email Anda (untuk kuota &amp; keamanan) dan sesi login sementara. Kami tidak menyimpan foto atau data survei di server kami kecuali Anda menyinkronkannya ke server yang Anda atur sendiri.</li>
+      <li><b>Di perangkat Anda</b>: data survei dan sesi login disimpan lokal hingga Anda menghapusnya atau menghapus akun.</li>
+    </ul>
+  </div>
+
+  <h2>5. Hak Anda &amp; Penghapusan Data</h2>
+  <div class="card">
+    <p>Anda dapat menghapus akun dan seluruh data kapan saja:</p>
+    <ul>
+      <li><b>Melalui aplikasi:</b> buka <b>Profil → Hapus Akun</b>. Ini menghapus akun Anda dari server kami dan seluruh data lokal di perangkat.</li>
+      <li><b>Melalui web:</b> lihat halaman <a href="/hapus-akun.html">Hapus Akun &amp; Data</a>.</li>
+      <li><b>Melalui email:</b> kirim permintaan ke <a href="mailto:egi.geomatika@gmail.com">egi.geomatika@gmail.com</a>.</li>
+    </ul>
+    <div class="note">Menghapus akun bersifat permanen: email Anda dihapus dari daftar pengguna kami, dan data survei di perangkat ini akan dihapus.</div>
+  </div>
+
+  <h2>6. Keamanan</h2>
+  <div class="card">
+    <p>Koneksi menggunakan HTTPS terenkripsi. Token sesi ditandatangani secara kriptografis. Kode verifikasi email hanya berlaku 10 menit dan dibatasi jumlah percobaannya.</p>
+  </div>
+
+  <h2>7. Anak-anak</h2>
+  <div class="card">
+    <p>Aplikasi ditujukan untuk penggunaan profesional (survei/pengukuran) dan tidak ditujukan bagi anak di bawah 13 tahun.</p>
+  </div>
+
+  <h2>8. Perubahan</h2>
+  <div class="card">
+    <p>Kebijakan ini dapat diperbarui sewaktu-waktu. Perubahan penting akan ditandai dengan pembaruan tanggal di atas.</p>
+  </div>
+
+  <h2>9. Kontak</h2>
+  <div class="card">
+    <p>Pertanyaan tentang privasi atau permintaan data:</p>
+    <p><b>Egi Nugraha, S.T.</b><br>
+    📧 <a href="mailto:egi.geomatika@gmail.com">egi.geomatika@gmail.com</a><br>
+    🌐 <a href="https://tukangngukur.my.id">tukangngukur.my.id</a></p>
+  </div>
+
+  <div class="foot">© 2026 Tukang Ngukur. Seluruh hak cipta dilindungi.</div>
+</div>
+</body>
+</html>

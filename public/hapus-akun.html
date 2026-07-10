@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hapus Akun &amp; Data — Tukang Ngukur</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#17365f;--blue:#2563eb;--ink:#0f172a;--muted:#475569;--line:#e2e8f0;--bg:#f8fafc;--card:#fff;--red:#dc2626;
+--serif:'Noto Serif',Georgia,serif;--sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.6;font-size:15.5px;}
+.wrap{max-width:620px;margin:0 auto;padding:28px 20px 80px;}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.logo{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,var(--navy),var(--blue));display:grid;place-items:center;flex:0 0 auto;}
+.logo svg{color:#fff;}
+.top h1{font-family:var(--serif);font-size:22px;margin:0;line-height:1.1;}
+.top .sub{font-size:12.5px;color:var(--muted);}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--blue);text-decoration:none;font-weight:600;font-size:14px;margin-bottom:20px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+h2{font-family:var(--serif);font-size:18px;margin:0 0 10px;}
+ul{padding-left:20px;margin:8px 0;}li{margin:5px 0;}
+.warn{background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 14px;font-size:14px;color:#991b1b;margin:10px 0;}
+label{display:block;font-size:12px;font-weight:700;letter-spacing:.3px;color:var(--muted);text-transform:uppercase;margin:12px 0 6px;}
+input{width:100%;height:48px;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;background:var(--bg);}
+input:focus{border-color:var(--blue);}
+.code-inp{letter-spacing:.5em;text-align:center;font-weight:700;font-size:20px;}
+button{width:100%;height:48px;border:0;border-radius:12px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:14px;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-ghost{background:var(--bg);color:var(--muted);border:1px solid var(--line);}
+.btn-red:active,.btn-ghost:active{opacity:.85;}
+.msg{font-size:13.5px;min-height:18px;margin-top:10px;text-align:center;}
+.step{display:none;}.step.active{display:block;}
+.ok{text-align:center;padding:10px 0;}
+.ok .ic{width:64px;height:64px;border-radius:50%;background:#dcfce7;color:#16a34a;display:grid;place-items:center;margin:6px auto 12px;}
+a{color:var(--blue);}
+.hint{font-size:12.5px;color:var(--muted);margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Kembali ke aplikasi</a>
+  <div class="top">
+    <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8l4 2.5v5L12 18l-4-2.5V10.5z"/></svg></div>
+    <div>
+      <h1>Hapus Akun &amp; Data</h1>
+      <div class="sub">Tukang Ngukur</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Apa yang dihapus</h2>
+    <ul>
+      <li>Akun Anda (alamat email) dari server kami — slot kuota dibebaskan.</li>
+      <li>Sesi login dan data pembatasan laju terkait email Anda.</li>
+      <li>Data survei &amp; sesi yang tersimpan lokal di peramban/perangkat ini (bila Anda melakukannya dari perangkat yang sama).</li>
+    </ul>
+    <div class="warn"><b>Permanen.</b> Tindakan ini tidak dapat dibatalkan.</div>
+    <p class="hint">Cara tercepat: buka aplikasi → <b>Profil → Hapus Akun</b>. Atau gunakan formulir di bawah untuk menghapus akun tanpa membuka aplikasi.</p>
+  </div>
+
+  <div class="card">
+    <!-- STEP 1: email -->
+    <div class="step active" id="s-email">
+      <h2>Verifikasi kepemilikan email</h2>
+      <label>Alamat Email Akun</label>
+      <input type="email" id="email" placeholder="nama@email.com" autocomplete="email" inputmode="email">
+      <button class="btn-red" onclick="sendCode()" id="btnSend">Kirim Kode Verifikasi</button>
+      <div class="msg" id="msg1"></div>
+    </div>
+
+    <!-- STEP 2: code -->
+    <div class="step" id="s-code">
+      <h2>Masukkan kode</h2>
+      <p class="hint" id="codeSub">Kode 6 digit dikirim ke email Anda.</p>
+      <label>Kode Verifikasi</label>
+      <input type="text" id="code" class="code-inp" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="••••••">
+      <button class="btn-red" onclick="doDelete()" id="btnDel">Verifikasi &amp; Hapus Akun Permanen</button>
+      <button class="btn-ghost" onclick="back()">Batal</button>
+      <div class="msg" id="msg2"></div>
+    </div>
+
+    <!-- STEP 3: done -->
+    <div class="step" id="s-done">
+      <div class="ok">
+        <div class="ic"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <h2>Akun Dihapus</h2>
+        <p>Akun dan data Anda telah dihapus. Terima kasih telah menggunakan Tukang Ngukur.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="hint">Butuh bantuan? Kirim permintaan penghapusan ke <a href="mailto:egi.geomatika@gmail.com">egi.geomatika@gmail.com</a>. Lihat juga <a href="/privasi.html">Kebijakan Privasi</a>.</p>
+  </div>
+</div>
+
+<script>
+const API='/api';
+let _ticket='', _email='', _token='';
+function show(step){document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));document.getElementById(step).classList.add('active');}
+function back(){show('s-email');}
+async function sendCode(){
+  const email=(document.getElementById('email').value||'').trim().toLowerCase();
+  const m=document.getElementById('msg1');
+  if(!email||!email.includes('@')){m.style.color='#dc2626';m.textContent='Masukkan email yang valid.';return;}
+  _email=email;m.style.color='#475569';m.textContent='Mengirim kode…';
+  const b=document.getElementById('btnSend');b.disabled=true;
+  try{
+    const r=await fetch(API+'/auth/email-otp/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    _ticket=d.ticket||'';
+    document.getElementById('codeSub').innerHTML='Kode 6 digit dikirim ke <b>'+email+'</b>. Cek folder spam bila tak ada.';
+    show('s-code');document.getElementById('code').focus();
+  }catch(e){m.style.color='#dc2626';m.textContent=String(e.message||e);}
+  b.disabled=false;
+}
+async function doDelete(){
+  const code=(document.getElementById('code').value||'').trim();
+  const m=document.getElementById('msg2');
+  if(code.length!==6){m.style.color='#dc2626';m.textContent='Masukkan 6 digit kode.';return;}
+  m.style.color='#475569';m.textContent='Memverifikasi & menghapus…';
+  const b=document.getElementById('btnDel');b.disabled=true;
+  try{
+    const r=await fetch(API+'/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_email,code,ticket:_ticket})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||('HTTP '+r.status));
+    _token=d.token;
+    const r2=await fetch(API+'/auth/delete-account',{method:'POST',headers:{'Authorization':'Bearer '+_token}});
+    const d2=await r2.json();if(!r2.ok)throw new Error(d2.error||('HTTP '+r2.status));
+    // bersihkan data lokal di peramban ini
+    try{Object.keys(localStorage).filter(k=>/^(svl_|survai_)/.test(k)).forEach(k=>localStorage.removeItem(k));}catch(e){}
+    try{if(indexedDB.databases){(await indexedDB.databases()).forEach(x=>x.name&&indexedDB.deleteDatabase(x.name));}}catch(e){}
+    show('s-done');
+  }catch(e){m.style.color='#dc2626';m.textContent=String(e.message||e);b.disabled=false;}
+}
+</script>
+</body>
+</html>

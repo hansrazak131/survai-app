@@ -1687,8 +1687,20 @@ function renderPP(){
   '<button class="pp-row" onclick="ppGoServer()"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="7" rx="2"/><rect x="2" y="13" width="20" height="7" rx="2"/><path d="M6 7.5h.01M6 16.5h.01" stroke-linecap="round"/></svg></div><div class="info"><div class="lbl">Server &amp; Sinkronisasi</div><div class="sub">Endpoint API untuk QGIS &amp; login</div></div><div class="ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round"/></svg></div></button>'+
   '<button class="pp-row" onclick="ppGoFeedback()"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="info"><div class="lbl">Kirim Feedback</div><div class="sub">Saran dan masukan Anda</div></div><div class="ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round"/></svg></div></button>'+
   '<button class="pp-row" onclick="ppGoAbout()"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div><div class="info"><div class="lbl">Tentang Tukang Ukur</div><div class="sub">Versi aplikasi & informasi</div></div><div class="ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round"/></svg></div></button>'+
+  '<button class="pp-row" onclick="window.open(\'/privasi.html\',\'_blank\')"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="info"><div class="lbl">Kebijakan Privasi</div><div class="sub">Cara data Anda digunakan &amp; dilindungi</div></div><div class="ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6" stroke-linecap="round"/></svg></div></button>'+
   '<div class="pp-divider"></div>'+
-  '<div class="pp-footer"><button class="pp-logout" onclick="ppLogout()">'+(isGuest?'Masuk / Daftar Akun':'Keluar dari Akun')+'</button></div>';
+  '<div class="pp-footer"><button class="pp-logout" onclick="ppLogout()">Keluar dari Akun</button>'+
+  '<button onclick="ppDeleteAccount()" style="width:100%;height:44px;border:0;border-radius:13px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;background:transparent;color:#dc2626;margin-top:8px">Hapus Akun</button></div>';
+}
+async function ppDeleteAccount(){
+  if(!confirm('Hapus akun secara PERMANEN?\n\n• Akun (email) Anda dihapus dari server.\n• Data survei & pengaturan di perangkat ini dihapus.\n• Anda akan keluar dari akun.\n\nTindakan ini tidak dapat dibatalkan.')) return;
+  if(!confirm('Yakin? Ketuk OK sekali lagi untuk menghapus akun & semua data.')) return;
+  try{ const t=localStorage.getItem(SS.tok); if(t) await fetch(AUTH_BASE+'/auth/delete-account',{method:'POST',headers:{'Authorization':'Bearer '+t}}); }catch(e){}
+  // hapus data lokal (sesi + pengaturan + data survei)
+  try{ Object.keys(localStorage).filter(k=>/^(svl_|survai_)/.test(k)).forEach(k=>localStorage.removeItem(k)); }catch(e){}
+  try{ if(indexedDB.databases){ (await indexedDB.databases()).forEach(x=>x.name&&indexedDB.deleteDatabase(x.name)); } }catch(e){}
+  clearSession(); closePP(); updateProfileAvatar(); _gsiTried=false; showLoginScreen();
+  alert('Akun & data lokal telah dihapus.');
 }
 function ppSetGpsInterval(val){
   localStorage.setItem('survai_gps_interval', val);
