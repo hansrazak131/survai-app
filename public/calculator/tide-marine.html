@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Tide & Marine — Tukang Ukur</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --navy:#1E3A5F; --blue:#2563eb; --blue2:#3B82F6; --blue-ink:#094cb2; --sky:#60A5FA;
+  --amber:#F59E0B; --amber2:#d97706; --teal:#14b8a6;
+  --bg:#0b1220; --card:#fff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+  --ok:#22c55e; --warn:#eab308; --bad:#ef4444;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;background:#0b1220;color:var(--ink);font-family:var(--sans);}
+button{font-family:inherit;cursor:pointer;border:0;background:none;}
+h1,h2,h3{margin:0;}
+.scrollhide::-webkit-scrollbar{display:none;} .scrollhide{scrollbar-width:none;}
+
+/* ---- Phone frame ---- */
+#app{max-width:460px;margin:0 auto;height:100dvh;background:#fff;position:relative;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px rgba(0,0,0,.4);}
+
+/* ---- Header ---- */
+#head{flex:none;transition:background .3s;}
+#head.dark{background:var(--navy);}
+.hrow{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 6px;}
+.loc{display:flex;align-items:center;gap:6px;font-weight:800;font-size:17px;color:var(--ink);}
+#head.dark .loc{color:#fff;}
+.loc svg{width:18px;height:18px;stroke:var(--blue2);}
+#head.dark .loc svg{stroke:#9dc0ff;}
+.hbtn{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#f1f5f9;color:var(--muted);}
+#head.dark .hbtn{background:rgba(255,255,255,.12);color:#dbeafe;}
+.hbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;}
+/* date strip */
+.dates{display:flex;gap:6px;padding:4px 12px 12px;overflow-x:auto;}
+.dchip{flex:0 0 auto;min-width:46px;height:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);background:transparent;transition:.15s;}
+#head.dark .dchip{color:#c7d6ea;}
+.dchip b{font-size:15px;line-height:1;} .dchip span{font-size:10.5px;margin-top:3px;}
+.dchip.on{background:var(--blue);color:#fff !important;box-shadow:0 6px 14px rgba(37,99,235,.35);transform:scale(1.04);}
+.dchip.on span{color:#dbeafe !important;}
+
+/* ---- Tab body ---- */
+#body{flex:1;overflow:hidden;position:relative;}
+.pane{position:absolute;inset:0;overflow-y:auto;display:none;}
+.pane.on{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+/* ---- Bottom nav ---- */
+#nav{flex:none;height:60px;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);}
+.nbtn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;color:#94a3b8;}
+.nbtn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.6;}
+.nbtn span{font-size:9.5px;font-weight:600;}
+.nbtn.on{color:var(--blue);} .nbtn.on svg{stroke-width:2.3;}
+.nbtn.on::before{content:"";position:absolute;top:0;width:30px;height:3px;border-radius:3px;background:var(--blue);}
+
+/* ---- Cards / generic ---- */
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 1px 3px rgba(15,23,42,.05);}
+.mini{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px 12px;box-shadow:0 1px 2px rgba(15,23,42,.04);}
+.lbl{font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#94a3b8;text-transform:uppercase;}
+.val{font-size:15px;font-weight:800;color:#1e293b;margin-top:3px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:700;background:#f1f5f9;color:#64748b;}
+.pill.on{background:var(--blue);color:#fff;}
+.sec-t{font-size:16px;font-weight:800;color:#1e293b;}
+.up{color:var(--ok);} .down{color:var(--bad);}
+.loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#fff;z-index:20;color:var(--muted);font-size:13px;font-weight:600;}
+.spin{width:34px;height:34px;border:3px solid #e2e8f0;border-top-color:var(--blue);border-radius:50%;animation:sp 1s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.err{margin:14px;padding:12px 14px;border-radius:12px;background:#fef2f2;color:#b91c1c;font-size:12.5px;font-weight:600;line-height:1.5;}
+.na{color:#cbd5e1;font-weight:800;}
+
+/* ---- Location search sheet ---- */
+#searchWrap{position:absolute;inset:0;background:rgba(15,23,42,.4);z-index:40;display:none;align-items:flex-start;}
+#searchWrap.on{display:flex;}
+#searchCard{width:100%;background:#fff;border-radius:0 0 22px 22px;padding:14px 16px 18px;animation:drop .25s ease;}
+@keyframes drop{from{transform:translateY(-16px);opacity:.5;}to{transform:none;opacity:1;}}
+#searchIn{width:100%;height:46px;border:1.5px solid var(--line);border-radius:13px;padding:0 14px;font-size:15px;font-family:inherit;outline:none;}
+#searchIn:focus{border-color:var(--blue);}
+.sres{padding:12px 8px;border-bottom:1px solid #f1f5f9;font-size:14px;display:flex;justify-content:space-between;gap:8px;}
+.sres b{font-weight:700;color:#1e293b;} .sres small{color:#94a3b8;font-size:11px;}
+
+/* ---- Rain radar overlay (reference-styled) ---- */
+#radar{position:absolute;inset:0;z-index:60;display:none;flex-direction:column;background:#0d1b2a;}
+#radar.on{display:flex;}
+#rmap{position:absolute;inset:0;}
+.leaflet-container{background:#0d1b2a;}
+#radar .rtop{position:absolute;top:0;left:0;right:0;z-index:500;padding:10px 12px calc(env(safe-area-inset-top) + 4px);background:linear-gradient(#0009,transparent);pointer-events:none;}
+.legend{display:flex;gap:6px;background:#ffffffee;border-radius:12px;padding:7px 9px;box-shadow:0 4px 12px rgba(0,0,0,.2);}
+.lgi{flex:1;text-align:center;} .lgi .bar{height:6px;border-radius:3px;} .lgi small{font-size:8px;font-weight:800;letter-spacing:1px;color:#475569;}
+.lg-rain{background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);}
+.lg-ice{background:linear-gradient(90deg,#a78bfa,#7c3aed);}
+.lg-mix{background:linear-gradient(90deg,#ec4899,#be185d);}
+.lg-snow{background:linear-gradient(90deg,#67e8f9,#0e7490);}
+.rpill{position:absolute;top:calc(env(safe-area-inset-top) + 52px);left:50%;transform:translateX(-50%);z-index:500;display:flex;align-items:center;gap:8px;background:#1e293bdd;color:#fff;padding:9px 16px;border-radius:14px;font-weight:800;font-size:15px;box-shadow:0 6px 16px rgba(0,0,0,.35);}
+.rpill svg{width:16px;height:16px;}
+.rback{position:absolute;top:calc(env(safe-area-inset-top) + 8px);left:12px;z-index:500;width:38px;height:38px;border-radius:12px;background:#1e293bdd;color:#fff;display:grid;place-items:center;}
+.rback svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2;}
+.rlayers{position:absolute;right:12px;bottom:158px;z-index:500;width:44px;height:44px;border-radius:13px;background:#1e293bdd;color:#fff;display:grid;place-items:center;box-shadow:0 6px 16px rgba(0,0,0,.35);}
+.rlayers svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.8;}
+.rsheet{position:absolute;left:0;right:0;bottom:0;z-index:500;background:#fff;border-radius:22px 22px 0 0;padding:12px 16px calc(env(safe-area-inset-bottom) + 14px);box-shadow:0 -8px 24px rgba(0,0,0,.25);}
+.rsheet .grab{width:38px;height:4px;background:#e2e8f0;border-radius:3px;margin:0 auto 12px;}
+.rsheet .rr1{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.rtime{font-size:17px;font-weight:800;color:#1e293b;}
+.rhrs{background:#f1f5f9;color:#475569;font-weight:700;font-size:12px;padding:7px 12px;border-radius:12px;display:flex;gap:6px;align-items:center;}
+.rr2{display:flex;align-items:center;gap:12px;}
+.rplay{width:46px;height:46px;border-radius:50%;background:#f1f5f9;display:grid;place-items:center;flex:none;}
+.rplay svg{width:20px;height:20px;fill:#334155;}
+#rslider{flex:1;-webkit-appearance:none;height:5px;border-radius:3px;background:#e2e8f0;outline:none;}
+#rslider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #94a3b8;box-shadow:0 2px 6px rgba(0,0,0,.2);}
+.rticks{display:flex;justify-content:space-between;padding:6px 52px 0;font-size:10px;color:#94a3b8;font-weight:600;}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <div id="head" class="dark">
+    <div class="hrow">
+      <button class="loc" id="locBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <span id="locName">Jakarta</span>
+      </button>
+      <button class="hbtn" id="gpsBtn" title="Lokasi saya">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+      </button>
+    </div>
+    <div class="dates scrollhide" id="dates"></div>
+  </div>
+
+  <!-- Body -->
+  <div id="body">
+    <div class="loading" id="loading"><div class="spin"></div><div id="loadMsg">Mengambil data laut & cuaca…</div></div>
+    <div class="pane" id="pane-fish"></div>
+    <div class="pane" id="pane-tides"></div>
+    <div class="pane" id="pane-waves"></div>
+    <div class="pane" id="pane-weather"></div>
+    <div class="pane" id="pane-solunar"></div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div id="nav">
+    <button class="nbtn" data-tab="fish"><svg viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/><path d="M16.5 4.5c-4 0-7 3-9 7.5 2 4.5 5 7.5 9 7.5"/></svg><span>Fish Activity</span></button>
+    <button class="nbtn" data-tab="tides"><svg viewBox="0 0 24 24"><path d="M2 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M2 17c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/></svg><span>Tides</span></button>
+    <button class="nbtn" data-tab="waves"><svg viewBox="0 0 24 24"><path d="M2 6c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M2 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M2 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/></svg><span>Waves</span></button>
+    <button class="nbtn" data-tab="weather"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/></svg><span>Weather</span></button>
+    <button class="nbtn" data-tab="solunar"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Solunar</span></button>
+  </div>
+
+  <!-- Location search -->
+  <div id="searchWrap"><div id="searchCard">
+    <input id="searchIn" type="text" placeholder="Cari kota / lokasi pesisir…" autocomplete="off">
+    <div id="searchRes"></div>
+  </div></div>
+
+  <!-- Rain radar overlay -->
+  <div id="radar">
+    <div id="rmap"></div>
+    <div class="rtop">
+      <div class="legend">
+        <div class="lgi"><div class="bar lg-rain"></div><small>RAIN</small></div>
+        <div class="lgi"><div class="bar lg-ice"></div><small>ICE</small></div>
+        <div class="lgi"><div class="bar lg-mix"></div><small>MIX</small></div>
+        <div class="lgi"><div class="bar lg-snow"></div><small>SNOW</small></div>
+      </div>
+    </div>
+    <button class="rback" id="rback"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <div class="rpill" id="rpill"><span id="rpillIcon"></span><span id="rpillName">Jakarta</span></div>
+    <button class="rlayers" id="rlayers" title="Ganti basemap"><svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg></button>
+    <div class="rsheet">
+      <div class="grab"></div>
+      <div class="rr1"><div class="rtime" id="rtime">—</div><div class="rhrs"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="rspan">Radar</span></div></div>
+      <div class="rr2">
+        <button class="rplay" id="rplay"><svg viewBox="0 0 24 24" id="rplayIco"><path d="M8 5v14l11-7z"/></svg></button>
+        <input id="rslider" type="range" min="0" max="0" value="0">
+      </div>
+      <div class="rticks" id="rticks"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ============================================================================
+   Tide & Marine — data real: Open-Meteo (cuaca+laut), RainViewer (radar),
+   SunCalc embedded (solunar/bulan). Semua metrik aktual, tanpa mock.
+   ============================================================================ */
+
+/* ---------- SunCalc (MIT, Vladimir Agafonkin) — compact ---------- */
+var SunCalc=(function(){
+var PI=Math.PI,rad=PI/180,dayMs=864e5,J1970=2440588,J2000=2451545;
+function toJulian(d){return d.valueOf()/dayMs-0.5+J1970;}
+function fromJulian(j){return new Date((j+0.5-J1970)*dayMs);}
+function toDays(d){return toJulian(d)-J2000;}
+var e=rad*23.4397;
+function rightAscension(l,b){return Math.atan2(Math.sin(l)*Math.cos(e)-Math.tan(b)*Math.sin(e),Math.cos(l));}
+function declination(l,b){return Math.asin(Math.sin(b)*Math.cos(e)+Math.cos(b)*Math.sin(e)*Math.sin(l));}
+function azimuth(H,phi,dec){return Math.atan2(Math.sin(H),Math.cos(H)*Math.sin(phi)-Math.tan(dec)*Math.cos(phi));}
+function altitude(H,phi,dec){return Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(H));}
+function siderealTime(d,lw){return rad*(280.16+360.9856235*d)-lw;}
+function solarMeanAnomaly(d){return rad*(357.5291+0.98560028*d);}
+function eclipticLongitude(M){var C=rad*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M)),P=rad*102.9372;return M+C+P+PI;}
+function sunCoords(d){var M=solarMeanAnomaly(d),L=eclipticLongitude(M);return{dec:declination(L,0),ra:rightAscension(L,0)};}
+var SC={};
+SC.getPosition=function(date,lat,lng){var lw=rad*-lng,phi=rad*lat,d=toDays(date),c=sunCoords(d),H=siderealTime(d,lw)-c.ra;return{azimuth:azimuth(H,phi,c.dec),altitude:altitude(H,phi,c.dec)};};
+var times=[[-0.833,'sunrise','sunset'],[-0.3,'sunriseEnd','sunsetStart'],[-6,'dawn','dusk'],[-12,'nauticalDawn','nauticalDusk'],[-18,'nightEnd','night'],[6,'goldenHourEnd','goldenHour']];
+function julianCycle(d,lw){return Math.round(d-0.0009-lw/(2*PI));}
+function approxTransit(Ht,lw,n){return 0.0009+(Ht+lw)/(2*PI)+n;}
+function solarTransitJ(ds,M,L){return J2000+ds+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);}
+function hourAngle(h,phi,d){return Math.acos((Math.sin(h)-Math.sin(phi)*Math.sin(d))/(Math.cos(phi)*Math.cos(d)));}
+function getSetJ(h,lw,phi,dec,n,M,L){var w=hourAngle(h,phi,dec),a=approxTransit(w,lw,n);return solarTransitJ(a,M,L);}
+SC.getTimes=function(date,lat,lng){var lw=rad*-lng,phi=rad*lat,d=toDays(date),n=julianCycle(d,lw),ds=approxTransit(0,lw,n),M=solarMeanAnomaly(ds),L=eclipticLongitude(M),dec=declination(L,0),Jnoon=solarTransitJ(ds,M,L),i,len,time,Jset,Jrise,result={solarNoon:fromJulian(Jnoon),nadir:fromJulian(Jnoon-0.5)};for(i=0,len=times.length;i<len;i+=1){time=times[i];Jset=getSetJ(time[0]*rad,lw,phi,dec,n,M,L);Jrise=Jnoon-(Jset-Jnoon);result[time[1]]=fromJulian(Jrise);result[time[2]]=fromJulian(Jset);}return result;};
+function moonCoords(d){var L=rad*(218.316+13.176396*d),M=rad*(134.963+13.064993*d),F=rad*(93.272+13.229350*d),l=L+rad*6.289*Math.sin(M),b=rad*5.128*Math.sin(F),dt=385001-20905*Math.cos(M);return{ra:rightAscension(l,b),dec:declination(l,b),dist:dt};}
+SC.getMoonPosition=function(date,lat,lng){var lw=rad*-lng,phi=rad*lat,d=toDays(date),c=moonCoords(d),H=siderealTime(d,lw)-c.ra,h=altitude(H,phi,c.dec),pa=Math.atan2(Math.sin(H),Math.tan(phi)*Math.cos(c.dec)-Math.sin(c.dec)*Math.cos(H));h=h+rad*0.017/Math.tan(h+rad*10.26/(h+rad*5.10));return{azimuth:azimuth(H,phi,c.dec),altitude:h,distance:c.dist,parallacticAngle:pa};};
+SC.getMoonIllumination=function(date){var d=toDays(date||new Date()),s=sunCoords(d),m=moonCoords(d),sdist=149598000,phi=Math.acos(Math.sin(s.dec)*Math.sin(m.dec)+Math.cos(s.dec)*Math.cos(m.dec)*Math.cos(s.ra-m.ra)),inc=Math.atan2(sdist*Math.sin(phi),m.dist-sdist*Math.cos(phi)),angle=Math.atan2(Math.cos(s.dec)*Math.sin(s.ra-m.ra),Math.sin(s.dec)*Math.cos(m.dec)-Math.cos(s.dec)*Math.sin(m.dec)*Math.cos(s.ra-m.ra));return{fraction:(1+Math.cos(inc))/2,phase:0.5+0.5*inc*(angle<0?-1:1)/Math.PI,angle:angle};};
+function hoursLater(date,h){return new Date(date.valueOf()+h*dayMs/24);}
+SC.getMoonTimes=function(date,lat,lng){var t=new Date(date);t.setHours(0,0,0,0);var hc=0.133*rad,h0=SC.getMoonPosition(t,lat,lng).altitude-hc,rise,set,ye,d,roots,x1,x2,xe,h1,h2;for(var i=1;i<=24;i+=2){h1=SC.getMoonPosition(hoursLater(t,i),lat,lng).altitude-hc;h2=SC.getMoonPosition(hoursLater(t,i+1),lat,lng).altitude-hc;var a=(h0+h2)/2-h1,b=(h2-h0)/2;xe=-b/(2*a);ye=(a*xe+b)*xe+h1;d=b*b-4*a*h1;roots=0;if(d>=0){var dx=Math.sqrt(d)/(Math.abs(a)*2);x1=xe-dx;x2=xe+dx;if(Math.abs(x1)<=1)roots++;if(Math.abs(x2)<=1)roots++;if(x1<-1)x1=x2;}if(roots===1){if(h0<0)rise=i+x1;else set=i+x1;}else if(roots===2){rise=i+(ye<0?x2:x1);set=i+(ye<0?x1:x2);}if(rise&&set)break;h0=h2;}var r={};if(rise)r.rise=hoursLater(t,rise);if(set)r.set=hoursLater(t,set);if(!rise&&!set)r[ye>0?'alwaysUp':'alwaysDown']=true;return r;};
+return SC;})();
+
+/* ---------- Utilities ---------- */
+var $=function(s,r){return (r||document).querySelector(s);};
+var TZ='Asia/Jakarta';
+function fmtTime(date){ if(!date||isNaN(date))return '—'; try{return date.toLocaleTimeString('en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'});}catch(e){return date.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});} }
+function fmtHM(hours){ var h=Math.floor(hours), m=Math.round((hours-h)*60); return h+' j '+m+' mnt'; }
+function compass(deg){ if(deg==null)return '—'; var d=['U','UTL','TL','TTL','T','TTG','TG','STG','S','SBD','BD','BBD','B','BBL','BL','UBL']; return d[Math.round(((deg%360)/22.5))%16]; }
+function hlab(h){ h=((h%24)+24)%24; var ap=h<12?'AM':'PM'; var h12=h%12; if(h12===0)h12=12; return h12+' '+ap; }
+function num(v,dec,unit){ if(v==null||isNaN(v))return '<span class="na">—</span>'; return v.toFixed(dec)+(unit?' '+unit:''); }
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+/* WMO weather codes -> label + emoji */
+function wmo(c){
+  var m={0:['Cerah','☀️'],1:['Cerah Berawan','🌤️'],2:['Berawan Sebagian','⛅'],3:['Mendung','☁️'],
+  45:['Berkabut','🌫️'],48:['Kabut Beku','🌫️'],51:['Gerimis Ringan','🌦️'],53:['Gerimis','🌦️'],55:['Gerimis Lebat','🌧️'],
+  61:['Hujan Ringan','🌦️'],63:['Hujan','🌧️'],65:['Hujan Lebat','🌧️'],66:['Hujan Beku','🌧️'],67:['Hujan Beku','🌧️'],
+  71:['Salju Ringan','🌨️'],73:['Salju','🌨️'],75:['Salju Lebat','❄️'],77:['Butiran Salju','❄️'],
+  80:['Hujan Lokal','🌦️'],81:['Hujan Lokal','🌧️'],82:['Hujan Deras','⛈️'],85:['Hujan Salju','🌨️'],86:['Hujan Salju','🌨️'],
+  95:['Badai Petir','⛈️'],96:['Badai Es','⛈️'],99:['Badai Es','⛈️']};
+  return m[c]||['—','🌡️'];
+}
+
+/* ---------- SVG smooth chart ---------- */
+function smoothPath(pts){
+  if(pts.length<2)return '';
+  var d='M'+pts[0].x+','+pts[0].y;
+  for(var i=0;i<pts.length-1;i++){
+    var p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+    var c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
+    var c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
+    d+=' C'+c1x+','+c1y+' '+c2x+','+c2y+' '+p2.x+','+p2.y;
+  }
+  return d;
+}
+function chart(o){
+  // o:{vals,w,h,color,fillTop,fillBot,labels,labStep,mark,yMin,yMax,grad,dashed,white,
+  //    yTicks,yUnit,yDec,vGrid,gridCol,yBands,axis}
+  var w=o.w,h=o.h,pad=o.pad||{t:14,r:o.yTicks?38:12,b:22,l:o.yBands?8:10};
+  var vals=o.vals.map(function(v){return v==null?null:v;});
+  var real=vals.filter(function(v){return v!=null;});
+  if(!real.length) return '<svg width="'+w+'" height="'+h+'" style="width:100%;height:auto;display:block"></svg>';
+  var mn=(o.yMin!=null)?o.yMin:Math.min.apply(null,real), mx=(o.yMax!=null)?o.yMax:Math.max.apply(null,real);
+  if(mx-mn<1e-6){mx=mn+1;} var rng=mx-mn;
+  var iw=w-pad.l-pad.r, ih=h-pad.t-pad.b;
+  var pts=[]; for(var i=0;i<vals.length;i++){ if(vals[i]==null)continue; pts.push({x:pad.l+iw*i/(vals.length-1), y:pad.t+ih*(1-(vals[i]-mn)/rng), i:i, v:vals[i]}); }
+  if(!pts.length) return '<svg width="'+w+'" height="'+h+'" style="width:100%;height:auto;display:block"></svg>';
+  var id='g'+Math.random().toString(36).slice(2,7);
+  var line=smoothPath(pts);
+  var area=line+' L'+pts[pts.length-1].x+','+(pad.t+ih)+' L'+pts[0].x+','+(pad.t+ih)+' Z';
+  var stroke=o.color||'#2563EB';
+  var gcol=o.gridCol||'#e2e8f0';
+  var s='<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="width:100%;height:auto;display:block" preserveAspectRatio="xMidYMid meet">';
+  s+='<defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+(o.fillTop||stroke)+'" stop-opacity="'+(o.fillA0!=null?o.fillA0:0.22)+'"/><stop offset="1" stop-color="'+(o.fillBot||stroke)+'" stop-opacity="0.02"/></linearGradient></defs>';
+  // vertical dashed gridlines at labeled positions
+  var lcv=o.labels||[];
+  if(o.vGrid){ for(var g=0;g<lcv.length;g++){ if(!lcv[g])continue; var gx=pad.l+iw*g/(lcv.length-1); s+='<line x1="'+gx+'" y1="'+pad.t+'" x2="'+gx+'" y2="'+(pad.t+ih)+'" stroke="'+gcol+'" stroke-width="1" stroke-dasharray="3 4"/>'; } }
+  // horizontal ticks + value labels (right side)
+  if(o.yTicks){ for(var q=0;q<o.yTicks;q++){ var fq=q/(o.yTicks-1); var yy=pad.t+ih*(1-fq); var fv=mn+rng*fq;
+    s+='<line x1="'+pad.l+'" y1="'+yy+'" x2="'+(pad.l+iw)+'" y2="'+yy+'" stroke="'+gcol+'" stroke-width="1"/>';
+    s+='<text x="'+(w-2)+'" y="'+(yy+3.5)+'" font-size="10" fill="'+(o.axis||'#94a3b8')+'" text-anchor="end" font-family="Inter">'+fv.toFixed(o.yDec!=null?o.yDec:1)+(o.yUnit||'')+'</text>'; } }
+  // level bands (HIGH/MEDIUM/LOW)
+  if(o.yBands){ o.yBands.forEach(function(b){ s+='<text x="'+pad.l+'" y="'+(pad.t+ih*b.f)+'" font-size="9" letter-spacing="1" font-weight="700" fill="'+(o.axis||'#94a3b8')+'" font-family="Inter">'+b.t+'</text>'; }); }
+  s+='<path d="'+area+'" fill="url(#'+id+')"/>';
+  s+='<path d="'+line+'" fill="none" stroke="'+stroke+'" stroke-width="'+(o.sw||2.4)+'" stroke-linecap="round" stroke-linejoin="round"'+(o.dashed?' stroke-dasharray="5 5"':'')+'/>';
+  if(o.mark!=null){ var mp=pts.find(function(p){return p.i===o.mark;}); if(mp){ s+='<circle cx="'+mp.x+'" cy="'+mp.y+'" r="5.5" fill="#fff" stroke="'+stroke+'" stroke-width="2.5"/>'; } }
+  // x labels
+  var lc=o.labels||[];
+  for(var j=0;j<lc.length;j++){ if(o.labStep&&(j%o.labStep!==0))continue; var lx=pad.l+iw*j/(lc.length-1); s+='<text x="'+lx+'" y="'+(h-6)+'" font-size="10" fill="'+(o.axis||'#94a3b8')+'" text-anchor="middle" font-family="Inter">'+lc[j]+'</text>'; }
+  s+='</svg>';
+  return s;
+}
+
+/* ---------- State ---------- */
+var LOC={lat:-6.2088,lon:106.8456,name:'Jakarta'};
+try{var sv=JSON.parse(localStorage.getItem('tm_loc_v1')); if(sv&&sv.lat){LOC=sv;}}catch(e){}
+var STATE={tab:'fish',day:0,wx:null,mar:null,days:[]};
+
+/* ---------- Fetch ---------- */
+function api(u){ return fetch(u).then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); }); }
+function loadAll(){
+  var ld=$('#loading');
+  ld.innerHTML='<div class="spin"></div><div id="loadMsg"></div>'; // rebuild (error state replaces it)
+  ld.style.display='flex';
+  $('#loadMsg').textContent='Mengambil data laut & cuaca untuk '+LOC.name+'…';
+  $('#locName').textContent=LOC.name; $('#rpillName').textContent=LOC.name;
+  loadBMKG(); loadRadarFrame();
+  var wxU='https://api.open-meteo.com/v1/forecast?latitude='+LOC.lat+'&longitude='+LOC.lon+
+    '&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,surface_pressure,weather_code,wind_speed_10m,wind_direction_10m,is_day,cloud_cover'+
+    '&hourly=temperature_2m,precipitation,precipitation_probability,uv_index,wind_speed_10m,relative_humidity_2m,surface_pressure'+
+    '&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,uv_index_max&timezone=auto&forecast_days=7';
+  Promise.all([ api(wxU), marineWithFallback() ]).then(function(res){
+    STATE.wx=res[0]; STATE.mar=res[1]; TZ=res[0].timezone||TZ;
+    buildDays(); buildDateStrip(); renderAll();
+    $('#loading').style.display='none';
+  }).catch(function(err){
+    $('#loading').innerHTML='<div class="err">Gagal memuat data: '+err.message+'.<br>Periksa koneksi internet lalu coba lagi.</div><button class="pill on" onclick="loadAll()" style="margin-top:6px">Coba lagi</button>';
+  });
+}
+
+/* ---------- Marine dengan fallback sel laut terdekat (ala Garmin) ---------- */
+function marineUrl(lat,lon){
+  return 'https://marine-api.open-meteo.com/v1/marine?latitude='+lat+'&longitude='+lon+
+    '&current=wave_height,wave_direction,wave_period,sea_surface_temperature,ocean_current_velocity,ocean_current_direction'+
+    '&hourly=sea_level_height_msl,wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_period,swell_wave_direction,wind_wave_height,wind_wave_period,ocean_current_velocity,ocean_current_direction,sea_surface_temperature&timezone=auto&forecast_days=7&cell_selection=sea';
+}
+function marineWithFallback(){
+  STATE.marPt=null;
+  return api(marineUrl(LOC.lat,LOC.lon)).then(function(m){
+    var wv=m&&m.hourly&&m.hourly.wave_height;
+    if(wv&&wv.some(function(v){return v!=null;})) return m;
+    // grid gelombang tak menjangkau titik ini (teluk/daratan) — probe cincin 8 arah × 3 radius, ambil sel laut terdekat
+    var cands=[],rads=[0.25,0.5,0.85];
+    rads.forEach(function(rr){ for(var k=0;k<8;k++){ var a=k*Math.PI/4;
+      cands.push({lat:LOC.lat+rr*Math.cos(a), lon:LOC.lon+rr*Math.sin(a)/Math.cos(LOC.lat*Math.PI/180), r:rr}); } });
+    var u='https://marine-api.open-meteo.com/v1/marine?latitude='+cands.map(function(c){return c.lat.toFixed(3);}).join(',')+
+      '&longitude='+cands.map(function(c){return c.lon.toFixed(3);}).join(',')+'&hourly=wave_height&forecast_days=1';
+    return api(u).then(function(list){
+      if(!Array.isArray(list))list=[list];
+      var best=null;
+      for(var i=0;i<list.length&&!best;i++){ var hh=list[i].hourly&&list[i].hourly.wave_height; if(hh&&hh[12]!=null)best=cands[i]; }
+      if(!best) return m; // tetap pakai data pasut titik asli
+      STATE.marPt=best;
+      return api(marineUrl(best.lat.toFixed(3),best.lon.toFixed(3))).then(function(m2){
+        // pasut tetap dari titik asli bila tersedia (lebih representatif utk pantai setempat)
+        var sl=m&&m.hourly&&m.hourly.sea_level_height_msl;
+        if(sl&&sl.some(function(v){return v!=null;})) m2.hourly.sea_level_height_msl=sl;
+        return m2;
+      });
+    }).catch(function(){ return m; });
+  }).catch(function(){ return null; });
+}
+
+/* ---------- BMKG resmi (prakiraan per-desa, CORS terbuka) ---------- */
+function nearestAdm(list){
+  var best=null,bd=1e18;
+  (list||[]).forEach(function(a){ if(a.lat==null||a.lon==null)return;
+    var dx=a.lat-LOC.lat, dy=(a.lon-LOC.lon)*Math.cos(LOC.lat*Math.PI/180), q=dx*dx+dy*dy;
+    if(q<bd){bd=q;best=a;} });
+  return best;
+}
+function loadBMKG(){
+  STATE.bmkg=null;
+  // hanya wilayah Indonesia
+  if(LOC.lat<-11.5||LOC.lat>6.5||LOC.lon<94.5||LOC.lon>141.5) return;
+  var B='https://cuaca.bmkg.go.id/api/df/v1/adm/list';
+  api(B).then(function(l){ var a=nearestAdm(l); if(!a)throw new Error('adm1'); return api(B+'?adm1='+a.adm1); })
+  .then(function(l){ var a=nearestAdm(l); if(!a)throw new Error('adm2'); return api(B+'?adm2='+a.adm2); })
+  .then(function(l){ var a=nearestAdm(l); if(!a)throw new Error('adm3'); return api(B+'?adm3='+a.adm3); })
+  .then(function(l){ var a=nearestAdm(l); if(!a)throw new Error('adm4'); return api('https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4='+a.adm4); })
+  .then(function(j){
+    var d0=j.data&&j.data[0]; if(!d0)return;
+    var ents=[]; (d0.cuaca||[]).forEach(function(day){ (day||[]).forEach(function(e){ if(e&&e.local_datetime)ents.push(e); }); });
+    if(!ents.length)return;
+    STATE.bmkg={lok:j.lokasi||{}, entries:ents};
+    if(STATE.days.length) renderWeather(STATE.days[STATE.day]);
+  }).catch(function(){ /* BMKG opsional — Open-Meteo tetap jalan */ });
+}
+/* latest radar frame path for weather-tab thumbnail */
+function loadRadarFrame(){
+  fetch('https://api.rainviewer.com/public/weather-maps.json').then(function(r){return r.json();}).then(function(j){
+    if(j.host)rHost=j.host;
+    var p=(j.radar&&j.radar.past)||[];
+    if(p.length){ STATE.rvPath=p[p.length-1].path; if(STATE.days.length) renderWeather(STATE.days[STATE.day]); }
+  }).catch(function(){});
+}
+function tileXY(lat,lon,z){
+  var n=Math.pow(2,z), x=Math.floor((lon+180)/360*n),
+      lr=lat*Math.PI/180,
+      y=Math.floor((1-Math.log(Math.tan(lr)+1/Math.cos(lr))/Math.PI)/2*n);
+  return {x:clamp(x,0,n-1),y:clamp(y,0,n-1)};
+}
+
+/* ---------- Build per-day structures ---------- */
+function localMidnight(dateStr){ // "2026-07-12" -> Date at local(TZ) midnight approximated for SunCalc (uses noon)
+  var p=dateStr.split('-'); return new Date(Date.UTC(+p[0],+p[1]-1,+p[2],12,0,0)); // noon UTC ~ safe for day-level solar/lunar
+}
+function refineExtremum(arr,i){ // parabolic fit -> fractional hour + interpolated height (presisi menit ala tabel pasut)
+  var y0=arr[i-1],y1=arr[i],y2=arr[i+1];
+  var den=(y0-2*y1+y2), off=den?0.5*(y0-y2)/den:0; off=clamp(off,-0.5,0.5);
+  return {t:i+off, h:y1-0.25*(y0-y2)*off};
+}
+function findExtrema(arr){
+  var hi=[],lo=[];
+  for(var i=1;i<arr.length-1;i++){ if(arr[i]==null||arr[i-1]==null||arr[i+1]==null)continue;
+    if(arr[i]>=arr[i-1]&&arr[i]>arr[i+1])hi.push(refineExtremum(arr,i));
+    if(arr[i]<=arr[i-1]&&arr[i]<arr[i+1])lo.push(refineExtremum(arr,i));
+  } return {hi:hi,lo:lo};
+}
+function buildDays(){
+  var wx=STATE.wx, mar=STATE.mar, days=[];
+  var dt=wx.daily.time; // 7 dates
+  for(var d=0; d<dt.length; d++){
+    var s=d*24, e=s+24;
+    var obj={ date:dt[d], dateObj:localMidnight(dt[d]),
+      tempMax:wx.daily.temperature_2m_max[d], tempMin:wx.daily.temperature_2m_min[d],
+      code:wx.daily.weather_code[d], precipSum:wx.daily.precipitation_sum[d], uvMax:wx.daily.uv_index_max[d],
+      hTemp:wx.hourly.temperature_2m.slice(s,e), hPrecip:wx.hourly.precipitation.slice(s,e),
+      hPop:wx.hourly.precipitation_probability.slice(s,e), hUv:wx.hourly.uv_index.slice(s,e),
+      hWind:wx.hourly.wind_speed_10m.slice(s,e),
+      hHum:(wx.hourly.relative_humidity_2m||[]).slice(s,e), hPress:(wx.hourly.surface_pressure||[]).slice(s,e) };
+    if(mar&&mar.hourly){
+      obj.tide=mar.hourly.sea_level_height_msl.slice(s,e);
+      obj.wave=mar.hourly.wave_height.slice(s,e);
+      obj.waveDir=mar.hourly.wave_direction.slice(s,e);
+      obj.wavePer=mar.hourly.wave_period.slice(s,e);
+      obj.swell=mar.hourly.swell_wave_height.slice(s,e);
+      obj.swellPer=mar.hourly.swell_wave_period.slice(s,e);
+      obj.windWave=mar.hourly.wind_wave_height.slice(s,e);
+      obj.windWavePer=mar.hourly.wind_wave_period.slice(s,e);
+      obj.curVel=mar.hourly.ocean_current_velocity.slice(s,e);
+      obj.curDir=mar.hourly.ocean_current_direction.slice(s,e);
+      obj.sst=mar.hourly.sea_surface_temperature.slice(s,e);
+      var ex=findExtrema(obj.tide); obj.tideHi=ex.hi; obj.tideLo=ex.lo;
+    }
+    // Solunar
+    var sc=solunarFor(obj.dateObj,dt[d]); obj.sol=sc.sol; obj.fish=sc.fish; obj.fishCurve=sc.curve;
+    days.push(obj);
+  }
+  STATE.days=days;
+  // now hour index (today) + fractional hour (for countdown menit-akurat)
+  var t=wx.current.time;
+  STATE.nowHour= t? parseInt(t.slice(11,13),10):12;
+  STATE.nowFrac= t? (STATE.nowHour + (parseInt(t.slice(14,16),10)||0)/60) : 12;
+}
+function dateAt(dateStr,hour){ var p=dateStr.split('-'); // Date whose toLocale in TZ ~ that wall time. Use UTC minus tz offset unknown; approximate with local device but only for SunCalc altitude which needs absolute time.
+  // We build an absolute UTC time equal to wall time minus TZ offset. TZ offset from wx.utc_offset_seconds.
+  var off=STATE.wx.utc_offset_seconds||0;
+  return new Date(Date.UTC(+p[0],+p[1]-1,+p[2],hour,0,0)-off*1000);
+}
+function solunarFor(noonDate,dateStr){
+  var ill=SunCalc.getMoonIllumination(noonDate);
+  var f=ill.fraction, phase=ill.phase;
+  var names=['Bulan Baru','Sabit Awal','Kuartal Awal','Cembung Awal','Purnama','Cembung Akhir','Kuartal Akhir','Sabit Akhir'];
+  var pIdx=Math.round(phase*8)%8;
+  var mp=SunCalc.getMoonPosition(noonDate,LOC.lat,LOC.lon);
+  var mt=SunCalc.getMoonTimes(dateAt(dateStr,0),LOC.lat,LOC.lon);
+  var times=SunCalc.getTimes(noonDate,LOC.lat,LOC.lon);
+  // major windows: lunar transit (overhead) & opposite; minor: moonrise & moonset
+  var riseH=mt.rise?wallHour(mt.rise):null, setH=mt.set?wallHour(mt.set):null;
+  var overhead=(riseH!=null&&setH!=null)?((riseH+setH)/2):(riseH!=null?riseH+6:12);
+  var under=(overhead+12)%24;
+  var centers=[{h:overhead,w:1,maj:true},{h:under,w:1,maj:true}];
+  if(riseH!=null)centers.push({h:riseH,w:0.62,maj:false});
+  if(setH!=null)centers.push({h:setH,w:0.62,maj:false});
+  // activity curve 0-23
+  var curve=[]; for(var h=0;h<24;h++){ var v=8; for(var k=0;k<centers.length;k++){ var dh=Math.min(Math.abs(h-centers[k].h),24-Math.abs(h-centers[k].h)); v+=centers[k].w*88*Math.exp(-(dh*dh)/(2*1.25*1.25)); } curve.push(clamp(Math.round(v),0,100)); }
+  // day score: peaks near new & full moon
+  var dd=Math.min(f,1-f); var score=Math.round(100-(dd/0.5)*42); score=clamp(score,52,99);
+  var win=function(c){ var a=(c-1+24)%24,b=(c+1)%24; return fmtClock(a)+' – '+fmtClock(b); };
+  var minorWin=function(c){ var a=(c-0.5+24)%24,b=(c+0.5)%24; return fmtClock(a)+' – '+fmtClock(b); };
+  var sol={ moonPhase:names[pIdx], illumination:+(f*100).toFixed(1), moonAge:+(phase*29.53).toFixed(1),
+    moonDistance:Math.round(mp.distance), moonAlt:mp.altitude,
+    moonrise:mt.rise?fmtTime(mt.rise):(mt.alwaysUp?'Selalu di atas':'—'),
+    moonset:mt.set?fmtTime(mt.set):(mt.alwaysDown?'Selalu di bawah':'—'),
+    sunrise:fmtTime(times.sunrise), sunset:fmtTime(times.sunset), dawn:fmtTime(times.dawn), dusk:fmtTime(times.dusk),
+    solarNoon:fmtTime(times.solarNoon),
+    dayLenH:(times.sunset-times.sunrise)/3.6e6, majorTimes:[win(overhead),win(under)],
+    minorTimes:[riseH!=null?minorWin(riseH):'—', setH!=null?minorWin(setH):'—'],
+    riseH:riseH,setH:setH,overhead:overhead };
+  sol.nightLenH=24-sol.dayLenH;
+  return {sol:sol,fish:score,curve:curve};
+}
+function wallHour(date){ // fractional wall-clock hour in TZ
+  try{ var s=date.toLocaleTimeString('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false}); var p=s.split(':'); return (+p[0])+(+p[1])/60; }
+  catch(e){ return date.getHours()+date.getMinutes()/60; }
+}
+function fmtClock(h){ var hr=Math.floor(h)%24, mn=Math.round((h-Math.floor(h))*60); if(mn===60){hr=(hr+1)%24;mn=0;} var ap=hr<12?'AM':'PM'; var h12=hr%12; if(h12===0)h12=12; return h12+':'+String(mn).padStart(2,'0')+' '+ap; }
+
+/* ---------- Date strip ---------- */
+var DOW=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+function buildDateStrip(){
+  var el=$('#dates'); el.innerHTML='';
+  STATE.days.forEach(function(d,i){
+    var p=d.date.split('-'); var jd=new Date(Date.UTC(+p[0],+p[1]-1,+p[2])).getUTCDay();
+    var b=document.createElement('button'); b.className='dchip'+(i===STATE.day?' on':'');
+    b.innerHTML='<b>'+(+p[2])+'</b><span>'+(i===0?'Hari ini':DOW[jd])+'</span>';
+    b.onclick=function(){ STATE.day=i; buildDateStrip(); renderAll(); };
+    el.appendChild(b);
+  });
+}
+
+/* ---------- Render dispatcher ---------- */
+function renderAll(){
+  var d=STATE.days[STATE.day];
+  $('#head').classList.toggle('dark', STATE.tab==='fish');
+  renderFish(d); renderTides(d); renderWaves(d); renderWeather(d); renderSolunar(d);
+}
+function setTab(t){
+  STATE.tab=t;
+  document.querySelectorAll('.nbtn').forEach(function(b){ b.classList.toggle('on', b.dataset.tab===t); });
+  document.querySelectorAll('.pane').forEach(function(p){ p.classList.toggle('on', p.id==='pane-'+t); });
+  $('#head').classList.toggle('dark', t==='fish');
+}
+
+/* ---------- FISH ACTIVITY ---------- */
+function renderFish(d){
+  var score=d.fish, seg=72, active=Math.round(score/100*seg), R=58, C=2*Math.PI*R, gap=2, segLen=C/seg-gap;
+  var segs='';
+  for(var i=0;i<seg;i++){ var rot=i*360/seg; segs+='<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+(i<active?'#fff':'rgba(255,255,255,.2)')+'" stroke-width="3" stroke-linecap="round" stroke-dasharray="'+segLen+' '+(C-segLen)+'" transform="rotate('+rot+' 70 70)"/>'; }
+  var stars=score>=90?5:score>=75?4:score>=60?3:score>=45?2:1;
+  var starHtml=''; for(var s=0;s<5;s++){ starHtml+='<svg width="15" height="15" viewBox="0 0 24 24" fill="'+(s<stars?'#facc15':'rgba(255,255,255,.3)')+'" stroke="none"><path d="M12 2l3 6.5 7 .6-5.3 4.6 1.7 6.8L12 17l-6.1 3.6 1.7-6.8L2.3 9.1l7-.6z"/></svg>'; }
+  var lab=score>=90?'Aktivitas ikan sangat tinggi':score>=75?'Aktivitas ikan tinggi':score>=60?'Aktivitas ikan sedang':'Aktivitas ikan rendah';
+  var lab24=[]; for(var h=0;h<24;h++){ lab24.push(h%4===0&&h>0?hlab(h):''); }
+  var ch=chart({vals:d.fishCurve,w:420,h:200,color:'#fff',fillTop:'#fff',fillA0:0.16,sw:2,labels:lab24,axis:'rgba(255,255,255,.65)',yMin:0,yMax:100,mark:STATE.day===0?STATE.nowHour:null,vGrid:true,gridCol:'rgba(255,255,255,.14)',yBands:[{f:0.08,t:'HIGH'},{f:0.5,t:'MEDIUM'},{f:0.95,t:'LOW'}]});
+  $('#pane-fish').innerHTML=
+  '<div style="min-height:100%;background:linear-gradient(180deg,#1E3A5F 0%,#2563EB 55%,#3B82F6 100%);padding:12px 14px 20px;">'+
+    '<div style="display:flex;flex-direction:column;align-items:center;padding:8px 0 4px;">'+
+      '<div style="position:relative;width:170px;height:170px;">'+
+        '<svg viewBox="0 0 140 140" style="width:100%;height:100%;transform:rotate(-90deg)">'+segs+'</svg>'+
+        '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:300;color:#fff;">'+score+'</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:5px;margin-top:8px;">'+starHtml+'</div>'+
+      '<div style="color:#fff;font-size:15px;margin-top:8px;">'+lab+'</div>'+
+    '</div>'+
+    '<div style="margin-top:4px;">'+ch+'</div>'+
+    '<div style="background:rgba(255,255,255,.1);backdrop-filter:blur(6px);border-radius:16px;padding:14px;margin-top:8px;">'+
+      '<div class="grid2" style="gap:16px;">'+
+        '<div><div style="font-size:10.5px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.4px;">PERIODE MAYOR</div>'+
+          d.sol.majorTimes.map(function(t){return '<div style="color:#fff;font-size:13px;font-weight:600;margin-top:5px;">'+t+'</div>';}).join('')+'</div>'+
+        '<div><div style="font-size:10.5px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.4px;">PERIODE MINOR</div>'+
+          d.sol.minorTimes.map(function(t){return '<div style="color:#fff;font-size:13px;font-weight:600;margin-top:5px;">'+t+'</div>';}).join('')+'</div>'+
+      '</div>'+
+      '<div style="color:rgba(255,255,255,.65);font-size:11px;margin-top:12px;line-height:1.5;">Skor solunar dihitung dari fase bulan & waktu transit bulan (overhead/underfoot) untuk '+LOC.name+'. Fase '+d.sol.moonPhase+' · iluminasi '+d.sol.illumination+'%.</div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ---------- TIDES ---------- */
+function renderTides(d){
+  var el=$('#pane-tides');
+  if(!d.tide||d.tide[12]==null){ el.innerHTML=marineNA('pasang surut'); return; }
+  var cur=STATE.day===0?STATE.nowHour:12;
+  var nowF=STATE.day===0?STATE.nowFrac:12;
+  var h0=d.tide[cur];
+  // laju pasut = turunan tinggi air (cm/jam), tanda = naik/surut
+  var i0=Math.max(0,cur-1), i1=Math.min(23,cur+1);
+  var slope=(d.tide[i1]-d.tide[i0])/(i1-i0)*100; // cm/j
+  var rising=slope>=0;
+  var mn=Math.min.apply(null,d.tide), mx=Math.max.apply(null,d.tide), range=mx-mn;
+  // pasang tinggi berikutnya — cari maju lintas hari, presisi menit
+  var nh=null;
+  for(var dd=STATE.day; dd<STATE.days.length&&nh==null; dd++){
+    var dayd=STATE.days[dd]; if(!dayd.tideHi)break;
+    for(var j=0;j<dayd.tideHi.length;j++){
+      var tt=dayd.tideHi[j].t+(dd-STATE.day)*24;
+      if(tt>nowF+0.02){ nh=tt; break; }
+    }
+  }
+  var nextHiStr = nh!=null ? fmtHM(nh-nowF) : '—';
+  var lab24=[]; for(var h=0;h<24;h++){ lab24.push(h%4===0&&h>0?hlab(h):''); }
+  var ch=chart({vals:d.tide,w:430,h:250,color:'#2563EB',fillTop:'#2563EB',labels:lab24,yMin:Math.min(0,mn),mark:cur,yTicks:4,yUnit:'',yDec:1,vGrid:true});
+  function tideList(exs){ return exs.slice(0,3).map(function(o){ return '<div style="font-size:13px;color:#475569;"><b>'+fmtClock(o.t)+'</b> <span style="color:#94a3b8">'+o.h.toFixed(2)+' m</span></div>'; }).join('')||'<span class="na">—</span>'; }
+  el.innerHTML=
+  '<div style="min-height:100%;background:linear-gradient(180deg,#EFF6FF 0%,#fff 180px);padding:12px 14px 20px;">'+
+    '<div>'+ch+'</div>'+
+    '<div class="grid3" style="margin-top:6px;">'+
+      '<div class="mini"><div class="lbl">Pasang Berikut</div><div class="val" style="font-size:13.5px">'+nextHiStr+'</div></div>'+
+      '<div class="mini"><div class="lbl">Tinggi Saat Ini</div><div class="val">'+h0.toFixed(2)+' m</div>'+
+        '<div style="display:flex;align-items:center;gap:3px;margin-top:2px;" class="'+(rising?'up':'down')+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transform:rotate('+(rising?0:180)+'deg)"><path d="M12 19V5M5 12l7-7 7 7"/></svg><span style="font-size:12px;font-weight:700">'+(rising?'Naik':'Surut')+'</span></div></div>'+
+      '<div class="mini"><div class="lbl">Laju Pasut</div><div class="val">'+Math.abs(slope).toFixed(1)+' <span style="font-size:11px;color:#94a3b8">cm/j</span></div><div style="font-size:10.5px;color:#94a3b8;margin-top:2px">Rentang '+range.toFixed(2)+' m</div></div>'+
+    '</div>'+
+    '<div class="card" style="margin-top:14px;padding:0;overflow:hidden;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px;border-bottom:1px solid var(--line);"><div><div style="font-size:14px;font-weight:700;color:#334155">Pasang Tinggi (High)</div><div style="font-size:11px;color:#94a3b8">Puncak air harian</div></div><div style="text-align:right">'+tideList(d.tideHi)+'</div></div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px;"><div><div style="font-size:14px;font-weight:700;color:#334155">Pasang Rendah (Low)</div><div style="font-size:11px;color:#94a3b8">Surut terendah</div></div><div style="text-align:right">'+tideList(d.tideLo)+'</div></div>'+
+    '</div>'+
+    '<div style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.5;text-align:center;">Tinggi muka air (MSL) model pasut global Open-Meteo · '+LOC.name+' ('+LOC.lat.toFixed(3)+', '+LOC.lon.toFixed(3)+')</div>'+
+  '</div>';
+}
+function marineNA(what){
+  return '<div style="padding:40px 22px;text-align:center;color:#94a3b8;">'+
+   '<div style="font-size:40px">🌊</div>'+
+   '<div style="font-size:15px;font-weight:700;color:#475569;margin-top:10px">Data '+what+' tidak tersedia</div>'+
+   '<div style="font-size:12.5px;margin-top:8px;line-height:1.6">Lokasi <b>'+LOC.name+'</b> terlalu jauh dari laut untuk model gelombang/pasut. Pilih lokasi pesisir (mis. Jakarta, Surabaya, Makassar) lewat tombol lokasi di atas.</div></div>';
+}
+
+/* ---------- WAVES ---------- */
+var waveSub='waves';
+function renderWaves(d){
+  var el=$('#pane-waves');
+  if(!d.wave||d.wave[12]==null){ el.innerHTML=marineNA('gelombang'); return; }
+  var cur=STATE.day===0?STATE.nowHour:12;
+  var setSeries={waves:{v:d.wave,per:d.wavePer,dir:d.waveDir,label:'Gelombang'},
+                 swell:{v:d.swell,per:d.swellPer,dir:d.waveDir,label:'Swell'},
+                 wind:{v:d.windWave,per:d.windWavePer,dir:d.waveDir,label:'Gel. Angin'}};
+  var ser=setSeries[waveSub];
+  var lab24=[]; for(var h=0;h<24;h++){ lab24.push(h%4===0&&h>0?hlab(h):''); }
+  var ch=chart({vals:ser.v,w:430,h:190,color:'#2563EB',fillTop:'#2563EB',labels:lab24,yMin:0,mark:cur,yTicks:3,yDec:1,vGrid:true});
+  var hNow=ser.v[cur], pNow=ser.per[cur], dNow=ser.dir[cur];
+  var sst=d.sst?d.sst[cur]:null, cv=d.curVel?d.curVel[cur]:null, cd=d.curDir?d.curDir[cur]:null;
+  var subBtn=function(id,t){return '<button class="pill'+(waveSub===id?' on':'')+'" onclick="waveSub=\''+id+'\';renderWaves(STATE.days[STATE.day])">'+t+'</button>';};
+  el.innerHTML=
+  '<div style="min-height:100%;background:linear-gradient(180deg,#EFF6FF 0%,#fff 180px);padding:14px 14px 20px;">'+
+    '<div style="font-size:13px;font-weight:600;color:#64748b">Kondisi laut saat ini · '+LOC.name+'</div>'+
+    '<div class="grid2" style="margin-top:10px;">'+
+      '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:30px">🌡️</span><div><div style="font-size:26px;font-weight:800;color:#1e293b;line-height:1">'+num(sst,1)+'<span style="font-size:14px;color:#94a3b8">°C</span></div><div style="font-size:11px;color:#94a3b8">Suhu laut</div></div></div>'+
+      '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:30px">🧭</span><div><div style="font-size:26px;font-weight:800;color:#1e293b;line-height:1">'+num(cv,1)+'<span style="font-size:14px;color:#94a3b8">km/j</span></div><div style="font-size:11px;color:#94a3b8">Arus '+compass(cd)+'</div></div></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;margin-top:14px;">'+subBtn('waves','Gelombang')+subBtn('swell','Swell')+subBtn('wind','Gel. Angin')+'</div>'+
+    '<div class="card" style="margin-top:12px;display:flex;justify-content:space-between;align-items:flex-start;">'+
+      '<div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:40px;font-weight:800;color:#1e293b;line-height:1">'+num(hNow,1)+'<span style="font-size:16px;color:#94a3b8"> m</span></span><span style="font-size:12px;color:#64748b;margin-top:4px">'+ser.label+' signifikan</span></div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px;text-align:right;">'+
+        '<div style="font-size:13px;color:#475569">Periode <b style="font-size:16px;color:#1e293b">'+num(pNow,0)+' s</b></div>'+
+        '<div style="font-size:13px;color:#475569">Arah <b style="font-size:15px;color:#1e293b">'+num(dNow,0)+'° '+compass(dNow)+'</b></div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="margin-top:12px;">'+ch+'</div>'+
+    '<div style="font-size:11px;color:#94a3b8;margin-top:8px;text-align:center;line-height:1.5">Tinggi gelombang signifikan (Hs) model MFWAM/Open-Meteo Marine · '+d.date+
+      (STATE.marPt?'<br>Sel laut terdekat ±'+Math.round(STATE.marPt.r*111)+' km dari '+LOC.name:'')+'</div>'+
+  '</div>';
+}
+
+/* ---------- WEATHER ---------- */
+var wxSub='temp';
+function renderWeather(d){
+  var el=$('#pane-weather');
+  var isToday=STATE.day===0, c=STATE.wx.current;
+  var cur=isToday?STATE.nowHour:12;
+  var temp=isToday?c.temperature_2m:Math.round((d.tempMax+d.tempMin)/2);
+  var code=isToday?c.weather_code:d.code, wc=wmo(code);
+  var precip=isToday?c.precipitation:d.precipSum;
+  var press=isToday?c.surface_pressure:(d.hPress&&d.hPress.length?d.hPress[cur]:null);
+  var hum=isToday?c.relative_humidity_2m:(d.hHum&&d.hHum.length?d.hHum[cur]:null);
+  var uv=isToday?(d.hUv[cur]):d.uvMax;
+  var wind=isToday?c.wind_speed_10m:d.hWind[cur];
+  var wdir=isToday?c.wind_direction_10m:null;
+  // tren tekanan 3 jam terakhir (panah naik/turun ala barometer)
+  var pPrev=(d.hPress&&d.hPress.length)?d.hPress[Math.max(0,cur-3)]:null;
+  var pTrend=(press!=null&&pPrev!=null)?(press-pPrev<-0.3?' <span style="color:#fecaca">↓</span>':press-pPrev>0.3?' <span style="color:#bbf7d0">↑</span>':''):'';
+  var uvLab=uv<=2?'Rendah':uv<=5?'Sedang':uv<=7?'Tinggi':uv<=10?'Sangat Tinggi':'Ekstrem';
+  var uvCol=uv<=2?'#22c55e':uv<=5?'#eab308':uv<=7?'#f97316':'#ef4444';
+  var lab24=[]; for(var h=0;h<24;h++){ lab24.push(h%4===0&&h>0?hlab(h):''); }
+  var series=wxSub==='temp'?{v:d.hTemp,color:'#F59E0B',u:'°',fill:'#F59E0B'}:wxSub==='precip'?{v:d.hPop,color:'#3B82F6',u:'%',fill:'#3B82F6'}:{v:d.hWind,color:'#14b8a6',u:'',fill:'#14b8a6'};
+  var ch=chart({vals:series.v,w:430,h:170,color:series.color,fillTop:series.fill,labels:lab24,mark:isToday?cur:null,yTicks:3,yDec:0,vGrid:true});
+  var t6=tileXY(LOC.lat,LOC.lon,6); // tile peta utk thumbnail radar
+  // Kartu prakiraan resmi BMKG (per 3 jam) untuk tanggal terpilih
+  var bmkgCard='';
+  if(STATE.bmkg){
+    var ents=STATE.bmkg.entries.filter(function(e){ return (e.local_datetime||'').slice(0,10)===d.date; });
+    if(ents.length){
+      var lok=STATE.bmkg.lok;
+      bmkgCard='<div style="margin:14px 14px 0">'+
+        '<div style="display:flex;align-items:center;gap:7px"><span style="background:#0ea5e9;color:#fff;font-size:9px;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:6px">BMKG</span><div class="sec-t" style="font-size:14px">Prakiraan resmi</div></div>'+
+        '<div style="font-size:11px;color:#94a3b8;margin-top:2px">'+(lok.desa?lok.desa+', ':'')+(lok.kecamatan||'')+(lok.kotkab?' · '+lok.kotkab:'')+'</div>'+
+        '<div class="scrollhide" style="display:flex;gap:8px;overflow-x:auto;margin-top:9px;padding-bottom:2px">'+
+        ents.map(function(e){
+          var tm=(e.local_datetime||'').slice(11,16);
+          return '<div style="flex:0 0 auto;min-width:86px;text-align:center;background:#f8fafc;border:1px solid var(--line);border-radius:13px;padding:9px 7px">'+
+            '<div style="font-size:10.5px;font-weight:700;color:#64748b">'+tm+'</div>'+
+            (e.image?'<img src="'+e.image+'" width="34" height="34" style="margin:3px 0" onerror="this.style.display=\'none\'">':'')+
+            '<div style="font-size:10px;color:#475569;font-weight:600;line-height:1.25;min-height:24px">'+(e.weather_desc||'—')+'</div>'+
+            '<div style="font-size:13px;font-weight:800;color:#1e293b;margin-top:2px">'+(e.t!=null?e.t+'°':'—')+'</div>'+
+            '<div style="font-size:9.5px;color:#94a3b8;margin-top:1px">💧'+(e.hu!=null?e.hu+'%':'—')+' · 💨'+(e.ws!=null?Math.round(e.ws):'—')+'</div>'+
+          '</div>';
+        }).join('')+'</div></div>';
+    }
+  }
+  var wsub=function(id,ic,t){return '<button class="pill'+(wxSub===id?' on':'')+'" style="font-size:12px" onclick="wxSub=\''+id+'\';renderWeather(STATE.days[STATE.day])">'+ic+' '+t+'</button>';};
+  el.innerHTML=
+  '<div style="min-height:100%;background:#fff;">'+
+    '<div style="background:linear-gradient(135deg,#3B82F6,#60A5FA);padding:16px 16px 20px;color:#fff;">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;">'+
+        '<div style="display:flex;flex-direction:column;align-items:center;">'+
+          '<span style="font-size:52px;font-weight:300;line-height:1">'+Math.round(temp)+'°</span>'+
+          '<div style="font-size:40px;margin-top:4px">'+wc[1]+'</div>'+
+          '<span style="font-size:12px;opacity:.85;margin-top:2px">'+wc[0]+'</span>'+
+          '<span style="font-size:12px;opacity:.8;margin-top:2px">'+Math.round(d.tempMax)+'° / '+Math.round(d.tempMin)+'°</span>'+
+        '</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;">'+
+          wxMetric('🌧️','Presipitasi',num(precip,1,'mm'))+
+          wxMetric('🧭','Tekanan',press!=null?Math.round(press)+' hPa'+pTrend:'<span class="na">—</span>')+
+          wxMetric('💧','Kelembapan',hum!=null?hum+'%':'<span class="na">—</span>')+
+          wxMetric('☀️','Indeks UV','<span style="color:'+uvCol+';font-weight:800">'+Math.round(uv)+'</span> '+uvLab)+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:16px;margin-top:14px;font-size:12px;opacity:.9"><span>💨 Angin '+num(wind,0,'km/j')+(wdir!=null?' '+compass(wdir):'')+'</span></div>'+
+    '</div>'+
+    '<div style="display:flex;gap:8px;justify-content:center;padding:12px;border-bottom:1px solid var(--line)">'+wsub('temp','🌡️','Suhu')+wsub('precip','🌧️','Hujan')+wsub('wind','💨','Angin')+'</div>'+
+    '<div style="padding:8px 14px 0">'+ch+'</div>'+
+    bmkgCard+
+    '<div style="margin:16px 14px 18px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
+        '<div class="sec-t">Rain radar</div>'+
+        '<button onclick="openRadar()" style="display:flex;align-items:center;gap:4px;color:#2563EB;font-size:13px;font-weight:700">Buka <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg></button>'+
+      '</div>'+
+      '<button onclick="openRadar()" style="display:block;width:100%;position:relative;height:150px;border-radius:16px;overflow:hidden;background:#12263a;text-align:left;">'+
+        '<img src="https://basemaps.cartocdn.com/rastertiles/voyager/6/'+t6.x+'/'+t6.y+'@2x.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" alt="">'+
+        (STATE.rvPath?'<img src="'+rHost+STATE.rvPath+'/256/6/'+t6.x+'/'+t6.y+'/2/1_1.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.72" alt="">':'')+
+        '<div style="position:absolute;left:12px;top:10px;display:flex;gap:5px">'+
+          '<span style="background:#ffffffdd;border-radius:8px;padding:4px 7px;font-size:8px;font-weight:800;color:#475569">● '+LOC.name.toUpperCase()+'</span></div>'+
+        '<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:#3B82F6;border:3px solid #fff;box-shadow:0 0 0 4px rgba(59,130,246,.3)"></div>'+
+        '<div style="position:absolute;right:12px;bottom:10px;background:#1e293bcc;color:#fff;border-radius:8px;padding:5px 9px;font-size:10px;font-weight:700">Ketuk untuk radar hujan langsung ▸</div>'+
+      '</button>'+
+    '</div>'+
+  '</div>';
+}
+function wxMetric(ic,lab,val){ return '<div style="display:flex;gap:7px;align-items:flex-start"><span style="font-size:15px">'+ic+'</span><div><div style="font-size:9.5px;opacity:.7">'+lab+'</div><div style="font-size:13px;font-weight:700">'+val+'</div></div></div>'; }
+
+/* ---------- SOLUNAR ---------- */
+function renderSolunar(d){
+  var s=d.sol;
+  // moon path over day
+  var mp=[]; var labs=[]; for(var h=0;h<=24;h+=1){ var pos=SunCalc.getMoonPosition(dateAt(d.date,h),LOC.lat,LOC.lon); mp.push(pos.altitude*180/Math.PI); labs.push(h%6===0?(h+'h'):''); }
+  var chMoon=chart({vals:mp,w:430,h:130,color:'#60A5FA',fillTop:'#DBEAFE',fillA0:0.5,dashed:true,sw:1.8,labels:labs,yMin:-30,yMax:70});
+  // moon phase visual (illumination-based crescent)
+  var frac=s.illumination/100, waxing=(s.moonAge<14.77);
+  var moonSvg=moonPhaseSvg(frac,waxing);
+  $('#pane-solunar').innerHTML=
+  '<div style="min-height:100%;background:#fff;padding:14px 14px 22px">'+
+    '<div class="sec-t">Bulan</div>'+
+    '<div style="display:flex;flex-direction:column;align-items:center;margin-top:12px">'+moonSvg+'<div style="font-size:14px;color:#475569;margin-top:8px">'+s.moonPhase+'</div></div>'+
+    '<div class="grid3" style="margin-top:14px;text-align:center">'+
+      '<div><div class="lbl">Jarak</div><div class="val" style="font-size:13.5px">'+s.moonDistance.toLocaleString('id')+' km</div></div>'+
+      '<div><div class="lbl">Iluminasi</div><div class="val">'+s.illumination+'%</div></div>'+
+      '<div><div class="lbl">Umur</div><div class="val">'+s.moonAge+' hr</div></div>'+
+    '</div>'+
+    '<div style="margin-top:16px">'+chMoon+'</div>'+
+    '<div style="display:flex;justify-content:space-between;padding:0 6px;margin-top:-4px;font-size:11px;color:#64748b">'+
+      '<span>🌙 Terbit '+s.moonrise+'</span><span>Terbenam '+s.moonset+' 🌘</span></div>'+
+    '<div class="sec-t" style="margin-top:20px">Matahari</div>'+
+    '<div style="display:flex;justify-content:center;margin-top:12px">'+sunDiagram(s)+'</div>'+
+    '<div class="grid2" style="margin-top:8px">'+
+      '<div class="mini"><div class="lbl">Fajar / Terbit</div><div class="val" style="font-size:13.5px">'+s.dawn+' · '+s.sunrise+'</div></div>'+
+      '<div class="mini"><div class="lbl">Terbenam / Senja</div><div class="val" style="font-size:13.5px">'+s.sunset+' · '+s.dusk+'</div></div>'+
+    '</div>'+
+    '<div style="font-size:11px;color:#94a3b8;margin-top:12px;text-align:center">Perhitungan astronomis SunCalc · lintang '+LOC.lat.toFixed(3)+'° · '+d.date+'</div>'+
+  '</div>';
+}
+function moonPhaseSvg(frac,waxing){
+  // illuminated fraction as terminator ellipse
+  var r=50,cx=60,cy=60;
+  var lit='#e8edf3', dark='#1E293B';
+  // terminator: x radius scales with |1-2frac|
+  var k=Math.cos(Math.PI*frac); // -1..1
+  var rx=Math.abs(k)*r;
+  var litSide=waxing?'right':'left';
+  var s='<svg viewBox="0 0 120 120" width="120" height="120"><circle cx="60" cy="60" r="50" fill="'+dark+'"/>';
+  // draw lit portion
+  if(frac>0.01){
+    var big=(frac>0.5)?1:0;
+    // path: from top, outer semicircle on lit side, inner ellipse back
+    var sweepOuter = waxing?1:0;
+    var sweepInner = (k>0)? (waxing?0:1) : (waxing?1:0);
+    s+='<path d="M60 10 A 50 50 0 0 '+sweepOuter+' 60 110 A '+rx+' 50 0 0 '+sweepInner+' 60 10 Z" fill="'+lit+'"/>';
+  }
+  s+='<circle cx="45" cy="45" r="6" fill="#cbd5e1" opacity=".25"/><circle cx="70" cy="72" r="4" fill="#cbd5e1" opacity=".2"/><circle cx="52" cy="70" r="3" fill="#cbd5e1" opacity=".18"/>';
+  s+='</svg>'; return s;
+}
+function sunDiagram(s){
+  return '<div style="position:relative;width:210px;height:150px">'+
+   '<svg viewBox="0 0 210 150" width="210" height="150">'+
+    '<path d="M25 100 A 80 40 0 0 1 185 100" fill="#DBEAFE" opacity=".6"/>'+
+    '<line x1="25" y1="100" x2="185" y2="100" stroke="#cbd5e1" stroke-width="1"/>'+
+    '<circle cx="105" cy="60" r="11" fill="#FBBF24"/>'+
+    '<g stroke="#FBBF24" stroke-width="1.6" stroke-linecap="round"><line x1="105" y1="40" x2="105" y2="44"/><line x1="105" y1="76" x2="105" y2="80"/><line x1="85" y1="60" x2="89" y2="60"/><line x1="121" y1="60" x2="125" y2="60"/><line x1="91" y1="46" x2="94" y2="49"/><line x1="116" y1="71" x2="119" y2="74"/><line x1="91" y1="74" x2="94" y2="71"/><line x1="116" y1="49" x2="119" y2="46"/></g>'+
+    '<text x="105" y="118" text-anchor="middle" font-size="11" fill="#3B82F6" font-weight="600" font-family="Inter">Siang</text>'+
+    '<text x="105" y="132" text-anchor="middle" font-size="13" fill="#1E40AF" font-weight="700" font-family="Inter">'+fmtHM(s.dayLenH)+'</text>'+
+    '<text x="105" y="24" text-anchor="middle" font-size="9" fill="#64748b" font-family="Inter">Tengah Hari '+s.solarNoon+'</text>'+
+   '</svg>'+
+   '<div style="position:absolute;left:-2px;top:58%;font-size:10px"><div style="color:#64748b;font-weight:600">Terbit</div><div style="color:#334155;font-weight:700;font-size:12px">'+s.sunrise+'</div></div>'+
+   '<div style="position:absolute;right:-2px;top:58%;text-align:right;font-size:10px"><div style="color:#64748b;font-weight:600">Terbenam</div><div style="color:#334155;font-weight:700;font-size:12px">'+s.sunset+'</div></div>'+
+   '</div>';
+}
+
+/* ============================================================================
+   RAIN RADAR (RainViewer) — reference-styled full screen
+   ============================================================================ */
+var rmap=null, rframes=[], rIdx=0, rLayer=null, rTimer=null, rBase=0;
+var rBases=[
+  {name:'Satelit', url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', ov:true},
+  {name:'Gelap',   url:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', ov:false}
+];
+function openRadar(){
+  $('#radar').classList.add('on');
+  $('#rpillName').textContent=LOC.name;
+  var t=STATE.days[STATE.day].sol; $('#rpillIcon').innerHTML=(STATE.wx.current.is_day?'☀️':'🌙');
+  if(!rmap){ initRadar(); } else { rmap.setView([LOC.lat,LOC.lon],7); setTimeout(function(){rmap.invalidateSize();},60); }
+}
+function closeRadar(){ $('#radar').classList.remove('on'); stopPlay(); }
+function initRadar(){
+  rmap=L.map('rmap',{zoomControl:false,attributionControl:false}).setView([LOC.lat,LOC.lon],7);
+  L.control.zoom({position:'bottomleft'}).addTo(rmap);
+  applyBase();
+  L.circleMarker([LOC.lat,LOC.lon],{radius:7,color:'#fff',weight:3,fillColor:'#3B82F6',fillOpacity:1}).addTo(rmap);
+  fetch('https://api.rainviewer.com/public/weather-maps.json').then(function(r){return r.json();}).then(function(j){
+    rHost=j.host; var past=(j.radar&&j.radar.past)||[], now=(j.radar&&j.radar.nowcast)||[];
+    rframes=past.concat(now); rNowStart=past.length-1;
+    var sl=$('#rslider'); sl.max=rframes.length-1; rIdx=Math.max(0,past.length-1); sl.value=rIdx;
+    buildTicks(); showFrame(rIdx);
+  }).catch(function(){ $('#rtime').textContent='Radar tak tersedia'; });
+}
+var rHost='https://tilecache.rainviewer.com', rNowStart=0;
+function applyBase(){
+  if(window._rb){ rmap.removeLayer(window._rb); } if(window._rov){ rmap.removeLayer(window._rov); }
+  var b=rBases[rBase];
+  window._rb=L.tileLayer(b.url,{maxZoom:18,subdomains:'abcd'}).addTo(rmap);
+  if(b.ov){ window._rov=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}).addTo(rmap); }
+  if(rLayer){ rLayer.bringToFront(); }
+}
+function showFrame(i){
+  if(!rframes.length)return; rIdx=i;
+  var f=rframes[i];
+  var url=rHost+f.path+'/256/{z}/{x}/{y}/1/1_1.png';
+  var nl=L.tileLayer(url,{opacity:0,maxZoom:18,zIndex:400});
+  nl.addTo(rmap);
+  nl.on('load',function(){ nl.setOpacity(0.75); if(rLayer){ var old=rLayer; setTimeout(function(){rmap.removeLayer(old);},250); } rLayer=nl; });
+  setTimeout(function(){ if(rLayer!==nl){ nl.setOpacity(0.75); if(rLayer)rmap.removeLayer(rLayer); rLayer=nl; } },700);
+  var dt=new Date(f.time*1000);
+  var isForecast=(i>rNowStart);
+  var tstr=dt.toLocaleString('id-ID',{timeZone:TZ,weekday:'short',hour:'2-digit',minute:'2-digit'});
+  $('#rtime').textContent=tstr+(isForecast?'  · prakiraan':'  · aktual');
+  $('#rspan').textContent=(isForecast?'Nowcast':'Radar');
+  $('#rslider').value=i;
+}
+function buildTicks(){
+  var el=$('#rticks'); el.innerHTML='';
+  if(!rframes.length)return;
+  var idxs=[0,Math.floor(rframes.length/2),rframes.length-1];
+  idxs.forEach(function(i){ var t=new Date(rframes[i].time*1000); el.innerHTML+='<span>'+t.toLocaleTimeString('id-ID',{timeZone:TZ,hour:'2-digit',minute:'2-digit'})+'</span>'; });
+}
+function playPause(){ if(rTimer){ stopPlay(); } else { startPlay(); } }
+function startPlay(){ $('#rplayIco').innerHTML='<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'; rTimer=setInterval(function(){ var n=(rIdx+1)%rframes.length; showFrame(n); },700); }
+function stopPlay(){ if(rTimer){clearInterval(rTimer);rTimer=null;} $('#rplayIco').innerHTML='<path d="M8 5v14l11-7z"/>'; }
+
+/* ---------- Location search ---------- */
+var searchT=null;
+function doSearch(q){
+  if(!q||q.length<2){ $('#searchRes').innerHTML=''; return; }
+  fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=6&language=id&format=json').then(function(r){return r.json();}).then(function(j){
+    var res=$('#searchRes'); res.innerHTML='';
+    (j.results||[]).forEach(function(p){
+      var div=document.createElement('div'); div.className='sres';
+      div.innerHTML='<div><b>'+p.name+'</b> <small>'+(p.admin1?p.admin1+', ':'')+(p.country||'')+'</small></div><small>'+p.latitude.toFixed(2)+', '+p.longitude.toFixed(2)+'</small>';
+      div.onclick=function(){ LOC={lat:p.latitude,lon:p.longitude,name:p.name}; try{localStorage.setItem('tm_loc_v1',JSON.stringify(LOC));}catch(e){} $('#searchWrap').classList.remove('on'); loadAll(); };
+      res.appendChild(div);
+    });
+    if(!(j.results||[]).length) res.innerHTML='<div style="padding:14px;color:#94a3b8;font-size:13px">Tidak ditemukan.</div>';
+  });
+}
+
+/* ---------- Wire up ---------- */
+document.querySelectorAll('.nbtn').forEach(function(b){ b.onclick=function(){ setTab(b.dataset.tab); }; });
+$('#locBtn').onclick=function(){ $('#searchWrap').classList.add('on'); setTimeout(function(){$('#searchIn').focus();},100); };
+$('#searchWrap').onclick=function(e){ if(e.target.id==='searchWrap') $('#searchWrap').classList.remove('on'); };
+$('#searchIn').addEventListener('input',function(e){ clearTimeout(searchT); var v=e.target.value; searchT=setTimeout(function(){doSearch(v);},350); });
+$('#gpsBtn').onclick=function(){
+  if(!navigator.geolocation){ alert('Geolokasi tidak didukung'); return; }
+  $('#gpsBtn').innerHTML='<div class="spin" style="width:16px;height:16px;border-width:2px"></div>';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    LOC={lat:+pos.coords.latitude.toFixed(4),lon:+pos.coords.longitude.toFixed(4),name:'Lokasi Saya'};
+    fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+LOC.lat+'&longitude='+LOC.lon+'&localityLanguage=id').then(function(r){return r.json();}).then(function(j){ LOC.name=j.city||j.locality||j.principalSubdivision||'Lokasi Saya'; }).catch(function(){}).finally(function(){ try{localStorage.setItem('tm_loc_v1',JSON.stringify(LOC));}catch(e){} restoreGps(); loadAll(); });
+  },function(){ restoreGps(); alert('Gagal mendapatkan lokasi. Pastikan izin lokasi aktif.'); },{enableHighAccuracy:true,timeout:8000});
+};
+function restoreGps(){ $('#gpsBtn').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>'; }
+$('#rback').onclick=closeRadar;
+$('#rplay').onclick=playPause;
+$('#rlayers').onclick=function(){ rBase=(rBase+1)%rBases.length; applyBase(); };
+$('#rslider').addEventListener('input',function(e){ stopPlay(); showFrame(+e.target.value); });
+
+setTab('fish');
+loadAll();
+</script>
+<script src="../assets/app-guard.js"></script>
+</body>
+</html>
