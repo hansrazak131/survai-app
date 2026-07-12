@@ -117,7 +117,7 @@ body{font-family:'Segoe UI',system-ui,Tahoma,sans-serif;background:#0a1628;color
   <button class="btn" onclick="toggle3D()">🏔️ Toggle 3D</button>
   <button class="btn" id="btnBase" onclick="cycleBasemap()">🗺️ Satelit</button>
   <button class="btn" id="btnSdb" onclick="runSDB()">🛰️ SDB Sentinel-2</button>
-  <button class="btn" onclick="toggleLayerPanel()">🗂️ Layer & Data</button>
+  <button class="btn" id="btnLayers" onclick="toggleLayerPanel()">🗂️ Layer & Data</button>
   <button class="btn" onclick="toggleLegend()">🎨 Legenda</button>
   <button class="btn" onclick="clearMarkers()">🧹 Hapus Titik</button>
   <button class="btn" onclick="resetView()">🔄 Reset</button>
@@ -284,6 +284,16 @@ function togglePanel(){
   document.getElementById('panelChev').textContent = p.classList.contains('collapsed')?'▼':'▲';
 }
 function toggleLayerPanel(){document.getElementById('layerPanel').classList.toggle('show');}
+/* Auto-hide panel Layer & Data saat ketuk/klik di luar panel */
+let panelJustClosed=false;
+document.addEventListener('pointerdown',(e)=>{
+  const panel=document.getElementById('layerPanel');
+  if(!panel.classList.contains('show'))return;
+  if(panel.contains(e.target)||document.getElementById('btnLayers').contains(e.target))return;
+  panel.classList.remove('show');
+  panelJustClosed=true; // ketukan ini hanya menutup panel, jangan jadi pengukuran
+  setTimeout(()=>{panelJustClosed=false;},400);
+},true);
 function toggleLegend(){document.getElementById('legend').classList.toggle('show');}
 function clearMarkers(){markers.forEach(m=>m.remove());markers.length=0;}
 function setLayerVis(id,on){map.setLayoutProperty(id,'visibility',on?'visible':'none');}
@@ -594,6 +604,7 @@ async function updateData(lng,lat){
 
 /* ---------------- Events ---------------- */
 map.on('click',async(e)=>{
+  if(panelJustClosed){panelJustClosed=false;return;}
   if(currentMode!=='click') return;
   const {lng,lat}=e.lngLat;
   const elevation=await updateData(lng,lat);
