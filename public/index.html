@@ -718,6 +718,7 @@ const CALC_ITEMS = [
   {file:'survey-verticality.html',title:'Survey Verticality',desc:'Analisis ketegakan struktur dari koordinat XYZ.', icon:icoVerticality()},
   {file:'hidrocalc.html',        title:'Deliniasi Cathment',desc:'Analisis hidrologi, DAS/HSG, IDF, hidrograf & DTM 3D.', icon:icoTide()},
   {file:'tide-marine.html',      title:'Tide & Marine',   desc:'Pasang surut, gelombang, cuaca laut, solunar & rain radar realtime.', icon:icoTide()},
+  {file:'bathymetri.html',       title:'Bathymetri & Kedalaman', desc:'Kedalaman laut & sungai Indonesia: GEBCO, GMRT, BATNAS BIG, terrain 3D.', icon:icoTide()},
 ];
 
 /* ---- DATA: Tools menu ---- */
@@ -768,6 +769,7 @@ const ALL_QA = [
   {tab:'calc',  file:'survey-verticality.html',title:'Survey Verticality'},
   {tab:'calc',  file:'hidrocalc.html',        title:'Deliniasi Cathment'},
   {tab:'calc',  file:'tide-marine.html',      title:'Tide & Marine'},
+  {tab:'calc',  file:'bathymetri.html',       title:'Bathymetri & Kedalaman'},
   {tab:'tools', file:'utility-tools.html',    title:'Utility Tools'},
   {tab:'tools', file:'tools-curve.html',      title:'Curve Tools'},
   {tab:'tools', file:'geoai.html',            title:'GeoAI'},
@@ -828,6 +830,7 @@ function qaIcon(title){
     'Multispectral':icoMultispectral(),
     'Terrain Analysis':icoTerrain(),
     'CAD Engine':icoCad(),
+    'Bathymetri & Kedalaman':icoTide(),
     'Maps':icoMap(),
   };
   return m[title] || icoTools();
