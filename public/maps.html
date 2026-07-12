@@ -1186,7 +1186,7 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
     <div class="pdf-overlay-loading" id="pdfLoading">Membaca PDF sebagai overlay...</div>
     <div class="viewer-topbar"><button class="viewer-back" id="viewerBack">‹</button><div class="viewer-title"><b id="viewerTitle">Peta.pdf</b><span class="view-badge" id="viewerBadge">VIEW</span></div><button class="viewer-fit" id="viewerFit">⛶</button></div>
     <div class="gps-quality poor" id="gpsQuality">GPS: OFF</div>
-    <div class="basemap-pills" aria-hidden="true"><button class="base-chip active" data-base="google">GOOGLE CITRA</button><button class="base-chip" data-base="sat">ESRI SATELLITE</button><button class="base-chip" data-base="osm">OSM STREET</button><button class="base-chip" data-base="topo">ESRI TOPO</button><button class="base-chip" data-base="worldview">WORLDVIEW/API</button></div>
+    <div class="basemap-pills" aria-hidden="true"><button class="base-chip active" data-base="google">GOOGLE CITRA</button><button class="base-chip" data-base="sat">ESRI SATELLITE</button><button class="base-chip" data-base="osm">OSM STREET</button><button class="base-chip" data-base="topo">ESRI TOPO</button><button class="base-chip" data-base="relief">RELIEF SHADING</button><button class="base-chip" data-base="sonar">SONAR/BATHY</button><button class="base-chip" data-base="nautical">NAUTICAL</button><button class="base-chip" data-base="emodnet">EMODNET BATHY</button><button class="base-chip" data-base="worldview">WORLDVIEW/API</button></div>
     <div class="right-controls"><button class="map-btn primary" id="gpsBtn" title="GPS Locate"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></span></button><button class="map-btn" id="layerBtn" title="Layers"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></svg></span></button><button class="map-btn sat-only" id="dlOfflineBtn" title="Download Offline Basemap"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></span></button><button class="map-btn" id="calibBtn" title="Kalibrasi PDF"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h5M4 4v5M20 4h-5M20 4v5M4 20h5M4 20v-5M20 20h-5M20 20v-5"/><circle cx="12" cy="12" r="3"/><path d="M12 7v2M12 15v2M7 12h2M15 12h2"/></svg></span></button><button class="map-btn" id="zoomInBtn" title="Zoom In"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M10 7v6M7 10h6M15 15l5 5"/></svg></span></button><button class="map-btn" id="zoomOutBtn" title="Zoom Out"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M7 10h6M15 15l5 5"/></svg></span></button></div>
     <div class="left-tools">
       <button class="tool-fab" id="toolsBtn" title="Survey tools"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5h6l1 4H8z"/><path d="M12 9v4"/><path d="M12 13l-5 8M12 13l5 8M12 13v8"/><path d="M9 3h6"/></svg></span></button>
@@ -1739,6 +1739,10 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
           <button class="sat-base-card" data-satbase="sat"><span class="sbi">🛰️</span>Esri Satellite</button>
           <button class="sat-base-card" data-satbase="topo"><span class="sbi">🗻</span>Esri Topo</button>
           <button class="sat-base-card" data-satbase="osm"><span class="sbi">🗺️</span>OpenStreetMap</button>
+          <button class="sat-base-card" data-satbase="relief"><span class="sbi">⛰️</span>Relief Shading</button>
+          <button class="sat-base-card" data-satbase="sonar"><span class="sbi">🌊</span>Sonar / Bathimetri</button>
+          <button class="sat-base-card" data-satbase="nautical"><span class="sbi">⚓</span>Nautical Chart</button>
+          <button class="sat-base-card" data-satbase="emodnet"><span class="sbi">🐟</span>EMODnet Bathy</button>
           <button class="sat-base-card" data-satbase="worldview"><span class="sbi">🌐</span>WorldView / API</button>
         </div>
         <button class="sat-line-btn" id="satCustomToggle"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Custom XYZ</button>
@@ -1749,8 +1753,8 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
             <button class="sat-mini-btn" id="satCustomApply">Pakai</button>
           </div>
         </div>
-        <button class="sat-line-btn dxf" id="dxfImportBtn" title="Import DXF design (wajib terproyeksi UTM)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 14h7v7h-7z"/><path d="M10 6.5h5.5M6.5 10v5.5"/></svg>Import DXF Design (UTM)</button>
-        <input type="file" id="dxfFileInput" class="hidden-input" accept=".dxf">
+        <button class="sat-line-btn dxf" id="dxfImportBtn" title="Import DWG (semua versi) / DXF design — koordinat UTM, untuk stakeout vertex/line/polyline/polygon/point"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 14h7v7h-7z"/><path d="M10 6.5h5.5M6.5 10v5.5"/></svg>Import DWG Design (all version)</button>
+        <input type="file" id="dxfFileInput" class="hidden-input" accept=".dwg,.dxf">
         <div class="dxf-layer-list" id="dxfLayerList"></div>
         <div class="sat-acc-line" id="satAccLine"><b id="satAccTitle">Resolusi mengikuti provider</b><span id="satAccDesc"> — sub-cm tidak dijamin (Google/Esri/OSM). Sub-cm hanya untuk drone ortho / aerial / berlisensi.</span></div>
       </section>
@@ -3007,7 +3011,7 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
     <div id="ctrInfoPopup" style="display:none;position:absolute;z-index:820;pointer-events:none"></div>
 
     <!-- DTM map-menu -->
-    <div class="map-menu" id="mapMenu" aria-label="Map layer and basemap menu"><div class="map-menu-scrim" id="mapMenuScrim"></div><section class="map-menu-panel"><div class="map-menu-grab"></div><div class="map-menu-head"><div><h3 class="map-menu-title">GIS Survey Controller</h3><p class="map-menu-subtitle">Kontrol citra dan layer langsung di window peta. Kalibrasi dan display memakai tombol khusus di sisi peta.</p></div><button class="map-menu-close" id="mapMenuClose">×</button></div><div class="map-menu-tabs"><button class="map-menu-tab active" data-pane="basemap">Citra</button><button class="map-menu-tab" data-pane="layers">Layer Manager</button></div><div class="map-menu-pane active" data-pane="basemap"><div class="map-menu-grid"><button class="map-menu-card active" data-base="google" id="menuGoogleBtn">Google Citra</button><button class="map-menu-card" data-base="sat" id="menuSatBtn">ESRI Satellite</button><button class="map-menu-card" data-base="osm" id="menuOsmBtn">OSM Street</button><button class="map-menu-card" data-base="topo" id="menuTopoBtn">ESRI Topo</button><button class="map-menu-card" data-base="worldview" id="menuWorldviewBtn">WorldView / API</button></div><div class="map-menu-note">Default: <b>Google Citra</b> untuk tampilan citra/satelit. ESRI Satellite, OSM, dan Topo tetap tersedia sebagai pilihan.</div></div><div class="map-menu-pane" data-pane="layers"><div class="layer-manager" id="layerManager"></div><div class="map-menu-note">Layer manager khusus untuk pengaturan layer: show/hide, lock, opacity PDF, rename, zoom, dan hapus/sembunyikan. Slider opacity dipindahkan ke sini agar area peta bersih dan premium.</div></div><div class="map-menu-pane" data-pane="calib"><div class="calib-tools"><div class="calib-stage" id="calibStage">Kalibrasi langsung 2–4 titik kontrol: tekan <b>Tambah Titik Kontrol</b>, tap titik pada PDF overlay, lalu tap posisi yang benar pada citra satelit.</div><div class="calib-actions"><button class="calib-btn primary" id="addGcpBtn">Tambah Titik Kontrol</button><button class="calib-btn" id="applyGcpBtn">Terapkan Kalibrasi</button></div><div class="calib-actions three"><button class="calib-btn" id="fitPdfFromMenuBtn">Fit PDF</button><button class="calib-btn" id="manualBoundsBtn">Manual Bounds</button><button class="calib-btn danger" id="clearGcpBtn">Reset GCP</button></div><div class="gcp-list" id="gcpList"></div><div class="gcp-hint">Minimal 1 titik = geser overlay. 2–4 titik = geser + skala kasar berdasarkan pasangan kontrol. Untuk rotasi/skew presisi seperti Avenza asli, tahap berikut perlu affine/warping raster.</div></div></div></div></section></div>
+    <div class="map-menu" id="mapMenu" aria-label="Map layer and basemap menu"><div class="map-menu-scrim" id="mapMenuScrim"></div><section class="map-menu-panel"><div class="map-menu-grab"></div><div class="map-menu-head"><div><h3 class="map-menu-title">GIS Survey Controller</h3><p class="map-menu-subtitle">Kontrol citra dan layer langsung di window peta. Kalibrasi dan display memakai tombol khusus di sisi peta.</p></div><button class="map-menu-close" id="mapMenuClose">×</button></div><div class="map-menu-tabs"><button class="map-menu-tab active" data-pane="basemap">Citra</button><button class="map-menu-tab" data-pane="layers">Layer Manager</button></div><div class="map-menu-pane active" data-pane="basemap"><div class="map-menu-grid"><button class="map-menu-card active" data-base="google" id="menuGoogleBtn">Google Citra</button><button class="map-menu-card" data-base="sat" id="menuSatBtn">ESRI Satellite</button><button class="map-menu-card" data-base="osm" id="menuOsmBtn">OSM Street</button><button class="map-menu-card" data-base="topo" id="menuTopoBtn">ESRI Topo</button><button class="map-menu-card" data-base="relief" id="menuReliefBtn">Relief Shading</button><button class="map-menu-card" data-base="sonar" id="menuSonarBtn">Sonar / Bathimetri</button><button class="map-menu-card" data-base="nautical" id="menuNauticalBtn">Nautical Chart</button><button class="map-menu-card" data-base="emodnet" id="menuEmodnetBtn">EMODnet Bathy</button><button class="map-menu-card" data-base="worldview" id="menuWorldviewBtn">WorldView / API</button></div><div class="map-menu-note"><b>Darat / lapangan:</b> Google Citra &amp; ESRI Satellite (citra), <b>Relief Shading</b> (relief berwarna GEBCO 2024 — topo+batimetri berbayang, mirip Garmin). &nbsp;<b>Laut / lepas pantai:</b> <b>Sonar / Bathimetri</b> (warna kedalaman GEBCO global + kontur/sounding peta ENC NOAA di perairan AS) &amp; <b>Nautical Chart</b> (peta laut resmi NOAA ENC + rambu OpenSeaMap: pelampung, suar, alur, kedalaman). <b>EMODnet Bathy</b> (kedalaman warna resolusi tinggi ~250 m, khusus perairan Eropa; di luar itu memakai GEBCO). <b>Catatan:</b> chart NOAA hanya perairan AS, EMODnet hanya Eropa; GEBCO &amp; OpenSeaMap global. Peta Garmin/Navionics asli berbayar — untuk itu pakai mosaik/tile lisensi Anda via <b>Custom XYZ</b>.</div></div><div class="map-menu-pane" data-pane="layers"><div class="layer-manager" id="layerManager"></div><div class="map-menu-note">Layer manager khusus untuk pengaturan layer: show/hide, lock, opacity PDF, rename, zoom, dan hapus/sembunyikan. Slider opacity dipindahkan ke sini agar area peta bersih dan premium.</div></div><div class="map-menu-pane" data-pane="calib"><div class="calib-tools"><div class="calib-stage" id="calibStage">Kalibrasi langsung 2–4 titik kontrol: tekan <b>Tambah Titik Kontrol</b>, tap titik pada PDF overlay, lalu tap posisi yang benar pada citra satelit.</div><div class="calib-actions"><button class="calib-btn primary" id="addGcpBtn">Tambah Titik Kontrol</button><button class="calib-btn" id="applyGcpBtn">Terapkan Kalibrasi</button></div><div class="calib-actions three"><button class="calib-btn" id="fitPdfFromMenuBtn">Fit PDF</button><button class="calib-btn" id="manualBoundsBtn">Manual Bounds</button><button class="calib-btn danger" id="clearGcpBtn">Reset GCP</button></div><div class="gcp-list" id="gcpList"></div><div class="gcp-hint">Minimal 1 titik = geser overlay. 2–4 titik = geser + skala kasar berdasarkan pasangan kontrol. Untuk rotasi/skew presisi seperti Avenza asli, tahap berikut perlu affine/warping raster.</div></div></div></div></section></div>
   </section>
 
   <div class="sheet-backdrop" id="layerBackdrop"><section class="layer-sheet"><div class="sheet-handle"></div><div class="sheet-head"><div><h2 class="sheet-title">Layers & Basemap</h2><p class="sheet-subtitle">Pilihan citra satelit dipindahkan ke menu layer agar lebih rapi dan hidden.</p></div><button class="sheet-close" id="layerClose">×</button></div><div class="sheet-actions"><button class="primary" id="togglePdfBtn">Show/Hide PDF</button><button class="ghost" id="fitPdfBtn">Fit PDF Bounds</button></div><div class="sheet-actions"><button class="ghost" id="googleBtn">Google Citra</button><button class="ghost" id="satBtn">ESRI Satellite</button></div><div class="sheet-actions"><button class="ghost" id="osmBtn">OSM Street</button><button class="ghost" id="topoBtn">ESRI Topo</button></div><div class="sheet-actions"><button class="ghost" id="worldviewBtn">WorldView / API</button></div><p style="color:#76849a;font-weight:800;line-height:1.35">Catatan: WorldView/Maxar asli biasanya perlu API key / URL tile khusus. Kolom placeholder sudah disiapkan di script: <b>WORLDVIEW_TILE_URL</b>.</p></section></div>
@@ -3034,11 +3038,12 @@ function esc(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt
 function render(){const q=$('searchInput').value.trim().toLowerCase();const list=state.files[state.activeTab].filter(x=>x.name.toLowerCase().includes(q));$('fileList').innerHTML='';$('tabs').dataset.active=state.activeTab;document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.activeTab));$('emptyTitle').textContent=`Belum ada peta ${state.activeTab==='pdf'?'Peta PDF':'Peta DXF'}`;$('emptyDesc').innerHTML=state.activeTab==='pdf'?'Tekan + untuk mengimpor file peta<br>(PDF / GeoTIFF)':'Tekan + untuk mengimpor file peta<br>(DXF)';if(!list.length){$('emptyState').style.display='flex';$('fileList').style.display='none';return}$('emptyState').style.display='none';$('fileList').style.display='flex';list.forEach(item=>{const card=document.createElement('article');card.className='file-card '+(item.typeLabel==='DXF'?'dxf':'')+(state.selected[state.activeTab]===item.id?' selected':'');card.innerHTML=`<div class="file-icon">${svgFile}</div><div class="file-main"><strong class="file-title">${esc(item.name)}</strong><div class="file-meta"><span class="type-pill">${item.typeLabel}</span><span>${formatDate(item.createdAt)}</span></div></div><button class="file-menu-btn" aria-label="Menu file"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></span></button><div class="file-popover"><button class="menu-action rename"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7.5l3 3"/></svg></span>Rename</button><button class="menu-action delete"><span class="geo-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14"/><path d="M10 11v6M14 11v6"/></svg></span>Hapus</button></div>`;card.querySelector('.file-main').onclick=card.querySelector('.file-icon').onclick=()=>selectItem(item);card.querySelector('.file-menu-btn').onclick=e=>{e.stopPropagation();document.querySelectorAll('.file-card.menu-open').forEach(c=>c!==card&&c.classList.remove('menu-open'));card.classList.toggle('menu-open')};card.querySelector('.rename').onclick=e=>{e.stopPropagation();renameItem(item)};card.querySelector('.delete').onclick=e=>{e.stopPropagation();deleteItem(item)};$('fileList').appendChild(card)})}
 function renameItem(item){const dot=item.name.lastIndexOf('.'),ext=dot>-1?item.name.slice(dot):'',base=dot>-1?item.name.slice(0,dot):item.name;const next=prompt('Rename peta',base);if(next===null)return;const clean=next.trim();if(!clean)return showToast('Nama tidak boleh kosong');item.name=clean.toLowerCase().endsWith(ext.toLowerCase())?clean:clean+ext;save();render();showToast('Nama peta berhasil diubah')}
 function deleteItem(item){if(!confirm('Hapus file "'+item.name+'" dari daftar?'))return;if(item.url)try{URL.revokeObjectURL(item.url)}catch(e){}state.files[item.tab]=state.files[item.tab].filter(x=>x.id!==item.id);MapFileDB.del(item.id).catch(()=>{});save();render();showToast('File peta dihapus')}
-function initMap(){if(state.map)return;state.map=L.map('leafletMap',{zoomControl:false,attributionControl:true,preferCanvas:true,tap:true,zoomSnap:.25,zoomDelta:.5,worldCopyJump:false,maxZoom:23});state.map.on('click',onMapCalibrationClick);state.map.on('dragstart',()=>{if(state.gpsFollow)setGpsFollow(false);state.locatePending=false});state.map.on('zoomstart',()=>{const el=state.gpsMarker&&state.gpsMarker._icon;if(el)el.classList.add('no-anim')});state.map.on('zoomend',()=>{const el=state.gpsMarker&&state.gpsMarker._icon;if(el)el.classList.remove('no-anim')});if(navigator.geolocation&&!state.gpsStreamOn)startGpsStream();startCompass();state.plotPointGroup=L.featureGroup().addTo(state.map);state.plotLineGroup=L.featureGroup().addTo(state.map);state.plotPolygonGroup=L.featureGroup().addTo(state.map);state.baseLayers.google=new OfflineTileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{provider:'google',subdomains:['mt0','mt1','mt2','mt3'],maxNativeZoom:22,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'Imagery © Google'});state.baseLayers.osm=new OfflineTileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{provider:'osm',maxNativeZoom:19,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'© OpenStreetMap'});state.baseLayers.sat=new OfflineTileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{provider:'sat',maxNativeZoom:19,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'Tiles © Esri'});state.baseLayers.topo=new OfflineTileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{provider:'topo',maxNativeZoom:19,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'Tiles © Esri'});if(WORLDVIEW_TILE_URL)state.baseLayers.worldview=new OfflineTileLayer(WORLDVIEW_TILE_URL,{provider:'sat',maxNativeZoom:20,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'WorldView / Maxar'});state.baseLayers.google.addTo(state.map);state.activeBase='google';state.map.setView([-6.035,106.27],14);
+function initMap(){if(state.map)return;state.map=L.map('leafletMap',{zoomControl:false,attributionControl:true,preferCanvas:true,tap:true,zoomSnap:.25,zoomDelta:.5,worldCopyJump:false,maxZoom:23});state.map.on('click',onMapCalibrationClick);state.map.on('dragstart',()=>{if(state.gpsFollow)setGpsFollow(false);state.locatePending=false});state.map.on('zoomstart',()=>{const el=state.gpsMarker&&state.gpsMarker._icon;if(el)el.classList.add('no-anim')});state.map.on('zoomend',()=>{const el=state.gpsMarker&&state.gpsMarker._icon;if(el)el.classList.remove('no-anim')});if(navigator.geolocation&&!state.gpsStreamOn)startGpsStream();startCompass();state.plotPointGroup=L.featureGroup().addTo(state.map);state.plotLineGroup=L.featureGroup().addTo(state.map);state.plotPolygonGroup=L.featureGroup().addTo(state.map);state.baseLayers.google=new OfflineTileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{provider:'google',subdomains:['mt0','mt1','mt2','mt3'],maxNativeZoom:22,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'Imagery © Google'});state.baseLayers.osm=new OfflineTileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{provider:'osm',maxNativeZoom:19,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'© OpenStreetMap'});state.baseLayers.sat=new OfflineTileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{provider:'sat',maxNativeZoom:19,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'Tiles © Esri'});state.baseLayers.topo=new OfflineTileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{provider:'topo',maxNativeZoom:19,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'Tiles © Esri'});/* Relief Shading — GEBCO 2024 colored shaded relief (topo+bathy, global) — mirip Garmin Relief */state.baseLayers.relief=L.tileLayer.wms('https://wms.gebco.net/mapserv',{layers:'GEBCO_LATEST',format:'image/png',transparent:false,version:'1.3.0',maxNativeZoom:9,maxZoom:23,updateWhenZooming:false,errorTileUrl:TRANSPARENT_TILE,attribution:'Relief © GEBCO 2024'});/* Sonar / Bathimetri — GEBCO depth color (global) + kontur/sounding ENC NOAA (perairan AS) */const _gebcoDepth=L.tileLayer.wms('https://wms.gebco.net/mapserv',{layers:'GEBCO_LATEST_2',format:'image/png',transparent:false,version:'1.3.0',maxNativeZoom:9,maxZoom:23,updateWhenZooming:false,errorTileUrl:TRANSPARENT_TILE,attribution:'Bathimetri © GEBCO 2024'});const _noaaDepth=L.tileLayer.wms('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer',{layers:'0,1,2,3,4,5,6,7,8,9,10,11,12',format:'image/png',transparent:true,version:'1.3.0',maxNativeZoom:18,maxZoom:23,updateWhenZooming:false,errorTileUrl:TRANSPARENT_TILE,attribution:'ENC © NOAA'});state.baseLayers.sonar=L.layerGroup([_gebcoDepth,_noaaDepth]);/* Nautical Chart — OSM + NOAA ENC (perairan AS) + OpenSeaMap seamark (global) — mirip Navionics */const _nautBase=new OfflineTileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{provider:'nautbase',subdomains:['a','b','c'],maxNativeZoom:19,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'© OpenStreetMap'});const _noaaChart=L.tileLayer.wms('https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer',{layers:'0,1,2,3,4,5,6,7,8,9,10,11,12',format:'image/png',transparent:true,version:'1.3.0',maxNativeZoom:18,maxZoom:23,updateWhenZooming:false,errorTileUrl:TRANSPARENT_TILE,attribution:'ENC © NOAA'});const _seamark=L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',{maxNativeZoom:18,maxZoom:23,errorTileUrl:TRANSPARENT_TILE,attribution:'© OpenSeaMap'});state.baseLayers.nautical=L.layerGroup([_nautBase,_noaaChart,_seamark]);/* EMODnet Bathymetry — kedalaman warna resolusi tinggi (perairan Eropa) di atas GEBCO global */const _gebcoDepth2=L.tileLayer.wms('https://wms.gebco.net/mapserv',{layers:'GEBCO_LATEST_2',format:'image/png',transparent:false,version:'1.3.0',maxNativeZoom:9,maxZoom:23,updateWhenZooming:false,errorTileUrl:TRANSPARENT_TILE,attribution:'Bathimetri © GEBCO 2024'});const _emodnet=L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/wms',{layers:'emodnet:mean_multicolour',format:'image/png',transparent:true,version:'1.3.0',maxNativeZoom:12,maxZoom:23,updateWhenZooming:false,errorTileUrl:TRANSPARENT_TILE,attribution:'Bathymetry © EMODnet 2020'});state.baseLayers.emodnet=L.layerGroup([_gebcoDepth2,_emodnet]);if(WORLDVIEW_TILE_URL)state.baseLayers.worldview=new OfflineTileLayer(WORLDVIEW_TILE_URL,{provider:'sat',maxNativeZoom:20,maxZoom:23,keepBuffer:4,updateWhenZooming:false,attribution:'WorldView / Maxar'});state.baseLayers.google.addTo(state.map);state.activeBase='google';state.map.setView([-6.035,106.27],14);
 /* Auto-scale annotation labels on zoom */
 state.map.on('zoomend',function(){const z=state.map.getZoom();const fs=z>=17?'13px':z>=15?'11px':z>=13?'10px':'9px';const op=z>=12?1:.7;document.querySelectorAll('.leaflet-tooltip.plot-ann-lbl').forEach(el=>{el.style.fontSize=fs;el.style.opacity=op})});
 setTimeout(()=>state.map.invalidateSize(),200)}
-function setBase(name){initMap();if(name==='worldview'&&!state.baseLayers.worldview){showToast('WorldView perlu API/URL tile. Pakai Google Citra dulu.');name='google'};Object.entries(state.baseLayers).forEach(([k,l])=>{if(state.map.hasLayer(l))state.map.removeLayer(l)});state.baseLayers[name].addTo(state.map);state.activeBase=name;document.querySelectorAll('.base-chip').forEach(b=>b.classList.toggle('active',b.dataset.base===name));document.querySelectorAll('.map-menu-card[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base===name));showToast('Basemap: '+(name==='google'?'Google Citra':name==='sat'?'ESRI Satellite':name==='topo'?'ESRI Topo':name==='osm'?'OSM Street':name==='custom'?'Custom Imagery':'WorldView'))}
+const BASE_LABELS={google:'Google Citra',sat:'ESRI Satellite',topo:'ESRI Topo',osm:'OSM Street',custom:'Custom Imagery',relief:'Relief Shading',sonar:'Sonar / Bathimetri',nautical:'Nautical Chart',emodnet:'EMODnet Bathy',worldview:'WorldView'};
+function setBase(name){initMap();if(name==='worldview'&&!state.baseLayers.worldview){showToast('WorldView perlu API/URL tile. Pakai Google Citra dulu.');name='google'};if(!state.baseLayers[name]){showToast('Basemap belum tersedia. Pakai Google Citra dulu.');name='google'};Object.entries(state.baseLayers).forEach(([k,l])=>{if(state.map.hasLayer(l))state.map.removeLayer(l)});state.baseLayers[name].addTo(state.map);state.activeBase=name;document.querySelectorAll('.base-chip').forEach(b=>b.classList.toggle('active',b.dataset.base===name));document.querySelectorAll('.map-menu-card[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base===name));showToast('Basemap: '+(BASE_LABELS[name]||name))}
 function switchMapMenuPane(name){document.querySelectorAll('.map-menu-tab').forEach(b=>b.classList.toggle('active',b.dataset.pane===name));document.querySelectorAll('.map-menu-pane').forEach(p=>p.classList.toggle('active',p.dataset.pane===name));if(name==='layers')renderLayerManager();if(name==='calib')renderGcpList()}
 function syncMapMenu(){document.querySelectorAll('.map-menu-card[data-base]').forEach(b=>b.classList.toggle('active',b.dataset.base===state.activeBase));const val=Math.round(state.overlayOpacity*100);if($('opacitySlider'))$('opacitySlider').value=val;if($('opacityValue'))$('opacityValue').textContent=val+'%';const los=$('layerOpacitySlider'),lov=$('layerOpacityValue');if(los)los.value=val;if(lov)lov.textContent=val+'%';renderLayerManager();renderGcpList()}
 function openMapMenu(pane='basemap'){switchMapMenuPane(pane);syncMapMenu();$('mapMenu').classList.toggle('calib-mode',pane==='calib');$('mapMenu').classList.add('show')}
@@ -3365,6 +3370,8 @@ const OfflineTileLayer=L.TileLayer.extend({
   }
 });
 const DARK_TILE='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#0b1322"/><rect width="256" height="256" fill="none" stroke="#1a2740" stroke-width="1"/></svg>');
+// Tile transparan 1×1 untuk layer OVERLAY (seamark/ocean-ref) agar tile gagal/kosong tidak menutupi basemap di bawahnya.
+const TRANSPARENT_TILE='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC';
 
 function openSatelliteCompare(){
   initMap();
@@ -3620,7 +3627,9 @@ const DXFDesign = {
 
   handleFile(file){
     if(!file)return;
-    if(!state.map){showToast('Buka peta dulu sebelum import DXF');return;}
+    if(!state.map){showToast('Buka peta dulu sebelum import design');return;}
+    const ext=(file.name.split('.').pop()||'').toLowerCase();
+    if(ext==='dwg'){this.handleDwg(file);return;}
     const r=new FileReader();
     r.onload=e=>{
       let ents;
@@ -3636,6 +3645,104 @@ const DXFDesign = {
     };
     r.onerror=()=>showToast('Gagal membaca file DXF');
     r.readAsText(file);
+  },
+
+  // ---- DWG (semua versi, via LibreDWG WASM) -> entitas UTM yang sama dgn DXF ----
+  _loadDwgLib(){
+    if(!this._dwgLibPromise)this._dwgLibPromise=import('/assets/libredwg/dist/libredwg-web.js');
+    return this._dwgLibPromise;
+  },
+  async _parseDwg(buf){
+    const mod=await this._loadDwgLib();
+    const {LibreDwg,Dwg_File_Type}=mod;
+    if(!this._dwgInst)this._dwgInst=await LibreDwg.create();
+    const inst=this._dwgInst;
+    const data=inst.dwg_read_data(buf,Dwg_File_Type.DWG);
+    let db;
+    try{db=inst.convert(data);}finally{try{inst.dwg_free(data);}catch(e){}}
+    return this._normalizeDwg(db);
+  },
+  async handleDwg(file){
+    showToast('Membaca DWG "'+file.name+'"… memuat engine (sekali saja, ±10 MB)');
+    let ents;
+    try{
+      const buf=await file.arrayBuffer();
+      ents=await this._parseDwg(buf);
+    }catch(err){showToast('DWG gagal dibuka: '+((err&&err.message)||err));return;}
+    if(!ents.length){showToast('Tidak ada geometri (LINE/POLYLINE/POINT/ARC/CIRCLE) di DWG');return;}
+    const b=this.bounds(ents);
+    if(!this.looksLikeUtm(b)){
+      showToast('DWG ditolak: koordinat bukan UTM. Proyeksikan gambar ke UTM (Easting–Northing) dulu di CAD.');
+      return;
+    }
+    this._pending={name:file.name,ents,bounds:b};
+    this.openZoneDialog();
+  },
+  _cleanMText(t){return String(t||'').replace(/\\P/g,' ').replace(/\\[A-Za-z]+[^;\\]*;?/g,'').replace(/[{}]/g,'').trim();},
+  _ellipsePts(e){
+    const c=e.center,mv=e.majorAxisEndPoint;if(!c||!mv)return [];
+    const major=Math.hypot(mv.x,mv.y),rot=Math.atan2(mv.y,mv.x),minor=major*(e.axisRatio||1);
+    let a0=e.startAngle||0,a1=(e.endAngle==null?2*Math.PI:e.endAngle);if(a1<=a0)a1+=2*Math.PI;
+    const steps=Math.max(16,Math.ceil((a1-a0)/0.18)),pts=[];
+    for(let k=0;k<=steps;k++){const t=a0+(a1-a0)*k/steps,x=major*Math.cos(t),y=minor*Math.sin(t);
+      pts.push([c.x+x*Math.cos(rot)-y*Math.sin(rot),c.y+x*Math.sin(rot)+y*Math.cos(rot)]);}
+    return pts;
+  },
+  // Konversi DwgDatabase -> array entitas {kind}. Hanya model space (buang paper space).
+  _normalizeDwg(db){
+    const ents=[];
+    const brEntries=(db&&db.tables&&db.tables.BLOCK_RECORD&&db.tables.BLOCK_RECORD.entries)||[];
+    const msRec=brEntries.find(b=>/model_space/i.test(b&&b.name||''));
+    const msHandle=msRec?msRec.handle:null;
+    const src=(db&&db.entities)||[];
+    const rad2deg=r=>r*180/Math.PI;
+    const okXY=p=>p&&isFinite(p.x)&&isFinite(p.y);
+    src.forEach(e=>{
+      if(!e)return;
+      if(msHandle&&e.ownerBlockRecordSoftId!==msHandle)return; // model space saja
+      if(e.isVisible===false)return;
+      switch(e.type){
+        case 'LINE':{
+          if(okXY(e.startPoint)&&okXY(e.endPoint))
+            ents.push({kind:'line',pts:[[e.startPoint.x,e.startPoint.y],[e.endPoint.x,e.endPoint.y]],closed:false});
+          break;}
+        case 'LWPOLYLINE':{
+          const pts=(e.vertices||[]).filter(okXY).map(v=>[v.x,v.y]);
+          if(pts.length>=2)ents.push({kind:'line',pts,closed:!!(e.flag&512)});
+          break;}
+        case 'POLYLINE2D':case 'POLYLINE3D':{
+          const pts=(e.vertices||[]).filter(okXY).map(v=>[v.x,v.y]);
+          if(pts.length>=2)ents.push({kind:'line',pts,closed:!!(e.flag&1)});
+          break;}
+        case 'POINT':{
+          if(okXY(e.position))ents.push({kind:'point',x:e.position.x,y:e.position.y});
+          break;}
+        case 'CIRCLE':{
+          if(okXY(e.center)&&e.radius)ents.push({kind:'circle',x:e.center.x,y:e.center.y,r:e.radius});
+          break;}
+        case 'ARC':{
+          if(okXY(e.center)&&e.radius!=null)ents.push({kind:'arc',x:e.center.x,y:e.center.y,r:e.radius,a0:rad2deg(e.startAngle||0),a1:(e.endAngle==null?360:rad2deg(e.endAngle))});
+          break;}
+        case 'SOLID':{
+          const cs=[e.corner1,e.corner2,e.corner4,e.corner3].filter(okXY);
+          if(cs.length>=3)ents.push({kind:'line',pts:cs.map(c=>[c.x,c.y]),closed:true});
+          break;}
+        case 'ELLIPSE':{
+          const pts=this._ellipsePts(e);
+          if(pts.length>=2){const full=((e.endAngle==null?2*Math.PI:e.endAngle)-(e.startAngle||0))>=2*Math.PI-0.05;ents.push({kind:'line',pts,closed:full});}
+          break;}
+        case 'TEXT':{
+          const t=(e.text||'').trim();
+          if(okXY(e.startPoint)&&t)ents.push({kind:'text',x:e.startPoint.x,y:e.startPoint.y,text:t});
+          break;}
+        case 'MTEXT':{
+          const t=this._cleanMText(e.text);
+          if(okXY(e.insertionPoint)&&t)ents.push({kind:'text',x:e.insertionPoint.x,y:e.insertionPoint.y,text:t});
+          break;}
+        // INSERT/HATCH/DIMENSION/SPLINE/IMAGE/LEADER dilewati (bukan target stakeout)
+      }
+    });
+    return ents;
   },
   openZoneDialog(){
     const p=this._pending;if(!p)return;
@@ -3671,25 +3778,26 @@ const DXFDesign = {
   render(name,ents,zone,hemi,opts){
     opts=opts||{};
     const conv=(x,y)=>{const r=sk._utmToLatLon(zone,hemi,x,y);return [r.lat,r.lon];};
-    const group=L.layerGroup();const COL='#2ee6ff';let count=0,textCount=0;
+    // Canvas renderer -> ribuan entitas DWG tetap ringan (SVG DOM akan macet)
+    const rnd=L.canvas({padding:.5});const group=L.layerGroup();const COL='#2ee6ff';let count=0,textCount=0;
     ents.forEach(e=>{
       let lyr=null;
       if(e.kind==='line'){
         const ll=e.pts.map(pt=>conv(pt[0],pt[1]));
-        lyr=e.closed?L.polygon(ll,{color:COL,weight:2,opacity:1,fill:true,fillColor:COL,fillOpacity:.08})
-                    :L.polyline(ll,{color:COL,weight:2,opacity:1});
+        lyr=e.closed?L.polygon(ll,{renderer:rnd,color:COL,weight:2,opacity:1,fill:true,fillColor:COL,fillOpacity:.08})
+                    :L.polyline(ll,{renderer:rnd,color:COL,weight:2,opacity:1});
       }else if(e.kind==='point'){
-        lyr=L.circleMarker(conv(e.x,e.y),{radius:4,color:COL,weight:2,fillColor:'#04202a',fillOpacity:1});
+        lyr=L.circleMarker(conv(e.x,e.y),{renderer:rnd,radius:4,color:COL,weight:2,fillColor:'#04202a',fillOpacity:1});
       }else if(e.kind==='circle'){
-        lyr=L.circle(conv(e.x,e.y),{radius:e.r,color:COL,weight:2,opacity:1,fill:false});
+        lyr=L.circle(conv(e.x,e.y),{renderer:rnd,radius:e.r,color:COL,weight:2,opacity:1,fill:false});
       }else if(e.kind==='arc'){
-        lyr=L.polyline(this._arcPts(e).map(pt=>conv(pt[0],pt[1])),{color:COL,weight:2,opacity:1});
+        lyr=L.polyline(this._arcPts(e).map(pt=>conv(pt[0],pt[1])),{renderer:rnd,color:COL,weight:2,opacity:1});
       }else if(e.kind==='text'&&textCount<400){
         lyr=L.marker(conv(e.x,e.y),{icon:L.divIcon({className:'dxf-text-lbl',html:'<span>'+esc(e.text)+'</span>',iconSize:[0,0]})});textCount++;
       }
       if(lyr){group.addLayer(lyr);count++;}
     });
-    const rec={id:opts.id||uid(),name,group,visible:opts.visible!==false,opacity:(opts.opacity!=null?opts.opacity:1),zoneNum:zone,hemi,zone:zone+hemi,count,text:opts.text||null};
+    const rec={id:opts.id||uid(),name,group,visible:opts.visible!==false,opacity:(opts.opacity!=null?opts.opacity:1),zoneNum:zone,hemi,zone:zone+hemi,count,text:opts.text||null,ents};
     rec.targets=this._extractTargets(ents,zone,hemi);
     try{rec.latBounds=group.getBounds();}catch(err){}
     if(rec.visible)group.addTo(state.map);
@@ -3698,7 +3806,7 @@ const DXFDesign = {
     this.renderList();
     if(opts.fit!==false&&rec.latBounds&&rec.latBounds.isValid())state.map.fitBounds(rec.latBounds,{padding:[36,36]});
     if(opts.persist!==false){this._persistRec(rec);this._saveIndex();}
-    if(!opts.silent)showToast('DXF design "'+name+'" (UTM '+zone+hemi+') tampil • '+count+' objek');
+    if(!opts.silent)showToast('Design "'+name+'" (UTM '+zone+hemi+') tampil • '+count+' objek');
   },
   renderList(){
     const el=$('dxfLayerList');if(!el)return;el.innerHTML='';
@@ -3740,23 +3848,27 @@ const DXFDesign = {
     if(!targets.length)return showToast('Tidak ada titik/vertex di design ini untuk dijadikan target');
     if(typeof sk==='undefined')return showToast('Tool Stakeout belum siap');
     const startIdx=sk.points.length;
-    targets.forEach(t=>sk.points.push({id:uid(),name:t.name,lat:t.lat,lon:t.lon,alt:0,source:'dxf-design'}));
+    // Gambar tiap vertex sbagai marker yg BISA DIKLIK di peta (pilih target),
+    // sekaligus masuk daftar stakeout — lewat jalur importer sk yg sama.
+    const features=targets.map(t=>({type:'point',name:t.name,lat:t.lat,lon:t.lon,alt:0,source:'dwg-design'}));
+    features.forEach(f=>{const tg=sk._featureTarget(f);if(tg){tg._file=r.name;sk.points.push(tg);}});
+    try{sk.importedFeatures.push(...features);sk._drawImportedFeatures(features);}catch(e){}
     sk.currentIdx=startIdx;
     $('dxfZoneOverlay')&&$('dxfZoneOverlay').classList.remove('show');
     $('satSheet')&&$('satSheet').classList.remove('show');
     sk.openImport();
-    showToast(targets.length+' titik design "'+r.name+'" → target stakeout');
+    showToast(targets.length+' vertex design "'+r.name+'" → klik vertex kuning di peta / pilih di daftar untuk stakeout');
   },
   toggle(id){const r=this._get(id);if(!r)return;r.visible=!r.visible;if(r.visible)r.group.addTo(state.map);else state.map.removeLayer(r.group);this.renderList();this._persistRec(r);},
   zoom(id){const r=this._get(id);if(!r)return;try{if(r.latBounds&&r.latBounds.isValid())state.map.fitBounds(r.latBounds,{padding:[36,36]});}catch(err){}},
-  remove(id){const r=this._get(id);if(!r)return;if(!confirm('Hapus DXF design "'+r.name+'"?'))return;try{state.map.removeLayer(r.group);}catch(err){}this.layers=this.layers.filter(l=>l.id!==id);this.renderList();try{MapFileDB.del('dxf_design_'+id);}catch(err){}this._saveIndex();showToast('DXF design dihapus');},
+  remove(id){const r=this._get(id);if(!r)return;if(!confirm('Hapus design "'+r.name+'"?'))return;try{state.map.removeLayer(r.group);}catch(err){}this.layers=this.layers.filter(l=>l.id!==id);this.renderList();try{MapFileDB.del('dxf_design_'+id);}catch(err){}this._saveIndex();showToast('Design dihapus');},
   setOpacity(id,v){const r=this._get(id);if(!r)return;r.opacity=v;this._applyOpacity(r);this._persistRec(r);},
   _applyOpacity(r){r.group.eachLayer(l=>{
     if(l.setStyle){const isPoly=(l instanceof L.Polygon);l.setStyle({opacity:r.opacity,fillOpacity:isPoly?r.opacity*0.08:(l.options&&l.options.fill!==false?r.opacity:0)});}
     else if(l.setOpacity){l.setOpacity(r.opacity);}
   });},
   // ---- Persistensi IndexedDB (100% lokal, lewat MapFileDB) ----
-  _persistRec(r){if(!r||!r.text)return;try{MapFileDB.put('dxf_design_'+r.id,{name:r.name,zoneNum:r.zoneNum,hemi:r.hemi,text:r.text,visible:r.visible,opacity:r.opacity});}catch(err){}},
+  _persistRec(r){if(!r)return;try{MapFileDB.put('dxf_design_'+r.id,{name:r.name,zoneNum:r.zoneNum,hemi:r.hemi,text:r.text||null,ents:r.text?null:(r.ents||null),visible:r.visible,opacity:r.opacity});}catch(err){}},
   _saveIndex(){try{MapFileDB.put('dxf_design_index',this.layers.map(l=>l.id));}catch(err){}},
   restore(){
     if(this._restored||!state.map||typeof MapFileDB==='undefined')return;
@@ -3766,9 +3878,11 @@ const DXFDesign = {
       ids.forEach(id=>{
         if(this._get(id))return;
         MapFileDB.get('dxf_design_'+id).then(rec=>{
-          if(!rec||!rec.text||this._get(id))return;
-          let ents;try{ents=this.parse(rec.text);}catch(err){return;}
-          if(!ents.length)return;
+          if(!rec||this._get(id))return;
+          let ents;
+          if(rec.ents&&rec.ents.length)ents=rec.ents;
+          else if(rec.text){try{ents=this.parse(rec.text);}catch(err){return;}}
+          if(!ents||!ents.length)return;
           this.render(rec.name,ents,rec.zoneNum,rec.hemi,{id,text:rec.text,visible:rec.visible,opacity:rec.opacity,persist:false,fit:false,silent:true});
         }).catch(()=>{});
       });
